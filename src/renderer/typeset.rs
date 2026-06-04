@@ -742,12 +742,19 @@ impl TypesetEngine {
             0.0
         };
 
-        // spacing_before 조건부 적용
-        // - 자리차지(text_wrap=1) 비-TAC 표: spacing_before 제외
-        //   (layout에서 v_offset 기반 절대 위치로 배치)
-        // - 단 상단: spacing_before 제외
+        // spacing_before 조건부 적용.
+        // 기존 Paginator와 동일하게 자리차지 표라도 문단 기준 배치(VertRelTo::Para)는
+        // 문단 spacing_before를 포함하고, 종이/쪽 기준 배치는 v_offset이 공간을 확보한다.
         let before = if !is_tac && table_text_wrap == 1 {
-            outer_top
+            let is_para_relative = matches!(
+                table.common.vert_rel_to,
+                crate::model::shape::VertRelTo::Para
+            );
+            if is_para_relative {
+                (if !is_column_top { sb } else { 0.0 }) + outer_top
+            } else {
+                outer_top
+            }
         } else {
             (if !is_column_top { sb } else { 0.0 }) + outer_top
         };
