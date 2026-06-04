@@ -25,6 +25,7 @@ import * as _table from './input-handler-table';
 import * as _keyboard from './input-handler-keyboard';
 import * as _text from './input-handler-text';
 import * as _picture from './input-handler-picture';
+import { isFullRowCellSelectionCoverage } from './table-selection-utils';
 
 type CellOperationSelection = {
   ctx: { sec: number; ppi: number; ci: number; rowCount?: number; colCount?: number; cellPath?: CellPathEntry[] };
@@ -1408,10 +1409,29 @@ export class InputHandler {
 
   /** 표 셀 내부 컨텍스트 메뉴 항목 */
   private getTableContextMenuItems(): ContextMenuItem[] {
-    return [
+    const inCellSelection = this.cursor.isInCellSelectionMode();
+    const primaryItems: ContextMenuItem[] = [
       { type: 'command', commandId: 'edit:cut' },
       { type: 'command', commandId: 'edit:copy' },
       { type: 'command', commandId: 'edit:paste' },
+    ];
+    if (inCellSelection || this.cursor.hasSelection()) {
+      primaryItems.push({ type: 'command', commandId: 'edit:delete', label: '지우기' });
+    }
+
+    const cellSelectionItems: ContextMenuItem[] = inCellSelection
+      ? [
+          { type: 'separator' },
+          { type: 'command', commandId: 'table:cell-height-equal' },
+          { type: 'command', commandId: 'table:cell-width-equal' },
+          { type: 'command', commandId: 'table:cell-merge' },
+          { type: 'command', commandId: 'table:cell-split' },
+        ]
+      : [];
+
+    return [
+      ...primaryItems,
+      ...cellSelectionItems,
       { type: 'separator' },
       { type: 'command', commandId: 'table:cell-props', label: '셀 속성...' },
       { type: 'separator' },
@@ -1423,11 +1443,7 @@ export class InputHandler {
       { type: 'command', commandId: 'table:delete-row' },
       { type: 'command', commandId: 'table:delete-col' },
       { type: 'separator' },
-      { type: 'command', commandId: 'table:cell-height-equal' },
-      { type: 'command', commandId: 'table:cell-width-equal' },
-      { type: 'separator' },
-      { type: 'command', commandId: 'table:cell-merge' },
-      { type: 'command', commandId: 'table:cell-split' },
+      ...(!inCellSelection ? [{ type: 'command' as const, commandId: 'table:cell-split' }] : []),
       { type: 'separator' },
       { type: 'command', commandId: 'table:border-each', label: '셀 테두리/배경 - 각 셀마다 적용(E)...' },
       { type: 'command', commandId: 'table:border-one', label: '셀 테두리/배경 - 하나의 셀처럼 적용(Z)...' },
@@ -3301,28 +3317,12 @@ export class InputHandler {
     excluded: Set<string>;
     bboxes: CellBbox[];
   }): boolean {
-    const colCount = selection.ctx.colCount;
-    if (typeof colCount !== 'number' || colCount <= 0 || selection.excluded.size > 0) {
-      return false;
-    }
-    if (selection.range.startCol > 0 || selection.range.endCol < colCount - 1) {
-      return false;
-    }
-
-    for (let row = selection.range.startRow; row <= selection.range.endRow; row += 1) {
-      const covered = new Array<boolean>(colCount).fill(false);
-      for (const bbox of selection.bboxes) {
-        const rowEnd = bbox.row + Math.max(1, bbox.rowSpan) - 1;
-        if (row < bbox.row || row > rowEnd) continue;
-        const colStart = Math.max(0, bbox.col);
-        const colEnd = Math.min(colCount - 1, bbox.col + Math.max(1, bbox.colSpan) - 1);
-        for (let col = colStart; col <= colEnd; col += 1) {
-          covered[col] = true;
-        }
-      }
-      if (!covered.every(Boolean)) return false;
-    }
-    return true;
+    return isFullRowCellSelectionCoverage({
+      colCount: selection.ctx.colCount,
+      range: selection.range,
+      excluded: selection.excluded,
+      bboxes: selection.bboxes,
+    });
   }
 
   private copySelectedCellsToClipboard(selection = this.getSelectedCellOperationTargets()): boolean {
