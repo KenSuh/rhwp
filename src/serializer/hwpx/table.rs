@@ -29,6 +29,7 @@ use std::io::Write;
 use quick_xml::Writer;
 
 use crate::model::control::Control;
+use crate::model::paragraph::LineSeg;
 use crate::model::shape::{
     CommonObjAttr, HorzAlign, HorzRelTo, ShapeObject, TextWrap, VertAlign, VertRelTo,
 };
@@ -286,30 +287,70 @@ fn write_sub_list<W: Write>(
             write_cell_control_run(w, control, ctx, cs)?;
         }
 
-        // <hp:linesegarray> 최소 1개 lineseg
-        start_tag(w, "hp:linesegarray")?;
-        empty_tag(
-            w,
-            "hp:lineseg",
-            &[
-                ("textpos", "0"),
-                ("vertpos", "0"),
-                ("vertsize", "1000"),
-                ("textheight", "1000"),
-                ("baseline", "850"),
-                ("spacing", "600"),
-                ("horzpos", "0"),
-                ("horzsize", "12964"),
-                ("flags", "393216"),
-            ],
-        )?;
-        end_tag(w, "hp:linesegarray")?;
+        write_cell_linesegs(w, &para.line_segs)?;
 
         end_tag(w, "hp:p")?;
     }
 
     end_tag(w, "hp:subList")?;
     Ok(())
+}
+
+fn write_cell_linesegs<W: Write>(
+    w: &mut Writer<W>,
+    line_segs: &[LineSeg],
+) -> Result<(), SerializeError> {
+    start_tag(w, "hp:linesegarray")?;
+    if line_segs.is_empty() {
+        write_cell_fallback_lineseg(w)?;
+    } else {
+        for seg in line_segs {
+            let textpos = seg.text_start.to_string();
+            let vertpos = seg.vertical_pos.to_string();
+            let vertsize = seg.line_height.to_string();
+            let textheight = seg.text_height.to_string();
+            let baseline = seg.baseline_distance.to_string();
+            let spacing = seg.line_spacing.to_string();
+            let horzpos = seg.column_start.to_string();
+            let horzsize = seg.segment_width.to_string();
+            let flags = seg.tag.to_string();
+            empty_tag(
+                w,
+                "hp:lineseg",
+                &[
+                    ("textpos", &textpos),
+                    ("vertpos", &vertpos),
+                    ("vertsize", &vertsize),
+                    ("textheight", &textheight),
+                    ("baseline", &baseline),
+                    ("spacing", &spacing),
+                    ("horzpos", &horzpos),
+                    ("horzsize", &horzsize),
+                    ("flags", &flags),
+                ],
+            )?;
+        }
+    }
+    end_tag(w, "hp:linesegarray")?;
+    Ok(())
+}
+
+fn write_cell_fallback_lineseg<W: Write>(w: &mut Writer<W>) -> Result<(), SerializeError> {
+    empty_tag(
+        w,
+        "hp:lineseg",
+        &[
+            ("textpos", "0"),
+            ("vertpos", "0"),
+            ("vertsize", "1000"),
+            ("textheight", "1000"),
+            ("baseline", "850"),
+            ("spacing", "600"),
+            ("horzpos", "0"),
+            ("horzsize", "12964"),
+            ("flags", "393216"),
+        ],
+    )
 }
 
 fn write_cell_text<W: Write>(w: &mut Writer<W>, text: &str) -> Result<(), SerializeError> {
@@ -530,7 +571,7 @@ fn cell_vert_align_str(v: VerticalAlign) -> &'static str {
 mod tests {
     use super::*;
     use crate::model::document::Document;
-    use crate::model::paragraph::Paragraph;
+    use crate::model::paragraph::{LineSeg, Paragraph};
     use crate::model::table::{Cell, Table};
     use crate::serializer::hwpx::context::SerializeContext;
 
@@ -639,5 +680,52 @@ mod tests {
         write_table(&mut w, &t, &mut ctx).unwrap();
         // 99 는 등록되지 않은 borderFill → unresolved
         assert!(ctx.border_fill_ids.unresolved().contains(&99u16));
+    }
+
+    #[test]
+    fn cell_paragraph_linesegs_are_preserved() {
+        let mut t = empty_table(1, 1);
+        t.cells[0].paragraphs[0].text = "긴 셀 문단".to_string();
+        t.cells[0].paragraphs[0].line_segs = vec![
+            LineSeg {
+                text_start: 0,
+                vertical_pos: 123,
+                line_height: 1400,
+                text_height: 1100,
+                baseline_distance: 900,
+                line_spacing: 300,
+                column_start: 77,
+                segment_width: 8888,
+                tag: 111,
+            },
+            LineSeg {
+                text_start: 6,
+                vertical_pos: 1523,
+                line_height: 1300,
+                text_height: 1000,
+                baseline_distance: 820,
+                line_spacing: 250,
+                column_start: 99,
+                segment_width: 7777,
+                tag: 222,
+            },
+        ];
+
+        let xml = serialize(&t);
+        assert_eq!(xml.matches("<hp:lineseg ").count(), 2, "{}", xml);
+        assert!(
+            xml.contains(
+                r#"<hp:lineseg textpos="0" vertpos="123" vertsize="1400" textheight="1100" baseline="900" spacing="300" horzpos="77" horzsize="8888" flags="111"/>"#
+            ),
+            "{}",
+            xml,
+        );
+        assert!(
+            xml.contains(
+                r#"<hp:lineseg textpos="6" vertpos="1523" vertsize="1300" textheight="1000" baseline="820" spacing="250" horzpos="99" horzsize="7777" flags="222"/>"#
+            ),
+            "{}",
+            xml,
+        );
     }
 }
