@@ -854,6 +854,14 @@ export class CursorState {
     this.excludedCells.clear();
   }
 
+  /** 지정된 직사각형 셀 선택 범위를 직접 설정한다. */
+  setCellSelectionRange(startRow: number, startCol: number, endRow: number, endCol: number): void {
+    if (!this._cellSelectionMode) return;
+    this.cellAnchor = { row: startRow, col: startCol };
+    this.cellFocus = { row: endRow, col: endCol };
+    this.excludedCells.clear();
+  }
+
   /** Ctrl+클릭: 해당 셀을 선택에서 제외/복원 토글. */
   ctrlToggleCell(row: number, col: number): void {
     if (!this._cellSelectionMode) return;
@@ -904,9 +912,11 @@ export class CursorState {
   }
 
   /** 지정한 표를 객체 선택한다 (커서 위치와 무관). */
-  enterTableObjectSelectionDirect(sec: number, ppi: number, ci: number): void {
+  enterTableObjectSelectionDirect(sec: number, ppi: number, ci: number, cellPath?: CellPathEntry[]): void {
     this._tableObjectSelected = true;
-    this.selectedTableRef = { sec, ppi, ci };
+    this.selectedTableRef = cellPath && cellPath.length > 1
+      ? { sec, ppi, ci, cellPath }
+      : { sec, ppi, ci };
   }
 
   /** 표 객체 선택을 해제한다. */
@@ -966,16 +976,16 @@ export class CursorState {
 
   // ── 그림/글상자 객체 선택 모드 ─────────────────────────────────
   private _pictureObjectSelected = false;
-  private selectedPictureRef: { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'equation' | 'group' | 'line'; cellIdx?: number; cellParaIdx?: number } | null = null;
+  private selectedPictureRef: { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'equation' | 'group' | 'line'; cellIdx?: number; cellParaIdx?: number; cellPath?: CellPathEntry[] } | null = null;
   /** 다중 선택된 개체 목록 */
-  private selectedPictureRefs: { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'equation' | 'group' | 'line' }[] = [];
+  private selectedPictureRefs: { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'equation' | 'group' | 'line'; cellPath?: CellPathEntry[] }[] = [];
 
   /** 지정한 개체(그림/글상자/묶음)를 객체 선택한다. */
-  enterPictureObjectSelectionDirect(sec: number, ppi: number, ci: number, type: 'image' | 'shape' | 'equation' | 'group' | 'line' = 'image', cellIdx?: number, cellParaIdx?: number): void {
+  enterPictureObjectSelectionDirect(sec: number, ppi: number, ci: number, type: 'image' | 'shape' | 'equation' | 'group' | 'line' = 'image', cellIdx?: number, cellParaIdx?: number, cellPath?: CellPathEntry[]): void {
     this.exitTableObjectSelection();
     this._pictureObjectSelected = true;
-    this.selectedPictureRef = { sec, ppi, ci, type, cellIdx, cellParaIdx };
-    this.selectedPictureRefs = [{ sec, ppi, ci, type }];
+    this.selectedPictureRef = { sec, ppi, ci, type, cellIdx, cellParaIdx, cellPath };
+    this.selectedPictureRefs = [{ sec, ppi, ci, type, cellPath }];
   }
 
   /** Shift+클릭: 개체를 다중 선택에 추가/제거 (토글) */
@@ -1010,12 +1020,12 @@ export class CursorState {
   }
 
   /** 선택된 개체의 참조 정보를 반환한다. */
-  getSelectedPictureRef(): { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'equation' | 'group' | 'line'; cellIdx?: number; cellParaIdx?: number } | null {
+  getSelectedPictureRef(): { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'equation' | 'group' | 'line'; cellIdx?: number; cellParaIdx?: number; cellPath?: CellPathEntry[] } | null {
     return this.selectedPictureRef;
   }
 
   /** 다중 선택된 개체 목록 반환 */
-  getSelectedPictureRefs(): { sec: number; ppi: number; ci: number; type: string }[] {
+  getSelectedPictureRefs(): { sec: number; ppi: number; ci: number; type: string; cellPath?: CellPathEntry[] }[] {
     return this.selectedPictureRefs;
   }
 

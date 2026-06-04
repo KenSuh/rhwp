@@ -32,7 +32,7 @@ export const editCommands: CommandDef[] = [
     label: '오려 두기',
     icon: 'icon-cut',
     shortcutLabel: 'Ctrl+X',
-    canExecute: (ctx) => ctx.hasDocument && (ctx.hasSelection || ctx.inPictureObjectSelection || ctx.inTableObjectSelection),
+    canExecute: (ctx) => ctx.hasDocument && (ctx.hasSelection || ctx.inCellSelectionMode || ctx.inPictureObjectSelection || ctx.inTableObjectSelection),
     execute(services) {
       services.getInputHandler()?.performCut();
     },
@@ -42,7 +42,7 @@ export const editCommands: CommandDef[] = [
     label: '복사하기',
     icon: 'icon-copy',
     shortcutLabel: 'Ctrl+C',
-    canExecute: (ctx) => ctx.hasDocument && (ctx.hasSelection || ctx.inPictureObjectSelection || ctx.inTableObjectSelection),
+    canExecute: (ctx) => ctx.hasDocument && (ctx.hasSelection || ctx.inCellSelectionMode || ctx.inPictureObjectSelection || ctx.inTableObjectSelection),
     execute(services) {
       services.getInputHandler()?.performCopy();
     },
@@ -53,8 +53,8 @@ export const editCommands: CommandDef[] = [
     icon: 'icon-paste',
     shortcutLabel: 'Ctrl+V',
     canExecute: (ctx) => ctx.hasDocument,
-    execute() {
-      document.execCommand('paste');
+    execute(services) {
+      services.getInputHandler()?.performPaste();
     },
   },
   {
@@ -70,8 +70,16 @@ export const editCommands: CommandDef[] = [
     label: '지우기',
     icon: 'icon-delete',
     shortcutLabel: 'Ctrl+E',
-    canExecute: () => false, // 미구현
-    execute() { /* TODO */ },
+    canExecute: (ctx) => ctx.hasDocument && (ctx.hasSelection || ctx.inCellSelectionMode),
+    execute(services) {
+      const ih = services.getInputHandler();
+      if (!ih) return;
+      if (ih.isInCellSelectionMode()) {
+        ih.performDeleteSelectedCells();
+        return;
+      }
+      (ih as any).deleteSelection?.();
+    },
   },
   {
     id: 'edit:select-all',

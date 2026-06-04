@@ -9,8 +9,11 @@ use quick_xml::Reader;
 use crate::model::document::{DocInfo, DocProperties};
 use crate::model::style::*;
 
+use super::utils::{
+    attr_str, local_name, parse_bool, parse_color, parse_i16, parse_i32, parse_i8, parse_u16,
+    parse_u32, parse_u8,
+};
 use super::HwpxError;
-use super::utils::{local_name, attr_str, parse_u8, parse_i8, parse_u16, parse_i16, parse_u32, parse_i32, parse_color, parse_bool};
 
 /// `<hh:strikeout shape="..."/>` 의 shape 값이 실제 렌더링되는 취소선인지
 /// 판정한다 (화이트리스트).
@@ -74,7 +77,8 @@ pub fn parse_hwpx_header(xml: &str) -> Result<(DocInfo, DocProperties), HwpxErro
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(ref e)) => {
-                let name = e.name(); let local = local_name(name.as_ref());
+                let name = e.name();
+                let local = local_name(name.as_ref());
                 match local {
                     b"fontface" => {
                         // <hh:fontface lang="HANGUL"> → 언어 그룹 설정
@@ -115,7 +119,8 @@ pub fn parse_hwpx_header(xml: &str) -> Result<(DocInfo, DocProperties), HwpxErro
                 }
             }
             Ok(Event::Empty(ref e)) => {
-                let name = e.name(); let local = local_name(name.as_ref());
+                let name = e.name();
+                let local = local_name(name.as_ref());
                 match local {
                     b"beginNum" => parse_begin_num(e, &mut doc_props),
                     b"font" => parse_font(e, &mut doc_info, current_font_group),
@@ -213,7 +218,8 @@ fn parse_char_shape(
         loop {
             match reader.read_event_into(&mut buf) {
                 Ok(Event::Empty(ref ce)) | Ok(Event::Start(ref ce)) => {
-                    let cname = ce.name(); let local = local_name(cname.as_ref());
+                    let cname = ce.name();
+                    let local = local_name(cname.as_ref());
                     match local {
                         b"fontRef" => {
                             for attr in ce.attributes().flatten() {
@@ -393,15 +399,22 @@ fn parse_char_shape(
                                 }
                             }
                         }
-                        b"emboss" => { cs.attr |= 1 << 13; cs.emboss = true; }
-                        b"engrave" => { cs.attr |= 1 << 14; cs.engrave = true; }
+                        b"emboss" => {
+                            cs.attr |= 1 << 13;
+                            cs.emboss = true;
+                        }
+                        b"engrave" => {
+                            cs.attr |= 1 << 14;
+                            cs.engrave = true;
+                        }
                         b"supscript" => cs.superscript = true,
                         b"subscript" => cs.subscript = true,
                         _ => {}
                     }
                 }
                 Ok(Event::End(ref ee)) => {
-                    let ename = ee.name(); if local_name(ename.as_ref()) == b"charPr" {
+                    let ename = ee.name();
+                    if local_name(ename.as_ref()) == b"charPr" {
                         break;
                     }
                 }
@@ -439,7 +452,8 @@ fn parse_para_shape(
         loop {
             match reader.read_event_into(&mut buf) {
                 Ok(Event::Empty(ref ce)) | Ok(Event::Start(ref ce)) => {
-                    let cname = ce.name(); let local = local_name(cname.as_ref());
+                    let cname = ce.name();
+                    let local = local_name(cname.as_ref());
                     match local {
                         b"align" => {
                             for attr in ce.attributes().flatten() {
@@ -486,7 +500,9 @@ fn parse_para_shape(
                                         ps.line_spacing_type = match val.as_str() {
                                             "PERCENT" => LineSpacingType::Percent,
                                             "FIXED" => LineSpacingType::Fixed,
-                                            "SPACEONLY" | "SPACE_ONLY" => LineSpacingType::SpaceOnly,
+                                            "SPACEONLY" | "SPACE_ONLY" => {
+                                                LineSpacingType::SpaceOnly
+                                            }
                                             "MINIMUM" | "AT_LEAST" => LineSpacingType::Minimum,
                                             _ => LineSpacingType::Percent,
                                         };
@@ -511,18 +527,26 @@ fn parse_para_shape(
                         b"breakSetting" => {
                             for attr in ce.attributes().flatten() {
                                 match attr.key.as_ref() {
-                                    b"widowOrphan" => if parse_bool(&attr) {
-                                        ps.attr2 |= 1 << 5;
-                                    },
-                                    b"keepWithNext" => if parse_bool(&attr) {
-                                        ps.attr2 |= 1 << 6;
-                                    },
-                                    b"keepLines" => if parse_bool(&attr) {
-                                        ps.attr2 |= 1 << 7;
-                                    },
-                                    b"pageBreakBefore" => if parse_bool(&attr) {
-                                        ps.attr2 |= 1 << 8;
-                                    },
+                                    b"widowOrphan" => {
+                                        if parse_bool(&attr) {
+                                            ps.attr2 |= 1 << 5;
+                                        }
+                                    }
+                                    b"keepWithNext" => {
+                                        if parse_bool(&attr) {
+                                            ps.attr2 |= 1 << 6;
+                                        }
+                                    }
+                                    b"keepLines" => {
+                                        if parse_bool(&attr) {
+                                            ps.attr2 |= 1 << 7;
+                                        }
+                                    }
+                                    b"pageBreakBefore" => {
+                                        if parse_bool(&attr) {
+                                            ps.attr2 |= 1 << 8;
+                                        }
+                                    }
                                     _ => {}
                                 }
                             }
@@ -530,12 +554,16 @@ fn parse_para_shape(
                         b"autoSpacing" => {
                             for attr in ce.attributes().flatten() {
                                 match attr.key.as_ref() {
-                                    b"eAsianEng" => if parse_bool(&attr) {
-                                        ps.attr1 |= 1 << 20;
-                                    },
-                                    b"eAsianNum" => if parse_bool(&attr) {
-                                        ps.attr1 |= 1 << 21;
-                                    },
+                                    b"eAsianEng" => {
+                                        if parse_bool(&attr) {
+                                            ps.attr1 |= 1 << 20;
+                                        }
+                                    }
+                                    b"eAsianNum" => {
+                                        if parse_bool(&attr) {
+                                            ps.attr1 |= 1 << 21;
+                                        }
+                                    }
                                     _ => {}
                                 }
                             }
@@ -549,7 +577,8 @@ fn parse_para_shape(
                     }
                 }
                 Ok(Event::End(ref ee)) => {
-                    let ename = ee.name(); if local_name(ename.as_ref()) == b"paraPr" {
+                    let ename = ee.name();
+                    if local_name(ename.as_ref()) == b"paraPr" {
                         break;
                     }
                 }
@@ -587,7 +616,8 @@ fn parse_para_shape_switch(
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(ref ce)) => {
-                let cname = ce.name(); let local = local_name(cname.as_ref());
+                let cname = ce.name();
+                let local = local_name(cname.as_ref());
                 match local {
                     b"case" => {
                         // required-namespace 속성 확인
@@ -606,7 +636,8 @@ fn parse_para_shape_switch(
                 }
             }
             Ok(Event::Empty(ref ce)) => {
-                let cname = ce.name(); let local = local_name(cname.as_ref());
+                let cname = ce.name();
+                let local = local_name(cname.as_ref());
                 if in_hwpunitchar_case || in_default {
                     match local {
                         b"margin" | b"intent" | b"left" | b"right" | b"prev" | b"next" => {
@@ -650,7 +681,9 @@ fn parse_para_shape_switch(
                                         ls_type = Some(match attr_str(&attr).as_str() {
                                             "PERCENT" => LineSpacingType::Percent,
                                             "FIXED" => LineSpacingType::Fixed,
-                                            "SPACEONLY" | "SPACE_ONLY" => LineSpacingType::SpaceOnly,
+                                            "SPACEONLY" | "SPACE_ONLY" => {
+                                                LineSpacingType::SpaceOnly
+                                            }
                                             "MINIMUM" | "AT_LEAST" => LineSpacingType::Minimum,
                                             _ => LineSpacingType::Percent,
                                         });
@@ -660,7 +693,9 @@ fn parse_para_shape_switch(
                                 }
                             }
                             if in_hwpunitchar_case {
-                                if let Some(t) = ls_type { ps.line_spacing_type = t; }
+                                if let Some(t) = ls_type {
+                                    ps.line_spacing_type = t;
+                                }
                                 if let Some(v) = ls_val {
                                     // Fixed/SpaceOnly/Minimum은 HWPUNIT이므로 2× 스케일 변환
                                     let effective_type = ls_type.unwrap_or(ps.line_spacing_type);
@@ -680,10 +715,15 @@ fn parse_para_shape_switch(
                 }
             }
             Ok(Event::End(ref ee)) => {
-                let ename = ee.name(); let local = local_name(ename.as_ref());
+                let ename = ee.name();
+                let local = local_name(ename.as_ref());
                 match local {
-                    b"case" => { in_hwpunitchar_case = false; }
-                    b"default" => { in_default = false; }
+                    b"case" => {
+                        in_hwpunitchar_case = false;
+                    }
+                    b"default" => {
+                        in_default = false;
+                    }
                     b"switch" => break,
                     _ => {}
                 }
@@ -697,13 +737,27 @@ fn parse_para_shape_switch(
 
     // HwpUnitChar case가 없으면 default 값 적용
     if !found_case {
-        if let Some(v) = def_margin_left { ps.margin_left = v; }
-        if let Some(v) = def_margin_right { ps.margin_right = v; }
-        if let Some(v) = def_indent { ps.indent = v; }
-        if let Some(v) = def_prev { ps.spacing_before = v; }
-        if let Some(v) = def_next { ps.spacing_after = v; }
-        if let Some(t) = def_line_spacing_type { ps.line_spacing_type = t; }
-        if let Some(v) = def_line_spacing { ps.line_spacing = v; }
+        if let Some(v) = def_margin_left {
+            ps.margin_left = v;
+        }
+        if let Some(v) = def_margin_right {
+            ps.margin_right = v;
+        }
+        if let Some(v) = def_indent {
+            ps.indent = v;
+        }
+        if let Some(v) = def_prev {
+            ps.spacing_before = v;
+        }
+        if let Some(v) = def_next {
+            ps.spacing_after = v;
+        }
+        if let Some(t) = def_line_spacing_type {
+            ps.line_spacing_type = t;
+        }
+        if let Some(v) = def_line_spacing {
+            ps.line_spacing = v;
+        }
     }
 
     Ok(())
@@ -749,7 +803,8 @@ fn parse_border_fill(
         loop {
             match reader.read_event_into(&mut buf) {
                 Ok(Event::Empty(ref ce)) | Ok(Event::Start(ref ce)) => {
-                    let cname = ce.name(); let local = local_name(cname.as_ref());
+                    let cname = ce.name();
+                    let local = local_name(cname.as_ref());
                     match local {
                         b"leftBorder" | b"rightBorder" | b"topBorder" | b"bottomBorder" => {
                             let idx = match local {
@@ -757,13 +812,21 @@ fn parse_border_fill(
                                 b"rightBorder" => 1,
                                 b"topBorder" => 2,
                                 b"bottomBorder" => 3,
-                                _ => { border_idx += 1; border_idx - 1 }
+                                _ => {
+                                    border_idx += 1;
+                                    border_idx - 1
+                                }
                             };
                             if idx < 4 {
                                 for attr in ce.attributes().flatten() {
                                     match attr.key.as_ref() {
-                                        b"type" => bf.borders[idx].line_type = parse_border_line_type(&attr),
-                                        b"width" => bf.borders[idx].width = parse_border_width(&attr),
+                                        b"type" => {
+                                            bf.borders[idx].line_type =
+                                                parse_border_line_type(&attr)
+                                        }
+                                        b"width" => {
+                                            bf.borders[idx].width = parse_border_width(&attr)
+                                        }
                                         b"color" => bf.borders[idx].color = parse_color(&attr),
                                         _ => {}
                                     }
@@ -843,7 +906,9 @@ fn parse_border_fill(
                                             "CENTER" => ImageFillMode::Center,
                                             "CENTER_TOP" => ImageFillMode::CenterTop,
                                             "CENTER_BOTTOM" => ImageFillMode::CenterBottom,
-                                            "FIT" | "FIT_TO_SIZE" | "STRETCH" | "TOTAL" => ImageFillMode::FitToSize,
+                                            "FIT" | "FIT_TO_SIZE" | "STRETCH" | "TOTAL" => {
+                                                ImageFillMode::FitToSize
+                                            }
                                             "TOP_LEFT_ALIGN" => ImageFillMode::LeftTop,
                                             _ => ImageFillMode::TileAll,
                                         };
@@ -861,7 +926,8 @@ fn parse_border_fill(
                                 for attr in ce.attributes().flatten() {
                                     if attr.key.as_ref() == b"binaryItemIDRef" {
                                         let val = attr_str(&attr);
-                                        let num: String = val.chars().filter(|c| c.is_ascii_digit()).collect();
+                                        let num: String =
+                                            val.chars().filter(|c| c.is_ascii_digit()).collect();
                                         img_fill.bin_data_id = num.parse().unwrap_or(0);
                                     }
                                 }
@@ -881,7 +947,8 @@ fn parse_border_fill(
                     }
                 }
                 Ok(Event::End(ref ee)) => {
-                    let ename = ee.name(); if local_name(ename.as_ref()) == b"borderFill" {
+                    let ename = ee.name();
+                    if local_name(ename.as_ref()) == b"borderFill" {
                         break;
                     }
                 }
@@ -922,16 +989,16 @@ fn parse_tab_item(ce: &quick_xml::events::BytesStart) -> TabItem {
                 item.fill_type = match attr_str(&attr).as_str() {
                     "NONE" => 0,
                     "SOLID" => 1,
-                    "DOT" => 2,         // 파선
-                    "DASH" => 3,        // 점선
-                    "DASH_DOT" => 4,    // 일점쇄선
-                    "DASH_DOT_DOT" => 5,// 이점쇄선
-                    "LONG_DASH" => 6,   // 긴파선
-                    "CIRCLE" => 7,      // 원형점선
-                    "DOUBLE_LINE" => 8, // 이중실선
-                    "THIN_THICK" => 9,  // 얇고 굵은 이중선
-                    "THICK_THIN" => 10, // 굵고 얇은 이중선
-                    "TRIM" => 11,       // 얇고 굵고 얇은 삼중선
+                    "DOT" => 2,          // 파선
+                    "DASH" => 3,         // 점선
+                    "DASH_DOT" => 4,     // 일점쇄선
+                    "DASH_DOT_DOT" => 5, // 이점쇄선
+                    "LONG_DASH" => 6,    // 긴파선
+                    "CIRCLE" => 7,       // 원형점선
+                    "DOUBLE_LINE" => 8,  // 이중실선
+                    "THIN_THICK" => 9,   // 얇고 굵은 이중선
+                    "THICK_THIN" => 10,  // 굵고 얇은 이중선
+                    "TRIM" => 11,        // 얇고 굵고 얇은 삼중선
                     _ => 0,
                 };
             }
@@ -965,12 +1032,14 @@ fn parse_tab_def(
         loop {
             match reader.read_event_into(&mut buf) {
                 Ok(Event::Start(ref ce)) => {
-                    let cname = ce.name(); let local = local_name(cname.as_ref());
+                    let cname = ce.name();
+                    let local = local_name(cname.as_ref());
                     match local {
                         b"case" => {
-                            let is_hwpunitchar = ce.attributes().flatten().any(|attr| {
-                                attr_str(&attr).contains("HwpUnitChar")
-                            });
+                            let is_hwpunitchar = ce
+                                .attributes()
+                                .flatten()
+                                .any(|attr| attr_str(&attr).contains("HwpUnitChar"));
                             if is_hwpunitchar {
                                 in_hwpunitchar_case = true;
                             }
@@ -982,7 +1051,8 @@ fn parse_tab_def(
                     }
                 }
                 Ok(Event::Empty(ref ce)) => {
-                    let cname = ce.name(); let local = local_name(cname.as_ref());
+                    let cname = ce.name();
+                    let local = local_name(cname.as_ref());
                     if local == b"tabItem" {
                         let mut item = parse_tab_item(ce);
                         if in_hwpunitchar_case {
@@ -1001,10 +1071,15 @@ fn parse_tab_def(
                     }
                 }
                 Ok(Event::End(ref ee)) => {
-                    let ename = ee.name(); let local = local_name(ename.as_ref());
+                    let ename = ee.name();
+                    let local = local_name(ename.as_ref());
                     match local {
-                        b"case" => { in_hwpunitchar_case = false; }
-                        b"default" => { in_default = false; }
+                        b"case" => {
+                            in_hwpunitchar_case = false;
+                        }
+                        b"default" => {
+                            in_default = false;
+                        }
                         b"tabPr" => break,
                         _ => {}
                     }
@@ -1045,7 +1120,8 @@ fn parse_numbering(
         loop {
             match reader.read_event_into(&mut buf) {
                 Ok(Event::Empty(ref ce)) | Ok(Event::Start(ref ce)) => {
-                    let cname = ce.name(); let local = local_name(cname.as_ref());
+                    let cname = ce.name();
+                    let local = local_name(cname.as_ref());
                     if local == b"paraHead" {
                         let mut level: usize = 0;
                         let mut head = NumberingHead::default();
@@ -1072,7 +1148,8 @@ fn parse_numbering(
                     }
                 }
                 Ok(Event::End(ref ee)) => {
-                    let ename = ee.name(); if local_name(ename.as_ref()) == b"numbering" {
+                    let ename = ee.name();
+                    if local_name(ename.as_ref()) == b"numbering" {
                         break;
                     }
                 }
@@ -1131,17 +1208,25 @@ fn parse_border_line_type(attr: &quick_xml::events::attributes::Attribute) -> Bo
 fn parse_border_width(attr: &quick_xml::events::attributes::Attribute) -> u8 {
     let s = attr_str(attr);
     // "0.12 mm", "0.4 mm" 등의 형식에서 두께 인덱스 추출
-    let mm: f64 = s.split_whitespace()
+    let mm: f64 = s
+        .split_whitespace()
         .next()
         .and_then(|v| v.parse().ok())
         .unwrap_or(0.12);
     // 대략적인 HWP 두께 인덱스 매핑
-    if mm <= 0.12 { 0 }
-    else if mm <= 0.3 { 1 }
-    else if mm <= 0.5 { 2 }
-    else if mm <= 1.0 { 3 }
-    else if mm <= 1.5 { 4 }
-    else { 5 }
+    if mm <= 0.12 {
+        0
+    } else if mm <= 0.3 {
+        1
+    } else if mm <= 0.5 {
+        2
+    } else if mm <= 1.0 {
+        3
+    } else if mm <= 1.5 {
+        4
+    } else {
+        5
+    }
 }
 
 #[cfg(test)]

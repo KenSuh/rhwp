@@ -436,11 +436,13 @@ async function initializeDocument(docInfo: DocumentInfo, displayName: string): P
         const choice = await showValidationModalIfNeeded(report);
         console.log(`[validation] user choice: ${choice}`);
         if (choice === 'auto-fix') {
-          const n = wasm.reflowLinesegs();
-          console.log(`[validation] reflowed ${n} paragraphs`);
+          const result = wasm.autoFixValidationWarnings();
+          console.log('[validation] auto-fix result', result);
           // 렌더 재계산
           canvasView?.loadDocument();
-          msg.textContent = `${displayName} (비표준 lineseg ${n}건 자동 보정됨)`;
+          msg.textContent = result.remainingWarnings === 0
+            ? `${displayName} (비표준 lineseg ${result.fixedWarnings}건 자동 보정됨)`
+            : `${displayName} (비표준 ${result.fixedWarnings}건 보정, ${result.remainingWarnings}건 확인 필요)`;
         }
       }
     } catch (e) {
@@ -484,29 +486,21 @@ async function loadBytes(
 }
 
 /**
- * #196: HWPX 출처 문서 로드 시 베타 안내 (저장 비활성화).
+ * #196: HWPX 출처 문서 로드 시 베타 안내.
  * - 우상단 토스트 1회
  * - 상태 표시줄 메시지
- *
- * #197 (HWPX→HWP 완전 변환기) 완료 시 본 함수 제거.
  */
 function notifyHwpxBetaIfNeeded(): void {
   if (wasm.getSourceFormat() !== 'hwpx') return;
 
   showToast({
-    message: 'HWPX 형식은 현재 베타 단계라 직접 저장이 비활성화되어 있습니다.\n다음 업데이트에서 지원 예정입니다.',
+    message: 'HWPX 편집/저장은 베타 단계입니다.\n저장 후 재열기 검증을 권장합니다.',
     durationMs: 0, // 자동 페이드 없음 — 사용자가 확인 버튼으로 닫음
-    action: {
-      label: '자세히',
-      onClick: () => {
-        window.open('https://github.com/edwardkim/rhwp/issues/197', '_blank');
-      },
-    },
     confirmLabel: '확인',
   });
 
   const sb = sbMessage();
-  if (sb) sb.textContent = 'HWPX 베타 모드 — 저장은 다음 업데이트에서 지원됩니다';
+  if (sb) sb.textContent = 'HWPX 편집/저장 베타 — 저장 가능';
 }
 
 async function createNewDocument(): Promise<void> {

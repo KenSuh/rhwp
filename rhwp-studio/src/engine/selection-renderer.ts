@@ -1,5 +1,6 @@
 import type { SelectionRect } from '@/core/types';
 import { VirtualScroll } from '@/view/virtual-scroll';
+import { clipSelectionRectToPage, mergeSelectionRects } from './selection-rects';
 
 /** 선택 영역을 파란색 반투명 사각형으로 렌더링한다 */
 export class SelectionRenderer {
@@ -27,11 +28,18 @@ export class SelectionRenderer {
     const scrollContent = this.container.querySelector('#scroll-content');
     const contentWidth = scrollContent?.clientWidth ?? 0;
 
-    for (const rect of rects) {
+    for (const rawRect of mergeSelectionRects(rects)) {
+      const pageOffset = this.virtualScroll.getPageOffset(rawRect.pageIndex);
+      const pageDisplayWidth = this.virtualScroll.getPageWidth(rawRect.pageIndex);
+      const pageWidth = pageDisplayWidth / zoom;
+      const rect = clipSelectionRectToPage(rawRect, pageWidth);
+      if (!rect) continue;
+
       const div = document.createElement('div');
-      const pageOffset = this.virtualScroll.getPageOffset(rect.pageIndex);
-      const pageDisplayWidth = this.virtualScroll.getPageWidth(rect.pageIndex);
-      const pageLeft = (contentWidth - pageDisplayWidth) / 2;
+      const pageLeftFromLayout = this.virtualScroll.getPageLeft(rect.pageIndex);
+      const pageLeft = pageLeftFromLayout >= 0
+        ? pageLeftFromLayout
+        : (contentWidth - pageDisplayWidth) / 2;
 
       div.style.cssText =
         `position:absolute;background:rgba(51,144,255,0.35);pointer-events:none;` +

@@ -28,10 +28,16 @@ use std::io::Write;
 
 use quick_xml::Writer;
 
-use crate::model::shape::{CommonObjAttr, TextWrap, VertAlign, VertRelTo, HorzAlign, HorzRelTo};
+use crate::model::control::Control;
+use crate::model::shape::{
+    CommonObjAttr, HorzAlign, HorzRelTo, ShapeObject, TextWrap, VertAlign, VertRelTo,
+};
 use crate::model::table::{Cell, Table, TablePageBreak, VerticalAlign};
 
 use super::context::SerializeContext;
+use super::form::write_form;
+use super::picture::write_picture;
+use super::shape::{write_container_close, write_container_open, write_line, write_rect};
 use super::utils::{empty_tag, end_tag, start_tag, start_tag_attrs};
 use super::SerializeError;
 
@@ -93,11 +99,7 @@ pub fn write_table<W: Write>(
     // tr[]: 행 단위 반복. 각 행에 속한 셀 (cell.row == r) 을 col 오름차순으로 출력.
     for row_idx in 0..table.row_count {
         start_tag(w, "hp:tr")?;
-        let mut row_cells: Vec<&Cell> = table
-            .cells
-            .iter()
-            .filter(|c| c.row == row_idx)
-            .collect();
+        let mut row_cells: Vec<&Cell> = table.cells.iter().filter(|c| c.row == row_idx).collect();
         row_cells.sort_by_key(|c| c.col);
         for cell in row_cells {
             write_cell(w, cell, ctx)?;
@@ -227,7 +229,14 @@ fn write_sub_list<W: Write>(
         "hp:subList",
         &[
             ("id", ""),
-            ("textDirection", if cell.text_direction == 1 { "VERTICAL" } else { "HORIZONTAL" }),
+            (
+                "textDirection",
+                if cell.text_direction == 1 {
+                    "VERTICAL"
+                } else {
+                    "HORIZONTAL"
+                },
+            ),
             ("lineWrap", "BREAK"),
             ("vertAlign", cell_vert_align_str(cell.vertical_align)),
             ("linkListIDRef", "0"),
@@ -263,12 +272,19 @@ fn write_sub_list<W: Write>(
             ],
         )?;
 
-        let cs = para.char_shapes.first().map(|r| r.char_shape_id).unwrap_or(0);
+        let cs = para
+            .char_shapes
+            .first()
+            .map(|r| r.char_shape_id)
+            .unwrap_or(0);
         let cs_str = cs.to_string();
         start_tag_attrs(w, "hp:run", &[("charPrIDRef", &cs_str)])?;
         // 텍스트만 출력 (탭·소프트브레이크는 Stage 3 범위에서 제외 — section.rs 와 동일 방식으로 단순화)
         write_cell_text(w, &para.text)?;
         end_tag(w, "hp:run")?;
+        for control in &para.controls {
+            write_cell_control_run(w, control, ctx, cs)?;
+        }
 
         // <hp:linesegarray> 최소 1개 lineseg
         start_tag(w, "hp:linesegarray")?;
@@ -297,7 +313,7 @@ fn write_sub_list<W: Write>(
 }
 
 fn write_cell_text<W: Write>(w: &mut Writer<W>, text: &str) -> Result<(), SerializeError> {
-    use quick_xml::events::{BytesStart, BytesEnd, BytesText, Event};
+    use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
     // <hp:t>text</hp:t>
     w.write_event(Event::Start(BytesStart::new("hp:t")))
         .map_err(|e| SerializeError::XmlError(e.to_string()))?;
@@ -308,6 +324,86 @@ fn write_cell_text<W: Write>(w: &mut Writer<W>, text: &str) -> Result<(), Serial
     w.write_event(Event::End(BytesEnd::new("hp:t")))
         .map_err(|e| SerializeError::XmlError(e.to_string()))?;
     Ok(())
+}
+
+fn write_cell_control_run<W: Write>(
+    w: &mut Writer<W>,
+    control: &Control,
+    ctx: &mut SerializeContext,
+    char_shape_id: u32,
+) -> Result<(), SerializeError> {
+    if !control_supported(control) {
+        return Ok(());
+    }
+
+    let cs_str = char_shape_id.to_string();
+    start_tag_attrs(w, "hp:run", &[("charPrIDRef", &cs_str)])?;
+    write_cell_control(w, control, ctx)?;
+    end_tag(w, "hp:run")?;
+    Ok(())
+}
+
+fn control_supported(control: &Control) -> bool {
+    match control {
+        Control::Table(_) | Control::Picture(_) | Control::Form(_) => true,
+        Control::Shape(shape) => shape_supported(shape),
+        _ => false,
+    }
+}
+
+fn write_cell_control<W: Write>(
+    w: &mut Writer<W>,
+    control: &Control,
+    ctx: &mut SerializeContext,
+) -> Result<(), SerializeError> {
+    match control {
+        Control::Table(table) => write_table(w, table, ctx),
+        Control::Picture(pic) => write_picture(w, pic, ctx),
+        Control::Shape(shape) => {
+            let _ = write_cell_shape(w, shape, ctx)?;
+            Ok(())
+        }
+        Control::Form(form) => write_form(w, form),
+        _ => Ok(()),
+    }
+}
+
+fn shape_supported(shape: &ShapeObject) -> bool {
+    match shape {
+        ShapeObject::Line(_) | ShapeObject::Rectangle(_) | ShapeObject::Picture(_) => true,
+        ShapeObject::Group(group) => group.children.iter().any(shape_supported),
+        _ => false,
+    }
+}
+
+fn write_cell_shape<W: Write>(
+    w: &mut Writer<W>,
+    shape: &ShapeObject,
+    ctx: &SerializeContext,
+) -> Result<bool, SerializeError> {
+    match shape {
+        ShapeObject::Line(line) => {
+            write_line(w, line)?;
+            Ok(true)
+        }
+        ShapeObject::Rectangle(rect) => {
+            write_rect(w, rect)?;
+            Ok(true)
+        }
+        ShapeObject::Group(group) => {
+            write_container_open(w, &group.common)?;
+            for child in &group.children {
+                let _ = write_cell_shape(w, child, ctx)?;
+            }
+            write_container_close(w)?;
+            Ok(true)
+        }
+        ShapeObject::Picture(pic) => {
+            write_picture(w, pic, ctx)?;
+            Ok(true)
+        }
+        _ => Ok(false),
+    }
 }
 
 fn write_cell_addr<W: Write>(w: &mut Writer<W>, cell: &Cell) -> Result<(), SerializeError> {
@@ -343,7 +439,11 @@ fn write_cell_margin<W: Write>(w: &mut Writer<W>, cell: &Cell) -> Result<(), Ser
 // ---------- enum 변환 헬퍼 ----------
 
 fn bool01(b: bool) -> &'static str {
-    if b { "1" } else { "0" }
+    if b {
+        "1"
+    } else {
+        "0"
+    }
 }
 
 fn text_wrap_str(w: TextWrap) -> &'static str {
@@ -479,7 +579,9 @@ mod tests {
         let cc = xml.find("colCnt=").unwrap();
         let bf = xml.find("borderFillIDRef=").unwrap();
         let na = xml.find("noAdjust=").unwrap();
-        assert!(ip < zp && zp < nt && nt < tw && tw < tf && tf < rc && rc < cc && cc < bf && bf < na);
+        assert!(
+            ip < zp && zp < nt && nt < tw && tw < tf && tf < rc && rc < cc && cc < bf && bf < na
+        );
     }
 
     #[test]

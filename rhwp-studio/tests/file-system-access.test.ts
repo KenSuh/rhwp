@@ -57,6 +57,9 @@ test('pickOpenFileHandle는 showOpenFilePicker가 있으면 첫 handle을 반환
 
   assert.equal(result, handle);
   assert.ok(receivedOptions);
+  const types = receivedOptions.types as { accept: Record<string, string[]> }[];
+  assert.deepEqual(types[0].accept['application/x-hwp'], ['.hwp']);
+  assert.deepEqual(types[0].accept['application/hwp+zip'], ['.hwpx']);
 });
 
 test('readFileFromHandle은 handle 파일 내용을 Uint8Array로 읽는다', async () => {

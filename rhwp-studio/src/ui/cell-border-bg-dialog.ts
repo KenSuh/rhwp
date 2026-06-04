@@ -20,6 +20,23 @@ interface TabDef {
   builder: () => HTMLElement;
 }
 
+type TableContext = { sec: number; ppi: number; ci: number; cellPath?: unknown[] };
+
+function nestedPathJson(ctx: TableContext): string | null {
+  return Array.isArray(ctx.cellPath) && ctx.cellPath.length > 1
+    ? JSON.stringify(ctx.cellPath)
+    : null;
+}
+
+function nestedPathJsonForCell(ctx: TableContext, cellIdx: number): string | null {
+  if (!Array.isArray(ctx.cellPath) || ctx.cellPath.length <= 1) return null;
+  const path = ctx.cellPath.map((entry, idx) => {
+    if (idx !== ctx.cellPath!.length - 1 || typeof entry !== 'object' || entry === null) return entry;
+    return { ...(entry as Record<string, unknown>), cellIndex: cellIdx };
+  });
+  return JSON.stringify(path);
+}
+
 /**
  * 셀 테두리/배경 대화상자 (3탭: 테두리/배경/대각선)
  *
@@ -29,7 +46,7 @@ interface TabDef {
 export class CellBorderBgDialog extends ModalDialog {
   private wasm: WasmBridge;
   private eventBus: EventBus;
-  private tableCtx: { sec: number; ppi: number; ci: number };
+  private tableCtx: TableContext;
   private cellIdx: number;
   private applyMode: 'each' | 'asOne';
 
@@ -73,7 +90,7 @@ export class CellBorderBgDialog extends ModalDialog {
   constructor(
     wasm: WasmBridge,
     eventBus: EventBus,
-    tableCtx: { sec: number; ppi: number; ci: number },
+    tableCtx: TableContext,
     cellIdx: number,
     applyMode: 'each' | 'asOne' = 'each',
   ) {
@@ -88,7 +105,10 @@ export class CellBorderBgDialog extends ModalDialog {
   show(): void {
     super.show();
     const { sec, ppi, ci } = this.tableCtx;
-    this.cellProps = this.wasm.getCellProperties(sec, ppi, ci, this.cellIdx);
+    const pathJson = nestedPathJson(this.tableCtx);
+    this.cellProps = pathJson
+      ? this.wasm.getCellPropertiesByPath(sec, ppi, pathJson)
+      : this.wasm.getCellProperties(sec, ppi, ci, this.cellIdx);
     this.populateFields();
   }
 
@@ -633,13 +653,25 @@ export class CellBorderBgDialog extends ModalDialog {
 
     // 적용 범위 결정: 테두리 탭의 scope를 기준으로 판단
     const borderScope = this.borderScopeRadios?.find(r => r.checked)?.value ?? 'selected';
+    const pathJson = nestedPathJson(this.tableCtx);
     if (borderScope === 'all') {
-      const dims = this.wasm.getTableDimensions(sec, ppi, ci);
+      const dims = pathJson
+        ? this.wasm.getTableDimensionsByPath(sec, ppi, pathJson)
+        : this.wasm.getTableDimensions(sec, ppi, ci);
       for (let i = 0; i < dims.cellCount; i++) {
-        this.wasm.setCellProperties(sec, ppi, ci, i, newProps as Partial<CellProperties>);
+        const cellPathJson = nestedPathJsonForCell(this.tableCtx, i);
+        if (cellPathJson) {
+          this.wasm.setCellPropertiesByPath(sec, ppi, cellPathJson, newProps as Partial<CellProperties>);
+        } else {
+          this.wasm.setCellProperties(sec, ppi, ci, i, newProps as Partial<CellProperties>);
+        }
       }
     } else {
-      this.wasm.setCellProperties(sec, ppi, ci, this.cellIdx, newProps as Partial<CellProperties>);
+      if (pathJson) {
+        this.wasm.setCellPropertiesByPath(sec, ppi, pathJson, newProps as Partial<CellProperties>);
+      } else {
+        this.wasm.setCellProperties(sec, ppi, ci, this.cellIdx, newProps as Partial<CellProperties>);
+      }
     }
     this.eventBus.emit('document-changed');
   }

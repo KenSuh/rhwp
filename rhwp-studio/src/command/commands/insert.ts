@@ -280,6 +280,8 @@ export const insertCommands: CommandDef[] = [
       if (!ref) return;
       if (ref.type === 'shape' || ref.type === 'line' || ref.type === 'group') {
         services.wasm.deleteShapeControl(ref.sec, ref.ppi, ref.ci);
+      } else if (ref.type === 'image' && ref.cellPath?.length) {
+        services.wasm.deletePictureControlByPath(ref.sec, ref.ppi, JSON.stringify(ref.cellPath), ref.ci);
       } else {
         services.wasm.deletePictureControl(ref.sec, ref.ppi, ref.ci);
       }

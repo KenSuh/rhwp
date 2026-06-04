@@ -4,6 +4,146 @@
 import type { ContextMenuItem } from '@/ui/context-menu';
 import * as _connector from './input-handler-connector';
 
+function sameCellPath(a?: unknown[], b?: unknown[]): boolean {
+  if (!a?.length && !b?.length) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  return a.every((entry: any, index) => {
+    const other: any = b[index];
+    return entry?.controlIndex === other?.controlIndex &&
+      entry?.cellIndex === other?.cellIndex &&
+      entry?.cellParaIndex === other?.cellParaIndex;
+  });
+}
+
+function sameDragTableContext(a: any, b: any): boolean {
+  if (!a || !b || a.isTextBox || b.isTextBox) return false;
+  if (a.parentParaIndex === undefined || b.parentParaIndex === undefined) return false;
+  if (a.controlIndex === undefined || b.controlIndex === undefined) return false;
+  if (a.parentParaIndex !== b.parentParaIndex || a.controlIndex !== b.controlIndex) return false;
+
+  const aPath = a.cellPath as any[] | undefined;
+  const bPath = b.cellPath as any[] | undefined;
+  const aDepth = aPath?.length ?? 0;
+  const bDepth = bPath?.length ?? 0;
+  if (aDepth <= 1 && bDepth <= 1) return true;
+  if (aDepth !== bDepth || !aPath || !bPath) return false;
+
+  for (let index = 0; index < aDepth - 1; index += 1) {
+    const left = aPath[index];
+    const right = bPath[index];
+    if (
+      left?.controlIndex !== right?.controlIndex ||
+      left?.cellIndex !== right?.cellIndex ||
+      left?.cellParaIndex !== right?.cellParaIndex
+    ) {
+      return false;
+    }
+  }
+
+  const aLast = aPath[aDepth - 1];
+  const bLast = bPath[bDepth - 1];
+  return aLast?.controlIndex === bLast?.controlIndex &&
+    aLast?.cellParaIndex === bLast?.cellParaIndex;
+}
+
+function sameDragCellContext(a: any, b: any): boolean {
+  if (!sameDragTableContext(a, b)) return false;
+
+  const aPath = a.cellPath as any[] | undefined;
+  const bPath = b.cellPath as any[] | undefined;
+  const aDepth = aPath?.length ?? 0;
+  const bDepth = bPath?.length ?? 0;
+  if (aDepth === 0 && bDepth === 0) {
+    return a.cellIndex !== undefined &&
+      b.cellIndex !== undefined &&
+      a.cellIndex === b.cellIndex;
+  }
+  if (aDepth !== bDepth || !aPath || !bPath) return false;
+
+  return aPath.every((entry: any, index) => {
+    const other: any = bPath[index];
+    const sameCell =
+      entry?.controlIndex === other?.controlIndex &&
+      entry?.cellIndex === other?.cellIndex;
+    if (!sameCell) return false;
+    return index === aPath.length - 1 ||
+      entry?.cellParaIndex === other?.cellParaIndex;
+  });
+}
+
+function getCellBboxesForTableRef(this: any, tableRef: { sec: number; ppi: number; ci: number; cellPath?: unknown[] }) {
+  return tableRef.cellPath && tableRef.cellPath.length > 1
+    ? this.wasm.getTableCellBboxesByPath(tableRef.sec, tableRef.ppi, JSON.stringify(tableRef.cellPath))
+    : this.wasm.getTableCellBboxes(tableRef.sec, tableRef.ppi, tableRef.ci);
+}
+
+function getCellRangeForPosition(this: any, pos: any): {
+  startRow: number;
+  startCol: number;
+  endRow: number;
+  endCol: number;
+} | null {
+  if (
+    !pos ||
+    pos.parentParaIndex === undefined ||
+    pos.controlIndex === undefined ||
+    pos.cellIndex === undefined
+  ) {
+    return null;
+  }
+
+  try {
+    const info = pos.cellPath && pos.cellPath.length > 1
+      ? this.wasm.getCellInfoByPath(
+        pos.sectionIndex,
+        pos.parentParaIndex,
+        JSON.stringify(pos.cellPath),
+      )
+      : this.wasm.getCellInfo(
+        pos.sectionIndex,
+        pos.parentParaIndex,
+        pos.controlIndex,
+        pos.cellIndex,
+      );
+    return {
+      startRow: info.row,
+      startCol: info.col,
+      endRow: info.row + Math.max(1, info.rowSpan ?? 1) - 1,
+      endCol: info.col + Math.max(1, info.colSpan ?? 1) - 1,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function setCellDragFocusRange(this: any, cellRC: { row: number; col: number; rowSpan?: number; colSpan?: number }): void {
+  const cellEndRow = cellRC.row + Math.max(1, cellRC.rowSpan ?? 1) - 1;
+  const cellEndCol = cellRC.col + Math.max(1, cellRC.colSpan ?? 1) - 1;
+  const anchor =
+    this.cellDragAnchorRange ??
+    this.cursor.getSelectedCellRange?.() ??
+    {
+      startRow: cellRC.row,
+      startCol: cellRC.col,
+      endRow: cellEndRow,
+      endCol: cellEndCol,
+    };
+  this.cellDragAnchorRange = anchor;
+
+  const next = {
+    startRow: Math.min(anchor.startRow, cellRC.row),
+    startCol: Math.min(anchor.startCol, cellRC.col),
+    endRow: Math.max(anchor.endRow, cellEndRow),
+    endCol: Math.max(anchor.endCol, cellEndCol),
+  };
+
+  if (typeof this.cursor.setCellSelectionRange === 'function') {
+    this.cursor.setCellSelectionRange(next.startRow, next.startCol, next.endRow, next.endCol);
+  } else {
+    this.cursor.shiftSelectCell(next.endRow, next.endCol);
+  }
+}
+
 export function onClick(this: any, e: MouseEvent): void {
   // 연결선 드로잉 모드: 연결점 클릭으로 시작/끝
   if (this.connectorDrawingMode && e.button === 0) {
@@ -113,6 +253,8 @@ export function onClick(this: any, e: MouseEvent): void {
   if (this.cursor.isInTableObjectSelection()) {
     // 우클릭 → 표 객체 선택 유지 (컨텍스트 메뉴에서 처리)
     if (e.button === 2) return;
+    // 더블클릭의 두 번째 mousedown은 리사이즈/이동 시작으로 해석하지 않는다.
+    if (e.detail >= 2) return;
 
     // 좌클릭이 표 내부이면 → 이동 드래그 시작
     const ref = this.cursor.getSelectedTableRef();
@@ -130,10 +272,43 @@ export function onClick(this: any, e: MouseEvent): void {
         const px = (cx - pl) / zoom;
         const py = (cy - po) / zoom;
         try {
-          const bbox = this.wasm.getTableBBox(ref.sec, ref.ppi, ref.ci);
+          const handleDir = this.tableObjectRenderer?.getHandleAtPoint(cx, cy);
+          if (handleDir && handleDir !== 'rotate' && this.tableResizeRenderer) {
+            const allBboxes = getCellBboxesForTableRef.call(this, ref);
+            const pageBboxes = allBboxes.filter((b: any) => b.pageIndex === pi);
+            const { rowLines, colLines } = this.tableResizeRenderer.computeBorderLines(pageBboxes);
+            let edge: any = null;
+            if (handleDir.includes('s')) {
+              const line = rowLines[rowLines.length - 1];
+              if (line) edge = { type: 'row', index: line.index, pageIndex: pi };
+            } else if (handleDir.includes('n')) {
+              const line = rowLines[0];
+              if (line) edge = { type: 'row', index: line.index, pageIndex: pi };
+            } else if (handleDir.includes('e')) {
+              const line = colLines[colLines.length - 1];
+              if (line) edge = { type: 'col', index: line.index, pageIndex: pi };
+            } else if (handleDir.includes('w')) {
+              const line = colLines[0];
+              if (line) edge = { type: 'col', index: line.index, pageIndex: pi };
+            }
+            if (edge) {
+              e.preventDefault();
+              this.cachedTableRef = { sec: ref.sec, ppi: ref.ppi, ci: ref.ci, cellPath: ref.cellPath };
+              this.cachedCellBboxes = allBboxes;
+              this.startResizeDrag(edge, px, py, pageBboxes);
+              this.textarea.focus();
+              return;
+            }
+          }
+
+          const bbox = this.getTableObjectBBox?.(ref, pi) ?? this.wasm.getTableBBox(ref.sec, ref.ppi, ref.ci);
           if (px >= bbox.x && px <= bbox.x + bbox.width &&
               py >= bbox.y && py <= bbox.y + bbox.height) {
             e.preventDefault();
+            if (ref.cellPath && ref.cellPath.length > 1) {
+              this.textarea.focus();
+              return;
+            }
             this.isMoveDragging = true;
             this.moveDragState = {
               tableRef: { sec: ref.sec, ppi: ref.ppi, ci: ref.ci },
@@ -279,7 +454,7 @@ export function onClick(this: any, e: MouseEvent): void {
                 const pl = (sc.clientWidth - pw) / 2;
                 this.isLineEndpointDragging = true;
                 this.lineEndpointState = {
-                  ref: { sec: ref.sec, ppi: ref.ppi, ci: ref.ci, type: ref.type },
+	                  ref: { sec: ref.sec, ppi: ref.ppi, ci: ref.ci, type: ref.type, cellPath: ref.cellPath },
                   endpoint: dir === 'sw' ? 'start' : 'end',
                   pageIndex: picBbox.pageIndex,
                   pageLeft: pl, pageOffset: po, zoom,
@@ -304,7 +479,7 @@ export function onClick(this: any, e: MouseEvent): void {
                 const startAngle = Math.atan2(cy - objCy, cx - objCx);
                 this.isPictureRotateDragging = true;
                 this.pictureRotateState = {
-                  ref: { sec: ref.sec, ppi: ref.ppi, ci: ref.ci, type: ref.type },
+	                ref: { sec: ref.sec, ppi: ref.ppi, ci: ref.ci, type: ref.type, cellPath: ref.cellPath },
                   origAngle,
                   centerX: objCx,
                   centerY: objCy,
@@ -320,7 +495,7 @@ export function onClick(this: any, e: MouseEvent): void {
               this.isPictureResizeDragging = true;
               this.pictureResizeState = {
                 dir,
-                ref: { sec: ref.sec, ppi: ref.ppi, ci: ref.ci, type: ref.type },
+	                    ref: { sec: ref.sec, ppi: ref.ppi, ci: ref.ci, type: ref.type, cellPath: ref.cellPath },
                 origWidth: props.width,
                 origHeight: props.height,
                 rotationAngle: (props.rotationAngle ?? 0) as number,
@@ -414,8 +589,10 @@ export function onClick(this: any, e: MouseEvent): void {
       const ctx = this.cursor.getCellTableContext();
       if (ctx) {
         try {
-          const bboxes = this.wasm.getTableCellBboxes(ctx.sec, ctx.ppi, ctx.ci);
-          this.cachedTableRef = { sec: ctx.sec, ppi: ctx.ppi, ci: ctx.ci };
+          const bboxes = ctx.cellPath && ctx.cellPath.length > 1
+            ? this.wasm.getTableCellBboxesByPath(ctx.sec, ctx.ppi, JSON.stringify(ctx.cellPath))
+            : this.wasm.getTableCellBboxes(ctx.sec, ctx.ppi, ctx.ci);
+          this.cachedTableRef = { sec: ctx.sec, ppi: ctx.ppi, ci: ctx.ci, cellPath: ctx.cellPath };
           this.cachedCellBboxes = bboxes;
           const zoom = this.viewportManager.getZoom();
           const scrollContent = this.container.querySelector('#scroll-content');
@@ -565,7 +742,8 @@ export function onClick(this: any, e: MouseEvent): void {
   }
 
   try {
-    const hit = this.wasm.hitTest(pageIdx, pageX, pageY);
+    const rawHit = this.wasm.hitTest(pageIdx, pageX, pageY);
+    const hit = this.normalizeHitTestCellPath?.(rawHit, pageX, pageY, pageIdx) ?? rawHit;
 
     // 머리말/꼬리말 마커 para_index(usize::MAX - hf_idx) 감지 → 무시
     if (hit.paragraphIndex >= 0xFFFFFF00) {
@@ -575,10 +753,10 @@ export function onClick(this: any, e: MouseEvent): void {
 
     // 표 경계선 클릭 감지 → 표 객체 선택 (셀 내부에서 외곽 클릭)
     if (hit.parentParaIndex !== undefined && hit.controlIndex !== undefined && !hit.isTextBox) {
-      if (this.isTableBorderClick(pageX, pageY, hit.sectionIndex, hit.parentParaIndex, hit.controlIndex)) {
+      if (this.isTableBorderClick(pageX, pageY, hit.sectionIndex, hit.parentParaIndex, hit.controlIndex, hit.cellPath, pageIdx)) {
         this.cursor.clearSelection();
         this.cursor.moveTo(hit); // 셀 위치로 이동 (유효한 렌더링 위치)
-        this.cursor.enterTableObjectSelectionDirect(hit.sectionIndex, hit.parentParaIndex, hit.controlIndex);
+        this.cursor.enterTableObjectSelectionDirect(hit.sectionIndex, hit.parentParaIndex, hit.controlIndex, hit.cellPath);
         this.active = true;
         this.caret.hide();
         this.selectionRenderer.clear();
@@ -595,7 +773,7 @@ export function onClick(this: any, e: MouseEvent): void {
       const tableHit = this.findTableByOuterClick(pageX, pageY, hit.sectionIndex, hit.paragraphIndex);
       if (tableHit) {
         this.cursor.clearSelection();
-        this.cursor.enterTableObjectSelectionDirect(tableHit.sec, tableHit.ppi, tableHit.ci);
+        this.cursor.enterTableObjectSelectionDirect(tableHit.sec, tableHit.ppi, tableHit.ci, tableHit.cellPath);
         this.active = true;
         this.caret.hide();
         this.selectionRenderer.clear();
@@ -684,7 +862,7 @@ export function onClick(this: any, e: MouseEvent): void {
         // 이미지 → 기존 객체 선택 유지
         this.cursor.clearSelection();
         this.exitPictureObjectSelectionIfNeeded();
-        this.cursor.enterPictureObjectSelectionDirect(picHit.sec, picHit.ppi, picHit.ci, picHit.type, picHit.cellIdx, picHit.cellParaIdx);
+        this.cursor.enterPictureObjectSelectionDirect(picHit.sec, picHit.ppi, picHit.ci, picHit.type, picHit.cellIdx, picHit.cellParaIdx, picHit.cellPath);
         this.active = true;
         this.caret.hide();
         this.selectionRenderer.clear();
@@ -816,6 +994,45 @@ export function onDblClick(this: any, e: MouseEvent): void {
       return;
     }
   }
+
+  // 표 경계 더블클릭 → 표 객체 선택. 중첩 표는 cellPath를 유지해야 내부 표 자체가 선택된다.
+  try {
+    const zoom = this.viewportManager.getZoom();
+    const sc = this.container.querySelector('#scroll-content');
+    if (!sc) return;
+    const cr = sc.getBoundingClientRect();
+    const contentX = e.clientX - cr.left;
+    const contentY = e.clientY - cr.top;
+    const pageIdx = this.virtualScroll.getPageAtY(contentY);
+    if (pageIdx < 0) return;
+    const pageOffset = this.virtualScroll.getPageOffset(pageIdx);
+    const pageDisplayWidth = this.virtualScroll.getPageWidth(pageIdx);
+    const pageLeft = ((sc as HTMLElement).clientWidth - pageDisplayWidth) / 2;
+    const pageX = (contentX - pageLeft) / zoom;
+    const pageY = (contentY - pageOffset) / zoom;
+    const rawHit = this.wasm.hitTest(pageIdx, pageX, pageY);
+    const hit = this.normalizeHitTestCellPath?.(rawHit, pageX, pageY, pageIdx) ?? rawHit;
+    if (
+      hit.parentParaIndex !== undefined &&
+      hit.controlIndex !== undefined &&
+      !hit.isTextBox &&
+      this.isTableBorderClick(pageX, pageY, hit.sectionIndex, hit.parentParaIndex, hit.controlIndex, hit.cellPath, pageIdx)
+    ) {
+      e.preventDefault();
+      this.cursor.clearSelection();
+      this.cursor.moveTo(hit);
+      this.cursor.enterTableObjectSelectionDirect(hit.sectionIndex, hit.parentParaIndex, hit.controlIndex, hit.cellPath);
+      this.active = true;
+      this.caret.hide();
+      this.selectionRenderer.clear();
+      this.renderTableObjectSelection();
+      this.eventBus.emit('table-object-selection-changed', true);
+      this.checkTransparentBordersTransition();
+      this.textarea.focus();
+    }
+  } catch {
+    // 표 경계가 아닌 곳의 더블클릭은 기존 동작을 유지한다.
+  }
 }
 
 export function onContextMenu(this: any, e: MouseEvent): void {
@@ -831,6 +1048,12 @@ export function onContextMenu(this: any, e: MouseEvent): void {
   // 표 객체 선택 중 우클릭 → 표 객체 메뉴 표시 (선택 유지)
   if (this.cursor.isInTableObjectSelection()) {
     this.contextMenu.show(e.clientX, e.clientY, this.getTableObjectContextMenuItems());
+    return;
+  }
+
+  // 셀 선택 중 우클릭 → 선택 범위를 유지하고 표 셀 메뉴 표시
+  if (this.cursor.isInCellSelectionMode()) {
+    this.contextMenu.show(e.clientX, e.clientY, this.getTableContextMenuItems());
     return;
   }
 
@@ -854,12 +1077,50 @@ export function onContextMenu(this: any, e: MouseEvent): void {
   const pageY = (contentY - pageOffset) / zoom;
 
   let inTable = false;
+  let contextHit: any = null;
   try {
-    const hit = this.wasm.hitTest(pageIdx, pageX, pageY);
+    const rawHit = this.wasm.hitTest(pageIdx, pageX, pageY);
+    const hit = this.normalizeHitTestCellPath?.(rawHit, pageX, pageY, pageIdx) ?? rawHit;
+    contextHit = hit;
     inTable = hit.parentParaIndex !== undefined && !hit.isTextBox;
+    if (
+      hit.parentParaIndex !== undefined &&
+      hit.controlIndex !== undefined &&
+      !hit.isTextBox &&
+      this.isTableBorderClick(pageX, pageY, hit.sectionIndex, hit.parentParaIndex, hit.controlIndex, hit.cellPath, pageIdx)
+    ) {
+      e.preventDefault();
+      this.cursor.clearSelection();
+      this.cursor.moveTo(hit);
+      this.cursor.enterTableObjectSelectionDirect(hit.sectionIndex, hit.parentParaIndex, hit.controlIndex, hit.cellPath);
+      this.active = true;
+      this.caret.hide();
+      this.selectionRenderer.clear();
+      this.renderTableObjectSelection();
+      this.eventBus.emit('table-object-selection-changed', true);
+      this.checkTransparentBordersTransition();
+      this.textarea.focus();
+      return;
+    }
   } catch { /* hitTest 실패 시 표 밖으로 처리 */ }
 
-  let items: ContextMenuItem[] = inTable
+  if (inTable && contextHit && !this.cursor.hasSelection() && !this.cursor.isInCellSelectionMode()) {
+    this.exitPictureObjectSelectionIfNeeded?.();
+    if (this.cursor.isInTableObjectSelection()) {
+      this.cursor.exitTableObjectSelection();
+      this.eventBus.emit('table-object-selection-changed', false);
+    }
+    this.cursor.clearSelection();
+    this.cursor.moveTo(contextHit);
+    this.cursor.resetPreferredX();
+    this.active = true;
+    this.updateCaret();
+    this.checkTransparentBordersTransition();
+    this.textarea.focus();
+  }
+
+  const shouldShowTableMenu = inTable || this.cursor.isInCellSelectionMode();
+  let items: ContextMenuItem[] = shouldShowTableMenu
     ? this.getTableContextMenuItems()
     : this.getDefaultContextMenuItems();
 
@@ -877,6 +1138,44 @@ export function onContextMenu(this: any, e: MouseEvent): void {
   } catch { /* 무시 */ }
 
   this.contextMenu.show(e.clientX, e.clientY, items);
+}
+
+function updateTextDragSelection(this: any, e: MouseEvent): void {
+  const hit = this.hitTestFromEvent(e);
+  if (!hit || hit.paragraphIndex >= 0xFFFFFF00) return;
+
+  const selection = this.cursor.getSelection?.();
+  const dragAnchor = selection?.anchor ?? this.cursor.getPosition();
+  const draggingFromCell =
+    dragAnchor.parentParaIndex !== undefined &&
+    dragAnchor.controlIndex !== undefined &&
+    dragAnchor.cellIndex !== undefined &&
+    !dragAnchor.isTextBox;
+  if (draggingFromCell && !sameDragCellContext(dragAnchor, hit)) {
+    this.cursor.moveTo(dragAnchor);
+    this.cursor.clearSelection();
+    if (this.cursor.enterCellSelectionMode()) {
+      this.isDragging = false;
+      this.isCellDragSelecting = true;
+      this.selectionRenderer.clear();
+      this.cellDragAnchorRange =
+        getCellRangeForPosition.call(this, dragAnchor) ??
+        this.cursor.getSelectedCellRange?.() ??
+        null;
+      const cellRC = this.hitTestCellRowCol(e);
+      if (cellRC) {
+        setCellDragFocusRange.call(this, cellRC);
+      }
+      this.caret.hide();
+      this.updateCellSelection();
+      this.checkTransparentBordersTransition();
+    }
+    return;
+  }
+
+  this.cursor.moveTo(hit);
+  this.updateCaret();
+  this.checkTransparentBordersTransition();
 }
 
 export function onMouseMove(this: any, e: MouseEvent): void {
@@ -1058,17 +1357,28 @@ export function onMouseMove(this: any, e: MouseEvent): void {
     return;
   }
 
+  // 표 셀 블록 드래그 선택 중: 마우스가 올라간 셀까지 범위 확장
+  if (this.isCellDragSelecting) {
+    if (this.dragRafId) return;
+    this.dragRafId = requestAnimationFrame(() => {
+      this.dragRafId = 0;
+      if (!this.isCellDragSelecting) return;
+      const cellRC = this.hitTestCellRowCol(e);
+      if (cellRC) {
+        setCellDragFocusRange.call(this, cellRC);
+        this.updateCellSelection();
+      }
+    });
+    return;
+  }
+
   // 드래그 중: requestAnimationFrame으로 throttle하여 성능 확보
   if (this.isDragging) {
     if (this.dragRafId) return; // 이미 예약된 프레임이 있으면 건너뜀
     this.dragRafId = requestAnimationFrame(() => {
       this.dragRafId = 0;
       if (!this.isDragging) return;
-      const hit = this.hitTestFromEvent(e);
-      if (hit && hit.paragraphIndex < 0xFFFFFF00) {
-        this.cursor.moveTo(hit);
-        this.updateCaret();
-      }
+      updateTextDragSelection.call(this, e);
     });
     return;
   }
@@ -1160,10 +1470,10 @@ export function onMouseMove(this: any, e: MouseEvent): void {
         const px = (x - pl) / zoom;
         const py = (y - po) / zoom;
         try {
-          const bbox = this.wasm.getTableBBox(ref.sec, ref.ppi, ref.ci);
+          const bbox = this.getTableObjectBBox?.(ref, pi) ?? this.wasm.getTableBBox(ref.sec, ref.ppi, ref.ci);
           if (px >= bbox.x && px <= bbox.x + bbox.width &&
               py >= bbox.y && py <= bbox.y + bbox.height) {
-            this.container.style.cursor = 'move';
+            this.container.style.cursor = ref.cellPath && ref.cellPath.length > 1 ? '' : 'move';
           } else {
             this.container.style.cursor = '';
           }
@@ -1208,13 +1518,29 @@ export function handleResizeHover(this: any, e: MouseEvent): void {
   const pageY = (contentY - pageOffset) / zoom;
 
   // hitTest로 표 셀 위인지 확인
-  let tableRef: { sec: number; ppi: number; ci: number } | null = null;
+  let tableRef: { sec: number; ppi: number; ci: number; cellPath?: unknown[] } | null = null;
   try {
-    const hit = this.wasm.hitTest(pageIdx, pageX, pageY);
+    const rawHit = this.wasm.hitTest(pageIdx, pageX, pageY);
+    const hit = this.normalizeHitTestCellPath?.(rawHit, pageX, pageY, pageIdx) ?? rawHit;
     if (hit.parentParaIndex !== undefined && hit.controlIndex !== undefined && !hit.isTextBox) {
-      tableRef = { sec: hit.sectionIndex, ppi: hit.parentParaIndex, ci: hit.controlIndex };
+      tableRef = {
+        sec: hit.sectionIndex,
+        ppi: hit.parentParaIndex,
+        ci: hit.controlIndex,
+        cellPath: hit.cellPath,
+      };
     }
   } catch { /* hitTest 실패 시 표 밖 */ }
+
+  if (!tableRef && this.cachedTableRef && this.cachedCellBboxes?.length) {
+    const pageBboxes = this.cachedCellBboxes.filter((b: any) => b.pageIndex === pageIdx);
+    const edge = this.tableResizeRenderer.hitTestBorder(pageX, pageY, pageBboxes);
+    if (edge) {
+      this.container.style.cursor = edge.type === 'row' ? 'row-resize' : 'col-resize';
+      this.tableResizeRenderer.showMarker(edge, pageBboxes, zoom);
+      return;
+    }
+  }
 
   if (!tableRef) {
     this.tableResizeRenderer.clear();
@@ -1230,9 +1556,10 @@ export function handleResizeHover(this: any, e: MouseEvent): void {
   if (!this.cachedTableRef ||
       this.cachedTableRef.sec !== tableRef.sec ||
       this.cachedTableRef.ppi !== tableRef.ppi ||
-      this.cachedTableRef.ci !== tableRef.ci) {
+      this.cachedTableRef.ci !== tableRef.ci ||
+      !sameCellPath(this.cachedTableRef.cellPath, tableRef.cellPath)) {
     try {
-      this.cachedCellBboxes = this.wasm.getTableCellBboxes(tableRef.sec, tableRef.ppi, tableRef.ci);
+      this.cachedCellBboxes = getCellBboxesForTableRef.call(this, tableRef);
       this.cachedTableRef = tableRef;
     } catch {
       this.cachedCellBboxes = null;
@@ -1271,16 +1598,16 @@ export function handleResizeHover(this: any, e: MouseEvent): void {
   }
 }
 
-export function onMouseUp(this: any, _e: MouseEvent): void {
+export function onMouseUp(this: any, e: MouseEvent): void {
   // 그림 배치 모드 마우스업 → 삽입 실행
   if (this.imagePlacementMode && this.imagePlacementDrag && this.imagePlacementData) {
-    this.finishImagePlacement(_e);
+    this.finishImagePlacement(e);
     return;
   }
 
   // 글상자 배치 모드 마우스업 → 삽입 실행
   if (this.textboxPlacementMode && this.textboxPlacementDrag) {
-    this.finishTextboxPlacement(_e);
+    this.finishTextboxPlacement(e);
     return;
   }
 
@@ -1298,7 +1625,7 @@ export function onMouseUp(this: any, _e: MouseEvent): void {
 
   // 그림 회전 드래그 종료
   if (this.isPictureRotateDragging) {
-    this.finishPictureRotateDrag(_e);
+    this.finishPictureRotateDrag(e);
     return;
   }
 
@@ -1313,13 +1640,38 @@ export function onMouseUp(this: any, _e: MouseEvent): void {
 
   // 그림 리사이즈 드래그 종료
   if (this.isPictureResizeDragging) {
-    this.finishPictureResizeDrag(_e);
+    this.finishPictureResizeDrag(e);
     return;
   }
 
   // 리사이즈 드래그 종료
   if (this.isResizeDragging) {
-    this.finishResizeDrag(_e);
+    this.finishResizeDrag(e);
+    return;
+  }
+
+  if (this.isDragging) {
+    if (this.dragRafId) {
+      cancelAnimationFrame(this.dragRafId);
+      this.dragRafId = 0;
+    }
+    updateTextDragSelection.call(this, e);
+  }
+
+  if (this.isCellDragSelecting) {
+    this.isCellDragSelecting = false;
+    if (this.dragRafId) {
+      cancelAnimationFrame(this.dragRafId);
+      this.dragRafId = 0;
+    }
+    const cellRC = this.hitTestCellRowCol(e);
+    if (cellRC) {
+      setCellDragFocusRange.call(this, cellRC);
+    }
+    this.cellDragAnchorRange = null;
+    this.caret.hide();
+    this.updateCellSelection();
+    this.textarea.focus();
     return;
   }
 
@@ -1345,6 +1697,7 @@ export function onMouseUp(this: any, _e: MouseEvent): void {
   }
 
   this.updateCaret();
+  this.checkTransparentBordersTransition();
 }
 
 

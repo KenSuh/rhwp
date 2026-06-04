@@ -33,8 +33,10 @@ fn test_table_default() {
 #[test]
 fn test_cell_span() {
     let cell = Cell {
-        col: 0, row: 0,
-        col_span: 2, row_span: 3,
+        col: 0,
+        row: 0,
+        col_span: 2,
+        row_span: 3,
         ..Default::default()
     };
     assert_eq!(cell.col_span, 2);
@@ -67,6 +69,35 @@ fn test_get_row_heights() {
     let table = make_table(2, 3);
     let heights = table.get_row_heights();
     assert_eq!(heights, vec![1000, 1000]);
+}
+
+#[test]
+fn test_update_ctrl_dimensions_syncs_common_attr() {
+    let mut table = make_table(2, 3);
+    table.common.width = 1;
+    table.common.height = 1;
+
+    table.update_ctrl_dimensions();
+
+    assert_eq!(table.common.width, 10800);
+    assert_eq!(table.common.height, 2000);
+}
+
+#[test]
+fn test_update_ctrl_dimensions_syncs_raw_ctrl_data() {
+    let mut table = make_table(1, 1);
+    table.raw_ctrl_data = vec![0; 16];
+
+    table.update_ctrl_dimensions();
+
+    assert_eq!(
+        u32::from_le_bytes(table.raw_ctrl_data[8..12].try_into().unwrap()),
+        3600
+    );
+    assert_eq!(
+        u32::from_le_bytes(table.raw_ctrl_data[12..16].try_into().unwrap()),
+        1000
+    );
 }
 
 // === insert_row 테스트 ===
@@ -106,7 +137,7 @@ fn test_insert_row_above() {
     assert_eq!(table.cells[0].row, 0);
     assert_eq!(table.cells[1].row, 0);
     assert_eq!(table.cells[0].paragraphs.len(), 1); // 빈 문단
-    // 행 1: 원래 첫 행 (시프트)
+                                                    // 행 1: 원래 첫 행 (시프트)
     assert_eq!(table.cells[2].row, 1);
     assert_eq!(table.cells[3].row, 1);
 }
@@ -125,7 +156,11 @@ fn test_insert_row_with_merged_cell() {
 
     assert_eq!(table.row_count, 4);
     // (0,0) 셀의 row_span이 3으로 확장되어야 함
-    let merged = table.cells.iter().find(|c| c.col == 0 && c.row == 0).unwrap();
+    let merged = table
+        .cells
+        .iter()
+        .find(|c| c.col == 0 && c.row == 0)
+        .unwrap();
     assert_eq!(merged.row_span, 3);
     // 새 행의 열 0은 병합 셀에 의해 커버 → 새 셀 없음
     // 새 행의 열 1에만 새 셀 생성
@@ -152,7 +187,12 @@ fn test_insert_column_right() {
     assert_eq!(table.cells.len(), 6);
 
     // 열 0: 원래, 열 1: 새로, 열 2: 원래 (시프트)
-    let row0: Vec<u16> = table.cells.iter().filter(|c| c.row == 0).map(|c| c.col).collect();
+    let row0: Vec<u16> = table
+        .cells
+        .iter()
+        .filter(|c| c.row == 0)
+        .map(|c| c.col)
+        .collect();
     assert_eq!(row0, vec![0, 1, 2]);
 }
 
@@ -166,7 +206,12 @@ fn test_insert_column_left() {
     assert_eq!(table.cells.len(), 6);
 
     // 열 0: 새로, 열 1: 원래 (시프트), 열 2: 원래 (시프트)
-    let row0: Vec<u16> = table.cells.iter().filter(|c| c.row == 0).map(|c| c.col).collect();
+    let row0: Vec<u16> = table
+        .cells
+        .iter()
+        .filter(|c| c.row == 0)
+        .map(|c| c.col)
+        .collect();
     assert_eq!(row0, vec![0, 1, 2]);
 }
 
@@ -184,11 +229,19 @@ fn test_insert_column_with_merged_cell() {
 
     assert_eq!(table.col_count, 4);
     // (0,0) 셀의 col_span이 3으로 확장
-    let merged = table.cells.iter().find(|c| c.col == 0 && c.row == 0).unwrap();
+    let merged = table
+        .cells
+        .iter()
+        .find(|c| c.col == 0 && c.row == 0)
+        .unwrap();
     assert_eq!(merged.col_span, 3);
     // 행 0의 새 열에는 셀 없음 (병합에 의해 커버)
     // 행 1의 새 열에 새 셀 생성
-    let row1_new: Vec<_> = table.cells.iter().filter(|c| c.row == 1 && c.col == 1).collect();
+    let row1_new: Vec<_> = table
+        .cells
+        .iter()
+        .filter(|c| c.row == 1 && c.col == 1)
+        .collect();
     assert_eq!(row1_new.len(), 1);
 }
 
@@ -208,12 +261,16 @@ fn test_merge_cells_2x2_full() {
 
     // 비주 셀 제거 → 주 셀 1개만 남음
     assert_eq!(table.cells.len(), 1);
-    let merged = table.cells.iter().find(|c| c.col == 0 && c.row == 0).unwrap();
+    let merged = table
+        .cells
+        .iter()
+        .find(|c| c.col == 0 && c.row == 0)
+        .unwrap();
     assert_eq!(merged.col_span, 2);
     assert_eq!(merged.row_span, 2);
     assert_eq!(merged.width, 7200); // 3600 * 2
     assert_eq!(merged.height, 2000); // 1000 * 2
-    // row_sizes 갱신: 각 행에 셀 1개(행0만 주 셀), 행1은 0개
+                                     // row_sizes 갱신: 각 행에 셀 1개(행0만 주 셀), 행1은 0개
     assert_eq!(table.row_sizes, vec![1, 0]);
 }
 
@@ -225,7 +282,11 @@ fn test_merge_cells_partial_row() {
     table.merge_cells(0, 0, 0, 1).unwrap();
 
     assert_eq!(table.cells.len(), 5); // 비주 셀 1개 제거
-    let merged = table.cells.iter().find(|c| c.col == 0 && c.row == 0).unwrap();
+    let merged = table
+        .cells
+        .iter()
+        .find(|c| c.col == 0 && c.row == 0)
+        .unwrap();
     assert_eq!(merged.col_span, 2);
     assert_eq!(merged.row_span, 1);
     // row_sizes: 행0=2셀(병합1+col2), 행1=3셀
@@ -240,7 +301,11 @@ fn test_merge_cells_partial_column() {
     table.merge_cells(0, 0, 1, 0).unwrap();
 
     assert_eq!(table.cells.len(), 5); // 비주 셀 1개 제거
-    let merged = table.cells.iter().find(|c| c.col == 0 && c.row == 0).unwrap();
+    let merged = table
+        .cells
+        .iter()
+        .find(|c| c.col == 0 && c.row == 0)
+        .unwrap();
     assert_eq!(merged.col_span, 1);
     assert_eq!(merged.row_span, 2);
     // row_sizes: 행0=2셀(병합1+col1), 행1=1셀(col1만), 행2=2셀
@@ -264,7 +329,11 @@ fn test_merge_cells_overlapping_span() {
 
     // (0,0)~(0,2) 병합 시도 → 기존 병합이 범위 안에 있으므로 성공
     table.merge_cells(0, 0, 0, 2).unwrap();
-    let merged = table.cells.iter().find(|c| c.col == 0 && c.row == 0).unwrap();
+    let merged = table
+        .cells
+        .iter()
+        .find(|c| c.col == 0 && c.row == 0)
+        .unwrap();
     assert_eq!(merged.col_span, 3);
 }
 
@@ -318,7 +387,11 @@ fn test_split_cell_partial_row() {
     table.split_cell(0, 0).unwrap();
 
     assert_eq!(table.cells.len(), 6);
-    let cell = table.cells.iter().find(|c| c.col == 0 && c.row == 0).unwrap();
+    let cell = table
+        .cells
+        .iter()
+        .find(|c| c.col == 0 && c.row == 0)
+        .unwrap();
     assert_eq!(cell.col_span, 1);
     assert_eq!(cell.row_span, 1);
     // row_sizes 복원: 각 행 3개 셀
@@ -334,7 +407,11 @@ fn test_split_cell_partial_column() {
     table.split_cell(0, 0).unwrap();
 
     assert_eq!(table.cells.len(), 6);
-    let cell = table.cells.iter().find(|c| c.col == 0 && c.row == 0).unwrap();
+    let cell = table
+        .cells
+        .iter()
+        .find(|c| c.col == 0 && c.row == 0)
+        .unwrap();
     assert_eq!(cell.col_span, 1);
     assert_eq!(cell.row_span, 1);
     // row_sizes 복원: 각 행 2개 셀
@@ -357,8 +434,16 @@ fn test_split_cell_width_distribution() {
     table.split_cell(0, 0).unwrap();
 
     // 다른 행에 col_span=1 셀이 있으므로 실제 열폭 사용
-    let cell0 = table.cells.iter().find(|c| c.col == 0 && c.row == 0).unwrap();
-    let cell1 = table.cells.iter().find(|c| c.col == 1 && c.row == 0).unwrap();
+    let cell0 = table
+        .cells
+        .iter()
+        .find(|c| c.col == 0 && c.row == 0)
+        .unwrap();
+    let cell1 = table
+        .cells
+        .iter()
+        .find(|c| c.col == 1 && c.row == 0)
+        .unwrap();
     assert_eq!(cell0.width, 3600);
     assert_eq!(cell1.width, 3600);
 }
@@ -417,7 +502,11 @@ fn test_delete_row_with_merged_cell() {
     table.delete_row(1).unwrap();
 
     assert_eq!(table.row_count, 2);
-    let merged = table.cells.iter().find(|c| c.col == 0 && c.row == 0).unwrap();
+    let merged = table
+        .cells
+        .iter()
+        .find(|c| c.col == 0 && c.row == 0)
+        .unwrap();
     assert_eq!(merged.row_span, 1);
 }
 
@@ -427,14 +516,20 @@ fn test_delete_row_merged_cell_anchor() {
     // (0,0) 셀을 row_span=3으로 병합 (전체 열)
     table.cells[0].row_span = 3;
     table.cells[0].height = 3000;
-    table.cells.retain(|c| !(c.col == 0 && (c.row == 1 || c.row == 2)));
+    table
+        .cells
+        .retain(|c| !(c.col == 0 && (c.row == 1 || c.row == 2)));
     assert_eq!(table.cells.len(), 4);
 
     // 행 0(앵커 행) 삭제 → 병합 셀이 다음 행으로 이동, row_span 축소
     table.delete_row(0).unwrap();
 
     assert_eq!(table.row_count, 2);
-    let merged = table.cells.iter().find(|c| c.col == 0 && c.row == 0).unwrap();
+    let merged = table
+        .cells
+        .iter()
+        .find(|c| c.col == 0 && c.row == 0)
+        .unwrap();
     assert_eq!(merged.row_span, 2);
 }
 
@@ -462,7 +557,12 @@ fn test_delete_column_basic() {
     assert_eq!(table.col_count, 2);
     assert_eq!(table.cells.len(), 4);
     // 열 0: 유지, 열 1: 원래 열 2가 시프트
-    let row0: Vec<u16> = table.cells.iter().filter(|c| c.row == 0).map(|c| c.col).collect();
+    let row0: Vec<u16> = table
+        .cells
+        .iter()
+        .filter(|c| c.row == 0)
+        .map(|c| c.col)
+        .collect();
     assert_eq!(row0, vec![0, 1]);
 }
 
@@ -502,7 +602,11 @@ fn test_delete_column_with_merged_cell() {
     table.delete_column(1).unwrap();
 
     assert_eq!(table.col_count, 2);
-    let merged = table.cells.iter().find(|c| c.col == 0 && c.row == 0).unwrap();
+    let merged = table
+        .cells
+        .iter()
+        .find(|c| c.col == 0 && c.row == 0)
+        .unwrap();
     assert_eq!(merged.col_span, 1);
 }
 
@@ -512,14 +616,20 @@ fn test_delete_column_merged_cell_anchor() {
     // (0,0) 셀을 col_span=3으로 병합 (전체 행)
     table.cells[0].col_span = 3;
     table.cells[0].width = 10800;
-    table.cells.retain(|c| !(c.row == 0 && (c.col == 1 || c.col == 2)));
+    table
+        .cells
+        .retain(|c| !(c.row == 0 && (c.col == 1 || c.col == 2)));
     assert_eq!(table.cells.len(), 4);
 
     // 열 0(앵커 열) 삭제 → 병합 셀 col_span 축소
     table.delete_column(0).unwrap();
 
     assert_eq!(table.col_count, 2);
-    let merged = table.cells.iter().find(|c| c.col == 0 && c.row == 0).unwrap();
+    let merged = table
+        .cells
+        .iter()
+        .find(|c| c.col == 0 && c.row == 0)
+        .unwrap();
     assert_eq!(merged.col_span, 2);
 }
 
@@ -562,7 +672,7 @@ fn test_rebuild_grid_merged() {
     assert_eq!(table.cell_grid[1].unwrap(), anchor_idx); // (0,1)
     assert_eq!(table.cell_grid[3].unwrap(), anchor_idx); // (1,0)
     assert_eq!(table.cell_grid[4].unwrap(), anchor_idx); // (1,1)
-    // 앵커 셀 확인
+                                                         // 앵커 셀 확인
     let anchor = &table.cells[anchor_idx];
     assert_eq!(anchor.row, 0);
     assert_eq!(anchor.col, 0);
@@ -619,7 +729,9 @@ fn test_edit_ops_rebuild_grid() {
     assert_eq!(table.cell_grid.len(), 3 * 2); // 3행 × 2열
     for r in 0..3u16 {
         for c in 0..2u16 {
-            let cell = table.cell_at(r, c).expect("cell should exist after insert_row");
+            let cell = table
+                .cell_at(r, c)
+                .expect("cell should exist after insert_row");
             assert_eq!(cell.row, r);
             assert_eq!(cell.col, c);
         }
@@ -629,7 +741,9 @@ fn test_edit_ops_rebuild_grid() {
     table.delete_column(1).unwrap();
     assert_eq!(table.cell_grid.len(), 3 * 1); // 3행 × 1열
     for r in 0..3u16 {
-        let cell = table.cell_at(r, 0).expect("cell should exist after delete_column");
+        let cell = table
+            .cell_at(r, 0)
+            .expect("cell should exist after delete_column");
         assert_eq!(cell.row, r);
         assert_eq!(cell.col, 0);
     }
@@ -645,13 +759,13 @@ fn test_split_cell_into_1x2() {
 
     assert_eq!(table.col_count, 3); // 2+1
     assert_eq!(table.row_count, 2); // 변경 없음
-    // 서브셀 2개
+                                    // 서브셀 2개
     let c00 = table.cell_at(0, 0).unwrap();
     let c01 = table.cell_at(0, 1).unwrap();
     assert_eq!(c00.col_span, 1);
     assert_eq!(c01.col_span, 1);
     assert_eq!(c00.width + c01.width, 3600); // 원래 폭 보존
-    // (0,2): 원래 (0,1)이 이동한 셀
+                                             // (0,2): 원래 (0,1)이 이동한 셀
     let c02 = table.cell_at(0, 2).unwrap();
     assert_eq!(c02.col, 2);
     // (1,0): 같은 열 → col_span=2로 확장
@@ -672,7 +786,7 @@ fn test_split_cell_into_2x1() {
     assert_eq!(c00.row_span, 1);
     assert_eq!(c10.row_span, 1);
     assert_eq!(c00.height + c10.height, 1000); // 원래 높이 보존
-    // (0,1): 같은 행 → row_span=2로 확장
+                                               // (0,1): 같은 행 → row_span=2로 확장
     let c01 = table.cell_at(0, 1).unwrap();
     assert_eq!(c01.row_span, 2);
 }
@@ -685,7 +799,7 @@ fn test_split_cell_into_2x2() {
 
     assert_eq!(table.col_count, 4); // 3+1
     assert_eq!(table.row_count, 4); // 3+1
-    // 4개 서브셀 확인
+                                    // 4개 서브셀 확인
     for r in 1..=2u16 {
         for c in 1..=2u16 {
             let cell = table.cell_at(r, c).unwrap();
@@ -735,7 +849,11 @@ fn test_split_cell_into_merged_merge_first() {
     table.merge_cells(0, 0, 0, 1).unwrap();
 
     // 병합된 셀: col_span=2
-    let merged = table.cells.iter().find(|c| c.col == 0 && c.row == 0).unwrap();
+    let merged = table
+        .cells
+        .iter()
+        .find(|c| c.col == 0 && c.row == 0)
+        .unwrap();
     assert_eq!(merged.col_span, 2);
 
     table.split_cell_into(0, 0, 1, 3, true, true).unwrap();

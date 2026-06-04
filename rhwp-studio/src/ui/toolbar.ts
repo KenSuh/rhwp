@@ -407,6 +407,7 @@ export class Toolbar {
       if (btn) {
         btn.addEventListener('mousedown', (e) => {
           e.preventDefault();
+          e.stopPropagation();
           this.dispatcher.dispatch(cmdId);
         });
       }

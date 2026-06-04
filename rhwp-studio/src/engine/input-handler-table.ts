@@ -30,6 +30,7 @@ export function startResizeDrag(this: any,
   const tolerance = 1.0;
   const ry = (v: number) => Math.round(v * 10) / 10;
   const affectedCellIndices: number[] = [];
+  let resizeFromStartEdge = false;
 
   for (const b of this.cachedCellBboxes) {
     if (edge.type === 'col') {
@@ -39,6 +40,21 @@ export function startResizeDrag(this: any,
     } else {
       if (Math.abs(ry(b.y + b.h) - ry(borderOriginalPos)) <= tolerance) {
         affectedCellIndices.push(b.cellIdx);
+      }
+    }
+  }
+
+  if (affectedCellIndices.length === 0) {
+    resizeFromStartEdge = true;
+    for (const b of this.cachedCellBboxes) {
+      if (edge.type === 'col') {
+        if (Math.abs(ry(b.x) - ry(borderOriginalPos)) <= tolerance) {
+          affectedCellIndices.push(b.cellIdx);
+        }
+      } else {
+        if (Math.abs(ry(b.y) - ry(borderOriginalPos)) <= tolerance) {
+          affectedCellIndices.push(b.cellIdx);
+        }
       }
     }
   }
@@ -53,6 +69,7 @@ export function startResizeDrag(this: any,
     pageBboxes,
     affectedCellIndices,
     borderOriginalPos,
+    resizeFromStartEdge,
   };
 
   // mouseup 리스너 등록 (document 레벨)
@@ -115,7 +132,8 @@ export function finishResizeDrag(this: any, e: MouseEvent): void {
   const newPos = state.edge.type === 'row' ? pageY : pageX;
   const deltaPagePx = newPos - state.borderOriginalPos;
   // 1 page px (96 DPI) = 75 HWPUNIT (7200/96)
-  const deltaHwpUnit = Math.round(deltaPagePx * 75);
+  const rawDeltaHwpUnit = Math.round(deltaPagePx * 75);
+  const deltaHwpUnit = state.resizeFromStartEdge ? -rawDeltaHwpUnit : rawDeltaHwpUnit;
 
   // 너무 작은 드래그는 무시 (1px 미만)
   if (Math.abs(deltaHwpUnit) < 75) {
@@ -185,12 +203,21 @@ export function finishResizeDrag(this: any, e: MouseEvent): void {
 
   // WASM 배치 API 호출
   try {
-    this.wasm.resizeTableCells(
-      state.tableRef.sec,
-      state.tableRef.ppi,
-      state.tableRef.ci,
-      updates,
-    );
+    if (state.tableRef.cellPath && state.tableRef.cellPath.length > 1) {
+      this.wasm.resizeTableCellsByPath(
+        state.tableRef.sec,
+        state.tableRef.ppi,
+        JSON.stringify(state.tableRef.cellPath),
+        updates,
+      );
+    } else {
+      this.wasm.resizeTableCells(
+        state.tableRef.sec,
+        state.tableRef.ppi,
+        state.tableRef.ci,
+        updates,
+      );
+    }
     this.eventBus.emit('document-changed');
     if (inCellSel) this.updateCellSelection();
   } catch (err) {
@@ -455,7 +482,9 @@ export function resizeCellByKeyboard(this: any, key: 'ArrowUp' | 'ArrowDown' | '
   const DELTA = 300; // 1 키스트로크 당 300 HWPUNIT (~1mm)
   let bboxes: CellBbox[];
   try {
-    bboxes = this.wasm.getTableCellBboxes(ctx.sec, ctx.ppi, ctx.ci);
+    bboxes = ctx.cellPath && ctx.cellPath.length > 1
+      ? this.wasm.getTableCellBboxesByPath(ctx.sec, ctx.ppi, JSON.stringify(ctx.cellPath))
+      : this.wasm.getTableCellBboxes(ctx.sec, ctx.ppi, ctx.ci);
   } catch { return; }
 
   // 선택 범위 내 셀 bbox 추출
@@ -493,7 +522,11 @@ export function resizeCellByKeyboard(this: any, key: 'ArrowUp' | 'ArrowDown' | '
   }
 
   try {
-    this.wasm.resizeTableCells(ctx.sec, ctx.ppi, ctx.ci, updates);
+    if (ctx.cellPath && ctx.cellPath.length > 1) {
+      this.wasm.resizeTableCellsByPath(ctx.sec, ctx.ppi, JSON.stringify(ctx.cellPath), updates);
+    } else {
+      this.wasm.resizeTableCells(ctx.sec, ctx.ppi, ctx.ci, updates);
+    }
     this.eventBus.emit('document-changed');
     this.updateCellSelection();
   } catch (err) {
@@ -511,7 +544,9 @@ export function resizeTableProportional(this: any, key: 'ArrowUp' | 'ArrowDown' 
   const delta = (key === 'ArrowRight' || key === 'ArrowDown') ? DELTA : -DELTA;
 
   try {
-    const bboxes = this.wasm.getTableCellBboxes(ctx.sec, ctx.ppi, ctx.ci);
+    const bboxes = ctx.cellPath && ctx.cellPath.length > 1
+      ? this.wasm.getTableCellBboxesByPath(ctx.sec, ctx.ppi, JSON.stringify(ctx.cellPath))
+      : this.wasm.getTableCellBboxes(ctx.sec, ctx.ppi, ctx.ci);
     const updates: Array<{ cellIdx: number; widthDelta?: number; heightDelta?: number }> = [];
     const processed = new Set<number>();
 
@@ -525,11 +560,14 @@ export function resizeTableProportional(this: any, key: 'ArrowUp' | 'ArrowDown' 
       }
     }
 
-    this.wasm.resizeTableCells(ctx.sec, ctx.ppi, ctx.ci, updates);
+    if (ctx.cellPath && ctx.cellPath.length > 1) {
+      this.wasm.resizeTableCellsByPath(ctx.sec, ctx.ppi, JSON.stringify(ctx.cellPath), updates);
+    } else {
+      this.wasm.resizeTableCells(ctx.sec, ctx.ppi, ctx.ci, updates);
+    }
     this.eventBus.emit('document-changed');
     this.updateCellSelection();
   } catch (err) {
     console.warn('[InputHandler] resizeTableProportional 실패:', err);
   }
 }
-
