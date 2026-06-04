@@ -473,3 +473,26 @@ fn phase1_table_cell_edit_export_hwpx_reparse_smoke() {
         after_table_texts
     );
 }
+
+#[test]
+fn phase1_form_002_export_hwpx_reparse_preserves_validation_cleanliness() {
+    use rhwp::document_core::DocumentCore;
+
+    let bytes = include_bytes!("../samples/hwpx/form-002.hwpx");
+    let core = DocumentCore::from_bytes(bytes).expect("load form-002");
+    assert_eq!(
+        core.validation_report().len(),
+        0,
+        "fixture starts validation-clean",
+    );
+
+    let saved = core.export_hwpx_native().expect("export form-002 hwpx");
+    let reparsed = DocumentCore::from_bytes(&saved).expect("reparse exported form-002");
+
+    assert_eq!(
+        reparsed.validation_report().len(),
+        0,
+        "form-002 export/reparse must not introduce lineseg warnings: {:?}",
+        reparsed.validation_report().warnings,
+    );
+}

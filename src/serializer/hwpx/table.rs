@@ -29,7 +29,7 @@ use std::io::Write;
 use quick_xml::Writer;
 
 use crate::model::control::Control;
-use crate::model::paragraph::LineSeg;
+use crate::model::paragraph::{CharShapeRef, LineSeg};
 use crate::model::shape::{
     CommonObjAttr, HorzAlign, HorzRelTo, ShapeObject, TextWrap, VertAlign, VertRelTo,
 };
@@ -253,7 +253,7 @@ fn write_sub_list<W: Write>(
     for (pi, para) in cell.paragraphs.iter().enumerate() {
         ctx.para_shape_ids.reference(para.para_shape_id);
         ctx.style_ids.reference(para.style_id as u16);
-        if let Some(cs_ref) = para.char_shapes.first() {
+        for cs_ref in &para.char_shapes {
             ctx.char_shape_ids.reference(cs_ref.char_shape_id);
         }
 
@@ -273,18 +273,14 @@ fn write_sub_list<W: Write>(
             ],
         )?;
 
-        let cs = para
+        let first_cs = para
             .char_shapes
             .first()
             .map(|r| r.char_shape_id)
             .unwrap_or(0);
-        let cs_str = cs.to_string();
-        start_tag_attrs(w, "hp:run", &[("charPrIDRef", &cs_str)])?;
-        // 텍스트만 출력 (탭·소프트브레이크는 Stage 3 범위에서 제외 — section.rs 와 동일 방식으로 단순화)
-        write_cell_text(w, &para.text)?;
-        end_tag(w, "hp:run")?;
+        write_cell_text_runs(w, &para.text, &para.char_offsets, &para.char_shapes)?;
         for control in &para.controls {
-            write_cell_control_run(w, control, ctx, cs)?;
+            write_cell_control_run(w, control, ctx, first_cs)?;
         }
 
         write_cell_linesegs(w, &para.line_segs)?;
@@ -351,6 +347,80 @@ fn write_cell_fallback_lineseg<W: Write>(w: &mut Writer<W>) -> Result<(), Serial
             ("flags", "393216"),
         ],
     )
+}
+
+fn write_cell_text_runs<W: Write>(
+    w: &mut Writer<W>,
+    text: &str,
+    char_offsets: &[u32],
+    char_shapes: &[CharShapeRef],
+) -> Result<(), SerializeError> {
+    if text.is_empty() {
+        let cs = first_char_shape_id(char_shapes).to_string();
+        start_tag_attrs(w, "hp:run", &[("charPrIDRef", &cs)])?;
+        write_cell_text(w, "")?;
+        end_tag(w, "hp:run")?;
+        return Ok(());
+    }
+
+    let mut current_shape: Option<u32> = None;
+    let mut current_text = String::new();
+    let mut fallback_utf16_pos = 0u32;
+
+    for (idx, ch) in text.chars().enumerate() {
+        let utf16_pos = char_offsets.get(idx).copied().unwrap_or(fallback_utf16_pos);
+        let shape_id = active_char_shape_id(char_shapes, utf16_pos);
+        fallback_utf16_pos = utf16_pos + char_utf16_len(ch);
+
+        if current_shape.is_some_and(|existing| existing != shape_id) {
+            write_cell_text_run(w, current_shape.unwrap_or(0), &current_text)?;
+            current_text.clear();
+        }
+
+        current_shape = Some(shape_id);
+        current_text.push(ch);
+    }
+
+    write_cell_text_run(
+        w,
+        current_shape.unwrap_or_else(|| first_char_shape_id(char_shapes)),
+        &current_text,
+    )
+}
+
+fn write_cell_text_run<W: Write>(
+    w: &mut Writer<W>,
+    char_shape_id: u32,
+    text: &str,
+) -> Result<(), SerializeError> {
+    let cs = char_shape_id.to_string();
+    start_tag_attrs(w, "hp:run", &[("charPrIDRef", &cs)])?;
+    write_cell_text(w, text)?;
+    end_tag(w, "hp:run")
+}
+
+fn first_char_shape_id(char_shapes: &[CharShapeRef]) -> u32 {
+    char_shapes.first().map(|r| r.char_shape_id).unwrap_or(0)
+}
+
+fn active_char_shape_id(char_shapes: &[CharShapeRef], utf16_pos: u32) -> u32 {
+    let mut active_id = first_char_shape_id(char_shapes);
+    for shape in char_shapes {
+        if shape.start_pos <= utf16_pos {
+            active_id = shape.char_shape_id;
+        } else {
+            break;
+        }
+    }
+    active_id
+}
+
+fn char_utf16_len(ch: char) -> u32 {
+    if ch == '\t' {
+        8
+    } else {
+        ch.len_utf16() as u32
+    }
 }
 
 fn write_cell_text<W: Write>(w: &mut Writer<W>, text: &str) -> Result<(), SerializeError> {
@@ -571,7 +641,7 @@ fn cell_vert_align_str(v: VerticalAlign) -> &'static str {
 mod tests {
     use super::*;
     use crate::model::document::Document;
-    use crate::model::paragraph::{LineSeg, Paragraph};
+    use crate::model::paragraph::{CharShapeRef, LineSeg, Paragraph};
     use crate::model::table::{Cell, Table};
     use crate::serializer::hwpx::context::SerializeContext;
 
@@ -723,6 +793,32 @@ mod tests {
         assert!(
             xml.contains(
                 r#"<hp:lineseg textpos="6" vertpos="1523" vertsize="1300" textheight="1000" baseline="820" spacing="250" horzpos="99" horzsize="7777" flags="222"/>"#
+            ),
+            "{}",
+            xml,
+        );
+    }
+
+    #[test]
+    fn cell_paragraph_char_shape_runs_are_preserved() {
+        let mut t = empty_table(1, 1);
+        t.cells[0].paragraphs[0].text = "가나다ABC".to_string();
+        t.cells[0].paragraphs[0].char_offsets = vec![0, 1, 2, 3, 4, 5];
+        t.cells[0].paragraphs[0].char_shapes = vec![
+            CharShapeRef {
+                start_pos: 0,
+                char_shape_id: 28,
+            },
+            CharShapeRef {
+                start_pos: 3,
+                char_shape_id: 39,
+            },
+        ];
+
+        let xml = serialize(&t);
+        assert!(
+            xml.contains(
+                r#"<hp:run charPrIDRef="28"><hp:t>가나다</hp:t></hp:run><hp:run charPrIDRef="39"><hp:t>ABC</hp:t></hp:run>"#
             ),
             "{}",
             xml,
