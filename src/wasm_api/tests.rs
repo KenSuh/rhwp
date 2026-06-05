@@ -582,6 +582,107 @@ fn test_tac_table_reflow_uses_row_height_when_common_height_is_stale() {
 }
 
 #[test]
+fn test_resize_table_cells_batch_updates_multiple_cells_and_reflows() {
+    let mut doc = HwpDocument::create_empty();
+    let mut document = Document::default();
+    document.sections.push(Section {
+        section_def: crate::model::document::SectionDef {
+            page_def: crate::model::page::PageDef {
+                width: 59528,
+                height: 84188,
+                margin_left: 8504,
+                margin_right: 8504,
+                margin_top: 5669,
+                margin_bottom: 4252,
+                margin_header: 4252,
+                margin_footer: 4252,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        paragraphs: vec![Paragraph {
+            line_segs: vec![LineSeg {
+                line_height: 400,
+                baseline_distance: 320,
+                ..Default::default()
+            }],
+            ..Default::default()
+        }],
+        raw_stream: None,
+    });
+    doc.set_document(document);
+
+    doc.insert_text_native(0, 0, 0, "A").unwrap();
+    let result = doc
+        .create_table_ex_native(0, 0, 1, 2, 2, true, Some(&[9000, 11000]))
+        .unwrap();
+    let control_idx = {
+        let pattern = "\"controlIdx\":";
+        let start = result.find(pattern).unwrap() + pattern.len();
+        let end = result[start..]
+            .find(|c: char| !c.is_ascii_digit())
+            .map(|idx| start + idx)
+            .unwrap_or(result.len());
+        result[start..end].parse::<usize>().unwrap()
+    };
+
+    let (before_cell0_width, before_cell3_width, before_cell0_height, before_cell3_height, before_table_height) =
+        match doc.document.sections[0].paragraphs[0].controls.get(control_idx) {
+            Some(Control::Table(table)) => (
+                table.cells[0].width,
+                table.cells[3].width,
+                table.cells[0].height,
+                table.cells[3].height,
+                table.common.height,
+            ),
+            _ => panic!("2x2 TAC 표를 찾을 수 없음"),
+        };
+
+    doc.resize_table_cells_native(
+        0,
+        0,
+        control_idx,
+        r#"[{"cellIdx":0,"widthDelta":1500,"heightDelta":2500},{"cellIdx":3,"widthDelta":2000,"heightDelta":3500}]"#,
+    )
+    .unwrap();
+
+    let (after_cell0_width, after_cell3_width, after_cell0_height, after_cell3_height, after_table_height) =
+        match doc.document.sections[0].paragraphs[0].controls.get(control_idx) {
+            Some(Control::Table(table)) => (
+                table.cells[0].width,
+                table.cells[3].width,
+                table.cells[0].height,
+                table.cells[3].height,
+                table.common.height,
+            ),
+            _ => panic!("2x2 TAC 표를 찾을 수 없음"),
+        };
+
+    assert_eq!(after_cell0_width, before_cell0_width + 1500);
+    assert_eq!(after_cell3_width, before_cell3_width + 2000);
+    assert!(after_cell0_height >= before_cell0_height + 2500);
+    assert!(after_cell3_height >= before_cell3_height + 3500);
+    assert!(
+        after_table_height > before_table_height,
+        "여러 셀 높이 resize 후 표 높이가 늘어나야 함: before={}, after={}",
+        before_table_height,
+        after_table_height,
+    );
+
+    let recomposed_line_height = doc.composed[0][0]
+        .lines
+        .first()
+        .map(|line| line.line_height)
+        .unwrap_or_default();
+    assert!(
+        recomposed_line_height >= after_table_height as i32,
+        "여러 셀 batch resize 후 부모 문단 line_height가 갱신되어야 함: line={}, table={}",
+        recomposed_line_height,
+        after_table_height,
+    );
+}
+
+#[test]
 fn test_inline_picture_merge_reflows_parent_line_height() {
     let mut doc = HwpDocument::create_empty();
     let mut document = Document::default();
