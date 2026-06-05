@@ -752,11 +752,30 @@ export function onClick(this: any, e: MouseEvent): void {
     }
 
     // 표 경계선 클릭 감지 → 표 객체 선택 (셀 내부에서 외곽 클릭)
+    // 중첩 표는 같은 좌표에서 외부 표도 경계로 잡힐 수 있으므로 더 안쪽 표를 먼저 찾는다.
     if (hit.parentParaIndex !== undefined && hit.controlIndex !== undefined && !hit.isTextBox) {
-      if (this.isTableBorderClick(pageX, pageY, hit.sectionIndex, hit.parentParaIndex, hit.controlIndex, hit.cellPath, pageIdx)) {
+      const nestedTableRef = this.findNestedTableBorderHitFromPoint?.(hit, pageX, pageY, pageIdx) ?? null;
+      const tableRef = nestedTableRef ?? (
+        this.isTableBorderClick(pageX, pageY, hit.sectionIndex, hit.parentParaIndex, hit.controlIndex, hit.cellPath, pageIdx)
+          ? { sec: hit.sectionIndex, ppi: hit.parentParaIndex, ci: hit.controlIndex, cellPath: hit.cellPath }
+          : null
+      );
+      if (tableRef) {
         this.cursor.clearSelection();
-        this.cursor.moveTo(hit); // 셀 위치로 이동 (유효한 렌더링 위치)
-        this.cursor.enterTableObjectSelectionDirect(hit.sectionIndex, hit.parentParaIndex, hit.controlIndex, hit.cellPath);
+        if (tableRef.cellPath?.length) {
+          const leaf = tableRef.cellPath[tableRef.cellPath.length - 1] as any;
+          this.cursor.moveTo({
+            ...hit,
+            parentParaIndex: tableRef.ppi,
+            controlIndex: tableRef.ci,
+            cellIndex: leaf?.cellIndex ?? hit.cellIndex,
+            cellParaIndex: leaf?.cellParaIndex ?? hit.cellParaIndex,
+            cellPath: tableRef.cellPath,
+          });
+        } else {
+          this.cursor.moveTo(hit); // 셀 위치로 이동 (유효한 렌더링 위치)
+        }
+        this.cursor.enterTableObjectSelectionDirect(tableRef.sec, tableRef.ppi, tableRef.ci, tableRef.cellPath);
         this.active = true;
         this.caret.hide();
         this.selectionRenderer.clear();
@@ -1014,15 +1033,14 @@ export function onDblClick(this: any, e: MouseEvent): void {
     const hit = this.normalizeHitTestCellPath?.(rawHit, pageX, pageY, pageIdx) ?? rawHit;
     let tableRef: { sec: number; ppi: number; ci: number; cellPath?: unknown[] } | null = null;
     if (hit.parentParaIndex !== undefined && hit.controlIndex !== undefined && !hit.isTextBox) {
-      if (this.isTableBorderClick(pageX, pageY, hit.sectionIndex, hit.parentParaIndex, hit.controlIndex, hit.cellPath, pageIdx)) {
+      tableRef = this.findNestedTableBorderHitFromPoint?.(hit, pageX, pageY, pageIdx) ?? null;
+      if (!tableRef && this.isTableBorderClick(pageX, pageY, hit.sectionIndex, hit.parentParaIndex, hit.controlIndex, hit.cellPath, pageIdx)) {
         tableRef = {
           sec: hit.sectionIndex,
           ppi: hit.parentParaIndex,
           ci: hit.controlIndex,
           cellPath: hit.cellPath,
         };
-      } else {
-        tableRef = this.findNestedTableBorderHitFromPoint?.(hit, pageX, pageY, pageIdx) ?? null;
       }
     }
     if (tableRef) {
