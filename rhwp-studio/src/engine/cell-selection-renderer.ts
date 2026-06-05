@@ -34,8 +34,8 @@ export class CellSelectionRenderer {
 
     for (const cell of cellBboxes) {
       // 셀이 선택 범위에 포함되는지 확인 (병합 셀 고려)
-      const cellEndRow = cell.row + cell.rowSpan - 1;
-      const cellEndCol = cell.col + cell.colSpan - 1;
+      const cellEndRow = cell.row + Math.max(1, cell.rowSpan ?? 1) - 1;
+      const cellEndCol = cell.col + Math.max(1, cell.colSpan ?? 1) - 1;
       const overlaps =
         cell.row <= range.endRow && cellEndRow >= range.startRow &&
         cell.col <= range.endCol && cellEndCol >= range.startCol;
