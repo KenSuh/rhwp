@@ -16,7 +16,8 @@ impl DocumentCore {
             Control::Table(table) => table
                 .common
                 .height
-                .max(table.get_row_heights().iter().sum::<u32>()) as i32,
+                .max(table.get_row_heights().iter().sum::<u32>())
+                as i32,
             Control::Picture(pic) => pic.common.height as i32,
             Control::Shape(shape) => shape.common().height as i32,
             _ => 0,
@@ -475,6 +476,34 @@ impl DocumentCore {
         )))
     }
 
+    fn reset_pasted_control_anchor(control: &mut Control) {
+        if let Control::Table(table) = control {
+            table.common.vertical_offset = 0;
+            table.common.horizontal_offset = 0;
+
+            if table.raw_ctrl_data.len() >= 12 {
+                let raw_attr = u32::from_le_bytes([
+                    table.raw_ctrl_data[0],
+                    table.raw_ctrl_data[1],
+                    table.raw_ctrl_data[2],
+                    table.raw_ctrl_data[3],
+                ]);
+                if raw_attr == table.common.attr {
+                    table.raw_ctrl_data[4..8].copy_from_slice(&0i32.to_le_bytes());
+                    table.raw_ctrl_data[8..12].copy_from_slice(&0i32.to_le_bytes());
+                } else if table.raw_ctrl_data.len() >= 8 {
+                    table.raw_ctrl_data[0..4].copy_from_slice(&0i32.to_le_bytes());
+                    table.raw_ctrl_data[4..8].copy_from_slice(&0i32.to_le_bytes());
+                }
+            } else if table.raw_ctrl_data.len() >= 8 {
+                table.raw_ctrl_data[0..4].copy_from_slice(&0i32.to_le_bytes());
+                table.raw_ctrl_data[4..8].copy_from_slice(&0i32.to_le_bytes());
+            }
+
+            table.dirty = true;
+        }
+    }
+
     /// 내부 클립보드의 내용을 캐럿 위치에 붙여넣는다 (본문 문단).
     pub fn paste_internal_native(
         &mut self,
@@ -919,7 +948,7 @@ impl DocumentCore {
             .map(|entry| entry.2)
             .ok_or_else(|| HwpError::RenderError("경로가 비어있습니다".to_string()))?;
         let outer_ctrl = path[0].0;
-        let control = clip_para
+        let mut control = clip_para
             .controls
             .first()
             .cloned()
@@ -932,6 +961,7 @@ impl DocumentCore {
                 "{\"ok\":false,\"error\":\"no pasteable control in clipboard\"}".to_string(),
             );
         }
+        Self::reset_pasted_control_anchor(&mut control);
         let ctrl_data_record = clip_para.ctrl_data_records.first().cloned().flatten();
         let control_height = match &control {
             Control::Table(table) => table
@@ -1065,13 +1095,16 @@ impl DocumentCore {
         char_offset: usize,
     ) -> Result<String, HwpError> {
         // 클립보드에서 컨트롤 문단 확인
-        let clip_para = match &self.clipboard {
+        let mut clip_para = match &self.clipboard {
             Some(c) => match c.paragraphs.first() {
                 Some(p) if !p.controls.is_empty() => p.clone(),
                 _ => return Ok("{\"ok\":false,\"error\":\"no control in clipboard\"}".to_string()),
             },
             None => return Ok("{\"ok\":false,\"error\":\"clipboard empty\"}".to_string()),
         };
+        if let Some(control) = clip_para.controls.first_mut() {
+            Self::reset_pasted_control_anchor(control);
+        }
 
         // 인덱스 검증
         if section_idx >= self.document.sections.len() {

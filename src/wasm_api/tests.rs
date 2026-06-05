@@ -2425,13 +2425,99 @@ fn test_clipboard_paste_control_uses_requested_target_paragraph() {
         &doc.document.sections[0].paragraphs[2].controls[0],
         Control::Table(_)
     ));
-    assert_eq!(doc.document.sections[0].paragraphs[1].text, "붙여넣기 전 문단");
+    assert_eq!(
+        doc.document.sections[0].paragraphs[1].text,
+        "붙여넣기 전 문단"
+    );
     assert_eq!(doc.document.sections[0].paragraphs[3].text, "");
-    assert_eq!(doc.document.sections[0].paragraphs[4].text, "현재 커서 문단");
+    assert_eq!(
+        doc.document.sections[0].paragraphs[4].text,
+        "현재 커서 문단"
+    );
     assert!(matches!(
         &doc.document.sections[0].paragraphs[0].controls[0],
         Control::Table(_)
     ));
+}
+
+#[test]
+fn test_clipboard_paste_table_resets_source_anchor_offsets() {
+    use crate::model::control::Control;
+
+    fn text_para(text: &str) -> Paragraph {
+        Paragraph {
+            text: text.to_string(),
+            char_count: text.chars().count() as u32 + 1,
+            char_offsets: make_char_offsets(text),
+            char_shapes: vec![crate::model::paragraph::CharShapeRef {
+                start_pos: 0,
+                char_shape_id: 0,
+            }],
+            line_segs: vec![LineSeg {
+                text_start: 0,
+                line_height: 400,
+                text_height: 400,
+                baseline_distance: 320,
+                ..Default::default()
+            }],
+            has_para_text: true,
+            ..Default::default()
+        }
+    }
+
+    let mut doc = create_doc_with_table();
+    let source_attr = 0x002a_2211u32;
+    if let Control::Table(table) = &mut doc.document.sections[0].paragraphs[0].controls[0] {
+        table.common.attr = source_attr;
+        table.common.vertical_offset = 1234;
+        table.common.horizontal_offset = 5678;
+        table.raw_ctrl_data = vec![0; 38];
+        table.raw_ctrl_data[0..4].copy_from_slice(&source_attr.to_le_bytes());
+        table.raw_ctrl_data[4..8].copy_from_slice(&1234i32.to_le_bytes());
+        table.raw_ctrl_data[8..12].copy_from_slice(&5678i32.to_le_bytes());
+        table.raw_ctrl_data[12..16].copy_from_slice(&table.common.width.to_le_bytes());
+        table.raw_ctrl_data[16..20].copy_from_slice(&table.common.height.to_le_bytes());
+    } else {
+        panic!("source control must be a table");
+    }
+
+    doc.document.sections[0]
+        .paragraphs
+        .push(text_para("붙여넣기 대상 문단"));
+
+    doc.copy_control_native(0, 0, 0).unwrap();
+    let json = doc.paste_control_native(0, 1, 0).unwrap();
+    assert!(
+        json.contains("\"paraIdx\":1"),
+        "paste result must use requested paragraph, got {json}",
+    );
+
+    let pasted = match &doc.document.sections[0].paragraphs[1].controls[0] {
+        Control::Table(table) => table,
+        _ => panic!("pasted control must be a table"),
+    };
+    assert_eq!(pasted.common.vertical_offset, 0);
+    assert_eq!(pasted.common.horizontal_offset, 0);
+    assert_eq!(
+        u32::from_le_bytes(pasted.raw_ctrl_data[0..4].try_into().unwrap()),
+        source_attr,
+        "CommonObjAttr flags must be preserved",
+    );
+    assert_eq!(
+        i32::from_le_bytes(pasted.raw_ctrl_data[4..8].try_into().unwrap()),
+        0,
+    );
+    assert_eq!(
+        i32::from_le_bytes(pasted.raw_ctrl_data[8..12].try_into().unwrap()),
+        0,
+    );
+
+    let source = match &doc.document.sections[0].paragraphs[0].controls[0] {
+        Control::Table(table) => table,
+        _ => panic!("source control must remain a table"),
+    };
+    assert_eq!(source.common.vertical_offset, 1234);
+    assert_eq!(source.common.horizontal_offset, 5678);
 }
 
 #[test]
