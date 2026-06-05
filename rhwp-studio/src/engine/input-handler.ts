@@ -27,6 +27,7 @@ import * as _text from './input-handler-text';
 import * as _picture from './input-handler-picture';
 import { isFullRowCellSelectionCoverage } from './table-selection-utils';
 import { buildTableContextMenuItems } from './table-context-menu-policy';
+import { resolveCellCutDeletePlan } from './table-cell-delete-policy';
 
 type CellOperationSelection = {
   ctx: { sec: number; ppi: number; ci: number; rowCount?: number; colCount?: number; cellPath?: CellPathEntry[] };
@@ -3297,13 +3298,17 @@ export class InputHandler {
 
     if (action === 'cut') this.copySelectedCellsToClipboard(selection);
 
-    if (this.isFullRowCellSelection(selection)) {
+    let plan = resolveCellCutDeletePlan({
+      isFullRowSelection: this.isFullRowCellSelection(selection),
+    });
+    if (plan === 'request-choice') {
       const choice = await showCellDeleteChoiceDialog(action);
-      if (choice === 'cancel') return;
-      if (choice === 'delete-cells') {
-        this.deleteSelectedCellRows(selection);
-        return;
-      }
+      plan = resolveCellCutDeletePlan({ isFullRowSelection: true, choice });
+    }
+    if (plan === 'cancel') return;
+    if (plan === 'delete-cells') {
+      this.deleteSelectedCellRows(selection);
+      return;
     }
 
     this.clearSelectedCellContents(selection, action === 'cut' ? 'cutSelectedCellContents' : 'clearSelectedCellContents');
