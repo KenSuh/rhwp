@@ -1290,6 +1290,124 @@ export class InputHandler {
     return this.wasm.getTableBBox(ref.sec, ref.ppi, ref.ci);
   }
 
+  private isPointNearTableBBoxBorder(
+    pageX: number,
+    pageY: number,
+    bbox: { x: number; y: number; width: number; height: number },
+    tolerance = 5,
+  ): boolean {
+    const nearLeft = Math.abs(pageX - bbox.x) <= tolerance;
+    const nearRight = Math.abs(pageX - (bbox.x + bbox.width)) <= tolerance;
+    const nearTop = Math.abs(pageY - bbox.y) <= tolerance;
+    const nearBottom = Math.abs(pageY - (bbox.y + bbox.height)) <= tolerance;
+    const inVertRange = pageY >= bbox.y - tolerance && pageY <= bbox.y + bbox.height + tolerance;
+    const inHorzRange = pageX >= bbox.x - tolerance && pageX <= bbox.x + bbox.width + tolerance;
+    return (nearLeft && inVertRange) || (nearRight && inVertRange) ||
+           (nearTop && inHorzRange) || (nearBottom && inHorzRange);
+  }
+
+  private isPointInsideTableBBox(
+    pageX: number,
+    pageY: number,
+    bbox: { x: number; y: number; width: number; height: number },
+    tolerance = 5,
+  ): boolean {
+    return pageX >= bbox.x - tolerance &&
+      pageX <= bbox.x + bbox.width + tolerance &&
+      pageY >= bbox.y - tolerance &&
+      pageY <= bbox.y + bbox.height + tolerance;
+  }
+
+  private findNestedTableBorderInPath(
+    hit: DocumentPosition,
+    basePath: CellPathEntry[],
+    pageX: number,
+    pageY: number,
+    pageIdx?: number,
+  ): { ref: { sec: number; ppi: number; ci: number; cellPath: CellPathEntry[] }; area: number } | null {
+    if (basePath.length >= 8 || hit.parentParaIndex === undefined || hit.controlIndex === undefined) {
+      return null;
+    }
+
+    let best: { ref: { sec: number; ppi: number; ci: number; cellPath: CellPathEntry[] }; area: number } | null = null;
+    for (let nestedControlIndex = 0; nestedControlIndex < 8; nestedControlIndex += 1) {
+      const candidatePath: CellPathEntry[] = [
+        ...basePath,
+        { controlIndex: nestedControlIndex, cellIndex: 0, cellParaIndex: 0 },
+      ];
+      try {
+        const bbox = this.getTableObjectBBox(
+          { sec: hit.sectionIndex, ppi: hit.parentParaIndex, ci: hit.controlIndex, cellPath: candidatePath },
+          pageIdx,
+        );
+        if (!bbox || !this.isPointInsideTableBBox(pageX, pageY, bbox)) continue;
+
+        const deeper = this.findNestedTableBorderInPath(hit, candidatePath, pageX, pageY, pageIdx);
+        if (deeper && (!best || deeper.area < best.area)) {
+          best = deeper;
+        }
+
+        if (this.isPointNearTableBBoxBorder(pageX, pageY, bbox)) {
+          const area = bbox.width * bbox.height;
+          if (!best || area < best.area) {
+            best = {
+              ref: { sec: hit.sectionIndex, ppi: hit.parentParaIndex, ci: hit.controlIndex, cellPath: candidatePath },
+              area,
+            };
+          }
+        }
+      } catch {
+        // 해당 cellPath 아래에 중첩 표가 없으면 다음 controlIndex 후보를 검사한다.
+      }
+    }
+    return best;
+  }
+
+  private findNestedTableBorderHitFromPoint(
+    hit: DocumentPosition | null,
+    pageX: number,
+    pageY: number,
+    pageIdx?: number,
+  ): { sec: number; ppi: number; ci: number; cellPath?: CellPathEntry[] } | null {
+    if (!hit || hit.parentParaIndex === undefined || hit.controlIndex === undefined || hit.isTextBox) {
+      return null;
+    }
+
+    try {
+      const dims = this.wasm.getTableDimensions(hit.sectionIndex, hit.parentParaIndex, hit.controlIndex);
+      const rawOuterCell = hit.cellPath?.[0]?.cellIndex ?? hit.cellIndex ?? 0;
+      const rawOuterCellPara = hit.cellPath?.[0]?.cellParaIndex ?? hit.cellParaIndex ?? 0;
+      const cellCount = Math.max(0, Number(dims.cellCount ?? 0));
+      const allCells = Array.from({ length: cellCount }, (_, index) => index);
+      const outerCandidates = rawOuterCell >= 0 && rawOuterCell < cellCount
+        ? [rawOuterCell, ...allCells.filter((index) => index !== rawOuterCell)]
+        : allCells;
+      const allCellParas = Array.from({ length: 8 }, (_, index) => index);
+      const cellParaCandidates = Number.isFinite(rawOuterCellPara) && rawOuterCellPara >= 0
+        ? [rawOuterCellPara, ...allCellParas.filter((index) => index !== rawOuterCellPara)]
+        : allCellParas;
+
+      let best: { ref: { sec: number; ppi: number; ci: number; cellPath: CellPathEntry[] }; area: number } | null = null;
+      for (const outerCellIndex of outerCandidates) {
+        for (const outerCellParaIndex of cellParaCandidates) {
+          const nested = this.findNestedTableBorderInPath(
+            hit,
+            [{ controlIndex: hit.controlIndex, cellIndex: outerCellIndex, cellParaIndex: outerCellParaIndex }],
+            pageX,
+            pageY,
+            pageIdx,
+          );
+          if (nested && (!best || nested.area < best.area)) {
+            best = nested;
+          }
+        }
+      }
+      return best?.ref ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   /** 클릭 좌표가 표 외곽 경계선 위인지 판별한다 (페이지 좌표 기준) */
   private isTableBorderClick(
     pageX: number, pageY: number,
@@ -1300,16 +1418,7 @@ export class InputHandler {
     try {
       const bbox = this.getTableObjectBBox({ sec, ppi, ci, cellPath }, pageIdx);
       if (!bbox) return false;
-      const tolerance = 5; // 페이지 좌표 기준 px
-      const nearLeft = Math.abs(pageX - bbox.x) <= tolerance;
-      const nearRight = Math.abs(pageX - (bbox.x + bbox.width)) <= tolerance;
-      const nearTop = Math.abs(pageY - bbox.y) <= tolerance;
-      const nearBottom = Math.abs(pageY - (bbox.y + bbox.height)) <= tolerance;
-      // 세로 범위 내 좌/우 경계, 가로 범위 내 상/하 경계
-      const inVertRange = pageY >= bbox.y - tolerance && pageY <= bbox.y + bbox.height + tolerance;
-      const inHorzRange = pageX >= bbox.x - tolerance && pageX <= bbox.x + bbox.width + tolerance;
-      return (nearLeft && inVertRange) || (nearRight && inVertRange) ||
-             (nearTop && inHorzRange) || (nearBottom && inHorzRange);
+      return this.isPointNearTableBBoxBorder(pageX, pageY, bbox);
     } catch {
       return false;
     }

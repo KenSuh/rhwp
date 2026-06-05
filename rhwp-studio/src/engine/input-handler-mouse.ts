@@ -1012,16 +1012,36 @@ export function onDblClick(this: any, e: MouseEvent): void {
     const pageY = (contentY - pageOffset) / zoom;
     const rawHit = this.wasm.hitTest(pageIdx, pageX, pageY);
     const hit = this.normalizeHitTestCellPath?.(rawHit, pageX, pageY, pageIdx) ?? rawHit;
-    if (
-      hit.parentParaIndex !== undefined &&
-      hit.controlIndex !== undefined &&
-      !hit.isTextBox &&
-      this.isTableBorderClick(pageX, pageY, hit.sectionIndex, hit.parentParaIndex, hit.controlIndex, hit.cellPath, pageIdx)
-    ) {
+    let tableRef: { sec: number; ppi: number; ci: number; cellPath?: unknown[] } | null = null;
+    if (hit.parentParaIndex !== undefined && hit.controlIndex !== undefined && !hit.isTextBox) {
+      if (this.isTableBorderClick(pageX, pageY, hit.sectionIndex, hit.parentParaIndex, hit.controlIndex, hit.cellPath, pageIdx)) {
+        tableRef = {
+          sec: hit.sectionIndex,
+          ppi: hit.parentParaIndex,
+          ci: hit.controlIndex,
+          cellPath: hit.cellPath,
+        };
+      } else {
+        tableRef = this.findNestedTableBorderHitFromPoint?.(hit, pageX, pageY, pageIdx) ?? null;
+      }
+    }
+    if (tableRef) {
       e.preventDefault();
       this.cursor.clearSelection();
-      this.cursor.moveTo(hit);
-      this.cursor.enterTableObjectSelectionDirect(hit.sectionIndex, hit.parentParaIndex, hit.controlIndex, hit.cellPath);
+      if (tableRef.cellPath?.length) {
+        const leaf = tableRef.cellPath[tableRef.cellPath.length - 1] as any;
+        this.cursor.moveTo({
+          ...hit,
+          parentParaIndex: tableRef.ppi,
+          controlIndex: tableRef.ci,
+          cellIndex: leaf?.cellIndex ?? hit.cellIndex,
+          cellParaIndex: leaf?.cellParaIndex ?? hit.cellParaIndex,
+          cellPath: tableRef.cellPath,
+        });
+      } else {
+        this.cursor.moveTo(hit);
+      }
+      this.cursor.enterTableObjectSelectionDirect(tableRef.sec, tableRef.ppi, tableRef.ci, tableRef.cellPath);
       this.active = true;
       this.caret.hide();
       this.selectionRenderer.clear();
