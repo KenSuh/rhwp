@@ -504,6 +504,84 @@ fn test_tac_1x1_cell_resize_reflows_parent_line_height() {
 }
 
 #[test]
+fn test_tac_table_reflow_uses_row_height_when_common_height_is_stale() {
+    let mut doc = HwpDocument::create_empty();
+    let mut document = Document::default();
+    document.sections.push(Section {
+        section_def: crate::model::document::SectionDef {
+            page_def: crate::model::page::PageDef {
+                width: 59528,
+                height: 84188,
+                margin_left: 8504,
+                margin_right: 8504,
+                margin_top: 5669,
+                margin_bottom: 4252,
+                margin_header: 4252,
+                margin_footer: 4252,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        paragraphs: vec![Paragraph {
+            line_segs: vec![LineSeg {
+                line_height: 400,
+                baseline_distance: 320,
+                ..Default::default()
+            }],
+            ..Default::default()
+        }],
+        raw_stream: None,
+    });
+    doc.set_document(document);
+
+    doc.insert_text_native(0, 0, 0, "A").unwrap();
+    let result = doc
+        .create_table_ex_native(0, 0, 1, 1, 1, true, Some(&[20000]))
+        .unwrap();
+    let control_idx = {
+        let pattern = "\"controlIdx\":";
+        let start = result.find(pattern).unwrap() + pattern.len();
+        let end = result[start..]
+            .find(|c: char| !c.is_ascii_digit())
+            .map(|idx| start + idx)
+            .unwrap_or(result.len());
+        result[start..end].parse::<usize>().unwrap()
+    };
+
+    let row_height_sum = {
+        let table = match doc.document.sections[0].paragraphs[0]
+            .controls
+            .get_mut(control_idx)
+        {
+            Some(Control::Table(table)) => table,
+            _ => panic!("TAC 표를 찾을 수 없음"),
+        };
+        table.cells[0].height = 20_000;
+        let row_height_sum = table.get_row_heights().iter().sum::<u32>();
+        assert!(row_height_sum > 400, "테스트 표는 높은 행을 가져야 함");
+        table.common.height = 400;
+        if table.raw_ctrl_data.len() >= 16 {
+            table.raw_ctrl_data[12..16].copy_from_slice(&400u32.to_le_bytes());
+        }
+        row_height_sum
+    };
+
+    doc.insert_text_native(0, 0, 0, "B").unwrap();
+
+    let recomposed_line_height = doc.composed[0][0]
+        .lines
+        .first()
+        .map(|line| line.line_height)
+        .unwrap_or_default();
+    assert!(
+        recomposed_line_height >= row_height_sum as i32,
+        "common.height가 낮아도 TAC 표 reflow는 row height 합산을 반영해야 함: line={}, rows={}",
+        recomposed_line_height,
+        row_height_sum,
+    );
+}
+
+#[test]
 fn test_inline_picture_merge_reflows_parent_line_height() {
     let mut doc = HwpDocument::create_empty();
     let mut document = Document::default();

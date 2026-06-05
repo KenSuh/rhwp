@@ -1014,7 +1014,11 @@ pub(crate) fn reflow_line_segs(
             .controls
             .iter()
             .filter_map(|ctrl| match ctrl {
-                Control::Table(t) if t.common.treat_as_char => Some(t.common.height as i32),
+                Control::Table(t) if t.common.treat_as_char => Some(
+                    t.common
+                        .height
+                        .max(t.get_row_heights().iter().sum::<u32>()) as i32,
+                ),
                 Control::Picture(p) if p.common.treat_as_char => Some(p.common.height as i32),
                 Control::Shape(s) if s.common().treat_as_char => Some(s.common().height as i32),
                 Control::Equation(eq) if eq.common.treat_as_char => Some(eq.common.height as i32),
