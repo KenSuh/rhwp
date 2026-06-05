@@ -2304,6 +2304,59 @@ fn test_clipboard_copy_control() {
 }
 
 #[test]
+fn test_clipboard_paste_control_uses_requested_target_paragraph() {
+    use crate::model::control::Control;
+
+    fn text_para(text: &str) -> Paragraph {
+        Paragraph {
+            text: text.to_string(),
+            char_count: text.chars().count() as u32 + 1,
+            char_offsets: make_char_offsets(text),
+            char_shapes: vec![crate::model::paragraph::CharShapeRef {
+                start_pos: 0,
+                char_shape_id: 0,
+            }],
+            line_segs: vec![LineSeg {
+                text_start: 0,
+                line_height: 400,
+                text_height: 400,
+                baseline_distance: 320,
+                ..Default::default()
+            }],
+            has_para_text: true,
+            ..Default::default()
+        }
+    }
+
+    let mut doc = create_doc_with_table();
+    doc.document.sections[0]
+        .paragraphs
+        .push(text_para("붙여넣기 전 문단"));
+    doc.document.sections[0]
+        .paragraphs
+        .push(text_para("현재 커서 문단"));
+
+    doc.copy_control_native(0, 0, 0).unwrap();
+
+    let json = doc.paste_control_native(0, 2, 0).unwrap();
+    assert!(
+        json.contains("\"paraIdx\":2"),
+        "paste result must point at the requested target paragraph, got {json}",
+    );
+    assert!(matches!(
+        &doc.document.sections[0].paragraphs[2].controls[0],
+        Control::Table(_)
+    ));
+    assert_eq!(doc.document.sections[0].paragraphs[1].text, "붙여넣기 전 문단");
+    assert_eq!(doc.document.sections[0].paragraphs[3].text, "");
+    assert_eq!(doc.document.sections[0].paragraphs[4].text, "현재 커서 문단");
+    assert!(matches!(
+        &doc.document.sections[0].paragraphs[0].controls[0],
+        Control::Table(_)
+    ));
+}
+
+#[test]
 fn test_clipboard_clear() {
     let mut doc = HwpDocument::create_empty();
     let mut document = Document::default();
