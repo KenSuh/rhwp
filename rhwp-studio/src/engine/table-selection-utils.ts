@@ -45,3 +45,35 @@ export function isFullRowCellSelectionCoverage(selection: FullRowCellSelectionIn
   }
   return true;
 }
+
+export type CellDragFocus = {
+  row: number;
+  col: number;
+  rowSpan?: number;
+  colSpan?: number;
+};
+
+/**
+ * 드래그 중 셀 선택 범위를 anchor 셀과 현재 포커스 셀을 모두 감싸는 bbox로 계산한다.
+ *
+ * rhwp parity (TBL-SEL-003/004): 선택 범위는 mousedown anchor 셀과 현재 마우스가
+ * 올라간 셀을 모두 포함하는 최소 사각형이다. 매 이동마다 anchor 기준으로 다시
+ * 계산하므로 마우스가 멀어지면 셀이 더해지고 가까워지면 빠진다. 이전에 지나간 셀이
+ * 고정 선택으로 남지 않고, anchor를 가로질러 반대 방향으로 가면 자연스럽게 뒤집힌다.
+ * 병합 셀은 rowSpan/colSpan만큼 끝 행/열을 차지한다.
+ *
+ * 순수 함수로 분리해 hitTest/렌더러와 독립적으로 회귀 테스트가 가능하게 한다.
+ */
+export function computeCellDragRange(
+  anchor: CellSelectionRange,
+  focus: CellDragFocus,
+): CellSelectionRange {
+  const focusEndRow = focus.row + Math.max(1, focus.rowSpan ?? 1) - 1;
+  const focusEndCol = focus.col + Math.max(1, focus.colSpan ?? 1) - 1;
+  return {
+    startRow: Math.min(anchor.startRow, focus.row),
+    startCol: Math.min(anchor.startCol, focus.col),
+    endRow: Math.max(anchor.endRow, focusEndRow),
+    endCol: Math.max(anchor.endCol, focusEndCol),
+  };
+}

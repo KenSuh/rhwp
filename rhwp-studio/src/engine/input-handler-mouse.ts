@@ -3,6 +3,7 @@
 
 import type { ContextMenuItem } from '@/ui/context-menu';
 import * as _connector from './input-handler-connector';
+import { computeCellDragRange } from './table-selection-utils';
 
 function sameCellPath(a?: unknown[], b?: unknown[]): boolean {
   if (!a?.length && !b?.length) return true;
@@ -130,12 +131,7 @@ function setCellDragFocusRange(this: any, cellRC: { row: number; col: number; ro
     };
   this.cellDragAnchorRange = anchor;
 
-  const next = {
-    startRow: Math.min(anchor.startRow, cellRC.row),
-    startCol: Math.min(anchor.startCol, cellRC.col),
-    endRow: Math.max(anchor.endRow, cellEndRow),
-    endCol: Math.max(anchor.endCol, cellEndCol),
-  };
+  const next = computeCellDragRange(anchor, cellRC);
 
   if (typeof this.cursor.setCellSelectionRange === 'function') {
     this.cursor.setCellSelectionRange(next.startRow, next.startCol, next.endRow, next.endCol);
