@@ -246,7 +246,27 @@ impl HeightMeasurer {
             .map(|s| s.line_spacing_type)
             .unwrap_or(crate::model::style::LineSpacingType::Percent);
 
-        let (line_heights, line_spacings): (Vec<f64>, Vec<f64>) = if let Some(comp) = composed {
+        // 인라인 TAC(글자처럼취급) 표 문단은 layout(layout_inline_table_paragraph)이 composed.lines
+        // 가 아니라 원본 LINE_SEG 높이(표 줄 + 표 아래 텍스트 줄)를 그대로 소비한다. 측정도 동일하게
+        // LINE_SEG 로 해야 layout 이 실제로 차지하는 높이와 일치한다. composed.lines(보정값)로 측정하면
+        // layout 소비분보다 작게 잡혀(예: seoul-root para=97 측정 250.1px vs layout 425.5px), 후속 표가
+        // layout 에서 아래로 밀려 페이지 하단을 넘는 overflow 가 발생한다.
+        // (블록 표/일반 문단은 layout 도 composed 를 쓰므로 그대로 composed 로 측정한다.)
+        // layout 라우팅과 동일하게 분기한다: 같은 문단에 블록 표(has_table=has_block_table)가 있으면
+        // layout 은 블록 경로(layout_partial_paragraph, composed 사용)로 렌더하므로 측정도 composed 를
+        // 유지한다. 블록 표 없이 inline TAC 표만 있는 문단(layout_inline_table_paragraph 경유)일 때만
+        // line_segs 로 측정한다. (layout.rs has_block_table/has_inline_tables 라우팅과 일치)
+        let inline_tac_seg_width = para.line_segs.first().map(|s| s.segment_width).unwrap_or(0);
+        let use_line_segs_for_inline_tac = !has_table
+            && !para.line_segs.is_empty()
+            && para.controls.iter().any(|c| {
+                matches!(c, Control::Table(t)
+                    if t.common.treat_as_char
+                        && is_tac_table_inline(t, inline_tac_seg_width, &para.text, &para.controls))
+            });
+
+        let lines_src = composed.filter(|_| !use_line_segs_for_inline_tac);
+        let (line_heights, line_spacings): (Vec<f64>, Vec<f64>) = if let Some(comp) = lines_src {
             comp.lines
                 .iter()
                 .map(|line| {
@@ -314,6 +334,18 @@ impl HeightMeasurer {
         } else {
             // 빈 문단: 기본 높이
             (vec![hwpunit_to_px(400, self.dpi)], vec![0.0])
+        };
+
+        // inline-TAC line_segs 측정 경로에서 음수 LINE_SEG.line_spacing 을 0 으로 clamp 한다.
+        // line_spacing 은 signed 이고 renderer 는 음수 TAC spacing 을 실상태로 처리한다
+        // (layout.rs 1691/2579). 음수 spacing 이 측정 합을 표 시각 높이(layout 의 max_table_bottom
+        // floor) 아래로 끌어내리면 pagination 이 under-reserve 해 overflow 가 재발할 수 있다.
+        // clamp 로 측정 ≥ layout(보수) 불변을 line_segs[0].line_height ≥ 표 높이(HWP 작성 불변) 하에
+        // 유지한다. 양수 spacing(seoul-root 등)에는 영향이 없다.
+        let line_spacings: Vec<f64> = if use_line_segs_for_inline_tac {
+            line_spacings.into_iter().map(|s| s.max(0.0)).collect()
+        } else {
+            line_spacings
         };
 
         let lines_total: f64 = {
