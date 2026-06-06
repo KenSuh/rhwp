@@ -1365,25 +1365,71 @@ impl Paginator {
                 caption_extra_for_current,
             );
         } else if is_tac_table {
-            // 글자처럼 취급 표: 페이지에 걸치지 않고 통째로 다음 페이지로 이동
-            if !st.current_items.is_empty() {
-                st.advance_column_or_new_page();
+            // 글자처럼 취급 표가 현재 페이지에 안 들어감.
+            // 새(빈) 페이지에도 안 들어갈 만큼 큰 표는 통째로 넘기면 페이지 하단을 넘어
+            // 문서 밖까지 overflow 한다. 이 경우 행/셀 경계에서 분할한다.
+            // (HWP 동작: 글자처럼 취급 표라도 한 페이지보다 크면 쪽 경계에서 나뉜다)
+            //
+            // "빈 페이지 가용 높이" = base 에서 표 소유 각주 reserve + safety margin 만 차감한다.
+            // 이전 페이지에서 누적된 각주(current_footnote_height)·zone offset 은 새 페이지에서
+            // reset 되므로 차감하지 않는다(과도한 분할 회피). 다만 표 소유 각주는 새 페이지에서
+            // 첫 각주가 되므로 separator overhead 를 항상 포함한다(under-reserve overflow 방지).
+            // 표 footprint 에는 place_table_fits 와 동일하게 상/하 캡션(caption_extra_for_current)을 포함한다.
+            let fresh_footnote_reserve = if table_has_footnotes {
+                if st.is_first_footnote_on_page {
+                    table_footnote_height
+                } else {
+                    table_footnote_height + st.footnote_separator_overhead
+                }
+            } else {
+                0.0
+            };
+            let fresh_table_margin = if table_has_footnotes {
+                st.footnote_safety_margin
+            } else {
+                0.0
+            };
+            let fresh_page_available =
+                (base_available_height - fresh_footnote_reserve - fresh_table_margin).max(0.0);
+            let fits_fresh_page =
+                effective_table_height + caption_extra_for_current <= fresh_page_available + 0.5;
+            if let (false, Some(mt)) = (fits_fresh_page, measured_table) {
+                self.split_table_rows(
+                    st,
+                    para_idx,
+                    ctrl_idx,
+                    para,
+                    measured,
+                    measurer,
+                    mt,
+                    table,
+                    table_available_height,
+                    base_available_height,
+                    host_spacing,
+                    spacing_before_px,
+                    is_tac_table,
+                );
+            } else {
+                // 한 페이지에 들어가는 표: 페이지에 걸치지 않고 통째로 다음 페이지로 이동
+                if !st.current_items.is_empty() {
+                    st.advance_column_or_new_page();
+                }
+                self.place_table_fits(
+                    st,
+                    para_idx,
+                    ctrl_idx,
+                    para,
+                    measured,
+                    table,
+                    table_total_height,
+                    para_height,
+                    para_height_for_fit,
+                    is_tac_table,
+                    para_start_height,
+                    effective_height,
+                    caption_extra_for_current,
+                );
             }
-            self.place_table_fits(
-                st,
-                para_idx,
-                ctrl_idx,
-                para,
-                measured,
-                table,
-                table_total_height,
-                para_height,
-                para_height_for_fit,
-                is_tac_table,
-                para_start_height,
-                effective_height,
-                caption_extra_for_current,
-            );
         } else if let Some(mt) = measured_table {
             // 비-TAC 표: 행 단위 분할
             self.split_table_rows(
@@ -1620,7 +1666,7 @@ impl Paginator {
         base_available_height: f64,
         host_spacing: f64,
         spacing_before_px: f64,
-        _is_tac_table: bool,
+        is_tac_table: bool,
     ) {
         let row_count = mt.row_heights.len();
         let cs = mt.cell_spacing;
@@ -1634,7 +1680,15 @@ impl Paginator {
         // 표의 v_offset으로 호스트 텍스트 공간이 확보되므로,
         // 별도 PageItem이 아닌 가용 높이 차감으로 처리
         // (레이아웃 코드가 PartialTable의 호스트 텍스트를 직접 렌더링함)
-        let vertical_offset = Self::get_table_vertical_offset(table);
+        //
+        // 글자처럼 취급(TAC) 표는 layout_partial_table_item 이 호스트 텍스트를 렌더하지 않고
+        // (layout.rs is_tac 분기) layout_partial_table 도 vert offset 을 적용하지 않으므로,
+        // pagination 도 host_text_height / v_offset_px 를 reserve 하지 않는다(위치 불일치 방지).
+        let vertical_offset = if is_tac_table {
+            0
+        } else {
+            Self::get_table_vertical_offset(table)
+        };
         let host_text_height = if vertical_offset > 0 && !para.text.is_empty() {
             let is_first_table = !para
                 .controls
