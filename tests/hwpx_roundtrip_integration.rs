@@ -104,6 +104,169 @@ fn stage1_ref_mixed_header_level_regression_probe() {
     assert!(diff.is_empty(), "ref_mixed header-level regression");
 }
 
+// ---------- pagePr 용지 크기/여백 round-trip 보존 (b6f6cda 회귀 가드) ----------
+// HWPX export 가 IR PageDef 의 용지 크기·여백을 직렬화하는지 검증한다. 수정 전에는
+// empty_section0 템플릿의 고정 여백(top=5668 등)이 그대로 나가 저장→재로드 시 원본
+// 여백을 잃고 본문 영역이 바뀌어 페이지가 재배치(reflow)됐다.
+// 다중 섹션(haewoi 보도자료, section0+section1)으로 section1+ pagePr 직렬화도 함께 검증한다.
+#[test]
+fn pagepr_size_and_margins_preserved_on_roundtrip() {
+    use rhwp::parser::hwpx::parse_hwpx;
+    use rhwp::serializer::hwpx::serialize_hwpx;
+
+    let fixtures: [(&str, &[u8]); 3] = [
+        (
+            "sangsaeng",
+            include_bytes!("../samples/hwpx/sangsaeng-smartfactory-application.hwpx"),
+        ),
+        (
+            "seoul-root",
+            include_bytes!("../samples/hwpx/seoul-root-auto-2026.hwpx"),
+        ),
+        // 다중 섹션(Contents/section0.xml + section1.xml) 실문서.
+        (
+            "haewoi-2024q1-multisection",
+            include_bytes!("../samples/hwpx/2024년 1분기 해외직접투자 보도자료 ff.hwpx"),
+        ),
+    ];
+
+    let mut saw_non_template = false;
+    let mut saw_multi_section = false;
+
+    for (label, bytes) in fixtures {
+        let doc1 = parse_hwpx(bytes).unwrap_or_else(|e| panic!("{label} parse: {e:?}"));
+        if doc1.sections.len() >= 2 {
+            saw_multi_section = true;
+        }
+        for s in &doc1.sections {
+            let pd = &s.section_def.page_def;
+            assert!(pd.width > 0 && pd.height > 0, "{label}: page size parsed");
+            if pd.margin_top != 5668 {
+                saw_non_template = true;
+            }
+        }
+
+        let out = serialize_hwpx(&doc1).unwrap_or_else(|e| panic!("{label} serialize: {e:?}"));
+        let doc2 = parse_hwpx(&out).unwrap_or_else(|e| panic!("{label} reparse: {e:?}"));
+        assert_eq!(
+            doc2.sections.len(),
+            doc1.sections.len(),
+            "{label}: section count preserved"
+        );
+        // 모든 섹션의 pagePr(용지 크기 + 7개 여백)가 그대로 보존돼야 한다(section1+ 포함).
+        for (i, (s1, s2)) in doc1.sections.iter().zip(doc2.sections.iter()).enumerate() {
+            let (a, b) = (&s1.section_def.page_def, &s2.section_def.page_def);
+            assert_eq!(b.width, a.width, "{label} sec{i}: width");
+            assert_eq!(b.height, a.height, "{label} sec{i}: height");
+            assert_eq!(b.margin_left, a.margin_left, "{label} sec{i}: margin_left");
+            assert_eq!(
+                b.margin_right, a.margin_right,
+                "{label} sec{i}: margin_right"
+            );
+            assert_eq!(b.margin_top, a.margin_top, "{label} sec{i}: margin_top");
+            assert_eq!(
+                b.margin_bottom, a.margin_bottom,
+                "{label} sec{i}: margin_bottom"
+            );
+            assert_eq!(
+                b.margin_header, a.margin_header,
+                "{label} sec{i}: margin_header"
+            );
+            assert_eq!(
+                b.margin_footer, a.margin_footer,
+                "{label} sec{i}: margin_footer"
+            );
+            assert_eq!(
+                b.margin_gutter, a.margin_gutter,
+                "{label} sec{i}: margin_gutter"
+            );
+        }
+    }
+    // 가드 메타 검증: no-op 회귀를 잡으려면 비템플릿 여백 fixture 가, section1+ 직렬화를
+    // 검증하려면 다중 섹션 fixture 가 실제로 코퍼스에 있어야 한다.
+    assert!(
+        saw_non_template,
+        "최소 한 fixture-섹션은 비템플릿(top≠5668) 여백이어야 no-op 회귀를 잡는다"
+    );
+    assert!(
+        saw_multi_section,
+        "최소 한 fixture 는 다중 섹션이어야 section1+ pagePr 직렬화를 검증한다"
+    );
+}
+
+// landscape PageDef 의 전체 serialize→reparse 라운드트립 계약 검증.
+// HWPX 규약: width/height 는 실제(렌더) 방향으로 저장하고 파서는 landscape 속성을 읽지 않는다.
+// 따라서 landscape=true(짧은변=width, 긴변=height; 렌더러가 교환) 문서를 저장하면, 교환된
+// 실제 치수(가로=긴변, 세로=짧은변)가 보존돼 재로드 후에도 같은 가로 방향으로 렌더된다.
+// landscape 플래그 자체는 false 로 정규화된다(메타 손실이 아니라 HWPX 표현 규약).
+#[test]
+fn landscape_pagedef_effective_dims_survive_roundtrip() {
+    use rhwp::parser::hwpx::parse_hwpx;
+    use rhwp::serializer::hwpx::serialize_hwpx;
+
+    let bytes = include_bytes!("../samples/hwpx/sangsaeng-smartfactory-application.hwpx");
+    let mut doc = parse_hwpx(bytes).expect("parse");
+    // landscape HWP 임포트 모사: width=짧은변(59528), height=긴변(84186), landscape=true.
+    {
+        let pd = &mut doc.sections[0].section_def.page_def;
+        pd.landscape = true;
+        pd.width = 59528;
+        pd.height = 84186;
+    }
+    let out = serialize_hwpx(&doc).expect("serialize");
+    let re = parse_hwpx(&out).expect("reparse");
+    let rpd = &re.sections[0].section_def.page_def;
+    // 실제(렌더) 치수 보존: 가로=긴변(84186), 세로=짧은변(59528).
+    assert_eq!(
+        rpd.width, 84186,
+        "landscape effective wide(긴변) preserved on roundtrip"
+    );
+    assert_eq!(
+        rpd.height, 59528,
+        "landscape effective tall(짧은변) preserved on roundtrip"
+    );
+    // HWPX 규약상 landscape 플래그는 false 로 정규화(방향은 width/height 가 보존).
+    assert!(
+        !rpd.landscape,
+        "landscape normalizes to false in HWPX (orientation carried by width/height)"
+    );
+}
+
+// 제본(binding)/제본여백 round-trip 계약 검증.
+// gutterType 은 LEFT_ONLY 로 고정되고 HWPX 파서가 gutterType→binding 을 되읽지 않으므로,
+// 제본 '변(side)' 표기와 binding 플래그는 round-trip 되지 않고 SingleSided 로 정규화된다
+// (landscape 플래그와 동일한 파서-레벨 제약, 별도 추적). 단 제본 여백 '값'(margin_gutter)은
+// 그대로 직렬화돼 본문 영역(레이아웃)에 영향이 없도록 보존돼야 한다.
+#[test]
+fn binding_gutter_value_preserved_side_normalized() {
+    use rhwp::model::page::BindingMethod;
+    use rhwp::parser::hwpx::parse_hwpx;
+    use rhwp::serializer::hwpx::serialize_hwpx;
+
+    let bytes = include_bytes!("../samples/hwpx/sangsaeng-smartfactory-application.hwpx");
+    let mut doc = parse_hwpx(bytes).expect("parse");
+    // 비기본 제본 + 0 아닌 제본 여백 설정(HWP 임포트 모사).
+    {
+        let pd = &mut doc.sections[0].section_def.page_def;
+        pd.binding = BindingMethod::DuplexSided;
+        pd.margin_gutter = 1000;
+    }
+    let out = serialize_hwpx(&doc).expect("serialize");
+    let re = parse_hwpx(&out).expect("reparse");
+    let rpd = &re.sections[0].section_def.page_def;
+    // 레이아웃에 영향을 주는 제본 여백 '값'은 보존.
+    assert_eq!(
+        rpd.margin_gutter, 1000,
+        "gutter VALUE preserved on roundtrip (layout-affecting)"
+    );
+    // binding 플래그는 HWPX 표현 규약상 SingleSided 로 정규화(추적되는 파서-레벨 제약).
+    assert_eq!(
+        rpd.binding,
+        BindingMethod::SingleSided,
+        "binding normalizes to SingleSided in HWPX (gutterType not read back by parser)"
+    );
+}
+
 // ---------- Stage 5: 대형 실문서 스모크 테스트 -------------------------------
 // 실제 한컴 문서(표·그림·다문단 혼합)에 대해 IR 라운드트립이 뼈대 필드 수준에서
 // 성립하는지 확인한다. `<hp:tbl>`/`<hp:pic>` 이 section.xml 에 아직 출력되지 않음

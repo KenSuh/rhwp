@@ -23,6 +23,7 @@ use quick_xml::Writer;
 
 use crate::model::control::{Control, PageHide, PageNumberPos};
 use crate::model::document::{Document, Section};
+use crate::model::page::PageDef;
 use crate::model::paragraph::{ColumnBreakType, LineSeg, Paragraph};
 use crate::model::shape::ShapeObject;
 
@@ -43,6 +44,8 @@ const PARA_CLOSE: &str = "</hp:p></hs:sec>";
 // 템플릿 내 첫 <hp:p> 태그의 실제 문자열 (id="3121190098" 랜덤 해시 포함).
 // 템플릿은 정적이므로 이 문자열이 고정 위치에 있음이 보장됨.
 const TEMPLATE_FIRST_P_TAG: &str = r#"<hp:p id="3121190098" paraPrIDRef="0" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0">"#;
+// 템플릿 내 고정 pagePr(용지 크기/여백) 문자열. write_section 에서 IR PageDef 기반으로 교체한다.
+const TEMPLATE_PAGE_PR: &str = r#"<hp:pagePr landscape="WIDELY" width="59528" height="84186" gutterType="LEFT_ONLY"><hp:margin header="4252" footer="4252" gutter="0" left="8504" right="8504" top="5668" bottom="4252"/></hp:pagePr>"#;
 // 템플릿 내 <hp:run charPrIDRef="0"> 직후에 TEXT_SLOT 이 오는 패턴.
 const TEMPLATE_RUN_BEFORE_TEXT: &str = r#"<hp:run charPrIDRef="0"><hp:t/>"#;
 
@@ -71,6 +74,26 @@ pub fn write_section(
 
     let mut out = EMPTY_SECTION_XML.replacen(TEXT_SLOT, &first_t, 1);
     out = replace_first_linesegs(&out, &first_linesegs);
+
+    // secPr 의 pagePr(용지 크기/여백)를 IR PageDef 에서 동적 생성한다. 기존엔 empty_section0
+    // 템플릿의 고정 여백(top=5668 등)이 그대로 나가, 저장→재로드 시 원본 여백을 잃고 본문
+    // 영역이 바뀌어 페이지가 재배치(reflow)되는 회귀가 있었다. width/height 가 0(미파싱
+    // PageDef)이면 템플릿 기본값을 유지한다.
+    //
+    // fail-closed: 템플릿 pagePr 앵커가 (whitespace/속성순서/기본값 변경 등으로) 안 맞으면
+    // replacen 이 조용히 no-op 해 IR 여백을 잃고도 Ok 를 반환하는 silent corruption 이 된다.
+    // 그래서 PageDef 를 써야 하는데 앵커가 없으면 에러로 실패시킨다(테스트/런타임에서 즉시 발각).
+    let page_def = &section.section_def.page_def;
+    if page_def.width > 0 && page_def.height > 0 {
+        if !out.contains(TEMPLATE_PAGE_PR) {
+            return Err(SerializeError::XmlError(
+                "secPr 템플릿 pagePr 앵커를 찾지 못해 IR PageDef 용지 크기/여백을 직렬화할 수 없음 \
+                 (empty_section0.xml 템플릿 또는 TEMPLATE_PAGE_PR 상수가 어긋남)"
+                    .to_string(),
+            ));
+        }
+        out = out.replacen(TEMPLATE_PAGE_PR, &render_page_pr(page_def), 1);
+    }
 
     // 첫 문단 `<hp:p>` 태그를 IR 기반 속성으로 교체
     if let Some(p) = first_para {
@@ -118,6 +141,92 @@ pub fn write_section(
     }
 
     Ok(out.into_bytes())
+}
+
+/// 섹션 `pagePr`(용지 크기 + 여백)를 IR(PageDef)에서 생성한다. 파서가 다시 읽는 값은
+/// width/height 와 margin(left/right/top/bottom/header/footer/gutter) 뿐이므로 그 값을
+/// 출력해 저장→재로드 시 페이지 크기/여백/본문 영역이 보존되게 한다.
+///
+/// HWPX 의 width/height 는 **실제(렌더) 방향**으로 저장하는 규약이고, 파서(parse_page_pr)는
+/// landscape 속성을 읽지 않고 swap 도 하지 않는다. 따라서 PageDef.landscape=true(HWP 바이너리
+/// 임포트·setPageDef 편집 등 — 렌더러가 width/height 를 교환해 그림)인 경우, 그 교환된 실제
+/// 치수를 써야 재로드 후에도 같은 가로 방향으로 렌더된다. landscape=false(HWPX 파싱 결과)면
+/// width/height 가 이미 실제 방향이라 그대로 쓴다. (PageAreas::from_page_def 의 swap 규칙과 정합.)
+///
+/// gutterType 은 LEFT_ONLY 로 고정한다(추적되는 제약). HWPX 파서(parse_page_pr)가 gutterType 을
+/// PageDef.binding 으로 되읽지 않아 binding(DuplexSided/TopFlip)은 HWPX↔HWPX 경로에서
+/// round-trip 되지 않고 SingleSided 로 정규화된다(landscape 플래그와 동일). 단 제본 여백 '값'
+/// (margin_gutter)은 그대로 직렬화돼 본문 영역(레이아웃)에는 영향이 없고, 제본 '변(side)' 표기만
+/// 고정된다. binding↔gutterType 매핑(LEFT_RIGHT/TOP_BOTTOM 등)은 코퍼스/파서에 근거가 없어
+/// 추측하지 않으며 파서 보완을 별도 작업으로 추적한다
+/// (계약 검증: tests/hwpx_roundtrip_integration.rs::binding_gutter_value_preserved_side_normalized).
+fn render_page_pr(pd: &PageDef) -> String {
+    // landscape 이면 렌더러가 교환하는 실제 치수(height, width)를 HWPX 규약대로 기록한다.
+    let (eff_w, eff_h) = if pd.landscape {
+        (pd.height, pd.width)
+    } else {
+        (pd.width, pd.height)
+    };
+    format!(
+        r#"<hp:pagePr landscape="WIDELY" width="{w}" height="{h}" gutterType="LEFT_ONLY"><hp:margin header="{header}" footer="{footer}" gutter="{gutter}" left="{left}" right="{right}" top="{top}" bottom="{bottom}"/></hp:pagePr>"#,
+        w = eff_w,
+        h = eff_h,
+        header = pd.margin_header,
+        footer = pd.margin_footer,
+        gutter = pd.margin_gutter,
+        left = pd.margin_left,
+        right = pd.margin_right,
+        top = pd.margin_top,
+        bottom = pd.margin_bottom,
+    )
+}
+
+#[cfg(test)]
+mod page_pr_tests {
+    use super::render_page_pr;
+    use crate::model::page::PageDef;
+
+    #[test]
+    fn render_page_pr_portrait_writes_raw_dims() {
+        let pd = PageDef {
+            width: 59528,
+            height: 84186,
+            margin_top: 2835,
+            margin_bottom: 2835,
+            margin_header: 4252,
+            margin_footer: 4252,
+            margin_left: 8504,
+            margin_right: 8504,
+            margin_gutter: 0,
+            landscape: false,
+            ..Default::default()
+        };
+        let xml = render_page_pr(&pd);
+        assert!(xml.contains(r#"width="59528""#), "portrait width: {xml}");
+        assert!(xml.contains(r#"height="84186""#), "portrait height: {xml}");
+        assert!(xml.contains(r#"top="2835""#) && xml.contains(r#"gutter="0""#));
+    }
+
+    #[test]
+    fn render_page_pr_landscape_writes_effective_swapped_dims() {
+        // landscape=true: PageDef.width=짧은변, height=긴변 (렌더러가 교환). HWPX 에는 실제
+        // 방향(가로>세로)인 width=긴변, height=짧은변 으로 나가야 재로드 후에도 가로로 렌더된다.
+        let pd = PageDef {
+            width: 59528,  // 짧은변
+            height: 84186, // 긴변
+            landscape: true,
+            ..Default::default()
+        };
+        let xml = render_page_pr(&pd);
+        assert!(
+            xml.contains(r#"width="84186""#),
+            "landscape effective width(긴변): {xml}"
+        );
+        assert!(
+            xml.contains(r#"height="59528""#),
+            "landscape effective height(짧은변): {xml}"
+        );
+    }
 }
 
 fn render_controls_xml(
