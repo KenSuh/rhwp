@@ -144,12 +144,17 @@ impl PageAreas {
             (page_def.width, page_def.height)
         };
 
+        // 퇴화된 PageDef(용지 크기 0 또는 여백이 용지보다 큰 경우, 예: width=0 height=0
+        // pagePr) 에서 본문 가장자리가 음수로 underflow 하지 않도록 0 으로 clamp 한다.
+        // (paragraph.rs 의 saturating_sub geometry 가드와 동일 정책)
         let content_left = page_def.margin_left + page_def.margin_gutter;
-        let content_right = page_width - page_def.margin_right;
+        let content_right = page_width.saturating_sub(page_def.margin_right);
         // HWP 본문 시작 = margin_header + margin_top (한컴 도움말 기준)
         let content_top = page_def.margin_header + page_def.margin_top;
         // HWP 본문 끝 = height - margin_footer - margin_bottom
-        let content_bottom = page_height - page_def.margin_footer - page_def.margin_bottom;
+        let content_bottom = page_height
+            .saturating_sub(page_def.margin_footer)
+            .saturating_sub(page_def.margin_bottom);
 
         let header_area = Rect {
             left: content_left as i32,
@@ -169,7 +174,7 @@ impl PageAreas {
             left: content_left as i32,
             top: content_bottom as i32,
             right: content_right as i32,
-            bottom: (page_height - page_def.margin_footer) as i32,
+            bottom: page_height.saturating_sub(page_def.margin_footer) as i32,
         };
 
         PageAreas {
@@ -231,5 +236,30 @@ mod tests {
         let col = ColumnDef::default();
         assert_eq!(col.column_count, 0);
         assert!(!col.same_width);
+    }
+
+    #[test]
+    fn test_page_areas_degenerate_zero_size_section() {
+        // 대중소상생형 참가신청서.hwpx 의 section1 은 width=0 height=0 pagePr 에 실제
+        // 여백을 들고 있어, 본문 가장자리 계산이 0u32 - margin 으로 underflow 하며
+        // from_bytes 중 panic 했다. 퇴화 입력에서도 panic 없이 0 으로 clamp 됨을 고정한다.
+        let page_def = PageDef {
+            width: 0,
+            height: 0,
+            margin_left: 4252,
+            margin_right: 4252,
+            margin_top: 5669,
+            margin_bottom: 4252,
+            margin_header: 2835,
+            margin_footer: 2835,
+            margin_gutter: 0,
+            ..Default::default()
+        };
+        // panic 하지 않아야 한다.
+        let areas = PageAreas::from_page_def(&page_def);
+        // 용지보다 큰 여백 → 본문 우/하 경계와 꼬리말 하단은 0 으로 clamp.
+        assert_eq!(areas.body_area.right, 0);
+        assert_eq!(areas.body_area.bottom, 0);
+        assert_eq!(areas.footer_area.bottom, 0);
     }
 }
