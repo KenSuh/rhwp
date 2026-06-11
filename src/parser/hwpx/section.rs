@@ -454,6 +454,15 @@ fn parse_start_num(e: &quick_xml::events::BytesStart, sec_def: &mut SectionDef) 
             b"pic" => sec_def.picture_num = parse_u16(&attr),
             b"tbl" => sec_def.table_num = parse_u16(&attr),
             b"equation" => sec_def.equation_num = parse_u16(&attr),
+            // 쪽 번호 종류(model 규약: BOTH=0/이어서, ODD=1/홀수, EVEN=2/짝수). 저장 시 serializer
+            // 가 BOTH 로 하드코딩하므로 ODD/EVEN 은 손실 — save-warning 이 감지하려면 모델에 보존.
+            b"pageStartsOn" => {
+                sec_def.page_num_type = match attr_str(&attr).as_str() {
+                    "ODD" => 1,
+                    "EVEN" => 2,
+                    _ => 0,
+                }
+            }
             _ => {}
         }
     }
