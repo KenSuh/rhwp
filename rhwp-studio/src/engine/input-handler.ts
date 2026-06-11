@@ -3439,12 +3439,19 @@ export class InputHandler {
       kind: 'snapshot',
       operationType: 'deleteSelectedCellRows',
       operation: (wasm: WasmBridge) => {
-        for (let row = range.endRow; row >= range.startRow; row -= 1) {
-          if (ctx.cellPath && ctx.cellPath.length > 1) {
-            wasm.deleteTableRowByPath(ctx.sec, ctx.ppi, JSON.stringify(ctx.cellPath), row);
-          } else {
-            wasm.deleteTableRow(ctx.sec, ctx.ppi, ctx.ci, row);
-          }
+        // 표는 최소 1행을 유지해야 한다 — wasm Table::delete_row 가 row_count<=1 에서
+        // throw 하므로, 전체 행 선택(전표 선택) 삭제 시 마지막 행 삭제를 시도하면
+        // 루프가 중간에 끊겨 부분 삭제 상태(undo 항목 없음·stale 캔버스·unhandled
+        // rejection)로 남는다. 남은 행 수를 추적해 마지막 1행 전에서 멈춘다.
+        const usePath = !!(ctx.cellPath && ctx.cellPath.length > 1);
+        let remainingRows = usePath
+          ? wasm.getTableDimensionsByPath(ctx.sec, ctx.ppi, JSON.stringify(ctx.cellPath)).rowCount
+          : wasm.getTableDimensions(ctx.sec, ctx.ppi, ctx.ci).rowCount;
+        for (let row = range.endRow; row >= range.startRow && remainingRows > 1; row -= 1) {
+          const result = usePath
+            ? wasm.deleteTableRowByPath(ctx.sec, ctx.ppi, JSON.stringify(ctx.cellPath), row)
+            : wasm.deleteTableRow(ctx.sec, ctx.ppi, ctx.ci, row);
+          remainingRows = result.rowCount;
         }
         return this.cursor.getPosition();
       },
