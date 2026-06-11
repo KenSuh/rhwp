@@ -256,10 +256,16 @@ fn drawing_has_text_box(d: &DrawingObjAttr) -> bool {
 
 /// `SectionDef` 가 `page_def`(용지/여백) 외에 emit 되지 않는 의미 있는 콘텐츠를 가지면 true.
 ///
-/// serializer 는 `render_page_pr` 로 page_def 만 재-emit 하고 나머지 SectionDef 필드는 모두 버린다.
-/// false-positive(경고 피로)를 피하려고 명백히 비-기본값이고 콘텐츠/의도가 분명한 필드만 본다:
-/// 바탕쪽(master_pages)·추가 쪽 테두리(extra_page_border_fills)·감추기 플래그·시작 쪽 번호·개요 번호.
-/// (1차 page_border_fill·각주/미주 모양은 기본값 비교 모호성으로 보수적으로 제외 — 알려진 잔여.)
+/// serializer 는 `render_page_pr` 로 page_def 만 재-emit 하고, 나머지 secPr 은 정적 템플릿
+/// (`empty_section0.xml`)의 하드코딩 값으로 나간다. 따라서 SectionDef 의 page_def 외 필드 중
+/// 템플릿 기본값과 다른 것은 저장 시 리셋되어 손실된다.
+///
+/// false-positive(경고 피로)를 피하려고, 0/HORIZONTAL/8000 등 **템플릿 기본값과 명확히 다른**
+/// 값일 때만 손실로 본다(0=미지정 모호성이 있는 default_tab_spacing 은 0 과 템플릿 8000 둘 다 제외).
+/// 템플릿 기본값(empty_section0.xml): textDirection="HORIZONTAL"(0), tabStop="8000",
+/// startNum page/pic/tbl/equation="0", pageStartsOn="BOTH"(0).
+///
+/// 1차 page_border_fill·각주/미주 모양은 구조체 기본값 비교 모호성으로 보수적으로 제외(알려진 잔여).
 pub fn section_def_has_unemitted_content(sd: &SectionDef) -> bool {
     !sd.master_pages.is_empty()
         || !sd.extra_page_border_fills.is_empty()
@@ -270,7 +276,14 @@ pub fn section_def_has_unemitted_content(sd: &SectionDef) -> bool {
         || sd.hide_fill
         || sd.hide_empty_line
         || sd.page_num != 0
+        || sd.page_num_type != 0
+        || sd.picture_num != 0
+        || sd.table_num != 0
+        || sd.equation_num != 0
+        || sd.text_direction != 0
         || sd.outline_numbering_id != 0
+        // 탭 간격: 0(미지정)도 템플릿 8000 도 아닌 실제 커스텀 값일 때만.
+        || (sd.default_tab_spacing != 0 && sd.default_tab_spacing != 8000)
 }
 
 #[cfg(test)]
@@ -422,6 +435,18 @@ mod tests {
         let mut sd2 = SectionDef::default();
         sd2.hide_header = true;
         assert!(section_def_has_unemitted_content(&sd2));
+        // 표/그림/수식 시작 번호(템플릿은 0 하드코딩)도 손실 신호.
+        let mut sd3 = SectionDef::default();
+        sd3.table_num = 5;
+        assert!(section_def_has_unemitted_content(&sd3));
+        // 세로쓰기(템플릿은 HORIZONTAL)도 손실 신호.
+        let mut sd4 = SectionDef::default();
+        sd4.text_direction = 1;
+        assert!(section_def_has_unemitted_content(&sd4));
+        // 템플릿 기본 탭(8000)은 손실 아님(false-positive 회피).
+        let mut sd5 = SectionDef::default();
+        sd5.default_tab_spacing = 8000;
+        assert!(!section_def_has_unemitted_content(&sd5));
     }
 
     #[test]
