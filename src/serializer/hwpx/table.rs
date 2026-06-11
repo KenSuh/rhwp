@@ -289,9 +289,9 @@ fn write_sub_list<W: Write>(
             para.controls.is_empty(),
         )?;
         for control in &para.controls {
-            // 손실 감지(관찰 전용) — 표 셀 문단 컨트롤도 본문과 동일 분류로 기록한다.
-            // 두 번째 drop site: `write_cell_control_run` 의 control_supported=false 경로.
-            ctx.record_lossy(control, pi);
+            // 손실 감지(관찰 전용·셀 표면) — 셀은 PageHide/PageNumberPos 를 emit 하지 않으므로
+            // 본문과 emit 집합이 다르다. 두 번째 drop site: write_cell_control_run.
+            ctx.record_lossy(control, super::lossy::LossySurface::Cell, pi);
             write_cell_control_run(w, control, ctx, first_cs)?;
         }
 

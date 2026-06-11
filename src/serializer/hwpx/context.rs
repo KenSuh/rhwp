@@ -17,7 +17,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use super::lossy::{classify_hwpx_lossy, LossyDrop};
+use super::lossy::{classify_hwpx_lossy, LossyDrop, LossyKind, LossySurface};
 use crate::model::control::Control;
 use crate::model::document::Document;
 use crate::serializer::SerializeError;
@@ -166,15 +166,21 @@ impl SerializeContext {
     /// 컨트롤 하나를 손실 분류하여 손실이면 `lossy` 에 기록한다(무손실이면 no-op).
     ///
     /// 본문 문단/표 셀 두 drop site 가 같은 분류(`classify_hwpx_lossy`)를 쓰도록 단일 진입점으로
-    /// 둔다. `para_index` 는 best-effort 좌표(표 셀은 셀-로컬 문단 인덱스일 수 있음).
-    pub fn record_lossy(&mut self, ctrl: &Control, para_index: usize) {
-        if let Some(kind) = classify_hwpx_lossy(ctrl) {
-            self.lossy.push(LossyDrop {
-                kind,
-                section_index: self.current_section_index,
-                para_index,
-            });
+    /// 둔다. `surface` 는 emit 집합이 다른 표면(본문/셀)을 구분한다. `para_index` 는 best-effort
+    /// 좌표(표 셀은 셀-로컬 문단 인덱스일 수 있음).
+    pub fn record_lossy(&mut self, ctrl: &Control, surface: LossySurface, para_index: usize) {
+        if let Some(kind) = classify_hwpx_lossy(ctrl, surface) {
+            self.record_lossy_kind(kind, para_index);
         }
+    }
+
+    /// 컨트롤이 아닌 섹션 단위 손실(예: SectionDef page_def 외 설정)을 직접 기록한다.
+    pub fn record_lossy_kind(&mut self, kind: LossyKind, para_index: usize) {
+        self.lossy.push(LossyDrop {
+            kind,
+            section_index: self.current_section_index,
+            para_index,
+        });
     }
 
     /// 모든 참조가 해소되었는지 단언. 해소되지 않은 ID가 있으면 `SerializeError::XmlError` 반환.

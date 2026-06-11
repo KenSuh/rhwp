@@ -166,23 +166,27 @@ export class WasmBridge {
    * HWPX 직렬화 + 저장 시 손실되는 컨트롤 경고를 함께 반환한다(save-time hard warning).
    *
    * 반환 bytes 는 `exportHwpx` 와 비트 동일(손실 수집은 관찰 전용). 손실이 없으면
-   * `warnings.count === 0`. wasm 바인딩이 아직 재빌드되지 않은(stale) 환경에서는 기존
-   * `exportHwpx` 로 폴백해 저장 자체는 가능하게 하되 경고를 비운다(빌드 후엔 항상 탑재됨).
+   * `warnings.count === 0`.
+   *
+   * **fail-closed**: 데이터 손실 게이트이므로 "손실 여부를 알 수 없는" 상태는 안전하지 않다.
+   * wasm 바인딩이 미갱신(stale)이라 API 가 없거나 warningsJson 파싱이 실패하면, 빈 경고로
+   * 통과시키지 않고 throw 해 저장 자체를 막는다(호출자가 catch 해 사용자에게 알림). 정상 빌드에선
+   * API 가 항상 탑재되므로 이 throw 는 빌드/배포 문제에서만 발생한다.
    */
   exportHwpxWithWarnings(): { bytes: Uint8Array; warnings: SaveWarningReport } {
     if (!this.doc) throw new Error('문서가 로드되지 않았습니다');
-    const emptyReport: SaveWarningReport = { count: 0, summary: {}, warnings: [] };
     const fn = (this.doc as unknown as { exportHwpxWithWarnings?: () => { bytes: Uint8Array; warningsJson: string } }).exportHwpxWithWarnings;
     if (typeof fn !== 'function') {
-      console.warn('[wasm-bridge] exportHwpxWithWarnings 미탑재(stale wasm) — exportHwpx 폴백, 손실 경고 없음. wasm 재빌드 필요.');
-      return { bytes: this.doc.exportHwpx(), warnings: emptyReport };
+      throw new Error(
+        '저장 손실 경고 기능을 사용할 수 없습니다(WASM 미갱신). 페이지를 새로고침하거나 다시 빌드한 뒤 저장하세요.',
+      );
     }
     const result = fn.call(this.doc);
-    let warnings: SaveWarningReport = emptyReport;
+    let warnings: SaveWarningReport;
     try {
       warnings = JSON.parse(result.warningsJson) as SaveWarningReport;
     } catch {
-      warnings = emptyReport;
+      throw new Error('저장 손실 경고 데이터를 해석할 수 없습니다. 안전을 위해 저장을 중단합니다.');
     }
     return { bytes: result.bytes, warnings };
   }

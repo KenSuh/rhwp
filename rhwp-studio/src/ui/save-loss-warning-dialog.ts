@@ -24,7 +24,12 @@ const LOSSY_KIND_LABELS: Record<string, string> = {
   ColumnDef: '다단',
   Header: '머리말',
   Footer: '꼬리말',
+  PageHide: '감추기',
+  PageNumberPos: '쪽 번호 위치',
   Shape: '그리기 개체',
+  TextBox: '글상자',
+  Caption: '캡션',
+  SectionSettings: '구역 설정',
   Unknown: '알 수 없는 컨트롤',
 };
 

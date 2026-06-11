@@ -67,6 +67,13 @@ pub fn write_section(
 ) -> Result<Vec<u8>, SerializeError> {
     // 손실 좌표 기록용 — 이 섹션에서 drop 되는 컨트롤은 이 인덱스로 태깅된다.
     ctx.current_section_index = index;
+
+    // 섹션 단위 손실: SectionDef 는 page_def(용지/여백)만 render_page_pr 로 재-emit 되고
+    // 바탕쪽·쪽 테두리·감추기·시작 번호 등은 버려진다. 의미 있는 잔여 설정이 있으면 1건 경고.
+    if super::lossy::section_def_has_unemitted_content(&section.section_def) {
+        ctx.record_lossy_kind(super::lossy::LossyKind::SectionSettings, 0);
+    }
+
     let mut vert_cursor: u32 = 0;
 
     let first_para = section.paragraphs.first();
@@ -268,9 +275,9 @@ fn render_controls_xml(
 ) -> Result<String, SerializeError> {
     let mut out = String::new();
     for ctrl in &p.controls {
-        // 손실 감지(관찰 전용) — emit 여부와 무관하게 컨트롤을 분류해 손실이면 기록한다.
-        // classify 가 emit-6/SectionDef = None 이라 정상 직렬화 컨트롤은 false-positive 0.
-        ctx.record_lossy(ctrl, para_index);
+        // 손실 감지(관찰 전용·본문 표면) — emit 여부와 무관하게 컨트롤을 분류해 손실이면 기록한다.
+        // classify 가 정상 직렬화 컨트롤은 None 이라 false-positive 0.
+        ctx.record_lossy(ctrl, super::lossy::LossySurface::Body, para_index);
 
         let mut writer = Writer::new(Vec::new());
         if write_control_xml(&mut writer, ctrl, ctx)? {

@@ -1,25 +1,45 @@
-//! HWPX 저장 시 emit되지 않아 손실되는 컨트롤의 분류(단일 진실원).
+//! HWPX 저장 시 emit되지 않아 손실되는 컨트롤/콘텐츠의 분류(단일 진실원).
 //!
-//! HWPX serializer(`section.rs`/`table.rs`)는 컨트롤 중 6종(Table/Picture/Shape/
-//! PageHide/PageNumberPos/Form)만 emit하고 나머지는 소리 없이 버린다(silent loss).
-//! 파서는 전 컨트롤을 모델에 보존하므로, **저장 직전**에 무엇이 손실될지 100% 감지할 수 있다.
-//! 본 모듈은 그 분류를 `classify_hwpx_lossy` 한 곳에 모아 두고, 두 drop site
-//! (본문 문단 `render_controls_xml`, 표 셀 `write_cell_control_run`)가 동일 분류를 쓴다.
+//! HWPX serializer 는 컨트롤 중 일부만, 또 emit 하는 컨트롤도 본문 geometry/텍스트만 쓰고
+//! 부가 콘텐츠(글상자 텍스트·객체 캡션·구역 설정 등)는 버린다(silent loss). 파서는 전 컨트롤을
+//! 모델에 보존하므로 **저장 직전**에 무엇이 손실될지 감지할 수 있다. 본 모듈은 그 분류를 한 곳에
+//! 모아 두 drop site(본문 `render_controls_xml`, 표 셀 `write_cell_control_run`)와 섹션 진입
+//! (`write_section`)이 동일 분류를 쓴다.
+//!
+//! ## surface 별 emit 집합 차이(중요)
+//! - 본문(Body): `write_control_xml` 이 6종(Table/Picture/Shape/PageHide/PageNumberPos/Form) emit.
+//! - 표 셀(Cell): `write_cell_control` 이 4종(Table/Picture/Shape/Form)만 emit — **PageHide/
+//!   PageNumberPos 는 셀에서 drop** 된다. 따라서 분류는 `LossySurface` 에 따라 달라진다.
+//!
+//! ## 부분 emit 손실(geometry 는 쓰지만 콘텐츠는 버림)
+//! - 도형(Line/Rectangle 등)·그림·표·묶음의 **캡션**(`caption`)은 어떤 writer 도 emit 하지 않는다.
+//! - 도형 **글상자 텍스트**(`drawing.text_box.paragraphs`)도 emit 되지 않는다.
+//! - `SectionDef` 는 `page_def`(용지/여백)만 `render_page_pr` 로 재-emit 되고, 바탕쪽/쪽 테두리/
+//!   감추기 플래그/시작 번호/개요 번호 등은 버려진다(섹션 단위 `section_def_has_unemitted_content`).
 //!
 //! ## drift 가드
-//! `classify_hwpx_lossy` 와 `shape_has_unemittable` 는 **`_` 와일드카드 없는 exhaustive
-//! match** 다. `Control`/`ShapeObject` enum 에 variant 가 추가/제거되면 컴파일 에러가 나서
-//! "새 컨트롤이 분류 없이 silent drop 되는" drift 를 막는다.
+//! `classify_hwpx_lossy`·`shape_has_unemittable` 는 `_` 와일드카드 없는 exhaustive match 다.
+//! `Control`/`ShapeObject` enum 변경 시 컴파일 에러로 "새 컨트롤이 분류 없이 silent drop"을 막는다.
 //!
 //! ## fail-safe 원칙
-//! 어떤 컨트롤이 다른 경로로 재-emit 되는지 **불확실하면 None 이 아니라 Some(lossy)** 로
-//! 둔다(over-warn > silent-loss). 현재 None 으로 두는 컨트롤은 재-emit 이 코드로 입증된
-//! 것뿐이다(emit-6 + SectionDef 의 page_def — 아래 주석 참조).
+//! 재-emit 여부가 불확실하면 None 이 아니라 Some(lossy)(over-warn > silent-loss). 단 false-positive
+//! (실제 저장되는 콘텐츠를 오경고)는 경고 피로를 부르므로, 콘텐츠가 실재할 때만(caption.is_some,
+//! text_box.paragraphs 비어있지 않음 등) 경고한다.
 
 use crate::model::control::Control;
-use crate::model::shape::ShapeObject;
+use crate::model::document::SectionDef;
+use crate::model::shape::{DrawingObjAttr, ShapeObject};
 
-/// HWPX 저장 시 손실되는 컨트롤의 사용자-노출 종류.
+/// 손실이 일어나는 직렬화 표면. 셀은 본문보다 emit 집합이 좁다(PageHide/PageNumberPos drop).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LossySurface {
+    /// 본문 문단(`write_control_xml`, 6종 emit).
+    Body,
+    /// 표 셀 문단(`write_cell_control`, 4종 emit — PageHide/PageNumberPos drop).
+    Cell,
+}
+
+/// HWPX 저장 시 손실되는 컨트롤/콘텐츠의 사용자-노출 종류.
 ///
 /// 머신-안정 문자열(`as_str`)로 직렬화되며, 한국어 라벨 매핑은 TS(UI) 레이어가 담당한다.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,8 +72,18 @@ pub enum LossyKind {
     Header,
     /// 꼬리말
     Footer,
-    /// 그리기 개체(타원/호/다각형/곡선 등 미지원 서브타입)
+    /// 감추기(쪽 숨김) — 표 셀에서만 손실(본문은 emit)
+    PageHide,
+    /// 쪽 번호 위치 — 표 셀에서만 손실(본문은 emit)
+    PageNumberPos,
+    /// 그리기 개체(타원/호/다각형/곡선 등 미지원 서브타입 — 통째로 손실)
     Shape,
+    /// 글상자 텍스트(도형 안 텍스트 — geometry 는 저장되나 텍스트는 손실)
+    TextBox,
+    /// 객체 캡션(표/그림/도형의 캡션 — 어떤 writer 도 emit 안 함)
+    Caption,
+    /// 구역 설정(바탕쪽·쪽 테두리·감추기·시작 번호 등 page_def 외 SectionDef 손실)
+    SectionSettings,
     /// 알 수 없는 컨트롤
     Unknown,
 }
@@ -76,7 +106,12 @@ impl LossyKind {
             LossyKind::ColumnDef => "ColumnDef",
             LossyKind::Header => "Header",
             LossyKind::Footer => "Footer",
+            LossyKind::PageHide => "PageHide",
+            LossyKind::PageNumberPos => "PageNumberPos",
             LossyKind::Shape => "Shape",
+            LossyKind::TextBox => "TextBox",
+            LossyKind::Caption => "Caption",
+            LossyKind::SectionSettings => "SectionSettings",
             LossyKind::Unknown => "Unknown",
         }
     }
@@ -93,37 +128,43 @@ pub struct LossyDrop {
     pub para_index: usize,
 }
 
-/// HWPX serializer 가 emit 하지 않아 손실될 컨트롤이면 `Some(kind)`, 안전(무손실)하면 `None`.
+/// 한 컨트롤이 주어진 표면(`surface`)에서 저장 시 손실되면 `Some(kind)`, 안전하면 `None`.
 ///
 /// ⚠️ exhaustive match(`_` 금지) — `Control` variant 변경 시 컴파일 에러로 drift 차단.
 ///
-/// ## None(무손실) 근거 — 코드로 입증된 것만
-/// - **emit-6 중 5종**(Table/Picture/PageHide/PageNumberPos/Form): `write_control_xml`
-///   / `write_cell_control` 이 항상 직렬화(`Ok(true)`).
-/// - **Shape**: 컨트롤 레벨은 emit 되나 서브타입(타원/호/다각형/곡선)은 drop 되므로
-///   서브타입을 재귀 검사해 미지원이 하나라도 있으면 `Some(Shape)`.
-/// - **SectionDef**: 용지 크기/여백(`page_def`)은 `section.rs::render_page_pr` 가 재-emit
-///   하므로(저장→재로드 시 레이아웃 보존) 레이아웃 손실 없음. 잔여 secPr 구조 정규화는
-///   별도 추적되는 한계이며 '내용 손실'이 아니다. 또한 SectionDef 는 **모든 문서/모든 섹션에
-///   존재**하므로 Some 으로 두면 매 저장마다 경고가 떠 경고 피로(crying wolf)로 실제 위험
-///   (누름틀/수식 손실) 경고가 무시된다 → 의도적으로 None.
-pub fn classify_hwpx_lossy(ctrl: &Control) -> Option<LossyKind> {
+/// 한 컨트롤이 여러 손실(예: 미지원 도형 + 캡션)을 가질 수 있으나, 분류는 가장 심한 1종만
+/// 반환한다(전체 손실 > 콘텐츠 일부 손실). UI 는 종류별 집계로 표시한다.
+pub fn classify_hwpx_lossy(ctrl: &Control, surface: LossySurface) -> Option<LossyKind> {
     match ctrl {
-        // ── 무손실 확정(항상 직렬화) ──
-        Control::Table(_)
-        | Control::Picture(_)
-        | Control::PageHide(_)
-        | Control::PageNumberPos(_)
-        | Control::Form(_) => None,
-        // ── Shape: 서브타입 검사(미지원 서브타입 = 손실) ──
-        Control::Shape(shape) => {
-            if shape_has_unemittable(shape) {
-                Some(LossyKind::Shape)
+        // ── 본문/셀 공통 emit(geometry/구조). 단 캡션은 어떤 writer 도 emit 안 함 ──
+        Control::Table(t) => {
+            if t.caption.is_some() {
+                Some(LossyKind::Caption)
             } else {
                 None
             }
         }
-        // ── SectionDef: page_def 재-emit 입증됨(위 주석) → None ──
+        Control::Picture(p) => {
+            if p.caption.is_some() {
+                Some(LossyKind::Caption)
+            } else {
+                None
+            }
+        }
+        Control::Form(_) => None,
+        // ── Shape: 미지원 서브타입(통째) > 글상자 텍스트 > 캡션 ──
+        Control::Shape(shape) => classify_shape(shape),
+        // ── PageHide/PageNumberPos: 본문은 emit, 셀은 drop ──
+        Control::PageHide(_) => match surface {
+            LossySurface::Body => None,
+            LossySurface::Cell => Some(LossyKind::PageHide),
+        },
+        Control::PageNumberPos(_) => match surface {
+            LossySurface::Body => None,
+            LossySurface::Cell => Some(LossyKind::PageNumberPos),
+        },
+        // ── SectionDef: page_def 는 render_page_pr 로 재-emit. page_def 외 손실은 섹션 단위
+        //    (section_def_has_unemitted_content)로 따로 감지하므로 여기선 None(매-문단 중복 방지) ──
         Control::SectionDef(_) => None,
         // ── 재-emit 경로 없음 = 실손실 ──
         Control::ColumnDef(_) => Some(LossyKind::ColumnDef),
@@ -144,11 +185,24 @@ pub fn classify_hwpx_lossy(ctrl: &Control) -> Option<LossyKind> {
     }
 }
 
-/// 그리기 개체(또는 묶음 내 자식)에 serializer 가 emit 하지 못하는 서브타입이 있으면 true.
+/// 도형 컨트롤의 손실 분류. 미지원 서브타입(전체 손실) > 글상자 텍스트 > 캡션 순으로 심각도.
+fn classify_shape(shape: &ShapeObject) -> Option<LossyKind> {
+    if shape_has_unemittable(shape) {
+        return Some(LossyKind::Shape);
+    }
+    if shape_has_text_box(shape) {
+        return Some(LossyKind::TextBox);
+    }
+    if shape_has_caption(shape) {
+        return Some(LossyKind::Caption);
+    }
+    None
+}
+
+/// 그리기 개체(또는 묶음 내 자식)에 serializer 가 통째로 버리는 미지원 서브타입이 있으면 true.
 ///
-/// serializer(`write_shape_xml`/`write_cell_shape`)가 emit 하는 것: Line/Rectangle/Picture/
-/// Group(자식 재귀). drop: Ellipse/Arc/Polygon/Curve. Group 은 컨테이너 자체는 emit 되나
-/// 자식 중 미지원이 있으면 그 자식이 소리 없이 사라지므로, 자식까지 재귀 검사한다.
+/// serializer(`write_shape_xml`/`write_cell_shape`) emit: Line/Rectangle/Picture/Group(자식 재귀).
+/// drop: Ellipse/Arc/Polygon/Curve.
 ///
 /// ⚠️ exhaustive match(`_` 금지) — `ShapeObject` variant 변경 시 컴파일 에러로 drift 차단.
 fn shape_has_unemittable(shape: &ShapeObject) -> bool {
@@ -162,70 +216,181 @@ fn shape_has_unemittable(shape: &ShapeObject) -> bool {
     }
 }
 
+/// 도형(또는 묶음 내 자식)에 emit 되지 않는 글상자 텍스트가 있으면 true.
+/// serializer 는 도형 geometry(sz/pos/outMargin)만 쓰고 `drawing.text_box` 는 버린다.
+fn shape_has_text_box(shape: &ShapeObject) -> bool {
+    match shape {
+        ShapeObject::Line(s) => drawing_has_text_box(&s.drawing),
+        ShapeObject::Rectangle(s) => drawing_has_text_box(&s.drawing),
+        ShapeObject::Ellipse(s) => drawing_has_text_box(&s.drawing),
+        ShapeObject::Arc(s) => drawing_has_text_box(&s.drawing),
+        ShapeObject::Polygon(s) => drawing_has_text_box(&s.drawing),
+        ShapeObject::Curve(s) => drawing_has_text_box(&s.drawing),
+        ShapeObject::Picture(_) => false,
+        ShapeObject::Group(group) => group.children.iter().any(shape_has_text_box),
+    }
+}
+
+/// 도형(또는 묶음 내 자식)에 emit 되지 않는 캡션이 있으면 true.
+/// 어떤 도형/그림/표 writer 도 캡션을 emit 하지 않는다.
+fn shape_has_caption(shape: &ShapeObject) -> bool {
+    match shape {
+        ShapeObject::Line(s) => s.drawing.caption.is_some(),
+        ShapeObject::Rectangle(s) => s.drawing.caption.is_some(),
+        ShapeObject::Ellipse(s) => s.drawing.caption.is_some(),
+        ShapeObject::Arc(s) => s.drawing.caption.is_some(),
+        ShapeObject::Polygon(s) => s.drawing.caption.is_some(),
+        ShapeObject::Curve(s) => s.drawing.caption.is_some(),
+        ShapeObject::Picture(p) => p.caption.is_some(),
+        ShapeObject::Group(group) => {
+            group.caption.is_some() || group.children.iter().any(shape_has_caption)
+        }
+    }
+}
+
+fn drawing_has_text_box(d: &DrawingObjAttr) -> bool {
+    d.text_box
+        .as_ref()
+        .map_or(false, |tb| !tb.paragraphs.is_empty())
+}
+
+/// `SectionDef` 가 `page_def`(용지/여백) 외에 emit 되지 않는 의미 있는 콘텐츠를 가지면 true.
+///
+/// serializer 는 `render_page_pr` 로 page_def 만 재-emit 하고 나머지 SectionDef 필드는 모두 버린다.
+/// false-positive(경고 피로)를 피하려고 명백히 비-기본값이고 콘텐츠/의도가 분명한 필드만 본다:
+/// 바탕쪽(master_pages)·추가 쪽 테두리(extra_page_border_fills)·감추기 플래그·시작 쪽 번호·개요 번호.
+/// (1차 page_border_fill·각주/미주 모양은 기본값 비교 모호성으로 보수적으로 제외 — 알려진 잔여.)
+pub fn section_def_has_unemitted_content(sd: &SectionDef) -> bool {
+    !sd.master_pages.is_empty()
+        || !sd.extra_page_border_fills.is_empty()
+        || sd.hide_header
+        || sd.hide_footer
+        || sd.hide_master_page
+        || sd.hide_border
+        || sd.hide_fill
+        || sd.hide_empty_line
+        || sd.page_num != 0
+        || sd.outline_numbering_id != 0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::control::{Bookmark, Equation, Field};
+    use crate::model::control::{Bookmark, Equation, Field, PageHide, PageNumberPos};
     use crate::model::image::Picture;
-    use crate::model::shape::{EllipseShape, GroupShape, LineShape, RectangleShape, ShapeObject};
+    use crate::model::shape::{
+        Caption, EllipseShape, GroupShape, LineShape, RectangleShape, ShapeObject, TextBox,
+    };
     use crate::model::table::Table;
+
+    const BODY: LossySurface = LossySurface::Body;
+    const CELL: LossySurface = LossySurface::Cell;
 
     #[test]
     fn content_controls_classified_lossy() {
         assert_eq!(
-            classify_hwpx_lossy(&Control::Field(Field::default())),
+            classify_hwpx_lossy(&Control::Field(Field::default()), BODY),
             Some(LossyKind::Field)
         );
         assert_eq!(
-            classify_hwpx_lossy(&Control::Bookmark(Bookmark::default())),
+            classify_hwpx_lossy(&Control::Bookmark(Bookmark::default()), BODY),
             Some(LossyKind::Bookmark)
         );
         assert_eq!(
-            classify_hwpx_lossy(&Control::Equation(Box::new(Equation::default()))),
+            classify_hwpx_lossy(&Control::Equation(Box::new(Equation::default())), BODY),
             Some(LossyKind::Equation)
         );
     }
 
     #[test]
-    fn emit_six_classified_none() {
-        // 실제 직렬화되는 콘텐츠를 손실로 오경고하지 않는다(false-positive 0).
+    fn plain_emitted_controls_classified_none() {
+        // 캡션/글상자 없는 표·그림·직선·사각형은 손실 없음(false-positive 0).
         assert_eq!(
-            classify_hwpx_lossy(&Control::Table(Box::new(Table::default()))),
+            classify_hwpx_lossy(&Control::Table(Box::new(Table::default())), BODY),
             None
         );
         assert_eq!(
-            classify_hwpx_lossy(&Control::Picture(Box::new(Picture::default()))),
-            None
-        );
-        // Shape(직선) = emit → None
-        assert_eq!(
-            classify_hwpx_lossy(&Control::Shape(Box::new(ShapeObject::Line(
-                LineShape::default()
-            )))),
+            classify_hwpx_lossy(&Control::Picture(Box::new(Picture::default())), BODY),
             None
         );
         assert_eq!(
-            classify_hwpx_lossy(&Control::Shape(Box::new(ShapeObject::Rectangle(
-                RectangleShape::default()
-            )))),
+            classify_hwpx_lossy(&Control::Shape(Box::new(ShapeObject::Line(LineShape::default()))), BODY),
+            None
+        );
+        assert_eq!(
+            classify_hwpx_lossy(
+                &Control::Shape(Box::new(ShapeObject::Rectangle(RectangleShape::default()))),
+                BODY
+            ),
             None
         );
     }
 
     #[test]
     fn unsupported_shape_subtype_classified_lossy() {
-        // 타원은 serializer 가 drop → 경고해야 함.
         assert_eq!(
-            classify_hwpx_lossy(&Control::Shape(Box::new(ShapeObject::Ellipse(
-                EllipseShape::default()
-            )))),
+            classify_hwpx_lossy(
+                &Control::Shape(Box::new(ShapeObject::Ellipse(EllipseShape::default()))),
+                BODY
+            ),
             Some(LossyKind::Shape)
         );
     }
 
     #[test]
+    fn pagehide_pagenumberpos_lossy_only_in_cell() {
+        // 본문은 emit → None, 셀은 drop → Some.
+        assert_eq!(
+            classify_hwpx_lossy(&Control::PageHide(PageHide::default()), BODY),
+            None
+        );
+        assert_eq!(
+            classify_hwpx_lossy(&Control::PageHide(PageHide::default()), CELL),
+            Some(LossyKind::PageHide)
+        );
+        assert_eq!(
+            classify_hwpx_lossy(&Control::PageNumberPos(PageNumberPos::default()), BODY),
+            None
+        );
+        assert_eq!(
+            classify_hwpx_lossy(&Control::PageNumberPos(PageNumberPos::default()), CELL),
+            Some(LossyKind::PageNumberPos)
+        );
+    }
+
+    #[test]
+    fn caption_on_table_or_picture_is_lossy() {
+        let mut table = Table::default();
+        table.caption = Some(Caption::default());
+        assert_eq!(
+            classify_hwpx_lossy(&Control::Table(Box::new(table)), BODY),
+            Some(LossyKind::Caption)
+        );
+
+        let mut pic = Picture::default();
+        pic.caption = Some(Caption::default());
+        assert_eq!(
+            classify_hwpx_lossy(&Control::Picture(Box::new(pic)), BODY),
+            Some(LossyKind::Caption)
+        );
+    }
+
+    #[test]
+    fn rectangle_with_text_box_is_lossy() {
+        // geometry 는 저장되지만 글상자 텍스트는 손실 → TextBox 경고.
+        let mut rect = RectangleShape::default();
+        rect.drawing.text_box = Some(TextBox {
+            paragraphs: vec![crate::model::paragraph::Paragraph::default()],
+            ..Default::default()
+        });
+        assert_eq!(
+            classify_hwpx_lossy(&Control::Shape(Box::new(ShapeObject::Rectangle(rect))), BODY),
+            Some(LossyKind::TextBox)
+        );
+    }
+
+    #[test]
     fn group_with_unemittable_child_is_lossy() {
-        // 묶음 자체는 emit 되지만 미지원 자식(타원)이 있으면 그 자식이 손실 → 경고.
         let group = GroupShape {
             children: vec![
                 ShapeObject::Line(LineShape::default()),
@@ -235,7 +400,6 @@ mod tests {
         };
         assert!(shape_has_unemittable(&ShapeObject::Group(group)));
 
-        // 모두 지원 서브타입이면 무손실.
         let safe_group = GroupShape {
             children: vec![
                 ShapeObject::Line(LineShape::default()),
@@ -247,10 +411,25 @@ mod tests {
     }
 
     #[test]
+    fn section_def_unemitted_content_detected() {
+        // 기본 SectionDef(page_def만 의미) → 손실 없음.
+        let mut sd = SectionDef::default();
+        assert!(!section_def_has_unemitted_content(&sd));
+        // 바탕쪽이 있으면 손실.
+        sd.master_pages.push(Default::default());
+        assert!(section_def_has_unemitted_content(&sd));
+        // 감추기 플래그도 손실 신호.
+        let mut sd2 = SectionDef::default();
+        sd2.hide_header = true;
+        assert!(section_def_has_unemitted_content(&sd2));
+    }
+
+    #[test]
     fn as_str_matches_variant_name() {
         assert_eq!(LossyKind::Field.as_str(), "Field");
-        assert_eq!(LossyKind::Equation.as_str(), "Equation");
-        assert_eq!(LossyKind::Shape.as_str(), "Shape");
-        assert_eq!(LossyKind::Unknown.as_str(), "Unknown");
+        assert_eq!(LossyKind::Caption.as_str(), "Caption");
+        assert_eq!(LossyKind::TextBox.as_str(), "TextBox");
+        assert_eq!(LossyKind::SectionSettings.as_str(), "SectionSettings");
+        assert_eq!(LossyKind::PageHide.as_str(), "PageHide");
     }
 }
