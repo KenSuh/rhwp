@@ -693,6 +693,19 @@ impl Paginator {
     }
 
     /// 비-표 문단의 줄 단위 분할
+    /// 문단이 인라인(글자처럼취급·텍스트와 같은 줄) TAC 표를 포함하는지 —
+    /// process_controls 의 인라인 TAC skip(996-1005)·height_measurer 의
+    /// use_line_segs_for_inline_tac 와 동일 술어를 사용해 라우팅 정합을 유지한다.
+    fn has_inline_tac_table(para: &Paragraph) -> bool {
+        let seg_w = para.line_segs.first().map(|s| s.segment_width).unwrap_or(0);
+        para.controls.iter().any(|c| {
+            matches!(c, Control::Table(t)
+                if t.common.treat_as_char
+                    && crate::renderer::height_measurer::is_tac_table_inline(
+                        t, seg_w, &para.text, &para.controls))
+        })
+    }
+
     fn paginate_text_lines(
         &self,
         st: &mut PaginationState,
@@ -745,6 +758,20 @@ impl Paginator {
             st.current_height + (para_height - effective_trailing) <= available_now + 0.5
         } {
             // 문단 전체가 현재 페이지에 들어감
+            st.current_items.push(PageItem::FullParagraph {
+                para_index: para_idx,
+            });
+            st.current_height += para_height;
+        } else if Self::has_inline_tac_table(para) {
+            // 인라인 TAC 표 문단은 줄 단위로 분할하지 않는다(원자 배치).
+            // PartialParagraph 로 쪼개지면 layout 이 FullParagraph 전용
+            // layout_inline_table_paragraph 경로를 타지 못해 표가 그려지지 않은 채
+            // 예약 높이만 빈 공간으로 남는다(표 소실). 분할 대신 통째로 다음 페이지로
+            // 이동한다. (한 페이지보다 큰 인라인 TAC 문단은 하단 클립될 수 있으나
+            // 소실보다 보수적 — process_controls 의 인라인 TAC skip 분기와 동일 술어.)
+            if !st.current_items.is_empty() {
+                st.advance_column_or_new_page();
+            }
             st.current_items.push(PageItem::FullParagraph {
                 para_index: para_idx,
             });

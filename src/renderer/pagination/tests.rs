@@ -1416,3 +1416,79 @@ fn test_table_height_within_body_area() {
         }
     }
 }
+
+#[test]
+fn test_inline_tac_paragraph_is_not_line_split() {
+    // 인라인(글자처럼취급·텍스트와 같은 줄) TAC 표 문단은 줄 단위 분할(PartialParagraph)
+    // 되면 안 된다 — layout 은 FullParagraph 에서만 layout_inline_table_paragraph 로
+    // 표를 그리므로, 분할되면 표가 그려지지 않은 채 예약 높이만 빈 공간으로 남는다
+    // (표 소실). 들어가지 않으면 통째로 다음 페이지로 이동(원자 배치)해야 한다.
+    use crate::model::control::Control;
+    use crate::model::table::{Cell, Table};
+
+    let paginator = Paginator::with_default_dpi();
+    let styles = ResolvedStyleSet::default();
+
+    // 페이지 일부를 차지하는 필러 문단(~693px).
+    let filler = make_paragraph_with_height(52000);
+
+    // 인라인 TAC 문단: 텍스트 + 좁은 TAC 표(열폭 10000 < seg_width 40000*0.9).
+    // 8줄 × 12000 HWPUNIT(≈160px) = 한 페이지(~826px)보다 큰 문단 — 이전 동작에서는
+    // 반드시 줄 분할(PartialParagraph)되어 표가 소실되던 구성.
+    let mut tac_para = Paragraph::default();
+    tac_para.text = "표 옆 텍스트".to_string();
+    tac_para.line_segs = (0..8)
+        .map(|i| LineSeg {
+            line_height: 12000,
+            segment_width: 40000,
+            text_start: i * 2,
+            ..Default::default()
+        })
+        .collect();
+    let mut tac_common = crate::model::shape::CommonObjAttr::default();
+    tac_common.treat_as_char = true;
+    tac_common.width = 10000;
+    tac_common.height = 11000;
+    tac_para.controls.push(Control::Table(Box::new(Table {
+        row_count: 1,
+        col_count: 1,
+        cells: vec![Cell {
+            row: 0,
+            col: 0,
+            row_span: 1,
+            col_span: 1,
+            height: 11000,
+            width: 10000,
+            ..Default::default()
+        }],
+        common: tac_common,
+        ..Default::default()
+    })));
+
+    let paras = vec![filler, tac_para];
+    let composed: Vec<ComposedParagraph> = Vec::new();
+    let (result, _measured) = paginator.paginate(
+        &paras,
+        &composed,
+        &styles,
+        &a4_page_def(),
+        &ColumnDef::default(),
+        0,
+    );
+
+    let mut full_found = false;
+    for page in &result.pages {
+        for col in &page.column_contents {
+            for item in &col.items {
+                match item {
+                    PageItem::PartialParagraph { para_index: 1, .. } => {
+                        panic!("인라인 TAC 문단이 줄 분할됨 — 표 소실 회귀");
+                    }
+                    PageItem::FullParagraph { para_index: 1 } => full_found = true,
+                    _ => {}
+                }
+            }
+        }
+    }
+    assert!(full_found, "인라인 TAC 문단이 FullParagraph 로 배치되어야 함");
+}
