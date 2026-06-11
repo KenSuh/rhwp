@@ -694,6 +694,15 @@ impl DocumentCore {
             .map_err(|e| HwpError::RenderError(e.to_string()))
     }
 
+    /// Document IR을 HWPX로 직렬화하면서 저장 시 손실되는 컨트롤 목록을 함께 반환 (네이티브).
+    /// 바이트는 `export_hwpx_native` 와 동일(손실 수집은 관찰 전용).
+    pub fn export_hwpx_with_lossy_native(
+        &self,
+    ) -> Result<(Vec<u8>, Vec<crate::serializer::LossyDrop>), HwpError> {
+        crate::serializer::serialize_hwpx_with_lossy(&self.document)
+            .map_err(|e| HwpError::RenderError(e.to_string()))
+    }
+
     /// 배포용(읽기전용) 문서를 편집 가능한 일반 문서로 변환한다 (네이티브 에러 타입).
     pub fn convert_to_editable_native(&mut self) -> Result<String, HwpError> {
         let converted = self.document.convert_to_editable();

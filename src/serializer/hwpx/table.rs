@@ -289,6 +289,9 @@ fn write_sub_list<W: Write>(
             para.controls.is_empty(),
         )?;
         for control in &para.controls {
+            // 손실 감지(관찰 전용) — 표 셀 문단 컨트롤도 본문과 동일 분류로 기록한다.
+            // 두 번째 drop site: `write_cell_control_run` 의 control_supported=false 경로.
+            ctx.record_lossy(control, pi);
             write_cell_control_run(w, control, ctx, first_cs)?;
         }
 

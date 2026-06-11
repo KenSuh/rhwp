@@ -14,7 +14,8 @@ pub mod mini_cfb;
 pub mod record_writer;
 
 pub use cfb_writer::serialize_hwp;
-pub use hwpx::serialize_hwpx;
+pub use hwpx::lossy::{LossyDrop, LossyKind};
+pub use hwpx::{serialize_hwpx, serialize_hwpx_with_lossy};
 
 /// 직렬화 에러 (HWP + HWPX 공용)
 #[derive(Debug)]

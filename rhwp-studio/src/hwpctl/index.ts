@@ -80,7 +80,26 @@ export class HwpCtrl {
       let ext: string;
 
       if (isHwpx) {
-        bytes = this.wasmDoc.exportHwpx();
+        // hwpctl 은 동기 자동화/스크립팅 API 라 대화형 차단 모달을 띄울 수 없다(awaitable 아님).
+        // 따라서 file:save 와 달리 차단하지 않고, 손실 컨트롤을 콘솔에 경고만 남긴다(가시성).
+        // 대화형 hard gate 는 file:save(사용자 저장 경로)가 담당한다.
+        if (typeof this.wasmDoc.exportHwpxWithWarnings === 'function') {
+          const exported = this.wasmDoc.exportHwpxWithWarnings();
+          bytes = exported.bytes;
+          try {
+            const report = JSON.parse(exported.warningsJson);
+            if (report.count > 0) {
+              console.warn(
+                `[hwpctl] SaveAs: 저장 시 ${report.count}건의 컨트롤이 손실됩니다(자동화 경로라 차단 안 함):`,
+                report.summary,
+              );
+            }
+          } catch {
+            /* warningsJson 파싱 실패 시 무시 — bytes 는 정상 */
+          }
+        } else {
+          bytes = this.wasmDoc.exportHwpx();
+        }
         mimeType = 'application/hwp+zip';
         ext = '.hwpx';
       } else {

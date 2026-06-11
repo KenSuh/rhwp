@@ -17,6 +17,8 @@
 
 use std::collections::{HashMap, HashSet};
 
+use super::lossy::{classify_hwpx_lossy, LossyDrop};
+use crate::model::control::Control;
 use crate::model::document::Document;
 use crate::serializer::SerializeError;
 
@@ -86,6 +88,11 @@ pub struct SerializeContext {
     pub style_ids: IdPool<u16>,
     /// `bin_data_id` (IR) → manifest 엔트리 매핑
     pub bin_data_map: HashMap<u16, BinDataEntry>,
+    /// 저장 시 emit 되지 않아 손실되는 컨트롤 수집(save-time hard warning 용). 각 drop site가
+    /// `record_lossy` 로 채운다. 바이트 출력에는 영향 없음(관찰 전용).
+    pub lossy: Vec<LossyDrop>,
+    /// 현재 직렬화 중인 섹션 인덱스(손실 좌표 기록용). `write_section` 진입 시 설정.
+    pub current_section_index: usize,
 }
 
 impl SerializeContext {
@@ -154,6 +161,20 @@ impl SerializeContext {
         self.bin_data_map
             .get(&bin_data_id)
             .map(|e| e.manifest_id.as_str())
+    }
+
+    /// 컨트롤 하나를 손실 분류하여 손실이면 `lossy` 에 기록한다(무손실이면 no-op).
+    ///
+    /// 본문 문단/표 셀 두 drop site 가 같은 분류(`classify_hwpx_lossy`)를 쓰도록 단일 진입점으로
+    /// 둔다. `para_index` 는 best-effort 좌표(표 셀은 셀-로컬 문단 인덱스일 수 있음).
+    pub fn record_lossy(&mut self, ctrl: &Control, para_index: usize) {
+        if let Some(kind) = classify_hwpx_lossy(ctrl) {
+            self.lossy.push(LossyDrop {
+                kind,
+                section_index: self.current_section_index,
+                para_index,
+            });
+        }
     }
 
     /// 모든 참조가 해소되었는지 단언. 해소되지 않은 ID가 있으면 `SerializeError::XmlError` 반환.

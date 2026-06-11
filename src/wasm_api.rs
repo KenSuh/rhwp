@@ -83,6 +83,64 @@ impl HwpDocument {
     }
 }
 
+/// `exportHwpxWithWarnings` 결과 — HWPX 바이트 + 저장 시 손실 컨트롤 경고(JSON).
+///
+/// `warningsJson` 형태:
+/// `{"count":N,"summary":{"Field":3,...},"warnings":[{"kind":"Field","sectionIndex":0,"paraIndex":5},...]}`.
+/// `kind` 는 머신-안정 문자열(`LossyKind::as_str`)이며, 한국어 라벨 매핑은 TS(UI) 레이어가
+/// 담당한다(`getValidationWarnings` 와 동일 관행).
+#[wasm_bindgen]
+pub struct HwpxExportResult {
+    bytes: Vec<u8>,
+    warnings_json: String,
+}
+
+#[wasm_bindgen]
+impl HwpxExportResult {
+    /// 직렬화된 HWPX 바이트(`exportHwpx` 와 비트 동일).
+    #[wasm_bindgen(getter)]
+    pub fn bytes(&self) -> Vec<u8> {
+        self.bytes.clone()
+    }
+
+    /// 저장 시 손실되는 컨트롤 경고(JSON 문자열). 손실이 없으면 `count:0`, `warnings:[]`.
+    #[wasm_bindgen(getter, js_name = warningsJson)]
+    pub fn warnings_json(&self) -> String {
+        self.warnings_json.clone()
+    }
+}
+
+/// 손실 컨트롤 목록을 경고 JSON 문자열로 직렬화한다(종류별 집계 + 개별 위치).
+/// `kind` 값은 고정 식별자(영숫자)라 escape 불필요.
+fn lossy_warnings_json(lossy: &[crate::serializer::LossyDrop]) -> String {
+    use std::collections::BTreeMap;
+    let mut summary: BTreeMap<&'static str, usize> = BTreeMap::new();
+    for d in lossy {
+        *summary.entry(d.kind.as_str()).or_insert(0) += 1;
+    }
+    let summary_parts: Vec<String> = summary
+        .iter()
+        .map(|(k, v)| format!("\"{}\":{}", k, v))
+        .collect();
+    let warning_parts: Vec<String> = lossy
+        .iter()
+        .map(|d| {
+            format!(
+                r#"{{"kind":"{}","sectionIndex":{},"paraIndex":{}}}"#,
+                d.kind.as_str(),
+                d.section_index,
+                d.para_index
+            )
+        })
+        .collect();
+    format!(
+        r#"{{"count":{},"summary":{{{}}},"warnings":[{}]}}"#,
+        lossy.len(),
+        summary_parts.join(","),
+        warning_parts.join(",")
+    )
+}
+
 #[wasm_bindgen]
 impl HwpDocument {
     /// HWP 파일 바이트를 로드하여 문서 객체를 생성한다.
@@ -3723,6 +3781,23 @@ impl HwpDocument {
     #[wasm_bindgen(js_name = exportHwpx)]
     pub fn export_hwpx(&self) -> Result<Vec<u8>, JsValue> {
         self.export_hwpx_native().map_err(|e| e.into())
+    }
+
+    /// HWPX 직렬화 + 저장 시 손실되는 컨트롤 경고를 함께 반환한다(save-time hard warning).
+    ///
+    /// `exportHwpx` 와 동일한 단일 패스로 바이트를 만들되, serializer 가 emit 하지 않아 손실되는
+    /// 컨트롤(누름틀/수식/책갈피/머리말/꼬리말/다단/각주·미주/덧말/글자겹침/숨은 설명/미지원
+    /// 도형 서브타입/미지원 컨트롤)을 수집해 `warningsJson` 으로 노출한다. 반환 바이트는
+    /// `exportHwpx` 와 비트 단위로 동일하다(손실 수집은 관찰 전용). 기존 `exportHwpx` 시그니처는
+    /// 불변(back-compat).
+    #[wasm_bindgen(js_name = exportHwpxWithWarnings)]
+    pub fn export_hwpx_with_warnings(&self) -> Result<HwpxExportResult, JsValue> {
+        let (bytes, lossy) = self.export_hwpx_with_lossy_native().map_err(JsValue::from)?;
+        let warnings_json = lossy_warnings_json(&lossy);
+        Ok(HwpxExportResult {
+            bytes,
+            warnings_json,
+        })
     }
 
     /// 어댑터 적용 + HWP 직렬화 + 자기 재로드 검증을 수행하고 결과를 JSON 으로 반환한다 (#178).

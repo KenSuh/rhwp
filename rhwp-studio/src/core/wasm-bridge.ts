@@ -16,6 +16,21 @@ export interface ValidationReport {
   }>;
 }
 
+/**
+ * HWPX 저장 시 손실되는 컨트롤 경고 리포트(save-time hard warning).
+ *
+ * `kind` 는 머신-안정 문자열(`LossyKind::as_str`, 예 `"Field"`)이며, 한국어 라벨 매핑은
+ * UI 레이어(`save-loss-warning-dialog`)가 담당한다.
+ */
+export interface SaveWarningReport {
+  /** 손실 컨트롤 총 개수 */
+  count: number;
+  /** 종류별 집계 (key: kind 머신 문자열, value: 개수) */
+  summary: Record<string, number>;
+  /** 개별 손실 컨트롤(위치 포함) */
+  warnings: Array<{ kind: string; sectionIndex: number; paraIndex: number }>;
+}
+
 /** HWPX 비표준 자동 보정 실행 결과. */
 export interface ValidationAutoFixResult {
   /** 보정 전 경고 리포트 */
@@ -145,6 +160,31 @@ export class WasmBridge {
   exportHwpx(): Uint8Array {
     if (!this.doc) throw new Error('문서가 로드되지 않았습니다');
     return this.doc.exportHwpx();
+  }
+
+  /**
+   * HWPX 직렬화 + 저장 시 손실되는 컨트롤 경고를 함께 반환한다(save-time hard warning).
+   *
+   * 반환 bytes 는 `exportHwpx` 와 비트 동일(손실 수집은 관찰 전용). 손실이 없으면
+   * `warnings.count === 0`. wasm 바인딩이 아직 재빌드되지 않은(stale) 환경에서는 기존
+   * `exportHwpx` 로 폴백해 저장 자체는 가능하게 하되 경고를 비운다(빌드 후엔 항상 탑재됨).
+   */
+  exportHwpxWithWarnings(): { bytes: Uint8Array; warnings: SaveWarningReport } {
+    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');
+    const emptyReport: SaveWarningReport = { count: 0, summary: {}, warnings: [] };
+    const fn = (this.doc as unknown as { exportHwpxWithWarnings?: () => { bytes: Uint8Array; warningsJson: string } }).exportHwpxWithWarnings;
+    if (typeof fn !== 'function') {
+      console.warn('[wasm-bridge] exportHwpxWithWarnings 미탑재(stale wasm) — exportHwpx 폴백, 손실 경고 없음. wasm 재빌드 필요.');
+      return { bytes: this.doc.exportHwpx(), warnings: emptyReport };
+    }
+    const result = fn.call(this.doc);
+    let warnings: SaveWarningReport = emptyReport;
+    try {
+      warnings = JSON.parse(result.warningsJson) as SaveWarningReport;
+    } catch {
+      warnings = emptyReport;
+    }
+    return { bytes: result.bytes, warnings };
   }
 
   getSourceFormat(): string {

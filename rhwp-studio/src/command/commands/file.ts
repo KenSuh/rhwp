@@ -3,6 +3,7 @@ import { PageSetupDialog } from '@/ui/page-setup-dialog';
 import { AboutDialog } from '@/ui/about-dialog';
 import { showConfirm } from '@/ui/confirm-dialog';
 import { showSaveAs } from '@/ui/save-as-dialog';
+import { showSaveLossWarning } from '@/ui/save-loss-warning-dialog';
 import {
   pickOpenFileHandle,
   readFileFromHandle,
@@ -64,7 +65,25 @@ export const fileCommands: CommandDef[] = [
         const saveName = services.wasm.fileName;
         const sourceFormat = services.wasm.getSourceFormat();
         const isHwpx = sourceFormat === 'hwpx';
-        const bytes = isHwpx ? services.wasm.exportHwpx() : services.wasm.exportHwp();
+
+        // HWPX 저장은 손실 컨트롤을 함께 산출(단일 패스). 손실이 있으면 영속(파일 기록) 전에
+        // 차단형 경고를 띄우고, 사용자가 명시적으로 '그래도 저장'을 누른 경우에만 진행한다.
+        let bytes: Uint8Array;
+        if (isHwpx) {
+          const exported = services.wasm.exportHwpxWithWarnings();
+          bytes = exported.bytes;
+          if (exported.warnings.count > 0) {
+            const proceed = await showSaveLossWarning(exported.warnings);
+            if (!proceed) {
+              console.log(
+                `[file:save] 손실 경고(${exported.warnings.count}건)에서 사용자 취소 — 저장 보류`,
+              );
+              return;
+            }
+          }
+        } else {
+          bytes = services.wasm.exportHwp();
+        }
         const mimeType = isHwpx ? 'application/hwp+zip' : 'application/x-hwp';
         const blob = new Blob([bytes as unknown as BlobPart], { type: mimeType });
         console.log(`[file:save] format=${sourceFormat}, isHwpx=${isHwpx}, ${bytes.length} bytes`);

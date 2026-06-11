@@ -15,6 +15,7 @@ pub mod field;
 pub mod fixtures;
 pub mod form;
 pub mod header;
+pub mod lossy;
 pub mod picture;
 pub mod roundtrip;
 pub mod section;
@@ -31,6 +32,7 @@ use crate::model::document::Document;
 use super::SerializeError;
 use content::BinDataEntry as ContentBinDataEntry;
 use context::SerializeContext;
+use lossy::LossyDrop;
 use writer::HwpxZipWriter;
 
 /// Document IR을 HWPX(ZIP+XML) 바이트로 직렬화한다.
@@ -39,6 +41,20 @@ use writer::HwpxZipWriter;
 /// `SerializeContext`가 1-pass 스캔으로 ID 풀을 구성하고, 각 writer가 동일 컨텍스트를
 /// 참조한다. 직렬화 종료 시 `assert_all_refs_resolved()`가 미등록 참조를 단언한다.
 pub fn serialize_hwpx(doc: &Document) -> Result<Vec<u8>, SerializeError> {
+    serialize_hwpx_inner(doc).map(|(bytes, _lossy)| bytes)
+}
+
+/// `serialize_hwpx` 와 동일한 단일 패스로 직렬화하되, 저장 시 손실되는 컨트롤 목록을 함께
+/// 반환한다(save-time hard warning 용). 바이트 출력은 `serialize_hwpx` 와 비트 단위로 동일하다
+/// (손실 수집은 **관찰만** 하고 emit 로직을 바꾸지 않는다). 이중 직렬화 없음.
+pub fn serialize_hwpx_with_lossy(
+    doc: &Document,
+) -> Result<(Vec<u8>, Vec<LossyDrop>), SerializeError> {
+    serialize_hwpx_inner(doc)
+}
+
+/// 직렬화 본체. `(bytes, ctx.lossy)` 를 반환하는 단일 진입점.
+fn serialize_hwpx_inner(doc: &Document) -> Result<(Vec<u8>, Vec<LossyDrop>), SerializeError> {
     use static_assets::*;
 
     // 1-pass: ID 풀 구성
@@ -123,7 +139,8 @@ pub fn serialize_hwpx(doc: &Document) -> Result<Vec<u8>, SerializeError> {
     // 세 집합이 동일해야 한컴이 바인딩 오류 없이 그림을 표시함.
     assert_bin_data_3way(&bin_entries, &zip_bin_entries)?;
 
-    z.finish()
+    let bytes = z.finish()?;
+    Ok((bytes, ctx.lossy))
 }
 
 /// 3-way BinData 동기화 단언: `ctx.bin_data_entries()`, content.hpf manifest,
@@ -307,6 +324,81 @@ mod tests {
         let bytes = serialize_hwpx(&doc).expect("serialize");
         let method = u16::from_le_bytes([bytes[8], bytes[9]]);
         assert_eq!(method, 0, "mimetype must be STORED (method=0)");
+    }
+
+    // ── save-time hard warning (lossy 컨트롤 감지) ──
+
+    use crate::model::control::{Bookmark, Control, Equation, Field};
+    use crate::model::paragraph::Paragraph;
+    use crate::model::table::Table;
+    use lossy::LossyKind;
+
+    fn doc_with_controls(controls: Vec<Control>) -> Document {
+        let mut doc = Document::default();
+        let mut section = crate::model::document::Section::default();
+        let mut para = Paragraph::default();
+        para.controls = controls;
+        section.paragraphs.push(para);
+        doc.sections.push(section);
+        doc
+    }
+
+    #[test]
+    fn field_control_emits_warning() {
+        let doc = doc_with_controls(vec![Control::Field(Field::default())]);
+        let (_bytes, lossy) = serialize_hwpx_with_lossy(&doc).expect("serialize");
+        assert_eq!(lossy.len(), 1, "expected one lossy drop: {:?}", lossy);
+        assert_eq!(lossy[0].kind, LossyKind::Field);
+        assert_eq!(lossy[0].section_index, 0);
+    }
+
+    #[test]
+    fn equation_and_bookmark_each_warn() {
+        let doc = doc_with_controls(vec![
+            Control::Equation(Box::new(Equation::default())),
+            Control::Bookmark(Bookmark::default()),
+        ]);
+        let (_bytes, lossy) = serialize_hwpx_with_lossy(&doc).expect("serialize");
+        let kinds: Vec<LossyKind> = lossy.iter().map(|d| d.kind).collect();
+        assert!(kinds.contains(&LossyKind::Equation), "kinds: {:?}", kinds);
+        assert!(kinds.contains(&LossyKind::Bookmark), "kinds: {:?}", kinds);
+        assert_eq!(lossy.len(), 2);
+    }
+
+    #[test]
+    fn text_only_document_has_no_warning() {
+        let mut doc = Document::default();
+        let mut section = crate::model::document::Section::default();
+        let mut para = Paragraph::default();
+        para.text = "내용 본문 텍스트".to_string();
+        section.paragraphs.push(para);
+        doc.sections.push(section);
+        let (_bytes, lossy) = serialize_hwpx_with_lossy(&doc).expect("serialize");
+        assert!(lossy.is_empty(), "text-only must not warn: {:?}", lossy);
+    }
+
+    #[test]
+    fn table_control_does_not_warn() {
+        // 표는 실제 emit 되므로(write_control_xml) 손실 경고 0.
+        // borderFillIDRef 해소를 위해 border_fill 1개 등록(1-based) + 표가 그 id 참조.
+        let mut table = Table::default();
+        table.border_fill_id = 1;
+        let mut doc = doc_with_controls(vec![Control::Table(Box::new(table))]);
+        doc.doc_info
+            .border_fills
+            .push(crate::model::style::BorderFill::default());
+        let (_bytes, lossy) = serialize_hwpx_with_lossy(&doc).expect("serialize");
+        assert!(lossy.is_empty(), "table emits → no warning: {:?}", lossy);
+    }
+
+    #[test]
+    fn lossy_collection_does_not_change_bytes() {
+        // 손실 수집은 관찰 전용 — 경고가 있는 문서도 bytes 는 구 exportHwpx 경로와 비트 동일.
+        let doc = doc_with_controls(vec![Control::Field(Field::default())]);
+        let plain = serialize_hwpx(&doc).expect("plain");
+        let (with_lossy, lossy) = serialize_hwpx_with_lossy(&doc).expect("with lossy");
+        assert!(!lossy.is_empty(), "fixture must have a warning");
+        assert_eq!(plain, with_lossy, "byte output must be invariant");
     }
 
     #[test]

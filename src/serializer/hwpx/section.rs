@@ -62,9 +62,11 @@ const TAB_DEFAULT_WIDTH: u32 = 4000;
 pub fn write_section(
     section: &Section,
     _doc: &Document,
-    _index: usize,
+    index: usize,
     ctx: &mut SerializeContext,
 ) -> Result<Vec<u8>, SerializeError> {
+    // 손실 좌표 기록용 — 이 섹션에서 drop 되는 컨트롤은 이 인덱스로 태깅된다.
+    ctx.current_section_index = index;
     let mut vert_cursor: u32 = 0;
 
     let first_para = section.paragraphs.first();
@@ -126,7 +128,7 @@ pub fn write_section(
             out = out.replacen(&anchor, &replacement, 1);
         }
 
-        let controls_xml = render_controls_xml(p, ctx)?;
+        let controls_xml = render_controls_xml(p, 0, ctx)?;
         if !controls_xml.is_empty() {
             out = out.replacen(
                 "</hp:run><hp:linesegarray>",
@@ -162,7 +164,7 @@ pub fn write_section(
                 extra.push_str(&t);
                 extra.push_str("</hp:run>");
             }
-            extra.push_str(&render_controls_xml(p, ctx)?);
+            extra.push_str(&render_controls_xml(p, idx, ctx)?);
             extra.push_str(r#"<hp:linesegarray>"#);
             extra.push_str(&linesegs);
             extra.push_str(r#"</hp:linesegarray></hp:p>"#);
@@ -261,10 +263,15 @@ mod page_pr_tests {
 
 fn render_controls_xml(
     p: &Paragraph,
+    para_index: usize,
     ctx: &mut SerializeContext,
 ) -> Result<String, SerializeError> {
     let mut out = String::new();
     for ctrl in &p.controls {
+        // 손실 감지(관찰 전용) — emit 여부와 무관하게 컨트롤을 분류해 손실이면 기록한다.
+        // classify 가 emit-6/SectionDef = None 이라 정상 직렬화 컨트롤은 false-positive 0.
+        ctx.record_lossy(ctrl, para_index);
+
         let mut writer = Writer::new(Vec::new());
         if write_control_xml(&mut writer, ctrl, ctx)? {
             let bytes = writer.into_inner();
