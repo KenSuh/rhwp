@@ -717,13 +717,20 @@ impl Paginator {
     ) {
         let available_now = st.available_height();
 
-        // 다단 레이아웃에서 문단 내 단 경계 감지
-        let col_breaks =
-            if st.col_count > 1 && st.current_column == 0 && st.on_first_multicolumn_page {
-                Self::detect_column_breaks_in_paragraph(para)
-            } else {
-                vec![0]
-            };
+        // 다단 레이아웃에서 문단 내 단 경계 감지.
+        // 인라인 TAC 표 문단은 제외 — paginate_multicolumn_paragraph 도 PartialParagraph
+        // 를 내므로 (아래 원자 배치 분기와 동일한 이유로) 표가 소실된다. col_breaks 를
+        // 비활성화해 fits/원자 배치 체인으로 흐르게 한다(단 경계 문자는 무시되지만
+        // 표 소실보다 보수적).
+        let col_breaks = if st.col_count > 1
+            && st.current_column == 0
+            && st.on_first_multicolumn_page
+            && !Self::has_inline_tac_table(para)
+        {
+            Self::detect_column_breaks_in_paragraph(para)
+        } else {
+            vec![0]
+        };
 
         if col_breaks.len() > 1 {
             self.paginate_multicolumn_paragraph(

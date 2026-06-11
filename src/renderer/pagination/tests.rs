@@ -1492,3 +1492,103 @@ fn test_inline_tac_paragraph_is_not_line_split() {
     }
     assert!(full_found, "인라인 TAC 문단이 FullParagraph 로 배치되어야 함");
 }
+
+#[test]
+fn test_inline_tac_paragraph_is_not_line_split_in_multicolumn() {
+    // R2 follow-up: 다단(multicolumn) 경로도 PartialParagraph 를 내므로, 인라인 TAC
+    // 문단이 col_breaks 감지(2단 + line_segs vertical_pos 감소)로
+    // paginate_multicolumn_paragraph 에 들어가면 동일한 표 소실이 난다.
+    // 인라인 TAC 문단은 col_breaks 감지를 비활성화해 원자 배치 체인으로 흘려야 한다.
+    use crate::model::control::Control;
+    use crate::model::table::{Cell, Table};
+
+    let paginator = Paginator::with_default_dpi();
+    let styles = ResolvedStyleSet::default();
+
+    // 인라인 TAC 문단: 텍스트 + 좁은 TAC 표. line_segs 의 vertical_pos 가 중간에
+    // 감소(0→1200→0)해 detect_column_breaks_in_paragraph 가 단 경계로 인식하는 구성.
+    let mut tac_para = Paragraph::default();
+    tac_para.text = "표 옆 텍스트".to_string();
+    tac_para.line_segs = vec![
+        LineSeg {
+            line_height: 12000,
+            segment_width: 40000,
+            vertical_pos: 0,
+            text_start: 0,
+            ..Default::default()
+        },
+        LineSeg {
+            line_height: 12000,
+            segment_width: 40000,
+            vertical_pos: 1200,
+            text_start: 4,
+            ..Default::default()
+        },
+        LineSeg {
+            line_height: 12000,
+            segment_width: 40000,
+            vertical_pos: 0, // 감소 → 단 경계로 감지되는 지점
+            text_start: 8,
+            ..Default::default()
+        },
+    ];
+    let mut tac_common = crate::model::shape::CommonObjAttr::default();
+    tac_common.treat_as_char = true;
+    tac_common.width = 10000;
+    tac_common.height = 11000;
+    tac_para.controls.push(Control::Table(Box::new(Table {
+        row_count: 1,
+        col_count: 1,
+        cells: vec![Cell {
+            row: 0,
+            col: 0,
+            row_span: 1,
+            col_span: 1,
+            height: 11000,
+            width: 10000,
+            ..Default::default()
+        }],
+        common: tac_common,
+        ..Default::default()
+    })));
+
+    // 다단 활성화: column_type=MultiColumn(다단 나누기) 문단이
+    // process_multicolumn_break 를 타며 on_first_multicolumn_page 를 켠다.
+    let mut coldef_para = make_paragraph_with_height(1000);
+    coldef_para.column_type = crate::model::paragraph::ColumnBreakType::MultiColumn;
+    coldef_para.controls.push(Control::ColumnDef(ColumnDef {
+        column_count: 2,
+        ..Default::default()
+    }));
+
+    let col_def = ColumnDef {
+        column_count: 2,
+        ..Default::default()
+    };
+    let paras = vec![coldef_para, tac_para];
+    let composed: Vec<ComposedParagraph> = Vec::new();
+    let (result, _measured) = paginator.paginate(
+        &paras,
+        &composed,
+        &styles,
+        &a4_page_def(),
+        &col_def,
+        0,
+    );
+
+    let mut full_found = false;
+    for page in &result.pages {
+        for col in &page.column_contents {
+            for item in &col.items {
+                match item {
+                    PageItem::PartialParagraph { para_index: 1, .. } => {
+                        panic!("다단 경로에서 인라인 TAC 문단이 줄 분할됨 — 표 소실 회귀");
+                    }
+                    PageItem::FullParagraph { para_index: 1 } => full_found = true,
+                    _ => {}
+                }
+            }
+        }
+    }
+    assert!(full_found, "인라인 TAC 문단이 FullParagraph 로 배치되어야 함");
+}
