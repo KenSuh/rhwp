@@ -39,7 +39,10 @@ use super::context::SerializeContext;
 use super::form::write_form;
 use super::picture::write_picture;
 use super::shape::{write_container_close, write_container_open, write_line, write_rect};
-use super::utils::{empty_tag, end_tag, start_tag, start_tag_attrs};
+use super::utils::{
+    empty_tag, end_tag, first_char_shape_id, split_char_shape_runs, start_tag, start_tag_attrs,
+    trailing_zero_length_refs,
+};
 use super::SerializeError;
 
 /// `<hp:tbl>` 직렬화.
@@ -278,7 +281,13 @@ fn write_sub_list<W: Write>(
             .first()
             .map(|r| r.char_shape_id)
             .unwrap_or(0);
-        write_cell_text_runs(w, &para.text, &para.char_offsets, &para.char_shapes)?;
+        write_cell_text_runs(
+            w,
+            &para.text,
+            &para.char_offsets,
+            &para.char_shapes,
+            para.controls.is_empty(),
+        )?;
         for control in &para.controls {
             write_cell_control_run(w, control, ctx, first_cs)?;
         }
@@ -354,38 +363,47 @@ fn write_cell_text_runs<W: Write>(
     text: &str,
     char_offsets: &[u32],
     char_shapes: &[CharShapeRef],
+    preserve_trailing_runs: bool,
 ) -> Result<(), SerializeError> {
     if text.is_empty() {
         let cs = first_char_shape_id(char_shapes).to_string();
         start_tag_attrs(w, "hp:run", &[("charPrIDRef", &cs)])?;
         write_cell_text(w, "")?;
         end_tag(w, "hp:run")?;
+        if preserve_trailing_runs {
+            write_zero_length_runs(w, &trailing_zero_length_refs(char_shapes, 0, true))?;
+        }
         return Ok(());
     }
 
-    let mut current_shape: Option<u32> = None;
-    let mut current_text = String::new();
-    let mut fallback_utf16_pos = 0u32;
-
-    for (idx, ch) in text.chars().enumerate() {
-        let utf16_pos = char_offsets.get(idx).copied().unwrap_or(fallback_utf16_pos);
-        let shape_id = active_char_shape_id(char_shapes, utf16_pos);
-        fallback_utf16_pos = utf16_pos + char_utf16_len(ch);
-
-        if current_shape.is_some_and(|existing| existing != shape_id) {
-            write_cell_text_run(w, current_shape.unwrap_or(0), &current_text)?;
-            current_text.clear();
-        }
-
-        current_shape = Some(shape_id);
-        current_text.push(ch);
+    let (runs, text_end) = split_char_shape_runs(text, char_offsets, char_shapes);
+    for (shape_id, piece) in &runs {
+        write_cell_text_run(w, *shape_id, piece)?;
     }
+    // 텍스트 끝 이후 위치에 걸린 zero-length charPr run(문단말 캐럿 스타일 — 실제 한컴
+    // 파일의 trailing <hp:run charPrIDRef="N"/> 패턴)은 글자 루프가 도달하지 못해
+    // 이전에는 저장 시 유실됐다. 원본 순서대로 빈 run 으로 재출력해 보존한다.
+    //
+    // 단 컨트롤이 있는 문단(preserve_trailing_runs=false)에서는 보존하지 않는다 —
+    // export 가 컨트롤 run 을 텍스트 뒤에 배치하며 그 charPr 가 reparse 때 text-end
+    // 위치의 ref 로 기록되는데(아티팩트), 이를 다시 echo 하면 저장 사이클마다 ref 가
+    // 증식한다. 문단말 캐럿 스타일의 전형 케이스(컨트롤 없는 문단)만 보존한다.
+    if preserve_trailing_runs {
+        write_zero_length_runs(w, &trailing_zero_length_refs(char_shapes, text_end, false))?;
+    }
+    Ok(())
+}
 
-    write_cell_text_run(
-        w,
-        current_shape.unwrap_or_else(|| first_char_shape_id(char_shapes)),
-        &current_text,
-    )
+/// zero-length charPr run 목록을 빈 `<hp:run/>` 태그로 출력한다.
+fn write_zero_length_runs<W: Write>(
+    w: &mut Writer<W>,
+    char_shape_ids: &[u32],
+) -> Result<(), SerializeError> {
+    for id in char_shape_ids {
+        let cs = id.to_string();
+        empty_tag(w, "hp:run", &[("charPrIDRef", &cs)])?;
+    }
+    Ok(())
 }
 
 fn write_cell_text_run<W: Write>(
@@ -399,37 +417,21 @@ fn write_cell_text_run<W: Write>(
     end_tag(w, "hp:run")
 }
 
-fn first_char_shape_id(char_shapes: &[CharShapeRef]) -> u32 {
-    char_shapes.first().map(|r| r.char_shape_id).unwrap_or(0)
-}
-
-fn active_char_shape_id(char_shapes: &[CharShapeRef], utf16_pos: u32) -> u32 {
-    let mut active_id = first_char_shape_id(char_shapes);
-    for shape in char_shapes {
-        if shape.start_pos <= utf16_pos {
-            active_id = shape.char_shape_id;
-        } else {
-            break;
-        }
-    }
-    active_id
-}
-
-fn char_utf16_len(ch: char) -> u32 {
-    if ch == '\t' {
-        8
-    } else {
-        ch.len_utf16() as u32
-    }
-}
-
 fn write_cell_text<W: Write>(w: &mut Writer<W>, text: &str) -> Result<(), SerializeError> {
     use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
     // <hp:t>text</hp:t>
+    // 파서가 셀 문단 텍스트에 남긴 필드 마커(U+0003/U+0004, hp:fieldBegin/End) 등
+    // 탭·줄바꿈 외 제어문자는 XML 1.0 Char 범위 밖이라 escape 로도 표현이 불가능해,
+    // 그대로 쓰면 well-formed 하지 않은 section XML 이 되어 한컴오피스 등 conforming
+    // 파서가 저장 파일을 열지 못한다. body 경로(render_hp_t_content)와 동일하게 제거한다.
+    let sanitized: String = text
+        .chars()
+        .filter(|c| (*c as u32) >= 0x20 || *c == '\t' || *c == '\n')
+        .collect();
     w.write_event(Event::Start(BytesStart::new("hp:t")))
         .map_err(|e| SerializeError::XmlError(e.to_string()))?;
-    if !text.is_empty() {
-        w.write_event(Event::Text(BytesText::new(text)))
+    if !sanitized.is_empty() {
+        w.write_event(Event::Text(BytesText::new(&sanitized)))
             .map_err(|e| SerializeError::XmlError(e.to_string()))?;
     }
     w.write_event(Event::End(BytesEnd::new("hp:t")))
@@ -821,6 +823,47 @@ mod tests {
                 r#"<hp:run charPrIDRef="28"><hp:t>가나다</hp:t></hp:run><hp:run charPrIDRef="39"><hp:t>ABC</hp:t></hp:run>"#
             ),
             "{}",
+            xml,
+        );
+    }
+
+    #[test]
+    fn cell_text_control_chars_are_sanitized_for_xml() {
+        // 셀 내 누름틀 필드 마커(U+0003/U+0004)는 XML 1.0 에서 표현 불가능 — 그대로 쓰면
+        // well-formed 가 깨져 한컴오피스가 저장 파일을 못 연다. 탭/줄바꿈은 보존한다.
+        let mut t = empty_table(1, 1);
+        t.cells[0].paragraphs[0].text = "(\u{3}정부24\u{4})\t끝".to_string();
+
+        let xml = serialize(&t);
+        assert!(!xml.contains('\u{3}'), "U+0003 제거: {}", xml);
+        assert!(!xml.contains('\u{4}'), "U+0004 제거: {}", xml);
+        assert!(xml.contains("(정부24)\t끝"), "본문/탭 보존: {}", xml);
+    }
+
+    #[test]
+    fn cell_trailing_zero_length_char_run_is_preserved() {
+        // 텍스트 끝 이후 위치의 zero-length charPr run(문단말 캐럿 스타일)은 빈
+        // <hp:run/> 으로 재출력된다 (컨트롤 없는 문단 한정).
+        let mut t = empty_table(1, 1);
+        t.cells[0].paragraphs[0].text = "ab".to_string();
+        t.cells[0].paragraphs[0].char_offsets = vec![0, 1];
+        t.cells[0].paragraphs[0].char_shapes = vec![
+            CharShapeRef {
+                start_pos: 0,
+                char_shape_id: 5,
+            },
+            CharShapeRef {
+                start_pos: 2,
+                char_shape_id: 9,
+            },
+        ];
+
+        let xml = serialize(&t);
+        assert!(
+            xml.contains(
+                r#"<hp:run charPrIDRef="5"><hp:t>ab</hp:t></hp:run><hp:run charPrIDRef="9"/>"#
+            ),
+            "trailing zero-length run 보존: {}",
             xml,
         );
     }

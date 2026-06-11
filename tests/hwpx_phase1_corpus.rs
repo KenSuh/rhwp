@@ -28,6 +28,16 @@ struct CorpusMetrics {
     styles: usize,
 }
 
+/// XML 1.0 에서 표현 불가능한 제어문자(셀 내 누름틀 필드 마커 U+0003/U+0004 등,
+/// 탭/줄바꿈 제외)는 export 가 의도적으로 제거한다(invalid-XML P0 가드와 동일 규칙).
+/// 메트릭도 같은 기준으로 세어 이 정규화가 회귀로 오탐되지 않게 하되,
+/// 실제 가시 텍스트 손실은 그대로 잡는다.
+fn countable_text_chars(text: &str) -> usize {
+    text.chars()
+        .filter(|c| (*c as u32) >= 0x20 || *c == '\t' || *c == '\n')
+        .count()
+}
+
 impl CorpusMetrics {
     fn from_document(doc: &Document) -> Self {
         let mut metrics = Self {
@@ -43,7 +53,7 @@ impl CorpusMetrics {
         for section in &doc.sections {
             metrics.paragraphs += section.paragraphs.len();
             for paragraph in &section.paragraphs {
-                metrics.text_chars += paragraph.text.chars().count();
+                metrics.text_chars += countable_text_chars(&paragraph.text);
                 metrics.top_level_controls += paragraph.controls.len();
                 for control in &paragraph.controls {
                     metrics.visit_control(control);
@@ -62,7 +72,7 @@ impl CorpusMetrics {
                 for cell in &table.cells {
                     self.table_cell_paragraphs += cell.paragraphs.len();
                     for paragraph in &cell.paragraphs {
-                        self.text_chars += paragraph.text.chars().count();
+                        self.text_chars += countable_text_chars(&paragraph.text);
                         for nested in &paragraph.controls {
                             self.visit_control(nested);
                         }
@@ -77,7 +87,7 @@ impl CorpusMetrics {
             }
             Control::Header(header) => {
                 for paragraph in &header.paragraphs {
-                    self.text_chars += paragraph.text.chars().count();
+                    self.text_chars += countable_text_chars(&paragraph.text);
                     for nested in &paragraph.controls {
                         self.visit_control(nested);
                     }
@@ -85,7 +95,7 @@ impl CorpusMetrics {
             }
             Control::Footer(footer) => {
                 for paragraph in &footer.paragraphs {
-                    self.text_chars += paragraph.text.chars().count();
+                    self.text_chars += countable_text_chars(&paragraph.text);
                     for nested in &paragraph.controls {
                         self.visit_control(nested);
                     }
@@ -93,7 +103,7 @@ impl CorpusMetrics {
             }
             Control::Footnote(footnote) => {
                 for paragraph in &footnote.paragraphs {
-                    self.text_chars += paragraph.text.chars().count();
+                    self.text_chars += countable_text_chars(&paragraph.text);
                     for nested in &paragraph.controls {
                         self.visit_control(nested);
                     }
@@ -101,7 +111,7 @@ impl CorpusMetrics {
             }
             Control::Endnote(endnote) => {
                 for paragraph in &endnote.paragraphs {
-                    self.text_chars += paragraph.text.chars().count();
+                    self.text_chars += countable_text_chars(&paragraph.text);
                     for nested in &paragraph.controls {
                         self.visit_control(nested);
                     }
@@ -514,6 +524,38 @@ fn collect_hwpx_files(dir: &Path, files: &mut Vec<PathBuf>) {
     }
 }
 
+/// export 된 HWPX(ZIP)의 `Contents/section*.xml` 에서 XML 1.0 에서 표현 불가능한
+/// 제어문자(탭/LF/CR 외 < 0x20)를 찾는다. 발견 시 "파일명: 0xNN @offset" 을 돌려준다.
+fn find_invalid_xml_control_char(hwpx_zip: &[u8]) -> Option<String> {
+    use std::io::Read;
+    let cursor = std::io::Cursor::new(hwpx_zip);
+    // ZIP 자체가 깨진 경우는 reparse 단계가 별도로 잡으므로 여기선 통과시킨다.
+    let mut archive = match zip::ZipArchive::new(cursor) {
+        Ok(a) => a,
+        Err(_) => return None,
+    };
+    for i in 0..archive.len() {
+        let mut file = match archive.by_index(i) {
+            Ok(f) => f,
+            Err(_) => continue,
+        };
+        let name = file.name().to_string();
+        if !(name.starts_with("Contents/section") && name.ends_with(".xml")) {
+            continue;
+        }
+        let mut bytes = Vec::new();
+        if file.read_to_end(&mut bytes).is_err() {
+            continue;
+        }
+        for (off, b) in bytes.iter().enumerate() {
+            if *b < 0x20 && !matches!(*b, b'\t' | b'\n' | b'\r') {
+                return Some(format!("{}: 0x{:02X} @byte {}", name, b, off));
+            }
+        }
+    }
+    None
+}
+
 fn is_zip_hwpx(path: &Path) -> bool {
     fs::read(path)
         .map(|bytes| bytes.starts_with(&[0x50, 0x4B, 0x03, 0x04]))
@@ -591,6 +633,19 @@ fn phase1_hwpx_fixture_corpus_export_reparse_matrix() {
         let relative = fixture
             .strip_prefix(Path::new(env!("CARGO_MANIFEST_DIR")))
             .unwrap_or(&fixture);
+
+        // P0 가드: export 된 section XML 에 XML 1.0 Char 범위 밖 제어문자(셀 내 누름틀
+        // 필드 마커 U+0003/U+0004 등)가 남으면 well-formed 가 깨져 한컴오피스 등
+        // conforming 파서가 저장 파일을 열지 못한다. rhwp 자체 reader 는 non-validating
+        // 이라 export→reparse 만으로는 잡히지 않는 회귀이므로 바이트 스캔으로 고정한다.
+        if let Some(bad) = find_invalid_xml_control_char(&saved) {
+            failures.push(format!(
+                "{}: exported section XML contains invalid control char: {}",
+                relative.display(),
+                bad
+            ));
+        }
+
         eprintln!(
             "{:<58} {:>8} {:>8} {:>8} {:>8} {:>8} {:>8}",
             relative.display(),

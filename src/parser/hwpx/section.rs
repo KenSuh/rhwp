@@ -160,9 +160,14 @@ fn parse_paragraph(
                                 current_char_shape_id = parse_u32(&attr);
                             }
                         }
-                        // 현재 UTF-16 위치에서 글자모양 변경 기록
+                        // 현재 UTF-16 위치에서 글자모양 변경 기록.
+                        // 같은 위치·같은 id 의 연속 중복은 기록하지 않는다 — 컨트롤 run 의
+                        // charPr 재기록과 trailing zero-length run 보존이 겹치면 저장
+                        // 사이클마다 ref 가 무한 증식하는 것을 차단한다(스타일 효과 동일).
                         let utf16_pos = calc_utf16_len_from_parts(&text_parts);
-                        char_shape_changes.push((utf16_pos, current_char_shape_id));
+                        if char_shape_changes.last() != Some(&(utf16_pos, current_char_shape_id)) {
+                            char_shape_changes.push((utf16_pos, current_char_shape_id));
+                        }
                     }
                     b"t" => {
                         // 텍스트 읽기 (탭 확장 데이터 포함)
@@ -286,6 +291,21 @@ fn parse_paragraph(
                     b"lineseg" => {
                         // 단독 lineseg (linesegarray 밖에 나올 경우)
                         para.line_segs.push(parse_lineseg_element(ce));
+                    }
+                    b"run" => {
+                        // 자기닫힘 <hp:run charPrIDRef="N"/> — 텍스트 없는 zero-length run
+                        // (문단말 캐럿 스타일 등, 실제 한컴 파일에 흔함). Start 이벤트의
+                        // run 처리와 동일하게 글자모양 변경점으로 기록해 저장 시 보존한다.
+                        // (연속 중복 억제도 동일 — 저장 사이클 ref 증식 차단)
+                        for attr in ce.attributes().flatten() {
+                            if attr.key.as_ref() == b"charPrIDRef" {
+                                current_char_shape_id = parse_u32(&attr);
+                            }
+                        }
+                        let utf16_pos = calc_utf16_len_from_parts(&text_parts);
+                        if char_shape_changes.last() != Some(&(utf16_pos, current_char_shape_id)) {
+                            char_shape_changes.push((utf16_pos, current_char_shape_id));
+                        }
                     }
                     _ => {}
                 }
@@ -641,9 +661,12 @@ fn parse_table(
             b"borderFillIDRef" => table.border_fill_id = parse_u16(&attr),
             b"pageBreak" => {
                 let val = attr_str(&attr);
+                // 실제 한컴 HWPX 의 행 단위 분할 값은 "TABLE" 이다 (serializer 의
+                // table_page_break_str 와 대칭). "TABLE" 을 안 읽으면 열기→저장 한 번에
+                // RowBreak 가 None("NONE")으로 정규화돼 표 분할 fidelity 가 깨진다.
                 table.page_break = match val.as_str() {
                     "CELL" | "CELL_BREAK" => TablePageBreak::CellBreak,
-                    "ROW" | "ROW_BREAK" => TablePageBreak::RowBreak,
+                    "TABLE" | "ROW" | "ROW_BREAK" => TablePageBreak::RowBreak,
                     _ => TablePageBreak::None,
                 };
             }

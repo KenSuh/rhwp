@@ -659,3 +659,206 @@ fn phase1_form_002_export_hwpx_reparse_preserves_validation_cleanliness() {
         reparsed.validation_report().warnings,
     );
 }
+
+// ── Fable 5 R4 리뷰 추가 계약 (2026-06-11) ──────────────────────────────────────
+// R1-1: width=0/height=0 퇴화 pagePr 에 실여백이 있는 실양식(참가신청서) 보존.
+// 이전에는 "크기 0 = 미파싱" 으로 취급해 템플릿 A4+템플릿 여백으로 클로버링했다.
+#[test]
+fn degenerate_zero_size_pagepr_margins_preserved_on_roundtrip() {
+    use rhwp::parser::hwpx::parse_hwpx;
+    use rhwp::serializer::hwpx::serialize_hwpx;
+
+    let bytes = include_bytes!("../samples/hwpx/form-participation-sangsaeng-smartfactory.hwpx");
+    let doc1 = parse_hwpx(bytes).expect("참가신청서 parse");
+
+    // 메타 가드: width=0/height=0 인데 여백은 실값인 섹션이 실제로 존재해야 한다.
+    let degenerate: Vec<usize> = doc1
+        .sections
+        .iter()
+        .enumerate()
+        .filter(|(_, s)| {
+            let pd = &s.section_def.page_def;
+            pd.width == 0
+                && pd.height == 0
+                && (pd.margin_left > 0 || pd.margin_top > 0 || pd.margin_header > 0)
+        })
+        .map(|(i, _)| i)
+        .collect();
+    assert!(
+        !degenerate.is_empty(),
+        "fixture 에 퇴화 pagePr(크기 0 + 실여백) 섹션이 있어야 회귀를 잡는다"
+    );
+
+    let out = serialize_hwpx(&doc1).expect("serialize");
+    let doc2 = parse_hwpx(&out).expect("reparse");
+    assert_eq!(doc2.sections.len(), doc1.sections.len());
+    for i in degenerate {
+        let (a, b) = (
+            &doc1.sections[i].section_def.page_def,
+            &doc2.sections[i].section_def.page_def,
+        );
+        assert_eq!(b.width, 0, "sec{i}: 퇴화 width=0 유지");
+        assert_eq!(b.height, 0, "sec{i}: 퇴화 height=0 유지");
+        assert_eq!(b.margin_left, a.margin_left, "sec{i}: margin_left 보존");
+        assert_eq!(b.margin_right, a.margin_right, "sec{i}: margin_right 보존");
+        assert_eq!(b.margin_top, a.margin_top, "sec{i}: margin_top 보존");
+        assert_eq!(b.margin_bottom, a.margin_bottom, "sec{i}: margin_bottom 보존");
+        assert_eq!(b.margin_header, a.margin_header, "sec{i}: margin_header 보존");
+        assert_eq!(b.margin_footer, a.margin_footer, "sec{i}: margin_footer 보존");
+        assert_eq!(b.margin_gutter, a.margin_gutter, "sec{i}: margin_gutter 보존");
+    }
+}
+
+// R1-4: 실파일 표 pageBreak 어휘는 {NONE, CELL, TABLE} — "TABLE"(행 단위 분할)을
+// 파서가 안 읽으면 한 번의 열기→저장에 RowBreak 가 NONE 으로 정규화된다.
+#[test]
+fn table_page_break_vocabulary_preserved_on_roundtrip() {
+    use rhwp::model::control::Control;
+    use rhwp::model::table::TablePageBreak;
+    use rhwp::parser::hwpx::parse_hwpx;
+    use rhwp::serializer::hwpx::serialize_hwpx;
+
+    fn page_break_census(doc: &rhwp::model::document::Document) -> (usize, usize, usize) {
+        let mut none = 0;
+        let mut cell = 0;
+        let mut row = 0;
+        for s in &doc.sections {
+            for p in &s.paragraphs {
+                for c in &p.controls {
+                    if let Control::Table(t) = c {
+                        match t.page_break {
+                            TablePageBreak::None => none += 1,
+                            TablePageBreak::CellBreak => cell += 1,
+                            TablePageBreak::RowBreak => row += 1,
+                        }
+                    }
+                }
+            }
+        }
+        (none, cell, row)
+    }
+
+    // seoul-root 실파일: pageBreak="TABLE" 2건 + "CELL" 다수 + "NONE" 다수.
+    let bytes = include_bytes!("../samples/hwpx/seoul-root-auto-2026.hwpx");
+    let doc1 = parse_hwpx(bytes).expect("seoul-root parse");
+    let before = page_break_census(&doc1);
+    assert!(
+        before.2 >= 1,
+        "메타 가드: pageBreak=\"TABLE\" 이 RowBreak 로 파싱돼야 한다 (census={before:?})"
+    );
+    assert!(
+        before.1 >= 1,
+        "메타 가드: pageBreak=\"CELL\" fixture 존재 (census={before:?})"
+    );
+
+    let out = serialize_hwpx(&doc1).expect("serialize");
+    let doc2 = parse_hwpx(&out).expect("reparse");
+    let after = page_break_census(&doc2);
+    assert_eq!(after, before, "pageBreak 어휘 census 가 round-trip 보존");
+}
+
+// R1-2 + BODY-1: 본문 문단의 charPr run 분할(문단 중간 서식)과 텍스트 끝 이후의
+// zero-length run(문단말 캐럿 스타일, 자기닫힘 <hp:run/>)이 저장 후에도 보존된다.
+// 이전에는 본문이 char_shapes[0] 단일 run 으로 합쳐지고, 자기닫힘 run 은 파스에서,
+// trailing run 은 직렬화에서 각각 유실됐다.
+#[test]
+fn body_char_shape_runs_and_trailing_refs_preserved_on_roundtrip() {
+    use rhwp::model::paragraph::Paragraph;
+    use rhwp::parser::hwpx::parse_hwpx;
+    use rhwp::serializer::hwpx::serialize_hwpx;
+
+    // 파서/직렬화기와 동일 규약(탭=8 유닛)의 per-char 활성 charPr 시그니처.
+    fn style_signature(p: &Paragraph) -> (Vec<u32>, Vec<u32>) {
+        let mut per_char = Vec::new();
+        let mut fallback = 0u32;
+        let mut text_end = 0u32;
+        for (idx, ch) in p.text.chars().enumerate() {
+            let pos = p.char_offsets.get(idx).copied().unwrap_or(fallback);
+            let mut active = p.char_shapes.first().map(|r| r.char_shape_id).unwrap_or(0);
+            for s in &p.char_shapes {
+                if s.start_pos <= pos {
+                    active = s.char_shape_id;
+                } else {
+                    break;
+                }
+            }
+            per_char.push(active);
+            let w = if ch == '\t' { 8 } else { ch.len_utf16() as u32 };
+            fallback = pos + w;
+            text_end = pos + w;
+        }
+        let trailing: Vec<u32> = p
+            .char_shapes
+            .iter()
+            .filter(|s| s.start_pos >= text_end && !p.text.is_empty())
+            .map(|s| s.char_shape_id)
+            .collect();
+        (per_char, trailing)
+    }
+
+    let bytes = include_bytes!("../samples/hwpx/seoul-root-auto-2026.hwpx");
+    let doc1 = parse_hwpx(bytes).expect("seoul-root parse");
+    let out2 = serialize_hwpx(&doc1).expect("serialize #1");
+    let doc2 = parse_hwpx(&out2).expect("reparse #1");
+    // 저장 사이클 안정성 검증용 2차 라운드트립.
+    let out3 = serialize_hwpx(&doc2).expect("serialize #2");
+    let doc3 = parse_hwpx(&out3).expect("reparse #2");
+
+    let mut saw_multi_run = false;
+    let mut saw_trailing_ctrl_free = false;
+    for (si, (s1, s2)) in doc1.sections.iter().zip(doc2.sections.iter()).enumerate() {
+        assert_eq!(
+            s2.paragraphs.len(),
+            s1.paragraphs.len(),
+            "sec{si}: 문단 수 보존"
+        );
+        for (pi, (p1, p2)) in s1.paragraphs.iter().zip(s2.paragraphs.iter()).enumerate() {
+            assert_eq!(p2.text, p1.text, "sec{si} para{pi}: 텍스트 보존");
+            let (sig1, trail1) = style_signature(p1);
+            let (sig2, trail2) = style_signature(p2);
+            if sig1.iter().collect::<std::collections::BTreeSet<_>>().len() > 1 {
+                saw_multi_run = true;
+            }
+            // per-char 서식은 모든 문단에서 1차 라운드트립에 보존.
+            assert_eq!(sig2, sig1, "sec{si} para{pi}: per-char charPr 시그니처 보존");
+            // trailing run 의 엄격 보존은 컨트롤 없는 문단에서 검증한다 — 컨트롤이 있는
+            // 문단은 export 가 컨트롤 run 을 텍스트 뒤에 배치하는 정규화로 컨트롤 run 의
+            // charPr 가 1회성 trailing ref 로 나타날 수 있다(아래 doc2↔doc3 안정성으로 수렴 검증).
+            if p1.controls.is_empty() {
+                if !trail1.is_empty() {
+                    saw_trailing_ctrl_free = true;
+                }
+                assert_eq!(trail2, trail1, "sec{si} para{pi}: trailing zero-length run 보존");
+            }
+        }
+    }
+    // 저장 사이클 안정성: 2차 저장부터는 모든 문단의 시그니처(trailing 포함)가 고정점이어야
+    // 한다 — 컨트롤 run charPr 재기록과 trailing 보존이 겹쳐 ref 가 증식하는 회귀를 잡는다.
+    for (si, (s2, s3)) in doc2.sections.iter().zip(doc3.sections.iter()).enumerate() {
+        assert_eq!(s3.paragraphs.len(), s2.paragraphs.len(), "sec{si}: 문단 수 안정");
+        for (pi, (p2, p3)) in s2.paragraphs.iter().zip(s3.paragraphs.iter()).enumerate() {
+            assert_eq!(p3.text, p2.text, "sec{si} para{pi}: 텍스트 안정");
+            assert_eq!(
+                style_signature(p3),
+                style_signature(p2),
+                "sec{si} para{pi}: 저장 사이클 시그니처 고정점 (ref 증식 금지)"
+            );
+            // 개수는 비증가 — 컨트롤/secPr run 의 charPr 재기록 아티팩트가 1회성으로
+            // 정규화(수렴)되는 것은 허용하되, 저장 사이클마다 증식하는 회귀는 잡는다.
+            assert!(
+                p3.char_shapes.len() <= p2.char_shapes.len(),
+                "sec{si} para{pi}: char_shapes 증식 금지 ({} -> {})",
+                p2.char_shapes.len(),
+                p3.char_shapes.len()
+            );
+        }
+    }
+    assert!(
+        saw_multi_run,
+        "메타 가드: 다중 run 본문 문단이 fixture 에 있어야 BODY-1 회귀를 잡는다"
+    );
+    assert!(
+        saw_trailing_ctrl_free,
+        "메타 가드: 컨트롤 없는 trailing run 문단이 fixture 에 있어야 R1-2 회귀를 잡는다"
+    );
+}

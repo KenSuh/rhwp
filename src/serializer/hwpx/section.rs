@@ -32,7 +32,9 @@ use super::form::write_form;
 use super::picture::write_picture;
 use super::shape::{write_container_close, write_container_open, write_line, write_rect};
 use super::table::write_table;
-use super::utils::{empty_tag, end_tag, start_tag, xml_escape};
+use super::utils::{
+    empty_tag, end_tag, split_char_shape_runs, start_tag, trailing_zero_length_refs, xml_escape,
+};
 use super::SerializeError;
 
 const EMPTY_SECTION_XML: &str = include_str!("templates/empty_section0.xml");
@@ -77,14 +79,27 @@ pub fn write_section(
 
     // secPr 의 pagePr(용지 크기/여백)를 IR PageDef 에서 동적 생성한다. 기존엔 empty_section0
     // 템플릿의 고정 여백(top=5668 등)이 그대로 나가, 저장→재로드 시 원본 여백을 잃고 본문
-    // 영역이 바뀌어 페이지가 재배치(reflow)되는 회귀가 있었다. width/height 가 0(미파싱
-    // PageDef)이면 템플릿 기본값을 유지한다.
+    // 영역이 바뀌어 페이지가 재배치(reflow)되는 회귀가 있었다.
+    //
+    // 퇴화 pagePr 도 보존한다: 실제 정부 양식(참가신청서 fixture)의 section1 은
+    // width="0" height="0" 에 실제 여백을 들고 있다. "크기가 0 이면 미파싱" 으로 취급해
+    // 템플릿을 유지하면 그 실여백이 템플릿 A4 여백으로 클로버링된다(저장 시 데이터 손실).
+    // 따라서 크기가 양수이거나 여백 중 하나라도 0 이 아니면(=파싱된 실데이터) 직렬화하고,
+    // 전부 0 인 PageDef(Document::default() 등 미파싱)만 템플릿 기본값을 유지한다.
     //
     // fail-closed: 템플릿 pagePr 앵커가 (whitespace/속성순서/기본값 변경 등으로) 안 맞으면
     // replacen 이 조용히 no-op 해 IR 여백을 잃고도 Ok 를 반환하는 silent corruption 이 된다.
     // 그래서 PageDef 를 써야 하는데 앵커가 없으면 에러로 실패시킨다(테스트/런타임에서 즉시 발각).
     let page_def = &section.section_def.page_def;
-    if page_def.width > 0 && page_def.height > 0 {
+    let has_real_size = page_def.width > 0 && page_def.height > 0;
+    let has_real_margins = page_def.margin_left > 0
+        || page_def.margin_right > 0
+        || page_def.margin_top > 0
+        || page_def.margin_bottom > 0
+        || page_def.margin_header > 0
+        || page_def.margin_footer > 0
+        || page_def.margin_gutter > 0;
+    if has_real_size || has_real_margins {
         if !out.contains(TEMPLATE_PAGE_PR) {
             return Err(SerializeError::XmlError(
                 "secPr 템플릿 pagePr 앵커를 찾지 못해 IR PageDef 용지 크기/여백을 직렬화할 수 없음 \
@@ -119,6 +134,16 @@ pub fn write_section(
                 1,
             );
         }
+
+        // 다중 charPr run 문단이면 단일 run 을 분할 run 시퀀스로 교체한다.
+        // controls 주입 뒤에 수행해야 controls 앵커("</hp:run><hp:linesegarray>")가
+        // trailing 빈 run 때문에 어긋나지 않는다. 앵커 미일치 시 기존 단일-run 출력 유지(보수).
+        if let Some(runs_xml) = render_body_runs_multi(p) {
+            let single_run = format!("{}{}</hp:run>", new_run, &first_t);
+            if out.contains(&single_run) {
+                out = out.replacen(&single_run, &runs_xml, 1);
+            }
+        }
     }
 
     // 추가 문단: `</hp:p></hs:sec>` 직전에 `<hp:p>` 요소를 삽입.
@@ -127,11 +152,16 @@ pub fn write_section(
         for (idx, p) in section.paragraphs.iter().enumerate().skip(1) {
             let (t, linesegs, advance) = render_paragraph_parts(p, vert_cursor);
             vert_cursor = advance;
-            let cs = first_run_char_shape_id(p);
             extra.push_str(&render_hp_p_open(p, idx as u32));
-            extra.push_str(&format!(r#"<hp:run charPrIDRef="{}">"#, cs));
-            extra.push_str(&t);
-            extra.push_str("</hp:run>");
+            if let Some(runs_xml) = render_body_runs_multi(p) {
+                // 다중 charPr run — 분할 run 시퀀스로 출력 (단일-run 합치기 시 서식 유실 방지)
+                extra.push_str(&runs_xml);
+            } else {
+                let cs = first_run_char_shape_id(p);
+                extra.push_str(&format!(r#"<hp:run charPrIDRef="{}">"#, cs));
+                extra.push_str(&t);
+                extra.push_str("</hp:run>");
+            }
             extra.push_str(&render_controls_xml(p, ctx)?);
             extra.push_str(r#"<hp:linesegarray>"#);
             extra.push_str(&linesegs);
@@ -421,6 +451,50 @@ fn render_hp_p_open(p: &Paragraph, id: u32) -> String {
 /// 비어있으면 0 (기본 글자모양) 반환.
 fn first_run_char_shape_id(p: &Paragraph) -> u32 {
     p.char_shapes.first().map(|r| r.char_shape_id).unwrap_or(0)
+}
+
+/// 본문 문단을 charPr run 경계로 분할해 `<hp:run ...>` 시퀀스로 렌더한다.
+/// 분할 규약은 셀 경로(write_cell_text_runs)와 동일(utils::split_char_shape_runs),
+/// 텍스트 끝 이후의 zero-length run(문단말 캐럿 스타일)도 빈 run 으로 보존한다.
+///
+/// run 이 하나뿐이고 trailing run 도 없으면 None — 기존 단일-run 템플릿 경로를 그대로
+/// 사용해 기존 출력 바이트를 보존한다(보수). 이전에는 본문 문단이 항상
+/// `char_shapes[0]` 단일 run 으로 합쳐져 문단 중간 서식(굵게/색 등)이 저장 시
+/// 유실됐다 — 셀 경로 보완(7493ea7)과 동일 클래스의 본문 측 보완.
+fn render_body_runs_multi(para: &Paragraph) -> Option<String> {
+    let (runs, text_end) =
+        split_char_shape_runs(&para.text, &para.char_offsets, &para.char_shapes);
+    // trailing zero-length run 보존은 컨트롤 없는 문단 한정 — 컨트롤 run 의 charPr 가
+    // reparse 때 text-end ref 로 기록되는 아티팩트를 echo 하면 저장 사이클마다 ref 가
+    // 증식한다 (셀 경로 write_cell_text_runs 와 동일 정책).
+    let trailing = if para.controls.is_empty() {
+        trailing_zero_length_refs(&para.char_shapes, text_end, para.text.is_empty())
+    } else {
+        Vec::new()
+    };
+    if runs.len() <= 1 && trailing.is_empty() {
+        return None;
+    }
+    let mut out = String::new();
+    if runs.is_empty() {
+        // 텍스트 없는 문단에 trailing ref 만 있는 경우 — 빈 본문 run 하나는 유지한다.
+        out.push_str(&format!(
+            r#"<hp:run charPrIDRef="{}">{}</hp:run>"#,
+            first_run_char_shape_id(para),
+            render_hp_t_content("")
+        ));
+    }
+    for (shape_id, piece) in &runs {
+        out.push_str(&format!(
+            r#"<hp:run charPrIDRef="{}">{}</hp:run>"#,
+            shape_id,
+            render_hp_t_content(piece)
+        ));
+    }
+    for id in trailing {
+        out.push_str(&format!(r#"<hp:run charPrIDRef="{}"/>"#, id));
+    }
+    Some(out)
 }
 
 /// Paragraph 하나를 (`<hp:t>` XML, lineseg XML, 다음 vert_cursor)로 변환.
