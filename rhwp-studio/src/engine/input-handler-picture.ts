@@ -14,9 +14,28 @@ function pointToSegmentDist(px: number, py: number, x1: number, y1: number, x2: 
   return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
 }
 
+function sameCellPath(a?: { controlIndex: number; cellIndex: number; cellParaIndex: number }[], b?: { controlIndex: number; cellIndex: number; cellParaIndex: number }[]): boolean {
+  if (!a?.length && !b?.length) return true;
+  if (!a?.length || !b?.length || a.length !== b.length) return false;
+  return a.every((entry, idx) => {
+    const other = b[idx];
+    return entry.controlIndex === other.controlIndex &&
+      entry.cellIndex === other.cellIndex &&
+      entry.cellParaIndex === other.cellParaIndex;
+  });
+}
+
+function controlMatchesRef(ctrl: any, ref: { sec: number; ppi: number; ci: number; cellPath?: unknown[] }): boolean {
+  if (ctrl.secIdx !== ref.sec || ctrl.controlIdx !== ref.ci) return false;
+  if (ref.cellPath?.length) {
+    return (ctrl.parentParaIdx ?? ctrl.paraIdx) === ref.ppi && sameCellPath(ctrl.cellPath, ref.cellPath as any);
+  }
+  return ctrl.paraIdx === ref.ppi;
+}
+
 export function findPictureAtClick(this: any,
   pageIdx: number, pageX: number, pageY: number,
-): { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'equation' | 'group' | 'line'; cellIdx?: number; cellParaIdx?: number; x1?: number; y1?: number; x2?: number; y2?: number } | null {
+): { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'equation' | 'group' | 'line'; cellIdx?: number; cellParaIdx?: number; cellPath?: any[]; x1?: number; y1?: number; x2?: number; y2?: number } | null {
   try {
     const layout = this.wasm.getPageControlLayout(pageIdx);
     for (const ctrl of layout.controls) {
@@ -69,10 +88,10 @@ export function findPictureAtClick(this: any,
         }
       } else {
         // bbox 히트 판정
-        if (pageX >= ctrl.x && pageX <= ctrl.x + ctrl.w &&
-            pageY >= ctrl.y && pageY <= ctrl.y + ctrl.h) {
-          return { sec: ctrl.secIdx, ppi: ctrl.paraIdx, ci: ctrl.controlIdx, type: ctrl.type, cellIdx: ctrl.cellIdx, cellParaIdx: ctrl.cellParaIdx };
-        }
+	        if (pageX >= ctrl.x && pageX <= ctrl.x + ctrl.w &&
+	            pageY >= ctrl.y && pageY <= ctrl.y + ctrl.h) {
+	          return { sec: ctrl.secIdx, ppi: ctrl.parentParaIdx ?? ctrl.paraIdx, ci: ctrl.controlIdx, type: ctrl.type, cellIdx: ctrl.cellIdx, cellParaIdx: ctrl.cellParaIdx, cellPath: ctrl.cellPath };
+	        }
       }
     }
   } catch { /* ignore */ }
@@ -81,7 +100,7 @@ export function findPictureAtClick(this: any,
 
 /** 선택된 개체의 bbox를 페이지 레이아웃에서 찾는다. */
 export function findPictureBbox(this: any,
-  ref: { sec: number; ppi: number; ci: number; type?: 'image' | 'shape' | 'equation' | 'group' | 'line'; cellIdx?: number; cellParaIdx?: number },
+	  ref: { sec: number; ppi: number; ci: number; type?: 'image' | 'shape' | 'equation' | 'group' | 'line'; cellIdx?: number; cellParaIdx?: number; cellPath?: any[] },
 ): { pageIndex: number; x: number; y: number; w: number; h: number; x1?: number; y1?: number; x2?: number; y2?: number } | null {
   const matchType = ref.type ?? 'image';
   // line은 shape의 하위 타입 → layout에서 'line'으로 반환됨
@@ -91,8 +110,7 @@ export function findPictureBbox(this: any,
     for (let p = 0; p < pageCount; p++) {
       const layout = this.wasm.getPageControlLayout(p);
       for (const ctrl of layout.controls) {
-        if (ctrl.type === layoutType &&
-            ctrl.secIdx === ref.sec && ctrl.paraIdx === ref.ppi && ctrl.controlIdx === ref.ci) {
+	        if (ctrl.type === layoutType && controlMatchesRef(ctrl, ref)) {
           // 표 셀 내 수식: cellIdx/cellParaIdx도 매칭
           if (matchType === 'equation' && ref.cellIdx !== undefined) {
             if (ctrl.cellIdx !== ref.cellIdx || ctrl.cellParaIdx !== ref.cellParaIdx) continue;
@@ -154,8 +172,7 @@ export function renderPictureObjectSelection(this: any): void {
     for (let p = 0; p < pageCount; p++) {
       const layout = this.wasm.getPageControlLayout(p);
       for (const ctrl of layout.controls) {
-        if (ctrl.type === layoutType &&
-            ctrl.secIdx === ref.sec && ctrl.paraIdx === ref.ppi && ctrl.controlIdx === ref.ci) {
+	        if (ctrl.type === layoutType && controlMatchesRef(ctrl, ref)) {
           // 표 셀 내 수식: cellIdx/cellParaIdx도 매칭
           if (matchType === 'equation' && ref.cellIdx !== undefined) {
             if (ctrl.cellIdx !== ref.cellIdx || ctrl.cellParaIdx !== ref.cellParaIdx) continue;
@@ -240,26 +257,33 @@ export function isShapeBorderClick(this: any,
 // ─── 개체 속성 조회 헬퍼 (그림/글상자 분기) ──────────────
 
 /** 개체 속성을 타입에 따라 조회한다. */
-export function getObjectProperties(this: any, ref: { sec: number; ppi: number; ci: number; type: string }): any {
+export function getObjectProperties(this: any, ref: { sec: number; ppi: number; ci: number; type: string; cellPath?: any[] }): any {
   if (ref.type === 'shape' || ref.type === 'line' || ref.type === 'group') {
     return this.wasm.getShapeProperties(ref.sec, ref.ppi, ref.ci);
+  }
+  if (ref.type === 'image' && ref.cellPath?.length) {
+    return this.wasm.getPicturePropertiesByPath(ref.sec, ref.ppi, JSON.stringify(ref.cellPath), ref.ci);
   }
   return this.wasm.getPictureProperties(ref.sec, ref.ppi, ref.ci);
 }
 
 /** 개체 속성을 타입에 따라 변경한다. */
-export function setObjectProperties(this: any, ref: { sec: number; ppi: number; ci: number; type: string }, props: Record<string, unknown>): void {
+export function setObjectProperties(this: any, ref: { sec: number; ppi: number; ci: number; type: string; cellPath?: any[] }, props: Record<string, unknown>): void {
   if (ref.type === 'shape' || ref.type === 'line' || ref.type === 'group') {
     this.wasm.setShapeProperties(ref.sec, ref.ppi, ref.ci, props);
+  } else if (ref.type === 'image' && ref.cellPath?.length) {
+    this.wasm.setPicturePropertiesByPath(ref.sec, ref.ppi, JSON.stringify(ref.cellPath), ref.ci, props);
   } else {
     this.wasm.setPictureProperties(ref.sec, ref.ppi, ref.ci, props);
   }
 }
 
 /** 개체를 타입에 따라 삭제한다. */
-export function deleteObjectControl(this: any, ref: { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'equation' | 'group' | 'line' }): void {
+export function deleteObjectControl(this: any, ref: { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'equation' | 'group' | 'line'; cellPath?: any[] }): void {
   if (ref.type === 'shape' || ref.type === 'group' || ref.type === 'line') {
     this.wasm.deleteShapeControl(ref.sec, ref.ppi, ref.ci);
+  } else if (ref.cellPath?.length) {
+    this.wasm.deletePictureControlByPath(ref.sec, ref.ppi, JSON.stringify(ref.cellPath), ref.ci);
   } else {
     this.wasm.deletePictureControl(ref.sec, ref.ppi, ref.ci);
   }

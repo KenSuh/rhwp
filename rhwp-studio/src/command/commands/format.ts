@@ -203,7 +203,8 @@ export const formatCommands: CommandDef[] = [
       const charProps = ih.getCharProperties();
       // 대화상자 열기 전 선택 범위를 저장 (대화상자 조작 중 선택이 풀릴 수 있음)
       const savedSel = ih.getSelection();
-      if (!savedSel) return;
+      const isCellSelection = ih.isInCellSelectionMode();
+      if (!savedSel && !isCellSelection) return;
       const dialog = new CharShapeDialog(services.wasm, services.eventBus);
       dialog.onApply = (mods) => {
         // fontName → fontId 변환 (WASM parse_char_shape_mods는 fontId만 인식)
@@ -212,7 +213,11 @@ export const formatCommands: CommandDef[] = [
           if (fontId >= 0) mods.fontId = fontId;
           delete mods.fontName;
         }
-        ih.applyCharPropsToRange(savedSel.start, savedSel.end, mods);
+        if (savedSel) {
+          ih.applyCharPropsToRange(savedSel.start, savedSel.end, mods);
+        } else {
+          ih.applyCharPropsToSelectedCells(mods);
+        }
       };
       dialog.onClose = () => ih.focus();
       dialog.show(charProps);

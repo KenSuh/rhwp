@@ -144,12 +144,16 @@ impl PageAreas {
             (page_def.width, page_def.height)
         };
 
+        // 빈/0크기 섹션(width=0 height=0)이나 여백이 용지보다 큰 퇴화 도형에서
+        // u32 언더플로 패닉을 막기 위해 빼기는 saturating_sub로 0까지만 줄인다.
         let content_left = page_def.margin_left + page_def.margin_gutter;
-        let content_right = page_width - page_def.margin_right;
+        let content_right = page_width.saturating_sub(page_def.margin_right);
         // HWP 본문 시작 = margin_header + margin_top (한컴 도움말 기준)
         let content_top = page_def.margin_header + page_def.margin_top;
         // HWP 본문 끝 = height - margin_footer - margin_bottom
-        let content_bottom = page_height - page_def.margin_footer - page_def.margin_bottom;
+        let content_bottom = page_height
+            .saturating_sub(page_def.margin_footer)
+            .saturating_sub(page_def.margin_bottom);
 
         let header_area = Rect {
             left: content_left as i32,
@@ -169,7 +173,7 @@ impl PageAreas {
             left: content_left as i32,
             top: content_bottom as i32,
             right: content_right as i32,
-            bottom: (page_height - page_def.margin_footer) as i32,
+            bottom: page_height.saturating_sub(page_def.margin_footer) as i32,
         };
 
         PageAreas {
@@ -191,9 +195,9 @@ mod tests {
         // A4 기본 설정 (210mm x 297mm)
         // 1mm = 283.46 HWPUNIT (7200/25.4)
         let page = PageDef {
-            width: 59528,   // ~210mm
-            height: 84188,  // ~297mm
-            margin_left: 8504,   // ~30mm
+            width: 59528,      // ~210mm
+            height: 84188,     // ~297mm
+            margin_left: 8504, // ~30mm
             margin_right: 8504,
             margin_top: 5669,    // ~20mm
             margin_bottom: 4252, // ~15mm
@@ -224,6 +228,31 @@ mod tests {
         assert!(areas.body_area.width() > 0);
         assert!(areas.body_area.height() > 0);
         assert!(areas.header_area.height() >= 0);
+    }
+
+    #[test]
+    fn test_page_areas_degenerate_zero_size_section() {
+        // 회귀: 실제 정부 공고(대중소상생형 참가신청서)의 빈 꼬리 섹션이
+        // width=0 height=0 으로 들어와 page_width - margin_right 가 u32 언더플로
+        // 패닉(page.rs:148 "attempt to subtract with overflow")을 일으켰다.
+        // saturating_sub 로 0까지만 줄여 패닉 없이 퇴화 영역을 만들어야 한다.
+        let page_def = PageDef {
+            width: 0,
+            height: 0,
+            margin_left: 4252,
+            margin_right: 4252,
+            margin_top: 5669,
+            margin_bottom: 4252,
+            margin_header: 2835,
+            margin_footer: 2835,
+            margin_gutter: 0,
+            ..Default::default()
+        };
+        let areas = PageAreas::from_page_def(&page_def);
+        // 용지보다 큰 여백 → 본문 우/하단은 0으로 클램프 (음수 폭/높이 방지)
+        assert_eq!(areas.body_area.right, 0);
+        assert_eq!(areas.body_area.bottom, 0);
+        assert_eq!(areas.footer_area.bottom, 0);
     }
 
     #[test]

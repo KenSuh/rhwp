@@ -32,9 +32,15 @@ async function convertToPngBlob(data: Uint8Array, mime: string): Promise<Blob> {
 export async function writeImageToClipboard(
   wasm: WasmBridge, sec: number, ppi: number, ci: number,
   text: string, html: string,
+  controlPath?: { controlIndex: number; cellIndex: number; cellParaIndex: number }[] | null,
 ): Promise<void> {
-  const imageData = wasm.getControlImageData(sec, ppi, ci);
-  const mime = wasm.getControlImageMime(sec, ppi, ci);
+  const pathJson = controlPath ? JSON.stringify(controlPath) : null;
+  const imageData = pathJson
+    ? wasm.getControlImageDataByPath(sec, ppi, pathJson)
+    : wasm.getControlImageData(sec, ppi, ci);
+  const mime = pathJson
+    ? wasm.getControlImageMimeByPath(sec, ppi, pathJson)
+    : wasm.getControlImageMime(sec, ppi, ci);
   const pngBlob = await convertToPngBlob(imageData, mime);
   const item = new ClipboardItem({
     'text/plain': new Blob([text], { type: 'text/plain' }),
@@ -42,6 +48,49 @@ export async function writeImageToClipboard(
     'image/png': pngBlob,
   });
   await navigator.clipboard.write([item]);
+}
+
+type SelectedObjectRef = {
+  sec: number;
+  ppi: number;
+  ci: number;
+  cellPath?: { controlIndex: number; cellIndex: number; cellParaIndex: number }[];
+};
+
+export function objectControlPath(ref: SelectedObjectRef): { controlIndex: number; cellIndex: number; cellParaIndex: number }[] | null {
+  if (!ref.cellPath?.length) return null;
+  return [
+    ...ref.cellPath,
+    { controlIndex: ref.ci, cellIndex: 0, cellParaIndex: 0 },
+  ];
+}
+
+export function copySelectedObjectControl(wasm: WasmBridge, ref: SelectedObjectRef): string {
+  const path = objectControlPath(ref);
+  if (path) {
+    return wasm.copyControlByPath(ref.sec, ref.ppi, JSON.stringify(path));
+  }
+  return wasm.copyControl(ref.sec, ref.ppi, ref.ci);
+}
+
+export function tableControlPath(ref: SelectedObjectRef): { controlIndex: number; cellIndex: number; cellParaIndex: number }[] | null {
+  return ref.cellPath && ref.cellPath.length > 1 ? ref.cellPath : null;
+}
+
+export function copySelectedTableControl(wasm: WasmBridge, ref: SelectedObjectRef): string {
+  const path = tableControlPath(ref);
+  if (path) {
+    return wasm.copyControlByPath(ref.sec, ref.ppi, JSON.stringify(path));
+  }
+  return wasm.copyControl(ref.sec, ref.ppi, ref.ci);
+}
+
+export function deleteSelectedTableControl(wasm: WasmBridge, ref: SelectedObjectRef): string {
+  const path = tableControlPath(ref);
+  if (path) {
+    return wasm.deleteTableControlByPath(ref.sec, ref.ppi, JSON.stringify(path));
+  }
+  return wasm.deleteTableControl(ref.sec, ref.ppi, ref.ci);
 }
 
 /** 코드 단축키 → 커맨드 ID 매핑 (Ctrl+K,? 형태) */
@@ -411,9 +460,13 @@ export function onKeyDown(this: any, e: KeyboardEvent): void {
         this.pictureObjectRenderer?.clear();
         this.eventBus.emit('picture-object-selection-changed', false);
         this.executeOperation({ kind: 'snapshot', operationType: 'deleteObject', operation: (wasm: WasmBridge) => {
-          if (ref.type === 'image') {
-            wasm.deletePictureControl(ref.sec, ref.ppi, ref.ci);
-          } else {
+	          if (ref.type === 'image') {
+	            if (ref.cellPath?.length) {
+	              wasm.deletePictureControlByPath(ref.sec, ref.ppi, JSON.stringify(ref.cellPath), ref.ci);
+	            } else {
+	              wasm.deletePictureControl(ref.sec, ref.ppi, ref.ci);
+	            }
+	          } else {
             wasm.deleteShapeControl(ref.sec, ref.ppi, ref.ci);
           }
           return this.cursor.getPosition();
@@ -427,12 +480,13 @@ export function onKeyDown(this: any, e: KeyboardEvent): void {
       const ref = this.cursor.getSelectedPictureRef();
       if (ref) {
         try {
-          this.wasm.copyControl(ref.sec, ref.ppi, ref.ci);
+          copySelectedObjectControl(this.wasm, ref);
           const text = this.wasm.getClipboardText() || '[그림]';
+          const controlPath = objectControlPath(ref);
           let html = '';
-          try { html = this.wasm.exportControlHtml(ref.sec, ref.ppi, ref.ci) || ''; } catch { /* 무시 */ }
+          try { html = controlPath ? (this.wasm.exportControlHtmlByPath(ref.sec, ref.ppi, JSON.stringify(controlPath)) || '') : (this.wasm.exportControlHtml(ref.sec, ref.ppi, ref.ci) || ''); } catch { /* 무시 */ }
           if (ref.type === 'image') {
-            writeImageToClipboard(this.wasm, ref.sec, ref.ppi, ref.ci, text, html)
+            writeImageToClipboard(this.wasm, ref.sec, ref.ppi, ref.ci, text, html, controlPath)
               .catch(() => navigator.clipboard.writeText(text).catch(() => {}));
           } else {
             navigator.clipboard.writeText(text).catch(() => {});
@@ -449,12 +503,13 @@ export function onKeyDown(this: any, e: KeyboardEvent): void {
       const ref = this.cursor.getSelectedPictureRef();
       if (ref) {
         try {
-          this.wasm.copyControl(ref.sec, ref.ppi, ref.ci);
+          copySelectedObjectControl(this.wasm, ref);
           const text = this.wasm.getClipboardText() || '[그림]';
+          const controlPath = objectControlPath(ref);
           let html = '';
-          try { html = this.wasm.exportControlHtml(ref.sec, ref.ppi, ref.ci) || ''; } catch { /* 무시 */ }
+          try { html = controlPath ? (this.wasm.exportControlHtmlByPath(ref.sec, ref.ppi, JSON.stringify(controlPath)) || '') : (this.wasm.exportControlHtml(ref.sec, ref.ppi, ref.ci) || ''); } catch { /* 무시 */ }
           if (ref.type === 'image') {
-            writeImageToClipboard(this.wasm, ref.sec, ref.ppi, ref.ci, text, html)
+            writeImageToClipboard(this.wasm, ref.sec, ref.ppi, ref.ci, text, html, controlPath)
               .catch(() => navigator.clipboard.writeText(text).catch(() => {}));
           } else {
             navigator.clipboard.writeText(text).catch(() => {});
@@ -466,9 +521,13 @@ export function onKeyDown(this: any, e: KeyboardEvent): void {
         this.pictureObjectRenderer?.clear();
         this.eventBus.emit('picture-object-selection-changed', false);
         this.executeOperation({ kind: 'snapshot', operationType: 'cutObject', operation: (wasm: WasmBridge) => {
-          if (ref.type === 'image') {
-            wasm.deletePictureControl(ref.sec, ref.ppi, ref.ci);
-          } else {
+	        if (ref.type === 'image') {
+	          if (ref.cellPath?.length) {
+	            wasm.deletePictureControlByPath(ref.sec, ref.ppi, JSON.stringify(ref.cellPath), ref.ci);
+	          } else {
+	            wasm.deletePictureControl(ref.sec, ref.ppi, ref.ci);
+	          }
+	        } else {
             wasm.deleteShapeControl(ref.sec, ref.ppi, ref.ci);
           }
           return this.cursor.getPosition();
@@ -521,21 +580,13 @@ export function onKeyDown(this: any, e: KeyboardEvent): void {
       // 표 객체 선택 → 표 삭제
       const ref = this.cursor.getSelectedTableRef();
       if (ref) {
-        if (ref.cellPath && ref.cellPath.length > 1) {
-          // 중첩 표 삭제는 미지원 — 선택만 해제
-          this.cursor.moveOutOfSelectedTable();
-          this.eventBus.emit('table-object-selection-changed', false);
-          this.updateCaret();
-          this.checkTransparentBordersTransition();
-        } else {
-          this.cursor.moveOutOfSelectedTable();
-          this.eventBus.emit('table-object-selection-changed', false);
-          this.executeOperation({ kind: 'snapshot', operationType: 'deleteTable', operation: (wasm: WasmBridge) => {
-            wasm.deleteTableControl(ref.sec, ref.ppi, ref.ci);
-            return this.cursor.getPosition();
-          }});
-          this.checkTransparentBordersTransition();
-        }
+        this.cursor.moveOutOfSelectedTable();
+        this.eventBus.emit('table-object-selection-changed', false);
+        this.executeOperation({ kind: 'snapshot', operationType: 'deleteTable', operation: (wasm: WasmBridge) => {
+          deleteSelectedTableControl(wasm, ref);
+          return this.cursor.getPosition();
+        }});
+        this.checkTransparentBordersTransition();
       }
       return;
     }
@@ -545,7 +596,7 @@ export function onKeyDown(this: any, e: KeyboardEvent): void {
       const ref = this.cursor.getSelectedTableRef();
       if (ref) {
         try {
-          this.wasm.copyControl(ref.sec, ref.ppi, ref.ci);
+          copySelectedTableControl(this.wasm, ref);
           const text = this.wasm.getClipboardText();
           if (text) navigator.clipboard.writeText(text).catch(() => {});
         } catch (err) {
@@ -558,9 +609,9 @@ export function onKeyDown(this: any, e: KeyboardEvent): void {
     if ((e.ctrlKey || e.metaKey) && e.key === 'x') {
       e.preventDefault();
       const ref = this.cursor.getSelectedTableRef();
-      if (ref && !(ref.cellPath && ref.cellPath.length > 1)) {
+      if (ref) {
         try {
-          this.wasm.copyControl(ref.sec, ref.ppi, ref.ci);
+          copySelectedTableControl(this.wasm, ref);
           const text = this.wasm.getClipboardText();
           if (text) navigator.clipboard.writeText(text).catch(() => {});
         } catch (err) {
@@ -569,7 +620,7 @@ export function onKeyDown(this: any, e: KeyboardEvent): void {
         this.cursor.moveOutOfSelectedTable();
         this.eventBus.emit('table-object-selection-changed', false);
         this.executeOperation({ kind: 'snapshot', operationType: 'cutTable', operation: (wasm: WasmBridge) => {
-          wasm.deleteTableControl(ref.sec, ref.ppi, ref.ci);
+          deleteSelectedTableControl(wasm, ref);
           return this.cursor.getPosition();
         }});
         this.checkTransparentBordersTransition();
@@ -599,6 +650,27 @@ export function onKeyDown(this: any, e: KeyboardEvent): void {
 
   // ─── 셀 선택 모드 중 키 처리 ────────────────────────────
   if (this.cursor.isInCellSelectionMode()) {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
+      e.preventDefault();
+      this.performCopy();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'x' || e.key === 'X')) {
+      e.preventDefault();
+      this.performCut();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
+      if (this.performPasteSelectedCells?.()) {
+        e.preventDefault();
+        return;
+      }
+    }
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      this.performDeleteSelectedCells();
+      return;
+    }
     if (e.key === 'Escape') {
       e.preventDefault();
       // 셀 선택 모드 → 표 객체 선택 모드
@@ -935,19 +1007,20 @@ export function onCopy(this: any, e: ClipboardEvent): void {
     if (ref) {
       e.preventDefault();
       try {
-        this.wasm.copyControl(ref.sec, ref.ppi, ref.ci);
+        copySelectedObjectControl(this.wasm, ref);
         const text = this.wasm.getClipboardText() || '[그림]';
+        const controlPath = objectControlPath(ref);
         let html = '';
         if (e.clipboardData) {
           if (text) e.clipboardData.setData('text/plain', text);
           try {
-            html = this.wasm.exportControlHtml(ref.sec, ref.ppi, ref.ci) || '';
+            html = controlPath ? (this.wasm.exportControlHtmlByPath(ref.sec, ref.ppi, JSON.stringify(controlPath)) || '') : (this.wasm.exportControlHtml(ref.sec, ref.ppi, ref.ci) || '');
             if (html) e.clipboardData.setData('text/html', html);
           } catch { /* HTML 내보내기 실패는 무시 */ }
         }
         // 이미지 컨트롤이면 image/png Blob 포함 클립보드 기록
         if (ref.type === 'image') {
-          writeImageToClipboard(this.wasm, ref.sec, ref.ppi, ref.ci, text, html)
+          writeImageToClipboard(this.wasm, ref.sec, ref.ppi, ref.ci, text, html, controlPath)
             .catch(() => {});
         }
       } catch (err) {
@@ -1021,7 +1094,11 @@ export function onCut(this: any, e: ClipboardEvent): void {
       this.eventBus.emit('picture-object-selection-changed', false);
       this.executeOperation({ kind: 'snapshot', operationType: 'cutObject', operation: (wasm: WasmBridge) => {
         if (ref.type === 'image') {
-          wasm.deletePictureControl(ref.sec, ref.ppi, ref.ci);
+          if (ref.cellPath?.length) {
+            wasm.deletePictureControlByPath(ref.sec, ref.ppi, JSON.stringify(ref.cellPath), ref.ci);
+          } else {
+            wasm.deletePictureControl(ref.sec, ref.ppi, ref.ci);
+          }
         } else {
           wasm.deleteShapeControl(ref.sec, ref.ppi, ref.ci);
         }
@@ -1042,6 +1119,8 @@ export function onPaste(this: any, e: ClipboardEvent): void {
   if (!this.active) return;
   e.preventDefault();
 
+  if (this.performPasteSelectedCells?.()) return;
+
   // 개체/표 선택 모드 해제 후 붙여넣기 진행
   if (this.cursor.isInPictureObjectSelection()) {
     this.cursor.moveOutOfSelectedPicture();
@@ -1060,11 +1139,34 @@ export function onPaste(this: any, e: ClipboardEvent): void {
 
   // 내부 클립보드가 있으면 우선 사용 (서식 보존)
   if (this.wasm.hasInternalClipboard()) {
-    // 컨트롤(개체) 붙여넣기 — 본문에서만 허용
-    if (this.wasm.clipboardHasControl() && pos.parentParaIndex === undefined) {
+    // 컨트롤(개체) 붙여넣기
+    if (this.wasm.clipboardHasControl()) {
       this.executeOperation({ kind: 'snapshot', operationType: 'pasteControl', operation: (wasm: WasmBridge) => {
         if (hasSelection) this.deleteSelection();
         const p = this.cursor.getPosition();
+        if (p.parentParaIndex !== undefined) {
+          const path = ((p.cellPath?.length ?? 0) > 1 ? p.cellPath! : [{
+            controlIndex: p.controlIndex!,
+            cellIndex: p.cellIndex!,
+            cellParaIndex: p.cellParaIndex!,
+          }]);
+          const result = wasm.pasteControlInCellByPath(
+            p.sectionIndex, p.parentParaIndex, JSON.stringify(path), p.charOffset,
+          );
+          const parsed = JSON.parse(result);
+          if (parsed.ok) {
+            const nextPath = path.map((entry, index) => index === path.length - 1
+              ? { ...entry, cellParaIndex: parsed.cellParaIdx ?? entry.cellParaIndex }
+              : entry);
+            return {
+              ...p,
+              charOffset: parsed.charOffset ?? p.charOffset,
+              cellParaIndex: parsed.cellParaIdx ?? p.cellParaIndex,
+              cellPath: nextPath,
+            } as DocumentPosition;
+          }
+          return p;
+        }
         const result = wasm.pasteControl(p.sectionIndex, p.paragraphIndex, p.charOffset);
         const parsed = JSON.parse(result);
         if (parsed.ok) {
@@ -1085,7 +1187,13 @@ export function onPaste(this: any, e: ClipboardEvent): void {
       if (hasSelection) this.deleteSelection();
       const p = this.cursor.getPosition();
       let result: string;
-      if (p.parentParaIndex !== undefined) {
+      let path: typeof p.cellPath | undefined;
+      if ((p.cellPath?.length ?? 0) > 1 && p.parentParaIndex !== undefined) {
+        path = p.cellPath;
+        result = wasm.pasteInternalInCellByPath(
+          p.sectionIndex, p.parentParaIndex, JSON.stringify(path), p.charOffset,
+        );
+      } else if (p.parentParaIndex !== undefined) {
         result = wasm.pasteInternalInCell(
           p.sectionIndex, p.parentParaIndex, p.controlIndex!,
           p.cellIndex!, p.cellParaIndex!, p.charOffset,
@@ -1104,7 +1212,15 @@ export function onPaste(this: any, e: ClipboardEvent): void {
           newPos.parentParaIndex = p.parentParaIndex;
           newPos.controlIndex = p.controlIndex;
           newPos.cellIndex = p.cellIndex;
-          newPos.cellParaIndex = parsed.paraIdx ?? p.cellParaIndex;
+          newPos.cellParaIndex = parsed.cellParaIdx ?? p.cellParaIndex;
+          if (path?.length) {
+            newPos.cellParaIndex = parsed.cellParaIdx ?? p.cellParaIndex;
+            newPos.cellPath = path.map((entry, index) => index === path!.length - 1
+              ? { ...entry, cellParaIndex: parsed.cellParaIdx ?? entry.cellParaIndex }
+              : entry);
+          } else if (p.cellPath?.length) {
+            newPos.cellPath = p.cellPath;
+          }
         }
         return newPos;
       }
@@ -1136,10 +1252,17 @@ export function onPaste(this: any, e: ClipboardEvent): void {
       const p = this.cursor.getPosition();
       let result: string;
       if (p.parentParaIndex !== undefined) {
-        result = wasm.pasteHtmlInCell(
-          p.sectionIndex, p.parentParaIndex, p.controlIndex!,
-          p.cellIndex!, p.cellParaIndex!, p.charOffset, html,
-        );
+        if ((p.cellPath?.length ?? 0) > 1) {
+          result = wasm.pasteHtmlInCellByPath(
+            p.sectionIndex, p.parentParaIndex, JSON.stringify(p.cellPath),
+            p.charOffset, html,
+          );
+        } else {
+          result = wasm.pasteHtmlInCell(
+            p.sectionIndex, p.parentParaIndex, p.controlIndex!,
+            p.cellIndex!, p.cellParaIndex!, p.charOffset, html,
+          );
+        }
       } else {
         result = wasm.pasteHtml(p.sectionIndex, p.paragraphIndex, p.charOffset, html);
       }
@@ -1154,7 +1277,13 @@ export function onPaste(this: any, e: ClipboardEvent): void {
           newPos.parentParaIndex = p.parentParaIndex;
           newPos.controlIndex = p.controlIndex;
           newPos.cellIndex = p.cellIndex;
-          newPos.cellParaIndex = parsed.paraIdx ?? p.cellParaIndex;
+          newPos.cellParaIndex = parsed.cellParaIdx ?? p.cellParaIndex;
+          if (p.cellPath?.length) {
+            newPos.cellPath = p.cellPath.map((entry, index) => index === p.cellPath!.length - 1
+              ? { ...entry, cellParaIndex: newPos.cellParaIndex! }
+              : entry
+            );
+          }
         }
         return newPos;
       }
@@ -1443,4 +1572,3 @@ export function handleShiftF11(this: any): void {
     console.warn('[Shift+F11] error:', err);
   }
 }
-

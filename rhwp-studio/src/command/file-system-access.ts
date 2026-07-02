@@ -41,8 +41,11 @@ export interface SaveDocumentResult {
 }
 
 const HWP_PICKER_TYPES = [{
-  description: 'HWP 문서',
-  accept: { 'application/x-hwp': ['.hwp', '.hwpx'] },
+  description: 'HWP/HWPX 문서',
+  accept: {
+    'application/x-hwp': ['.hwp'],
+    'application/hwp+zip': ['.hwpx'],
+  },
 }];
 
 function isAbortError(error: unknown): boolean {

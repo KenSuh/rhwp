@@ -58,8 +58,7 @@ export const fileCommands: CommandDef[] = [
     label: '저장',
     icon: 'icon-save',
     shortcutLabel: 'Ctrl+S',
-    // #196: HWPX 출처는 저장 비활성화 (베타 단계, #197 완전 변환기 완료 시까지)
-    canExecute: (ctx) => ctx.hasDocument && ctx.sourceFormat !== 'hwpx',
+    canExecute: (ctx) => ctx.hasDocument,
     async execute(services) {
       try {
         const saveName = services.wasm.fileName;
@@ -95,7 +94,7 @@ export const fileCommands: CommandDef[] = [
         // 2) 폴백: 새 문서인 경우 자체 파일이름 대화상자 표시
         let downloadName = saveName;
         if (services.wasm.isNewDocument) {
-          const baseName = saveName.replace(/\.hwp$/i, '');
+          const baseName = saveName.replace(/\.(hwp|hwpx)$/i, '');
           const result = await showSaveAs(baseName);
           if (!result) return;
           downloadName = result;

@@ -41,6 +41,25 @@ function isNestedCell(pos: DocumentPosition): boolean {
   return (pos.cellPath?.length ?? 0) > 1;
 }
 
+function cellParaIndexOf(pos: DocumentPosition): number {
+  if (isNestedCell(pos)) {
+    return pos.cellPath![pos.cellPath!.length - 1].cellParaIndex;
+  }
+  return pos.cellParaIndex!;
+}
+
+function sameNestedCellTarget(a: DocumentPosition, b: DocumentPosition): boolean {
+  const ap = a.cellPath ?? [];
+  const bp = b.cellPath ?? [];
+  if (ap.length !== bp.length || ap.length === 0) return false;
+  return ap.every((entry, index) => {
+    const other = bp[index];
+    if (!other) return false;
+    if (entry.controlIndex !== other.controlIndex || entry.cellIndex !== other.cellIndex) return false;
+    return index === ap.length - 1 || entry.cellParaIndex === other.cellParaIndex;
+  });
+}
+
 /** cellPath를 WASM용 JSON 문자열로 변환 */
 function cellPathJson(pos: DocumentPosition): string {
   return JSON.stringify(pos.cellPath ?? []);
@@ -73,6 +92,96 @@ function doGetTextRange(wasm: WasmBridge, pos: DocumentPosition, count: number):
     return wasm.getTextInCell(pos.sectionIndex, pos.parentParaIndex!, pos.controlIndex!, pos.cellIndex!, pos.cellParaIndex!, pos.charOffset, count);
   } else {
     return wasm.getTextRange(pos.sectionIndex, pos.paragraphIndex, pos.charOffset, count);
+  }
+}
+
+function doGetParagraphLength(wasm: WasmBridge, pos: DocumentPosition): number {
+  if (isNestedCell(pos)) {
+    return wasm.getCellParagraphLengthByPath(pos.sectionIndex, pos.parentParaIndex!, cellPathJson(pos));
+  } else if (isCell(pos)) {
+    return wasm.getCellParagraphLength(pos.sectionIndex, pos.parentParaIndex!, pos.controlIndex!, pos.cellIndex!, pos.cellParaIndex!);
+  }
+  return wasm.getParagraphLength(pos.sectionIndex, pos.paragraphIndex);
+}
+
+function withCellParaIndex(pos: DocumentPosition, cellParaIndex: number): DocumentPosition {
+  if (pos.cellPath?.length) {
+    return {
+      ...pos,
+      cellParaIndex,
+      cellPath: pos.cellPath!.map((entry, index) =>
+        index === pos.cellPath!.length - 1 ? { ...entry, cellParaIndex } : entry,
+      ),
+    };
+  }
+  return { ...pos, cellParaIndex };
+}
+
+function doGetCharPropertiesAt(wasm: WasmBridge, pos: DocumentPosition): CharProperties {
+  if (isNestedCell(pos)) {
+    return wasm.getCellCharPropertiesAtByPath(pos.sectionIndex, pos.parentParaIndex!, cellPathJson(pos), pos.charOffset);
+  } else if (isCell(pos)) {
+    return wasm.getCellCharPropertiesAt(
+      pos.sectionIndex, pos.parentParaIndex!, pos.controlIndex!, pos.cellIndex!, pos.cellParaIndex!, pos.charOffset,
+    );
+  }
+  return wasm.getCharPropertiesAt(pos.sectionIndex, pos.paragraphIndex, pos.charOffset);
+}
+
+function doApplyCharFormat(wasm: WasmBridge, start: DocumentPosition, end: DocumentPosition, propsJson: string): void {
+  if (isNestedCell(start)) {
+    if (!sameNestedCellTarget(start, end)) {
+      throw new Error('중첩 표의 서로 다른 셀에 걸친 글자 서식 적용은 셀 선택 모드에서 처리해야 합니다');
+    }
+    wasm.applyCharFormatInCellByPath(
+      start.sectionIndex, start.parentParaIndex!, cellPathJson(start), start.charOffset, end.charOffset, propsJson,
+    );
+  } else if (isCell(start)) {
+    wasm.applyCharFormatInCell(
+      start.sectionIndex, start.parentParaIndex!, start.controlIndex!, start.cellIndex!, start.cellParaIndex!,
+      start.charOffset, end.charOffset, propsJson,
+    );
+  } else {
+    wasm.applyCharFormat(start.sectionIndex, start.paragraphIndex, start.charOffset, end.charOffset, propsJson);
+  }
+}
+
+function deleteRangeInNestedCell(wasm: WasmBridge, start: DocumentPosition, end: DocumentPosition): void {
+  if (!sameNestedCellTarget(start, end)) {
+    throw new Error('중첩 표의 서로 다른 셀에 걸친 텍스트 삭제는 셀 선택 모드에서 처리해야 합니다');
+  }
+  const startPara = cellParaIndexOf(start);
+  const endPara = cellParaIndexOf(end);
+  if (startPara === endPara) {
+    doDeleteText(wasm, start, Math.max(0, end.charOffset - start.charOffset));
+    return;
+  }
+
+  const endPos = withCellParaIndex(end, endPara);
+  const endLen = doGetParagraphLength(wasm, endPos);
+  const endDeleteCount = Math.min(end.charOffset, endLen);
+  if (endDeleteCount > 0) {
+    doDeleteText(wasm, { ...endPos, charOffset: 0 }, endDeleteCount);
+  }
+
+  for (let p = startPara + 1; p < endPara; p += 1) {
+    const paraPos = withCellParaIndex(start, p);
+    const len = doGetParagraphLength(wasm, paraPos);
+    if (len > 0) {
+      doDeleteText(wasm, { ...paraPos, charOffset: 0 }, len);
+    }
+  }
+
+  const startPos = withCellParaIndex(start, startPara);
+  const startLen = doGetParagraphLength(wasm, startPos);
+  if (startLen > start.charOffset) {
+    doDeleteText(wasm, start, startLen - start.charOffset);
+  }
+
+  // 뒤 문단부터 병합해야 paragraph index가 앞으로 당겨져도 경로가 안정적이다.
+  for (let p = endPara; p > startPara; p -= 1) {
+    const mergePos = withCellParaIndex(start, p);
+    wasm.mergeParagraphInCellByPath(mergePos.sectionIndex, mergePos.parentParaIndex!, cellPathJson(mergePos));
   }
 }
 
@@ -316,23 +425,25 @@ export class DeleteSelectionCommand implements EditCommand {
     this.savedTexts = [];
     if (isCell(start)) {
       const sec = start.sectionIndex;
-      const ppi = start.parentParaIndex!;
-      const ci = start.controlIndex!;
-      const cei = start.cellIndex!;
-      const startPara = start.cellParaIndex!;
-      const endPara = end.cellParaIndex!;
+      const startPara = cellParaIndexOf(start);
+      const endPara = cellParaIndexOf(end);
       this.multiPara = startPara !== endPara;
       for (let p = startPara; p <= endPara; p++) {
-        const pLen = wasm.getCellParagraphLength(sec, ppi, ci, cei, p);
+        const paraPos = withCellParaIndex(start, p);
+        const pLen = doGetParagraphLength(wasm, paraPos);
         const from = p === startPara ? start.charOffset : 0;
         const to = p === endPara ? end.charOffset : pLen;
         if (to > from) {
-          this.savedTexts.push(wasm.getTextInCell(sec, ppi, ci, cei, p, from, to - from));
+          this.savedTexts.push(doGetTextRange(wasm, { ...paraPos, charOffset: from }, to - from));
         } else {
           this.savedTexts.push('');
         }
       }
-      wasm.deleteRangeInCell(sec, ppi, ci, cei, startPara, start.charOffset, endPara, end.charOffset);
+      if (isNestedCell(start)) {
+        deleteRangeInNestedCell(wasm, start, end);
+      } else {
+        wasm.deleteRangeInCell(sec, start.parentParaIndex!, start.controlIndex!, start.cellIndex!, startPara, start.charOffset, endPara, end.charOffset);
+      }
     } else {
       const sec = start.sectionIndex;
       this.multiPara = start.paragraphIndex !== end.paragraphIndex;
@@ -427,24 +538,27 @@ export class ApplyCharFormatCommand implements EditCommand {
     const propsJson = JSON.stringify(this.props);
 
     if (isCell(start)) {
-      const sec = start.sectionIndex;
-      const ppi = start.parentParaIndex!;
-      const ci = start.controlIndex!;
-      const cei = start.cellIndex!;
-      const startPara = start.cellParaIndex!;
-      const endPara = end.cellParaIndex!;
+      const startPara = cellParaIndexOf(start);
+      const endPara = cellParaIndexOf(end);
 
       this.entries = [];
       for (let p = startPara; p <= endPara; p++) {
+        const paraStart = withCellParaIndex(start, p);
+        const paraEnd = withCellParaIndex(end, p);
         const from = p === startPara ? start.charOffset : 0;
-        const to = p === endPara ? end.charOffset : wasm.getCellParagraphLength(sec, ppi, ci, cei, p);
+        const to = p === endPara ? end.charOffset : doGetParagraphLength(wasm, paraStart);
         if (to <= from) continue;
 
         // undo용 이전 서식 저장
-        const prevProps = wasm.getCellCharPropertiesAt(sec, ppi, ci, cei, p, from);
+        const prevProps = doGetCharPropertiesAt(wasm, { ...paraStart, charOffset: from });
         this.entries.push({ paraIndex: p, startOffset: from, endOffset: to, prevCharShapeId: prevProps.charShapeId });
 
-        wasm.applyCharFormatInCell(sec, ppi, ci, cei, p, from, to, propsJson);
+        doApplyCharFormat(
+          wasm,
+          { ...paraStart, charOffset: from },
+          { ...paraEnd, charOffset: to },
+          propsJson,
+        );
       }
     } else {
       const sec = start.sectionIndex;
@@ -476,10 +590,8 @@ export class ApplyCharFormatCommand implements EditCommand {
       const restoreJson = JSON.stringify({ charShapeId: entry.prevCharShapeId });
 
       if (isCell(start)) {
-        wasm.applyCharFormatInCell(
-          start.sectionIndex, start.parentParaIndex!, start.controlIndex!, start.cellIndex!,
-          entry.paraIndex, entry.startOffset, entry.endOffset, restoreJson,
-        );
+        const paraPos = withCellParaIndex(start, entry.paraIndex);
+        doApplyCharFormat(wasm, { ...paraPos, charOffset: entry.startOffset }, { ...paraPos, charOffset: entry.endOffset }, restoreJson);
       } else {
         wasm.applyCharFormat(start.sectionIndex, entry.paraIndex, entry.startOffset, entry.endOffset, restoreJson);
       }
@@ -526,15 +638,15 @@ export class SplitParagraphInCellCommand implements EditCommand {
     const pos = this.position;
     const sec = pos.sectionIndex;
     const ppi = pos.parentParaIndex!;
-    const cpi = pos.cellParaIndex!;
+    const cpi = cellParaIndexOf(pos);
     if (isNestedCell(pos)) {
       wasm.splitParagraphInCellByPath(sec, ppi, cellPathJson(pos), pos.charOffset);
     } else {
       wasm.splitParagraphInCell(sec, ppi, pos.controlIndex!, pos.cellIndex!, cpi, pos.charOffset);
     }
+    const nextCellParaIndex = cpi + 1;
     return {
-      ...pos,
-      cellParaIndex: cpi + 1,
+      ...withCellParaIndex(pos, nextCellParaIndex),
       charOffset: 0,
     };
   }
@@ -543,7 +655,7 @@ export class SplitParagraphInCellCommand implements EditCommand {
     const pos = this.position;
     const sec = pos.sectionIndex;
     const ppi = pos.parentParaIndex!;
-    const cpi = pos.cellParaIndex!;
+    const cpi = cellParaIndexOf(pos);
     if (isNestedCell(pos)) {
       // undo: 분할된 다음 문단을 병합 → cellPath의 cellParaIndex를 +1로 변경
       const undoPath = [...pos.cellPath!];
@@ -572,26 +684,22 @@ export class MergeParagraphInCellCommand implements EditCommand {
     const pos = this.position;
     const sec = pos.sectionIndex;
     const ppi = pos.parentParaIndex!;
-    const cpi = pos.cellParaIndex!;
+    const cpi = cellParaIndexOf(pos);
     // 병합 전 이전 셀 문단 길이 기억
-    this.mergePointOffset = wasm.getCellParagraphLength(sec, ppi, pos.controlIndex!, pos.cellIndex!, cpi - 1);
+    this.mergePointOffset = doGetParagraphLength(wasm, withCellParaIndex(pos, cpi - 1));
     if (isNestedCell(pos)) {
       wasm.mergeParagraphInCellByPath(sec, ppi, cellPathJson(pos));
     } else {
       wasm.mergeParagraphInCell(sec, ppi, pos.controlIndex!, pos.cellIndex!, cpi);
     }
-    return {
-      ...pos,
-      cellParaIndex: cpi - 1,
-      charOffset: this.mergePointOffset,
-    };
+    return { ...withCellParaIndex(pos, cpi - 1), charOffset: this.mergePointOffset };
   }
 
   undo(wasm: WasmBridge): DocumentPosition {
     const pos = this.position;
     const sec = pos.sectionIndex;
     const ppi = pos.parentParaIndex!;
-    const cpi = pos.cellParaIndex!;
+    const cpi = cellParaIndexOf(pos);
     if (isNestedCell(pos)) {
       const undoPath = [...pos.cellPath!];
       undoPath[undoPath.length - 1] = { ...undoPath[undoPath.length - 1], cellParaIndex: cpi - 1 };
@@ -617,7 +725,7 @@ export class MergeNextParagraphInCellCommand implements EditCommand {
     const pos = this.position;
     const sec = pos.sectionIndex;
     const ppi = pos.parentParaIndex!;
-    const cpi = pos.cellParaIndex!;
+    const cpi = cellParaIndexOf(pos);
     if (isNestedCell(pos)) {
       const nextPath = [...pos.cellPath!];
       nextPath[nextPath.length - 1] = { ...nextPath[nextPath.length - 1], cellParaIndex: cpi + 1 };
@@ -632,7 +740,7 @@ export class MergeNextParagraphInCellCommand implements EditCommand {
     const pos = this.position;
     const sec = pos.sectionIndex;
     const ppi = pos.parentParaIndex!;
-    const cpi = pos.cellParaIndex!;
+    const cpi = cellParaIndexOf(pos);
     if (isNestedCell(pos)) {
       wasm.splitParagraphInCellByPath(sec, ppi, cellPathJson(pos), pos.charOffset);
     } else {

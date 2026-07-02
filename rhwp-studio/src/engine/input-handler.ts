@@ -9,7 +9,7 @@ import { DeleteSelectionCommand, ApplyCharFormatCommand, SnapshotCommand } from 
 import type { OperationDescriptor } from './command';
 import { VirtualScroll } from '@/view/virtual-scroll';
 import { ViewportManager } from '@/view/viewport-manager';
-import type { DocumentPosition, CharProperties, ParaProperties, CursorRect, FormObjectHitResult } from '@/core/types';
+import type { DocumentPosition, CharProperties, ParaProperties, CursorRect, FormObjectHitResult, CellPathEntry } from '@/core/types';
 import type { CommandDispatcher } from '@/command/dispatcher';
 import { matchShortcut, defaultShortcuts } from '@/command/shortcut-map';
 import type { ContextMenu, ContextMenuItem } from '@/ui/context-menu';
@@ -17,12 +17,24 @@ import type { CommandPalette } from '@/ui/command-palette';
 import type { CellSelectionRenderer } from './cell-selection-renderer';
 import type { TableObjectRenderer } from './table-object-renderer';
 import type { TableResizeRenderer, BorderEdge } from './table-resize-renderer';
-import type { CellBbox } from '@/core/types';
+import type { CellBbox, PageTextLayout, SelectionRect, TextLayoutRun } from '@/core/types';
+import { showCellDeleteChoiceDialog, showCellPasteChoiceDialog } from '@/ui/cell-delete-choice-dialog';
+import { selectionRectsFromBodyTextRuns, selectionRectsFromCellTextRuns } from './selection-rects';
 import * as _mouse from './input-handler-mouse';
 import * as _table from './input-handler-table';
 import * as _keyboard from './input-handler-keyboard';
 import * as _text from './input-handler-text';
 import * as _picture from './input-handler-picture';
+import { isFullRowCellSelectionCoverage } from './table-selection-utils';
+import { buildTableContextMenuItems } from './table-context-menu-policy';
+import { resolveCellCutDeletePlan } from './table-cell-delete-policy';
+
+type CellOperationSelection = {
+  ctx: { sec: number; ppi: number; ci: number; rowCount?: number; colCount?: number; cellPath?: CellPathEntry[] };
+  range: { startRow: number; startCol: number; endRow: number; endCol: number };
+  excluded: Set<string>;
+  bboxes: CellBbox[];
+};
 
 /** 클릭 커서 배치 + 키보드 입력을 처리한다 */
 export class InputHandler {
@@ -43,25 +55,29 @@ export class InputHandler {
   private tableObjectRenderer: TableObjectRenderer | null = null;
   private tableResizeRenderer: TableResizeRenderer | null = null;
   private pictureObjectRenderer: TableObjectRenderer | null = null;
+  private cellClipboard: { text: string; rows: string[][] } | null = null;
 
   // 마우스 드래그 선택 상태
   private isDragging = false;
+  private isCellDragSelecting = false;
   private dragRafId = 0; // requestAnimationFrame throttle용
+  private pageTextLayoutCache = new Map<number, PageTextLayout>();
 
   // 표 경계선 hover 상태
   private resizeHoverRafId = 0;
-  private cachedTableRef: { sec: number; ppi: number; ci: number } | null = null;
+  private cachedTableRef: { sec: number; ppi: number; ci: number; cellPath?: CellPathEntry[] } | null = null;
   private cachedCellBboxes: CellBbox[] | null = null;
 
   // 표 경계선 리사이즈 드래그 상태
   private isResizeDragging = false;
   private resizeDragState: {
     edge: BorderEdge;
-    tableRef: { sec: number; ppi: number; ci: number };
+    tableRef: { sec: number; ppi: number; ci: number; cellPath?: CellPathEntry[] };
     bboxes: CellBbox[];
     pageBboxes: CellBbox[];
     affectedCellIndices: number[];
     borderOriginalPos: number;
+    resizeFromStartEdge?: boolean;
   } | null = null;
 
   // 표 이동 드래그 상태
@@ -330,6 +346,7 @@ export class InputHandler {
 
     // 문서 변경 후 그림/표 선택 마커 재렌더링
     eventBus.on('document-changed', () => {
+      this.pageTextLayoutCache.clear();
       requestAnimationFrame(() => {
         if (this.cursor.isInPictureObjectSelection()) {
           this.renderPictureObjectSelection();
@@ -348,7 +365,7 @@ export class InputHandler {
     // Toolbar에서 서식 적용 요청 수신 (글꼴명, 크기, 색상 — 커맨드 시스템 미경유)
     eventBus.on('format-char', (props) => {
       if (!this.active) return;
-      if (this.cursor.hasSelection()) {
+      if (this.cursor.hasSelection() || this.cursor.isInCellSelectionMode()) {
         this.applyCharFormat(props as Partial<CharProperties>);
       }
       // 서식바 조작으로 빠진 포커스를 항상 복원
@@ -863,7 +880,531 @@ export class InputHandler {
     const pageX = (contentX - pageLeft) / zoom;
     const pageY = (contentY - pageOffset) / zoom;
     try {
-      return this.wasm.hitTest(pageIdx, pageX, pageY);
+      const rawHit = this.wasm.hitTest(pageIdx, pageX, pageY);
+      const hit = this.normalizeHitTestCellPath(rawHit, pageX, pageY, pageIdx);
+      if (!hit) return null;
+      return this.normalizeHitTestCellPath(hit, pageX, pageY, pageIdx);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * 중첩 표 hitTest 보정.
+   *
+   * 1x1 wrapper 표를 건너뛰어 렌더링하는 경우 WASM hitTest가 TextRun 기준으로
+   * 마지막 cellPath 엔트리를 이웃 셀로 반환할 수 있다. 실제 클릭 좌표가 들어간
+   * bbox를 기준으로 마지막 cellIndex만 재계산해 셀 선택/편집 대상이 어긋나지 않게 한다.
+   */
+  private normalizeHitTestCellPath(
+    hit: DocumentPosition | null,
+    pageX: number,
+    pageY: number,
+    pageIdx?: number,
+  ): DocumentPosition | null {
+    if (!hit || hit.parentParaIndex === undefined || hit.controlIndex === undefined) {
+      return hit;
+    }
+
+    const cellPathDepth = hit.cellPath?.length ?? 0;
+    if (cellPathDepth <= 1) {
+      let baseHit = hit;
+      const ownCellHit = this.findOwnTableCellHit(hit, pageX, pageY, pageIdx);
+      if (ownCellHit) {
+        const hitCellIndex = hit.cellPath?.[0]?.cellIndex ?? hit.cellIndex;
+        if (hitCellIndex !== ownCellHit.clicked.cellIdx) {
+          baseHit = this.withVisualTableCellHit(hit, ownCellHit, pageIdx);
+        }
+      } else {
+        const visualHit = this.findVisualTableCellHit(hit, pageX, pageY, pageIdx);
+        if (visualHit) {
+          const hitCellIndex = hit.cellPath?.[0]?.cellIndex ?? hit.cellIndex;
+          if (
+            hit.sectionIndex !== visualHit.sec ||
+            hit.parentParaIndex !== visualHit.ppi ||
+            hit.controlIndex !== visualHit.ci ||
+            hitCellIndex !== visualHit.clicked.cellIdx
+          ) {
+            baseHit = this.withVisualTableCellHit(hit, visualHit, pageIdx);
+          }
+        }
+      }
+      return this.findNestedCellHitFromPoint(baseHit, pageX, pageY, pageIdx) ?? baseHit;
+    }
+
+    try {
+      const bboxes = this.wasm.getTableCellBboxesByPath(
+        hit.sectionIndex,
+        hit.parentParaIndex,
+        JSON.stringify(hit.cellPath),
+      );
+      const tolerance = 3;
+      const clicked = bboxes.find((bbox) =>
+        (pageIdx === undefined || bbox.pageIndex === pageIdx) &&
+        pageX >= bbox.x - tolerance &&
+        pageX <= bbox.x + bbox.w + tolerance &&
+        pageY >= bbox.y - tolerance &&
+        pageY <= bbox.y + bbox.h + tolerance,
+      );
+      if (!clicked) return hit;
+
+      const lastIndex = hit.cellPath.length - 1;
+      const current = hit.cellPath[lastIndex];
+      const correctedPath = hit.cellPath.map((entry, index) =>
+        index === lastIndex
+          ? { ...entry, cellIndex: clicked.cellIdx, cellParaIndex: 0 }
+          : entry,
+      );
+
+      const deeper = this.findDeeperNestedCellFromPoint(hit, correctedPath, pageX, pageY, pageIdx);
+      if (deeper) {
+        return this.withCorrectedCellPath(hit, deeper.path, deeper.clicked, pageIdx);
+      }
+
+      if (current.cellIndex === clicked.cellIdx && current.cellParaIndex === 0) {
+        return hit;
+      }
+
+      return this.withCorrectedCellPath(hit, correctedPath, clicked, pageIdx);
+    } catch {
+      return hit;
+    }
+  }
+
+  private findOwnTableCellHit(
+    hit: DocumentPosition,
+    pageX: number,
+    pageY: number,
+    pageIdx?: number,
+  ): { sec: number; ppi: number; ci: number; clicked: CellBbox } | null {
+    if (
+      pageIdx === undefined ||
+      hit.isTextBox ||
+      hit.parentParaIndex === undefined ||
+      hit.controlIndex === undefined
+    ) {
+      return null;
+    }
+
+    try {
+      const tolerance = 0.5;
+      const bboxes = this.wasm.getTableCellBboxes(
+        hit.sectionIndex,
+        hit.parentParaIndex,
+        hit.controlIndex,
+      );
+      const clicked = bboxes.find((bbox) =>
+        bbox.pageIndex === pageIdx &&
+        pageX >= bbox.x - tolerance &&
+        pageX <= bbox.x + bbox.w + tolerance &&
+        pageY >= bbox.y - tolerance &&
+        pageY <= bbox.y + bbox.h + tolerance,
+      );
+      if (!clicked) return null;
+      return {
+        sec: hit.sectionIndex,
+        ppi: hit.parentParaIndex,
+        ci: hit.controlIndex,
+        clicked,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private findVisualTableCellHit(
+    hit: DocumentPosition,
+    pageX: number,
+    pageY: number,
+    pageIdx?: number,
+  ): { sec: number; ppi: number; ci: number; clicked: CellBbox } | null {
+    if (pageIdx === undefined || hit.isTextBox) return null;
+
+    try {
+      const layout = this.wasm.getPageControlLayout(pageIdx);
+      const controls = Array.isArray(layout) ? layout : (layout?.controls ?? []);
+      const tolerance = 0.5;
+      let best: { sec: number; ppi: number; ci: number; clicked: CellBbox; area: number } | null = null;
+
+      for (const control of controls) {
+        if (control?.type !== 'table') continue;
+        if (
+          pageX < control.x - tolerance ||
+          pageX > control.x + control.w + tolerance ||
+          pageY < control.y - tolerance ||
+          pageY > control.y + control.h + tolerance
+        ) {
+          continue;
+        }
+
+        const sec = control.secIdx ?? hit.sectionIndex;
+        const ppi = control.paraIdx;
+        const ci = control.controlIdx;
+        if (ppi === undefined || ci === undefined) continue;
+
+        const bboxes = this.wasm.getTableCellBboxes(sec, ppi, ci);
+        const clicked = bboxes.find((bbox) =>
+          bbox.pageIndex === pageIdx &&
+          pageX >= bbox.x - tolerance &&
+          pageX <= bbox.x + bbox.w + tolerance &&
+          pageY >= bbox.y - tolerance &&
+          pageY <= bbox.y + bbox.h + tolerance,
+        );
+        if (!clicked) continue;
+
+        const area = clicked.w * clicked.h;
+        if (!best || area < best.area) {
+          best = { sec, ppi, ci, clicked, area };
+        }
+      }
+
+      if (!best) return null;
+      return { sec: best.sec, ppi: best.ppi, ci: best.ci, clicked: best.clicked };
+    } catch {
+      return null;
+    }
+  }
+
+  private withVisualTableCellHit(
+    hit: DocumentPosition,
+    visualHit: { sec: number; ppi: number; ci: number; clicked: CellBbox },
+    pageIdx?: number,
+  ): DocumentPosition {
+    const correctedPath: CellPathEntry[] = [{
+      controlIndex: visualHit.ci,
+      cellIndex: visualHit.clicked.cellIdx,
+      cellParaIndex: 0,
+    }];
+    const corrected: DocumentPosition = {
+      ...hit,
+      sectionIndex: visualHit.sec,
+      paragraphIndex: 0,
+      charOffset: 0,
+      parentParaIndex: visualHit.ppi,
+      controlIndex: visualHit.ci,
+      cellIndex: visualHit.clicked.cellIdx,
+      cellParaIndex: 0,
+      cellPath: correctedPath,
+    };
+
+    try {
+      corrected.cursorRect = this.wasm.getCursorRectByPath(
+        visualHit.sec,
+        visualHit.ppi,
+        JSON.stringify(correctedPath),
+        0,
+      );
+    } catch {
+      corrected.cursorRect = {
+        pageIndex: pageIdx ?? visualHit.clicked.pageIndex,
+        x: visualHit.clicked.x + 2,
+        y: visualHit.clicked.y + 2,
+        height: Math.max(4, visualHit.clicked.h - 4),
+      };
+    }
+
+    return corrected;
+  }
+
+  private findNestedCellHitFromPoint(
+    hit: DocumentPosition,
+    pageX: number,
+    pageY: number,
+    pageIdx?: number,
+  ): DocumentPosition | null {
+    if (hit.parentParaIndex === undefined || hit.controlIndex === undefined || hit.isTextBox) {
+      return null;
+    }
+
+    try {
+      const dims = this.wasm.getTableDimensions(hit.sectionIndex, hit.parentParaIndex, hit.controlIndex);
+      const rawOuterCell = hit.cellPath?.[0]?.cellIndex ?? hit.cellIndex ?? 0;
+      const rawOuterCellPara = hit.cellPath?.[0]?.cellParaIndex ?? hit.cellParaIndex ?? 0;
+      const outerCandidates = rawOuterCell >= 0 && rawOuterCell < dims.cellCount
+        ? [rawOuterCell]
+        : Array.from({ length: dims.cellCount }, (_, index) => index);
+      const cellParaCandidates = Number.isFinite(rawOuterCellPara) && rawOuterCellPara >= 0
+        ? [
+            rawOuterCellPara,
+            ...Array.from({ length: 8 }, (_, index) => index).filter((index) => index !== rawOuterCellPara),
+          ]
+        : Array.from({ length: 8 }, (_, index) => index);
+
+      for (const outerCellIndex of outerCandidates) {
+        for (const outerCellParaIndex of cellParaCandidates) {
+          const outerEntry = {
+            controlIndex: hit.controlIndex,
+            cellIndex: outerCellIndex,
+            cellParaIndex: outerCellParaIndex,
+          };
+
+          for (let nestedControlIndex = 0; nestedControlIndex < 8; nestedControlIndex += 1) {
+            const seedPath: CellPathEntry[] = [
+              outerEntry,
+              { controlIndex: nestedControlIndex, cellIndex: 0, cellParaIndex: 0 },
+            ];
+            try {
+              const bboxes = this.wasm.getTableCellBboxesByPath(
+                hit.sectionIndex,
+                hit.parentParaIndex,
+                JSON.stringify(seedPath),
+              );
+              const tolerance = 3;
+              const clicked = bboxes.find((bbox) =>
+                (pageIdx === undefined || bbox.pageIndex === pageIdx) &&
+                pageX >= bbox.x - tolerance &&
+                pageX <= bbox.x + bbox.w + tolerance &&
+                pageY >= bbox.y - tolerance &&
+                pageY <= bbox.y + bbox.h + tolerance,
+              );
+              if (clicked) {
+                const correctedPath: CellPathEntry[] = [
+                  outerEntry,
+                  { controlIndex: nestedControlIndex, cellIndex: clicked.cellIdx, cellParaIndex: 0 },
+                ];
+                const deeper = this.findDeeperNestedCellFromPoint(hit, correctedPath, pageX, pageY, pageIdx);
+                if (deeper) {
+                  return this.withCorrectedCellPath(hit, deeper.path, deeper.clicked, pageIdx);
+                }
+                return this.withCorrectedCellPath(hit, correctedPath, clicked, pageIdx);
+              }
+            } catch {
+              // 해당 outer cell/controlIndex/cellParaIndex에 중첩 표가 없으면 다음 후보를 검사한다.
+            }
+          }
+        }
+      }
+    } catch {
+      return null;
+    }
+
+    return null;
+  }
+
+  private findDeeperNestedCellFromPoint(
+    hit: DocumentPosition,
+    basePath: CellPathEntry[],
+    pageX: number,
+    pageY: number,
+    pageIdx?: number,
+  ): { path: CellPathEntry[]; clicked: CellBbox } | null {
+    if (basePath.length >= 8 || hit.parentParaIndex === undefined) return null;
+
+    for (let nestedControlIndex = 0; nestedControlIndex < 8; nestedControlIndex += 1) {
+      const seedPath: CellPathEntry[] = [
+        ...basePath,
+        { controlIndex: nestedControlIndex, cellIndex: 0, cellParaIndex: 0 },
+      ];
+      try {
+        const bboxes = this.wasm.getTableCellBboxesByPath(
+          hit.sectionIndex,
+          hit.parentParaIndex,
+          JSON.stringify(seedPath),
+        );
+        const tolerance = 3;
+        const clicked = bboxes.find((bbox) =>
+          (pageIdx === undefined || bbox.pageIndex === pageIdx) &&
+          pageX >= bbox.x - tolerance &&
+          pageX <= bbox.x + bbox.w + tolerance &&
+          pageY >= bbox.y - tolerance &&
+          pageY <= bbox.y + bbox.h + tolerance,
+        );
+        if (!clicked) continue;
+
+        const path: CellPathEntry[] = [
+          ...basePath,
+          { controlIndex: nestedControlIndex, cellIndex: clicked.cellIdx, cellParaIndex: 0 },
+        ];
+        return this.findDeeperNestedCellFromPoint(hit, path, pageX, pageY, pageIdx) ?? { path, clicked };
+      } catch {
+        // 해당 셀/문단에 더 깊은 중첩 표가 없으면 다음 controlIndex를 검사한다.
+      }
+    }
+
+    return null;
+  }
+
+  private withCorrectedCellPath(
+    hit: DocumentPosition,
+    correctedPath: CellPathEntry[],
+    clicked: CellBbox,
+    pageIdx?: number,
+  ): DocumentPosition {
+    const outer = correctedPath[0];
+    const corrected: DocumentPosition = {
+      ...hit,
+      charOffset: 0,
+      controlIndex: outer.controlIndex,
+      cellIndex: outer.cellIndex,
+      cellParaIndex: outer.cellParaIndex,
+      cellPath: correctedPath,
+    };
+
+    try {
+      corrected.cursorRect = this.wasm.getCursorRectByPath(
+        hit.sectionIndex,
+        hit.parentParaIndex!,
+        JSON.stringify(correctedPath),
+        0,
+      );
+    } catch {
+      corrected.cursorRect = {
+        pageIndex: pageIdx ?? clicked.pageIndex,
+        x: clicked.x + 2,
+        y: clicked.y + 2,
+        height: Math.max(4, clicked.h - 4),
+      };
+    }
+    return corrected;
+  }
+
+  /** 표 ref의 페이지별 합산 bbox를 반환한다. 중첩 표는 cellPath 기반으로 계산한다. */
+  private getTableObjectBBox(
+    ref: { sec: number; ppi: number; ci: number; cellPath?: CellPathEntry[] },
+    pageHint?: number,
+  ): { pageIndex: number; x: number; y: number; width: number; height: number } | null {
+    if (ref.cellPath && ref.cellPath.length > 1) {
+      const bboxes = this.wasm.getTableCellBboxesByPath(ref.sec, ref.ppi, JSON.stringify(ref.cellPath));
+      const pageCells = pageHint === undefined
+        ? bboxes
+        : bboxes.filter((bbox) => bbox.pageIndex === pageHint);
+      if (pageCells.length === 0) return null;
+      let minX = Number.POSITIVE_INFINITY;
+      let minY = Number.POSITIVE_INFINITY;
+      let maxX = Number.NEGATIVE_INFINITY;
+      let maxY = Number.NEGATIVE_INFINITY;
+      let pageIndex = pageCells[0].pageIndex;
+      for (const bbox of pageCells) {
+        pageIndex = bbox.pageIndex;
+        minX = Math.min(minX, bbox.x);
+        minY = Math.min(minY, bbox.y);
+        maxX = Math.max(maxX, bbox.x + bbox.w);
+        maxY = Math.max(maxY, bbox.y + bbox.h);
+      }
+      return {
+        pageIndex,
+        x: minX,
+        y: minY,
+        width: maxX - minX,
+        height: maxY - minY,
+      };
+    }
+    return this.wasm.getTableBBox(ref.sec, ref.ppi, ref.ci);
+  }
+
+  private isPointNearTableBBoxBorder(
+    pageX: number,
+    pageY: number,
+    bbox: { x: number; y: number; width: number; height: number },
+    tolerance = 5,
+  ): boolean {
+    const nearLeft = Math.abs(pageX - bbox.x) <= tolerance;
+    const nearRight = Math.abs(pageX - (bbox.x + bbox.width)) <= tolerance;
+    const nearTop = Math.abs(pageY - bbox.y) <= tolerance;
+    const nearBottom = Math.abs(pageY - (bbox.y + bbox.height)) <= tolerance;
+    const inVertRange = pageY >= bbox.y - tolerance && pageY <= bbox.y + bbox.height + tolerance;
+    const inHorzRange = pageX >= bbox.x - tolerance && pageX <= bbox.x + bbox.width + tolerance;
+    return (nearLeft && inVertRange) || (nearRight && inVertRange) ||
+           (nearTop && inHorzRange) || (nearBottom && inHorzRange);
+  }
+
+  private isPointInsideTableBBox(
+    pageX: number,
+    pageY: number,
+    bbox: { x: number; y: number; width: number; height: number },
+    tolerance = 5,
+  ): boolean {
+    return pageX >= bbox.x - tolerance &&
+      pageX <= bbox.x + bbox.width + tolerance &&
+      pageY >= bbox.y - tolerance &&
+      pageY <= bbox.y + bbox.height + tolerance;
+  }
+
+  private findNestedTableBorderInPath(
+    hit: DocumentPosition,
+    basePath: CellPathEntry[],
+    pageX: number,
+    pageY: number,
+    pageIdx?: number,
+  ): { ref: { sec: number; ppi: number; ci: number; cellPath: CellPathEntry[] }; area: number } | null {
+    if (basePath.length >= 8 || hit.parentParaIndex === undefined || hit.controlIndex === undefined) {
+      return null;
+    }
+
+    let best: { ref: { sec: number; ppi: number; ci: number; cellPath: CellPathEntry[] }; area: number } | null = null;
+    for (let nestedControlIndex = 0; nestedControlIndex < 8; nestedControlIndex += 1) {
+      const candidatePath: CellPathEntry[] = [
+        ...basePath,
+        { controlIndex: nestedControlIndex, cellIndex: 0, cellParaIndex: 0 },
+      ];
+      try {
+        const bbox = this.getTableObjectBBox(
+          { sec: hit.sectionIndex, ppi: hit.parentParaIndex, ci: hit.controlIndex, cellPath: candidatePath },
+          pageIdx,
+        );
+        if (!bbox || !this.isPointInsideTableBBox(pageX, pageY, bbox)) continue;
+
+        const deeper = this.findNestedTableBorderInPath(hit, candidatePath, pageX, pageY, pageIdx);
+        if (deeper && (!best || deeper.area < best.area)) {
+          best = deeper;
+        }
+
+        if (this.isPointNearTableBBoxBorder(pageX, pageY, bbox)) {
+          const area = bbox.width * bbox.height;
+          if (!best || area < best.area) {
+            best = {
+              ref: { sec: hit.sectionIndex, ppi: hit.parentParaIndex, ci: hit.controlIndex, cellPath: candidatePath },
+              area,
+            };
+          }
+        }
+      } catch {
+        // 해당 cellPath 아래에 중첩 표가 없으면 다음 controlIndex 후보를 검사한다.
+      }
+    }
+    return best;
+  }
+
+  private findNestedTableBorderHitFromPoint(
+    hit: DocumentPosition | null,
+    pageX: number,
+    pageY: number,
+    pageIdx?: number,
+  ): { sec: number; ppi: number; ci: number; cellPath?: CellPathEntry[] } | null {
+    if (!hit || hit.parentParaIndex === undefined || hit.controlIndex === undefined || hit.isTextBox) {
+      return null;
+    }
+
+    try {
+      const dims = this.wasm.getTableDimensions(hit.sectionIndex, hit.parentParaIndex, hit.controlIndex);
+      const rawOuterCell = hit.cellPath?.[0]?.cellIndex ?? hit.cellIndex ?? 0;
+      const rawOuterCellPara = hit.cellPath?.[0]?.cellParaIndex ?? hit.cellParaIndex ?? 0;
+      const cellCount = Math.max(0, Number(dims.cellCount ?? 0));
+      const allCells = Array.from({ length: cellCount }, (_, index) => index);
+      const outerCandidates = rawOuterCell >= 0 && rawOuterCell < cellCount
+        ? [rawOuterCell, ...allCells.filter((index) => index !== rawOuterCell)]
+        : allCells;
+      const allCellParas = Array.from({ length: 8 }, (_, index) => index);
+      const cellParaCandidates = Number.isFinite(rawOuterCellPara) && rawOuterCellPara >= 0
+        ? [rawOuterCellPara, ...allCellParas.filter((index) => index !== rawOuterCellPara)]
+        : allCellParas;
+
+      let best: { ref: { sec: number; ppi: number; ci: number; cellPath: CellPathEntry[] }; area: number } | null = null;
+      for (const outerCellIndex of outerCandidates) {
+        for (const outerCellParaIndex of cellParaCandidates) {
+          const nested = this.findNestedTableBorderInPath(
+            hit,
+            [{ controlIndex: hit.controlIndex, cellIndex: outerCellIndex, cellParaIndex: outerCellParaIndex }],
+            pageX,
+            pageY,
+            pageIdx,
+          );
+          if (nested && (!best || nested.area < best.area)) {
+            best = nested;
+          }
+        }
+      }
+      return best?.ref ?? null;
     } catch {
       return null;
     }
@@ -873,19 +1414,13 @@ export class InputHandler {
   private isTableBorderClick(
     pageX: number, pageY: number,
     sec: number, ppi: number, ci: number,
+    cellPath?: CellPathEntry[],
+    pageIdx?: number,
   ): boolean {
     try {
-      const bbox = this.wasm.getTableBBox(sec, ppi, ci);
-      const tolerance = 5; // 페이지 좌표 기준 px
-      const nearLeft = Math.abs(pageX - bbox.x) <= tolerance;
-      const nearRight = Math.abs(pageX - (bbox.x + bbox.width)) <= tolerance;
-      const nearTop = Math.abs(pageY - bbox.y) <= tolerance;
-      const nearBottom = Math.abs(pageY - (bbox.y + bbox.height)) <= tolerance;
-      // 세로 범위 내 좌/우 경계, 가로 범위 내 상/하 경계
-      const inVertRange = pageY >= bbox.y - tolerance && pageY <= bbox.y + bbox.height + tolerance;
-      const inHorzRange = pageX >= bbox.x - tolerance && pageX <= bbox.x + bbox.width + tolerance;
-      return (nearLeft && inVertRange) || (nearRight && inVertRange) ||
-             (nearTop && inHorzRange) || (nearBottom && inHorzRange);
+      const bbox = this.getTableObjectBBox({ sec, ppi, ci, cellPath }, pageIdx);
+      if (!bbox) return false;
+      return this.isPointNearTableBBoxBorder(pageX, pageY, bbox);
     } catch {
       return false;
     }
@@ -898,7 +1433,7 @@ export class InputHandler {
   private findTableByOuterClick(
     pageX: number, pageY: number,
     sec: number, paragraphIndex: number,
-  ): { sec: number; ppi: number; ci: number } | null {
+  ): { sec: number; ppi: number; ci: number; cellPath?: CellPathEntry[] } | null {
     // 현재 문단 및 인접 문단 (±2) 검사
     for (let offset = 0; offset <= 2; offset++) {
       const candidates = offset === 0
@@ -985,33 +1520,10 @@ export class InputHandler {
 
   /** 표 셀 내부 컨텍스트 메뉴 항목 */
   private getTableContextMenuItems(): ContextMenuItem[] {
-    return [
-      { type: 'command', commandId: 'edit:cut' },
-      { type: 'command', commandId: 'edit:copy' },
-      { type: 'command', commandId: 'edit:paste' },
-      { type: 'separator' },
-      { type: 'command', commandId: 'table:cell-props', label: '셀 속성...' },
-      { type: 'separator' },
-      { type: 'command', commandId: 'table:insert-row-above' },
-      { type: 'command', commandId: 'table:insert-row-below' },
-      { type: 'command', commandId: 'table:insert-col-left' },
-      { type: 'command', commandId: 'table:insert-col-right' },
-      { type: 'separator' },
-      { type: 'command', commandId: 'table:delete-row' },
-      { type: 'command', commandId: 'table:delete-col' },
-      { type: 'separator' },
-      { type: 'command', commandId: 'table:cell-merge' },
-      { type: 'command', commandId: 'table:cell-split' },
-      { type: 'separator' },
-      { type: 'command', commandId: 'table:border-each', label: '셀 테두리/배경 - 각 셀마다 적용(E)...' },
-      { type: 'command', commandId: 'table:border-one', label: '셀 테두리/배경 - 하나의 셀처럼 적용(Z)...' },
-      { type: 'separator' },
-      { type: 'command', commandId: 'table:caption-toggle', label: '캡션 넣기(A)' },
-      { type: 'separator' },
-      { type: 'command', commandId: 'table:formula', label: '계산식(F)...' },
-      { type: 'separator' },
-      { type: 'command', commandId: 'table:delete' },
-    ];
+    return buildTableContextMenuItems({
+      inCellSelection: this.cursor.isInCellSelectionMode(),
+      hasSelection: this.cursor.hasSelection(),
+    });
   }
 
   /** 일반 컨텍스트 메뉴 항목 */
@@ -1064,15 +1576,75 @@ export class InputHandler {
 
   /** 선택 범위에 글자 서식을 적용한다 */
   private applyCharFormat(props: Partial<CharProperties>): void {
+    if (this.cursor.isInCellSelectionMode()) {
+      this.applyCharFormatToSelectedCells(props);
+      return;
+    }
     const sel = this.cursor.getSelectionOrdered();
     if (!sel) return;
     const cmd = new ApplyCharFormatCommand(sel.start, sel.end, props);
     this.executeOperation({ kind: 'command', command: cmd });
   }
 
+  private applyCharFormatToSelectedCells(props: Partial<CharProperties>): boolean {
+    const range = this.cursor.getSelectedCellRange();
+    const ctx = this.cursor.getCellTableContext();
+    if (!range || !ctx) return false;
+
+    const propsJson = JSON.stringify(props);
+    try {
+      const excluded = this.cursor.getExcludedCells();
+      const selectedCells = this.getTableBboxesForText(ctx)
+        .filter((bbox) => this.isCellBboxSelected(bbox, range, excluded));
+      if (selectedCells.length === 0) return false;
+
+      this.executeOperation({
+        kind: 'snapshot',
+        operationType: 'applyCharFormatCells',
+        operation: (wasm: WasmBridge) => {
+          for (const cell of selectedCells) {
+            if (ctx.cellPath && ctx.cellPath.length > 1) {
+              const basePath = ctx.cellPath.map((entry, index) =>
+                index < ctx.cellPath!.length - 1
+                  ? entry
+                  : { ...entry, cellIndex: cell.cellIdx, cellParaIndex: 0 },
+              );
+              const paraCount = wasm.getCellParagraphCountByPath(ctx.sec, ctx.ppi, JSON.stringify(basePath));
+              for (let cp = 0; cp < paraCount; cp += 1) {
+                const paraPath = basePath.map((entry, index) =>
+                  index < basePath.length - 1 ? entry : { ...entry, cellParaIndex: cp },
+                );
+                const len = wasm.getCellParagraphLengthByPath(ctx.sec, ctx.ppi, JSON.stringify(paraPath));
+                if (len > 0) {
+                  wasm.applyCharFormatInCellByPath(
+                    ctx.sec, ctx.ppi, JSON.stringify(paraPath), 0, len, propsJson,
+                  );
+                }
+              }
+            } else {
+              const paraCount = wasm.getCellParagraphCount(ctx.sec, ctx.ppi, ctx.ci, cell.cellIdx);
+              for (let cp = 0; cp < paraCount; cp += 1) {
+                const len = wasm.getCellParagraphLength(ctx.sec, ctx.ppi, ctx.ci, cell.cellIdx, cp);
+                if (len > 0) {
+                  wasm.applyCharFormatInCell(ctx.sec, ctx.ppi, ctx.ci, cell.cellIdx, cp, 0, len, propsJson);
+                }
+              }
+            }
+          }
+          return this.cursor.getPosition();
+        },
+      });
+
+      return true;
+    } catch (err) {
+      console.warn('[InputHandler] applyCharFormatToSelectedCells 실패:', err);
+      return false;
+    }
+  }
+
   /** 토글 서식 적용 (상호 배타 처리 포함) */
   private applyToggleFormat(prop: 'bold' | 'italic' | 'underline' | 'strikethrough' | 'emboss' | 'engrave' | 'outline' | 'superscript' | 'subscript'): void {
-    if (!this.cursor.hasSelection()) return;
+    if (!this.cursor.hasSelection() && !this.cursor.isInCellSelectionMode()) return;
     const current = this.getCharPropertiesAtCursor();
 
     if (prop === 'emboss') {
@@ -1109,6 +1681,11 @@ export class InputHandler {
     // offset이 0이면 해당 위치, 아니면 offset-1 위치의 서식 반환 (커서 앞 글자 기준)
     const queryOffset = pos.charOffset > 0 ? pos.charOffset - 1 : 0;
     if (pos.parentParaIndex !== undefined) {
+      if (pos.cellPath && pos.cellPath.length > 1) {
+        return this.wasm.getCellCharPropertiesAtByPath(
+          pos.sectionIndex, pos.parentParaIndex, JSON.stringify(pos.cellPath), queryOffset,
+        );
+      }
       return this.wasm.getCellCharPropertiesAt(
         pos.sectionIndex, pos.parentParaIndex, pos.controlIndex!,
         pos.cellIndex!, pos.cellParaIndex!, queryOffset,
@@ -1122,10 +1699,78 @@ export class InputHandler {
     const pos = this.cursor.getPosition();
     const propsJson = JSON.stringify(props);
     try {
+      if (this.cursor.isInCellSelectionMode()) {
+        const range = this.cursor.getSelectedCellRange();
+        const ctx = this.cursor.getCellTableContext();
+        if (range && ctx) {
+          const excluded = this.cursor.getExcludedCells();
+          const bboxes = ctx.cellPath && ctx.cellPath.length > 1
+            ? this.wasm.getTableCellBboxesByPath(ctx.sec, ctx.ppi, JSON.stringify(ctx.cellPath))
+            : this.wasm.getTableCellBboxes(ctx.sec, ctx.ppi, ctx.ci);
+          const selectedCells = bboxes.filter((bbox) => {
+            const rowEnd = bbox.row + Math.max(1, bbox.rowSpan) - 1;
+            const colEnd = bbox.col + Math.max(1, bbox.colSpan) - 1;
+            const intersects =
+              bbox.row <= range.endRow && rowEnd >= range.startRow &&
+              bbox.col <= range.endCol && colEnd >= range.startCol;
+            if (!intersects) return false;
+            if (excluded.size === 0) return true;
+            for (let row = Math.max(bbox.row, range.startRow); row <= Math.min(rowEnd, range.endRow); row++) {
+              for (let col = Math.max(bbox.col, range.startCol); col <= Math.min(colEnd, range.endCol); col++) {
+                if (!excluded.has(`${row},${col}`)) return true;
+              }
+            }
+            return false;
+          });
+
+          if (selectedCells.length > 0) {
+            this.executeOperation({
+              kind: 'snapshot',
+              operationType: 'applyParaFormatCells',
+              operation: (wasm: WasmBridge) => {
+                for (const cell of selectedCells) {
+                  if (ctx.cellPath && ctx.cellPath.length > 1) {
+                    const basePath = ctx.cellPath.map((entry, index) =>
+                      index < ctx.cellPath!.length - 1
+                        ? entry
+                        : { ...entry, cellIndex: cell.cellIdx, cellParaIndex: 0 },
+                    );
+                    const paraCount = wasm.getCellParagraphCountByPath(ctx.sec, ctx.ppi, JSON.stringify(basePath));
+                    for (let cp = 0; cp < paraCount; cp++) {
+                      const paraPath = basePath.map((entry, index) =>
+                        index < basePath.length - 1 ? entry : { ...entry, cellParaIndex: cp },
+                      );
+                      wasm.applyParaFormatInCellByPath(ctx.sec, ctx.ppi, JSON.stringify(paraPath), propsJson);
+                    }
+                  } else {
+                    const paraCount = wasm.getCellParagraphCount(ctx.sec, ctx.ppi, ctx.ci, cell.cellIdx);
+                    for (let cp = 0; cp < paraCount; cp++) {
+                      wasm.applyParaFormatInCell(ctx.sec, ctx.ppi, ctx.ci, cell.cellIdx, cp, propsJson);
+                    }
+                  }
+                }
+                return this.cursor.getPosition();
+              },
+            });
+            return;
+          }
+        }
+      }
+
       if (pos.parentParaIndex !== undefined) {
         // 셀 내 선택이 있으면 선택 범위 내 모든 셀 문단에 적용
         const sel = this.cursor.getSelectionOrdered();
-        if (sel && sel.start.cellParaIndex !== undefined && sel.end.cellParaIndex !== undefined) {
+        const basePath = sel?.start.cellPath ?? pos.cellPath;
+        if (basePath && basePath.length > 1) {
+          const startPara = sel ? (this.getEffectiveCellParaIndex(sel.start) ?? 0) : (pos.cellPath?.[pos.cellPath.length - 1]?.cellParaIndex ?? 0);
+          const endPara = sel ? (this.getEffectiveCellParaIndex(sel.end) ?? startPara) : startPara;
+          for (let cp = startPara; cp <= endPara; cp++) {
+            const paraPath = basePath.map((entry, index) =>
+              index < basePath.length - 1 ? entry : { ...entry, cellParaIndex: cp },
+            );
+            this.wasm.applyParaFormatInCellByPath(pos.sectionIndex, pos.parentParaIndex, JSON.stringify(paraPath), propsJson);
+          }
+        } else if (sel && sel.start.cellParaIndex !== undefined && sel.end.cellParaIndex !== undefined) {
           for (let cp = sel.start.cellParaIndex; cp <= sel.end.cellParaIndex; cp++) {
             this.wasm.applyParaFormatInCell(
               pos.sectionIndex, pos.parentParaIndex, pos.controlIndex!,
@@ -1169,10 +1814,14 @@ export class InputHandler {
       const pos = this.cursor.getPosition();
       const inCell = pos.parentParaIndex !== undefined;
       const paraProps = inCell
-        ? this.wasm.getCellParaPropertiesAt(
-            pos.sectionIndex, pos.parentParaIndex!, pos.controlIndex!,
-            pos.cellIndex!, pos.cellParaIndex!,
-          )
+        ? (pos.cellPath && pos.cellPath.length > 1
+            ? this.wasm.getCellParaPropertiesAtByPath(
+                pos.sectionIndex, pos.parentParaIndex!, JSON.stringify(pos.cellPath),
+              )
+            : this.wasm.getCellParaPropertiesAt(
+                pos.sectionIndex, pos.parentParaIndex!, pos.controlIndex!,
+                pos.cellIndex!, pos.cellParaIndex!,
+              ))
         : this.wasm.getParaPropertiesAt(pos.sectionIndex, pos.paragraphIndex);
       this.eventBus.emit('cursor-para-changed', paraProps);
 
@@ -1225,9 +1874,13 @@ export class InputHandler {
     const sel = this.cursor.getSelectionOrdered();
     if (!sel) return;
 
-    const cmd = new DeleteSelectionCommand(sel.start, sel.end);
+    const { start, end } = sel;
     this.cursor.clearSelection();
-    this.executeOperation({ kind: 'command', command: cmd });
+    this.executeOperation({
+      kind: 'snapshot',
+      operationType: 'deleteSelection',
+      operation: (wasm) => new DeleteSelectionCommand(start, end).execute(wasm),
+    });
   }
 
   /** Undo 처리 */
@@ -1414,7 +2067,7 @@ export class InputHandler {
   }
 
   /** 클릭 좌표에서 같은 표 내 셀의 row/col을 반환한다. 다른 표이거나 셀이 아니면 null. */
-  private hitTestCellRowCol(e: MouseEvent): { row: number; col: number } | null {
+  private hitTestCellRowCol(e: MouseEvent): { row: number; col: number; rowSpan?: number; colSpan?: number } | null {
     const ctx = this.cursor.getCellTableContext();
     if (!ctx) return null;
     const zoom = this.viewportManager.getZoom();
@@ -1429,6 +2082,63 @@ export class InputHandler {
     const pageX = (contentX - pageLeft) / zoom;
     const pageY = (contentY - pageOffset) / zoom;
     try {
+      const bboxes = ctx.cellPath && ctx.cellPath.length > 1
+        ? this.wasm.getTableCellBboxesByPath(ctx.sec, ctx.ppi, JSON.stringify(ctx.cellPath))
+        : this.wasm.getTableCellBboxes(ctx.sec, ctx.ppi, ctx.ci);
+      const tolerance = 2 / Math.max(zoom, 0.001);
+      const pageBboxes = (bboxes as CellBbox[]).filter((box) => box.pageIndex === pageIdx);
+      const bbox = pageBboxes.find((box: any) =>
+        box.pageIndex === pageIdx &&
+        pageX >= box.x - tolerance &&
+        pageX <= box.x + box.w + tolerance &&
+        pageY >= box.y - tolerance &&
+        pageY <= box.y + box.h + tolerance
+      );
+      if (bbox) return { row: bbox.row, col: bbox.col, rowSpan: bbox.rowSpan, colSpan: bbox.colSpan };
+
+      if (pageBboxes.length > 0) {
+        const bounds = pageBboxes.reduce((acc, box) => ({
+          left: Math.min(acc.left, box.x),
+          top: Math.min(acc.top, box.y),
+          right: Math.max(acc.right, box.x + box.w),
+          bottom: Math.max(acc.bottom, box.y + box.h),
+        }), {
+          left: Number.POSITIVE_INFINITY,
+          top: Number.POSITIVE_INFINITY,
+          right: Number.NEGATIVE_INFINITY,
+          bottom: Number.NEGATIVE_INFINITY,
+        });
+        const dragTolerance = 10 / Math.max(zoom, 0.001);
+        const nearCurrentTable =
+          pageX >= bounds.left - dragTolerance &&
+          pageX <= bounds.right + dragTolerance &&
+          pageY >= bounds.top - dragTolerance &&
+          pageY <= bounds.bottom + dragTolerance;
+        if (!nearCurrentTable) return null;
+
+        let nearest: CellBbox | null = null;
+        let nearestDistance = Number.POSITIVE_INFINITY;
+        for (const box of pageBboxes) {
+          const clampedX = Math.max(box.x, Math.min(pageX, box.x + box.w));
+          const clampedY = Math.max(box.y, Math.min(pageY, box.y + box.h));
+          const dx = pageX - clampedX;
+          const dy = pageY - clampedY;
+          const distance = dx * dx + dy * dy;
+          if (distance < nearestDistance) {
+            nearestDistance = distance;
+            nearest = box;
+          }
+        }
+        if (nearest) return {
+          row: nearest.row,
+          col: nearest.col,
+          rowSpan: nearest.rowSpan,
+          colSpan: nearest.colSpan,
+        };
+      }
+
+      if (ctx.cellPath && ctx.cellPath.length > 1) return null;
+
       const hit = this.wasm.hitTest(pageIdx, pageX, pageY);
       // 같은 표인지 확인
       if (hit.parentParaIndex !== ctx.ppi || hit.controlIndex !== ctx.ci) return null;
@@ -1437,10 +2147,10 @@ export class InputHandler {
         // 중첩 표: 경로 기반으로 셀 정보 조회
         const pathJson = JSON.stringify(hit.cellPath);
         const info = this.wasm.getCellInfoByPath(ctx.sec, ctx.ppi, pathJson);
-        return { row: info.row, col: info.col };
+        return { row: info.row, col: info.col, rowSpan: info.rowSpan, colSpan: info.colSpan };
       }
       const info = this.wasm.getCellInfo(ctx.sec, ctx.ppi, ctx.ci, hit.cellIndex);
-      return { row: info.row, col: info.col };
+      return { row: info.row, col: info.col, rowSpan: info.rowSpan, colSpan: info.colSpan };
     } catch {
       return null;
     }
@@ -1485,27 +2195,47 @@ export class InputHandler {
     const zoom = this.viewportManager.getZoom();
 
     try {
-      let rects;
+      let rects: SelectionRect[];
       const startInCell = start.parentParaIndex !== undefined;
       const endInCell = end.parentParaIndex !== undefined;
 
-      if (startInCell && endInCell &&
-          start.parentParaIndex === end.parentParaIndex &&
-          start.controlIndex === end.controlIndex &&
-          start.cellIndex === end.cellIndex) {
+      if (this.isSameCellTextSelection(start, end)) {
         // 같은 셀 내부 선택
-        rects = this.wasm.getSelectionRectsInCell(
-          start.sectionIndex, start.parentParaIndex!, start.controlIndex!, start.cellIndex!,
-          start.cellParaIndex!, start.charOffset,
-          end.cellParaIndex!, end.charOffset,
-        );
+        try {
+          rects = this.getSelectionRectsInCellFromTextLayout(start, end);
+        } catch (e) {
+          console.warn('[InputHandler] 셀 텍스트 레이아웃 선택 계산 실패, WASM fallback 사용:', e);
+          rects = [];
+        }
+        if (rects.length === 0) {
+          rects = this.wasm.getSelectionRectsInCell(
+            start.sectionIndex, start.parentParaIndex!, start.controlIndex!, start.cellIndex!,
+            start.cellParaIndex!, start.charOffset,
+            end.cellParaIndex!, end.charOffset,
+          );
+        }
+      } else if (this.isSameTableTextSelection(start, end)) {
+        // 같은 표 안에서 셀/문단 경계를 넘는 텍스트 선택
+        rects = this.getSelectionRectsInTableFromTextLayout(start, end);
+        if (rects.length === 0) {
+          this.selectionRenderer.clear();
+          return;
+        }
       } else if (!startInCell && !endInCell) {
         // 본문 선택
-        rects = this.wasm.getSelectionRects(
-          start.sectionIndex,
-          start.paragraphIndex, start.charOffset,
-          end.paragraphIndex, end.charOffset,
-        );
+        try {
+          rects = this.getSelectionRectsInBodyFromTextLayout(start, end);
+        } catch (e) {
+          console.warn('[InputHandler] 본문 텍스트 레이아웃 선택 계산 실패, WASM fallback 사용:', e);
+          rects = [];
+        }
+        if (rects.length === 0) {
+          rects = this.wasm.getSelectionRects(
+            start.sectionIndex,
+            start.paragraphIndex, start.charOffset,
+            end.paragraphIndex, end.charOffset,
+          );
+        }
       } else {
         // 셀↔본문 또는 셀↔다른 셀 혼합 선택: 렌더링 생략
         this.selectionRenderer.clear();
@@ -1516,6 +2246,368 @@ export class InputHandler {
       console.warn('[InputHandler] getSelectionRects 실패:', e);
       this.selectionRenderer.clear();
     }
+  }
+
+  private getSelectionRectsInBodyFromTextLayout(
+    start: DocumentPosition,
+    end: DocumentPosition,
+  ): SelectionRect[] {
+    const pages = this.getPagesForBodyRange(start, end);
+    const rects: SelectionRect[] = [];
+    for (const pageIndex of pages) {
+      const layout = this.getCachedPageTextLayout(pageIndex);
+      rects.push(...selectionRectsFromBodyTextRuns(pageIndex, layout.runs, {
+        sectionIndex: start.sectionIndex,
+        startParagraphIndex: start.paragraphIndex,
+        startOffset: start.charOffset,
+        endParagraphIndex: end.paragraphIndex,
+        endOffset: end.charOffset,
+      }));
+    }
+    return rects;
+  }
+
+  private getSelectionRectsInCellFromTextLayout(
+    start: DocumentPosition,
+    end: DocumentPosition,
+  ): SelectionRect[] {
+    if (
+      start.parentParaIndex === undefined ||
+      start.controlIndex === undefined ||
+      start.cellIndex === undefined ||
+      this.getEffectiveCellParaIndex(start) === undefined ||
+      this.getEffectiveCellParaIndex(end) === undefined
+    ) {
+      return [];
+    }
+
+    const startCellParaIndex = this.getEffectiveCellParaIndex(start)!;
+    const endCellParaIndex = this.getEffectiveCellParaIndex(end)!;
+    const pages = this.getPagesForCell(start);
+    const rects: SelectionRect[] = [];
+    for (const pageIndex of pages) {
+      const layout = this.getCachedPageTextLayout(pageIndex);
+      rects.push(...selectionRectsFromCellTextRuns(pageIndex, layout.runs, {
+        sectionIndex: start.sectionIndex,
+        parentParaIndex: start.parentParaIndex,
+        controlIndex: start.controlIndex,
+        cellIndex: start.cellIndex,
+        cellPath: start.cellPath,
+        startCellParaIndex,
+        startOffset: start.charOffset,
+        endCellParaIndex,
+        endOffset: end.charOffset,
+      }));
+    }
+    return rects;
+  }
+
+  private getSelectionRectsInTableFromTextLayout(
+    start: DocumentPosition,
+    end: DocumentPosition,
+  ): SelectionRect[] {
+    const rangeStart = this.getCellTextOrder(start);
+    const rangeEnd = this.getCellTextOrder(end);
+    if (!rangeStart || !rangeEnd) return [];
+
+    const pages = this.getPagesForTableRange(start, end);
+    const rects: SelectionRect[] = [];
+
+    for (const pageIndex of pages) {
+      const layout = this.getCachedPageTextLayout(pageIndex);
+      for (const run of layout.runs) {
+        if (!this.isRunInSameTableSelection(run, start)) continue;
+
+        const runOrder = this.getRunCellTextOrder(run, start);
+        const charStart = run.charStart;
+        if (!runOrder || charStart === undefined) continue;
+
+        const textLength = Array.from(run.text).length;
+        if (textLength <= 0) continue;
+
+        const runStart = { ...runOrder, charOffset: charStart };
+        const runEnd = { ...runOrder, charOffset: charStart + textLength };
+        if (
+          this.compareCellTextOrder(runEnd, rangeStart) <= 0 ||
+          this.compareCellTextOrder(runStart, rangeEnd) >= 0
+        ) {
+          continue;
+        }
+
+        const selectedStart = this.isSameCellTextParagraph(runOrder, rangeStart)
+          ? rangeStart.charOffset
+          : 0;
+        const selectedEnd = this.isSameCellTextParagraph(runOrder, rangeEnd)
+          ? rangeEnd.charOffset
+          : Number.MAX_SAFE_INTEGER;
+        const localStart = Math.max(selectedStart, charStart) - charStart;
+        const localEnd = Math.min(selectedEnd, charStart + textLength) - charStart;
+        if (localEnd <= localStart) continue;
+
+        const left = run.x + this.runOffsetToX(run, localStart, textLength);
+        const right = run.x + this.runOffsetToX(run, localEnd, textLength);
+        const x = Math.min(left, right);
+        const width = Math.abs(right - left);
+        if (width <= 0.01 || run.h <= 0) continue;
+
+        rects.push({
+          pageIndex,
+          x,
+          y: run.y,
+          width,
+          height: run.h,
+        });
+      }
+    }
+
+    return rects;
+  }
+
+  private getCachedPageTextLayout(pageIndex: number): PageTextLayout {
+    const cached = this.pageTextLayoutCache.get(pageIndex);
+    if (cached) return cached;
+    const layout = this.wasm.getPageTextLayout(pageIndex);
+    this.pageTextLayoutCache.set(pageIndex, layout);
+    return layout;
+  }
+
+  private getEffectiveCellParaIndex(pos: DocumentPosition): number | undefined {
+    const path = pos.cellPath;
+    if (path && path.length > 1) {
+      return path[path.length - 1]?.cellParaIndex;
+    }
+    return pos.cellParaIndex;
+  }
+
+  private isSameCellTextSelection(start: DocumentPosition, end: DocumentPosition): boolean {
+    if (start.parentParaIndex === undefined || end.parentParaIndex === undefined) return false;
+    if (start.parentParaIndex !== end.parentParaIndex || start.controlIndex !== end.controlIndex) return false;
+
+    const startPath = start.cellPath;
+    const endPath = end.cellPath;
+    if (startPath?.length || endPath?.length) {
+      if (!startPath || !endPath || startPath.length !== endPath.length) return false;
+      return startPath.every((entry, index) => {
+        const endEntry = endPath[index];
+        return endEntry?.controlIndex === entry.controlIndex &&
+          endEntry.cellIndex === entry.cellIndex;
+      });
+    }
+
+    return start.cellIndex !== undefined &&
+      end.cellIndex !== undefined &&
+      start.cellIndex === end.cellIndex;
+  }
+
+  private isSameTableTextSelection(start: DocumentPosition, end: DocumentPosition): boolean {
+    if (
+      start.parentParaIndex === undefined ||
+      end.parentParaIndex === undefined ||
+      start.controlIndex === undefined ||
+      end.controlIndex === undefined ||
+      start.isTextBox ||
+      end.isTextBox
+    ) {
+      return false;
+    }
+    if (start.parentParaIndex !== end.parentParaIndex || start.controlIndex !== end.controlIndex) {
+      return false;
+    }
+
+    const startDepth = start.cellPath?.length ?? 0;
+    const endDepth = end.cellPath?.length ?? 0;
+    if (startDepth <= 1 && endDepth <= 1) return true;
+    if (startDepth !== endDepth || !start.cellPath || !end.cellPath) return false;
+
+    for (let index = 0; index < startDepth - 1; index += 1) {
+      const left = start.cellPath[index];
+      const right = end.cellPath[index];
+      if (
+        left?.controlIndex !== right?.controlIndex ||
+        left?.cellIndex !== right?.cellIndex ||
+        left?.cellParaIndex !== right?.cellParaIndex
+      ) {
+        return false;
+      }
+    }
+
+    const startLast = start.cellPath[startDepth - 1];
+    const endLast = end.cellPath[endDepth - 1];
+    return startLast?.controlIndex === endLast?.controlIndex &&
+      startLast?.cellParaIndex === endLast?.cellParaIndex;
+  }
+
+  private isRunInSameTableSelection(run: TextLayoutRun, anchor: DocumentPosition): boolean {
+    if (
+      run.secIdx !== anchor.sectionIndex ||
+      run.parentParaIdx !== anchor.parentParaIndex
+    ) {
+      return false;
+    }
+
+    const depth = anchor.cellPath?.length ?? 0;
+    if (depth <= 1) {
+      return run.controlIdx === anchor.controlIndex && (run.cellPath?.length ?? 0) <= 1;
+    }
+
+    if (!run.cellPath || !anchor.cellPath || run.cellPath.length !== depth) return false;
+    for (let index = 0; index < depth - 1; index += 1) {
+      const runEntry = run.cellPath[index];
+      const anchorEntry = anchor.cellPath[index];
+      if (
+        runEntry?.controlIndex !== anchorEntry?.controlIndex ||
+        runEntry?.cellIndex !== anchorEntry?.cellIndex ||
+        runEntry?.cellParaIndex !== anchorEntry?.cellParaIndex
+      ) {
+        return false;
+      }
+    }
+
+    const runLast = run.cellPath[depth - 1];
+    const anchorLast = anchor.cellPath[depth - 1];
+    return runLast?.controlIndex === anchorLast?.controlIndex &&
+      runLast?.cellParaIndex === anchorLast?.cellParaIndex;
+  }
+
+  private getCellTextOrder(pos: DocumentPosition): { cellIndex: number; cellParaIndex: number; charOffset: number } | null {
+    if (pos.parentParaIndex === undefined || pos.controlIndex === undefined) return null;
+    const path = pos.cellPath;
+    if (path?.length) {
+      const last = path[path.length - 1];
+      if (last?.cellIndex === undefined || last.cellParaIndex === undefined) return null;
+      return {
+        cellIndex: last.cellIndex,
+        cellParaIndex: last.cellParaIndex,
+        charOffset: pos.charOffset,
+      };
+    }
+    if (pos.cellIndex === undefined || pos.cellParaIndex === undefined) return null;
+    return {
+      cellIndex: pos.cellIndex,
+      cellParaIndex: pos.cellParaIndex,
+      charOffset: pos.charOffset,
+    };
+  }
+
+  private getRunCellTextOrder(
+    run: TextLayoutRun,
+    anchor: DocumentPosition,
+  ): { cellIndex: number; cellParaIndex: number; charOffset: number } | null {
+    const depth = anchor.cellPath?.length ?? 0;
+    if (depth > 0) {
+      const entry = run.cellPath?.[depth - 1];
+      if (entry?.cellIndex === undefined || entry.cellParaIndex === undefined) return null;
+      return {
+        cellIndex: entry.cellIndex,
+        cellParaIndex: entry.cellParaIndex,
+        charOffset: run.charStart ?? 0,
+      };
+    }
+    if (run.cellIdx === undefined || run.cellParaIdx === undefined) return null;
+    return {
+      cellIndex: run.cellIdx,
+      cellParaIndex: run.cellParaIdx,
+      charOffset: run.charStart ?? 0,
+    };
+  }
+
+  private compareCellTextOrder(
+    a: { cellIndex: number; cellParaIndex: number; charOffset: number },
+    b: { cellIndex: number; cellParaIndex: number; charOffset: number },
+  ): number {
+    if (a.cellIndex !== b.cellIndex) return a.cellIndex < b.cellIndex ? -1 : 1;
+    if (a.cellParaIndex !== b.cellParaIndex) return a.cellParaIndex < b.cellParaIndex ? -1 : 1;
+    if (a.charOffset !== b.charOffset) return a.charOffset < b.charOffset ? -1 : 1;
+    return 0;
+  }
+
+  private isSameCellTextParagraph(
+    a: { cellIndex: number; cellParaIndex: number },
+    b: { cellIndex: number; cellParaIndex: number },
+  ): boolean {
+    return a.cellIndex === b.cellIndex && a.cellParaIndex === b.cellParaIndex;
+  }
+
+  private runOffsetToX(run: TextLayoutRun, localOffset: number, textLength: number): number {
+    if (localOffset <= 0) return 0;
+    if (localOffset >= textLength) return run.w;
+    const position = run.charX[localOffset];
+    if (Number.isFinite(position)) return position;
+    const fallback = run.charX[run.charX.length - 1];
+    return Number.isFinite(fallback) ? fallback : run.w;
+  }
+
+  private getPagesForBodyRange(start: DocumentPosition, end: DocumentPosition): number[] {
+    const pages = new Set<number>();
+    const pageCount = this.wasm.pageCount;
+
+    for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
+      const layout = this.getCachedPageTextLayout(pageIndex);
+      if (layout.runs.some((run) =>
+        run.secIdx === start.sectionIndex &&
+        run.paraIdx !== undefined &&
+        run.parentParaIdx === undefined &&
+        !run.cellPath?.length &&
+        run.paraIdx >= start.paragraphIndex &&
+        run.paraIdx <= end.paragraphIndex
+      )) {
+        pages.add(pageIndex);
+      }
+    }
+
+    const startPage = start.cursorRect?.pageIndex;
+    const endPage = end.cursorRect?.pageIndex ?? this.cursor.getRect()?.pageIndex;
+    if (startPage !== undefined) pages.add(startPage);
+    if (endPage !== undefined) pages.add(endPage);
+    return [...pages].sort((a, b) => a - b);
+  }
+
+  private getPagesForTableRange(start: DocumentPosition, end: DocumentPosition): number[] {
+    const pages = new Set<number>();
+    const pageCount = this.wasm.pageCount;
+
+    for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
+      const layout = this.getCachedPageTextLayout(pageIndex);
+      if (layout.runs.some((run) => this.isRunInSameTableSelection(run, start))) {
+        pages.add(pageIndex);
+      }
+    }
+
+    const startPage = start.cursorRect?.pageIndex;
+    const endPage = end.cursorRect?.pageIndex ?? this.cursor.getRect()?.pageIndex;
+    if (startPage !== undefined) pages.add(startPage);
+    if (endPage !== undefined) pages.add(endPage);
+    return [...pages].sort((a, b) => a - b);
+  }
+
+  private getPagesForCell(pos: DocumentPosition): number[] {
+    const pages = new Set<number>();
+    if (
+      pos.parentParaIndex === undefined ||
+      pos.controlIndex === undefined ||
+      pos.cellIndex === undefined
+    ) {
+      return [];
+    }
+
+    try {
+      const depth = pos.cellPath?.length ?? 0;
+      const bboxes = depth > 1 && pos.cellPath
+        ? this.wasm.getTableCellBboxesByPath(pos.sectionIndex, pos.parentParaIndex, JSON.stringify(pos.cellPath))
+        : this.wasm.getTableCellBboxes(pos.sectionIndex, pos.parentParaIndex, pos.controlIndex);
+      const targetCellIdx = depth > 1 && pos.cellPath
+        ? pos.cellPath[pos.cellPath.length - 1].cellIndex
+        : pos.cellIndex;
+      for (const bbox of bboxes) {
+        if (bbox.cellIdx === targetCellIdx) pages.add(bbox.pageIndex);
+      }
+    } catch {
+      // fallback below
+    }
+
+    const cursorPage = pos.cursorRect?.pageIndex ?? this.cursor.getRect()?.pageIndex;
+    if (cursorPage !== undefined) pages.add(cursorPage);
+    return [...pages].sort((a, b) => a - b);
   }
 
   /** 표 객체 선택 시 외곽선 + 핸들을 렌더링한다 */
@@ -1576,24 +2668,24 @@ export class InputHandler {
   }
 
   /** 선택된 그림/글상자의 bbox를 페이지 레이아웃에서 찾는다 */
-  private findPictureBbox(
-    ref: { sec: number; ppi: number; ci: number; type?: 'image' | 'shape' | 'equation' },
+	  private findPictureBbox(
+	    ref: { sec: number; ppi: number; ci: number; type?: 'image' | 'shape' | 'equation' | 'group' | 'line'; cellPath?: unknown[] },
   ): { pageIndex: number; x: number; y: number; w: number; h: number } | null {
     return _picture.findPictureBbox.call(this, ref);
   }
 
   /** 개체 속성을 타입에 따라 조회한다 (그림/글상자 분기) */
-  private getObjectProperties(ref: { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'equation' | 'group' }): any {
+	  private getObjectProperties(ref: { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'equation' | 'group' | 'line'; cellPath?: unknown[] }): any {
     return _picture.getObjectProperties.call(this, ref);
   }
 
   /** 개체 속성을 타입에 따라 변경한다 (그림/글상자 분기) */
-  private setObjectProperties(ref: { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'equation' | 'group' }, props: Record<string, unknown>): void {
+	  private setObjectProperties(ref: { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'equation' | 'group' | 'line'; cellPath?: unknown[] }, props: Record<string, unknown>): void {
     _picture.setObjectProperties.call(this, ref, props);
   }
 
   /** 개체를 타입에 따라 삭제한다 (그림/글상자 분기) */
-  private deleteObjectControl(ref: { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'equation' | 'group' }): void {
+	  private deleteObjectControl(ref: { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'equation' | 'group' | 'line'; cellPath?: unknown[] }): void {
     _picture.deleteObjectControl.call(this, ref);
   }
 
@@ -1661,29 +2753,21 @@ export class InputHandler {
 
   /** 셀 진입/탈출 시 투명선 자동 ON/OFF */
   private checkTransparentBordersTransition(): void {
-    const nowInCell = this.cursor.isInCell() && !this.cursor.isInTextBox();
-    if (nowInCell && !this.wasInCell) {
-      // 셀 밖 → 셀 진입: 자동 ON
-      if (!this.manualTransparentBorders) {
-        this.autoTransparentBorders = true;
-        this.wasm.setShowTransparentBorders(true);
-        document.querySelectorAll('[data-cmd="view:border-transparent"]').forEach(el => {
-          el.classList.add('active');
-        });
-        this.eventBus.emit('document-changed');
-      }
-    } else if (!nowInCell && this.wasInCell) {
-      // 셀 안 → 셀 탈출: 자동으로 켜진 경우에만 OFF
-      if (this.autoTransparentBorders && !this.manualTransparentBorders) {
-        this.autoTransparentBorders = false;
-        this.wasm.setShowTransparentBorders(false);
-        document.querySelectorAll('[data-cmd="view:border-transparent"]').forEach(el => {
-          el.classList.remove('active');
-        });
-        this.eventBus.emit('document-changed');
-      }
+    if (this.manualTransparentBorders) return;
+
+    if (this.autoTransparentBorders || this.wasm.getShowTransparentBorders()) {
+      this.setAutoTransparentBorders(false);
     }
-    this.wasInCell = nowInCell;
+    this.wasInCell = false;
+  }
+
+  private setAutoTransparentBorders(show: boolean): void {
+    this.autoTransparentBorders = show;
+    this.wasm.setShowTransparentBorders(show);
+    document.querySelectorAll('[data-cmd="view:border-transparent"]').forEach(el => {
+      el.classList.toggle('active', show);
+    });
+    this.eventBus.emit('document-changed');
   }
 
   /** 캐럿이 화면 밖이면 스크롤을 조정한다 */
@@ -1814,17 +2898,17 @@ export class InputHandler {
   isInPictureObjectSelection(): boolean { return this.cursor.isInPictureObjectSelection(); }
 
   /** 선택된 그림/글상자 참조 반환 */
-  getSelectedPictureRef(): { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'equation' | 'group' | 'line'; cellIdx?: number; cellParaIdx?: number } | null { return this.cursor.getSelectedPictureRef(); }
+  getSelectedPictureRef(): { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'equation' | 'group' | 'line'; cellIdx?: number; cellParaIdx?: number; cellPath?: unknown[] } | null { return this.cursor.getSelectedPictureRef(); }
 
   /** 다중 선택된 개체 목록 */
-  getSelectedPictureRefs(): { sec: number; ppi: number; ci: number; type: string }[] { return this.cursor.getSelectedPictureRefs(); }
+  getSelectedPictureRefs(): { sec: number; ppi: number; ci: number; type: string; cellPath?: unknown[] }[] { return this.cursor.getSelectedPictureRefs(); }
 
   /** 다중 선택 상태인가? */
   isMultiPictureSelection(): boolean { return this.cursor.isMultiPictureSelection(); }
 
   /** 지정 개체를 선택 상태로 진입 */
-  selectPictureObject(sec: number, ppi: number, ci: number, type: 'image' | 'shape' | 'equation' | 'group' | 'line'): void {
-    this.cursor.enterPictureObjectSelectionDirect(sec, ppi, ci, type);
+  selectPictureObject(sec: number, ppi: number, ci: number, type: 'image' | 'shape' | 'equation' | 'group' | 'line', cellPath?: unknown[]): void {
+    this.cursor.enterPictureObjectSelectionDirect(sec, ppi, ci, type, undefined, undefined, cellPath as any);
     this.renderPictureObjectSelection();
     this.eventBus.emit('picture-object-selection-changed', true);
   }
@@ -2028,6 +3112,13 @@ export class InputHandler {
     this.afterEdit();
   }
 
+  /** 선택된 표 밖의 안정적인 위치로 커서를 이동한다. */
+  moveOutOfSelectedTable(): DocumentPosition {
+    this.cursor.moveOutOfSelectedTable();
+    this.eventBus.emit('table-object-selection-changed', false);
+    return this.cursor.getPosition();
+  }
+
   /** 셀 선택 범위 반환 (셀 선택 모드가 아니면 null) */
   getSelectedCellRange() { return this.cursor.getSelectedCellRange(); }
 
@@ -2055,17 +3146,22 @@ export class InputHandler {
 
   /** 복사 (커맨드 시스템용 — 컨텍스트 메뉴/도구 상자에서 호출) */
   performCopy(): void {
+    if (this.cursor.isInCellSelectionMode()) {
+      this.copySelectedCellsToClipboard();
+      return;
+    }
     // 개체 선택 모드 → 직접 클립보드 기록 (textarea 포커스 불필요)
     if (this.cursor.isInPictureObjectSelection()) {
       const ref = this.cursor.getSelectedPictureRef();
       if (ref) {
         try {
-          this.wasm.copyControl(ref.sec, ref.ppi, ref.ci);
+          _keyboard.copySelectedObjectControl(this.wasm, ref as any);
           const text = this.wasm.getClipboardText() || '[그림]';
+          const controlPath = _keyboard.objectControlPath(ref as any);
           let html = '';
-          try { html = this.wasm.exportControlHtml(ref.sec, ref.ppi, ref.ci) || ''; } catch { /* 무시 */ }
+          try { html = controlPath ? (this.wasm.exportControlHtmlByPath(ref.sec, ref.ppi, JSON.stringify(controlPath)) || '') : (this.wasm.exportControlHtml(ref.sec, ref.ppi, ref.ci) || ''); } catch { /* 무시 */ }
           if (ref.type === 'image') {
-            _keyboard.writeImageToClipboard(this.wasm, ref.sec, ref.ppi, ref.ci, text, html)
+            _keyboard.writeImageToClipboard(this.wasm, ref.sec, ref.ppi, ref.ci, text, html, controlPath)
               .catch(() => navigator.clipboard.writeText(text).catch(() => {}));
           } else {
             navigator.clipboard.writeText(text).catch(() => {});
@@ -2080,7 +3176,7 @@ export class InputHandler {
       const ref = this.cursor.getSelectedTableRef();
       if (ref) {
         try {
-          this.wasm.copyControl(ref.sec, ref.ppi, ref.ci);
+          _keyboard.copySelectedTableControl(this.wasm, ref);
           const text = this.wasm.getClipboardText() || '[표]';
           navigator.clipboard.writeText(text).catch(() => {});
         } catch (err) {
@@ -2096,6 +3192,10 @@ export class InputHandler {
 
   /** 잘라내기 (커맨드 시스템용 — 컨텍스트 메뉴/도구 상자에서 호출) */
   performCut(): void {
+    if (this.cursor.isInCellSelectionMode()) {
+      void this.cutOrDeleteSelectedCells('cut');
+      return;
+    }
     // 개체 선택 모드 → 복사 + 삭제
     if (this.cursor.isInPictureObjectSelection()) {
       const ref = this.cursor.getSelectedPictureRef();
@@ -2107,9 +3207,13 @@ export class InputHandler {
         this.pictureObjectRenderer?.clear();
         this.eventBus.emit('picture-object-selection-changed', false);
         this.executeOperation({ kind: 'snapshot', operationType: 'cutObject', operation: (wasm: WasmBridge) => {
-          if (ref.type === 'image') {
-            wasm.deletePictureControl(ref.sec, ref.ppi, ref.ci);
-          } else {
+	          if (ref.type === 'image') {
+	            if (ref.cellPath?.length) {
+	              wasm.deletePictureControlByPath(ref.sec, ref.ppi, JSON.stringify(ref.cellPath), ref.ci);
+	            } else {
+	              wasm.deletePictureControl(ref.sec, ref.ppi, ref.ci);
+	            }
+	          } else {
             wasm.deleteShapeControl(ref.sec, ref.ppi, ref.ci);
           }
           return this.cursor.getPosition();
@@ -2124,7 +3228,7 @@ export class InputHandler {
         this.cursor.moveOutOfSelectedTable();
         this.eventBus.emit('table-object-selection-changed', false);
         this.executeOperation({ kind: 'snapshot', operationType: 'cutTable', operation: (wasm: WasmBridge) => {
-          wasm.deleteTableControl(ref.sec, ref.ppi, ref.ci);
+          _keyboard.deleteSelectedTableControl(wasm, ref);
           return this.cursor.getPosition();
         }});
       }
@@ -2133,6 +3237,277 @@ export class InputHandler {
     // 텍스트 선택 → textarea 포커스 후 execCommand
     this.focusTextarea();
     document.execCommand('cut');
+  }
+
+  /** 붙이기 (커맨드 시스템용 — 셀 클립보드가 있으면 표 내부 붙이기 우선). */
+  performPaste(): void {
+    if (this.performPasteSelectedCells()) return;
+    this.focusTextarea();
+    document.execCommand('paste');
+  }
+
+  /** 셀 선택 삭제 (키보드 Delete/Backspace 및 명령 공용). */
+  performDeleteSelectedCells(): void {
+    if (!this.cursor.isInCellSelectionMode()) return;
+    void this.cutOrDeleteSelectedCells('delete');
+  }
+
+  /** 선택된 셀 높이/너비를 같은 값으로 맞춘다. */
+  performEqualizeSelectedCellSize(axis: 'height' | 'width'): void {
+    const selection = this.getSelectedCellOperationTargets();
+    if (!selection || selection.bboxes.length < 2) return;
+    const { ctx, bboxes } = selection;
+
+    try {
+      const target = Math.max(...bboxes.map((bbox) => {
+        const props = this.getCellPropertiesForBBox(ctx, bbox.cellIdx);
+        return axis === 'height' ? props.height : props.width;
+      }));
+      const updates: Array<{ cellIdx: number; widthDelta?: number; heightDelta?: number }> = [];
+      for (const bbox of bboxes) {
+        const props = this.getCellPropertiesForBBox(ctx, bbox.cellIdx);
+        const delta = target - (axis === 'height' ? props.height : props.width);
+        if (delta === 0) continue;
+        updates.push(axis === 'height'
+          ? { cellIdx: bbox.cellIdx, heightDelta: delta }
+          : { cellIdx: bbox.cellIdx, widthDelta: delta });
+      }
+      if (updates.length === 0) return;
+
+      this.executeOperation({
+        kind: 'snapshot',
+        operationType: axis === 'height' ? 'equalizeSelectedCellHeights' : 'equalizeSelectedCellWidths',
+        operation: (wasm: WasmBridge) => {
+          if (ctx.cellPath && ctx.cellPath.length > 1) {
+            wasm.resizeTableCellsByPath(ctx.sec, ctx.ppi, JSON.stringify(ctx.cellPath), updates);
+          } else {
+            wasm.resizeTableCells(ctx.sec, ctx.ppi, ctx.ci, updates);
+          }
+          return this.cursor.getPosition();
+        },
+      });
+      this.updateCellSelection();
+    } catch (err) {
+      console.warn('[InputHandler] 셀 크기 같게 조정 실패:', err);
+    }
+  }
+
+  private async cutOrDeleteSelectedCells(action: 'cut' | 'delete'): Promise<void> {
+    const selection = this.getSelectedCellOperationTargets();
+    if (!selection) return;
+
+    if (action === 'cut') this.copySelectedCellsToClipboard(selection);
+
+    let plan = resolveCellCutDeletePlan({
+      isFullRowSelection: this.isFullRowCellSelection(selection),
+    });
+    if (plan === 'request-choice') {
+      const choice = await showCellDeleteChoiceDialog(action);
+      plan = resolveCellCutDeletePlan({ isFullRowSelection: true, choice });
+    }
+    if (plan === 'cancel') return;
+    if (plan === 'delete-cells') {
+      this.deleteSelectedCellRows(selection);
+      return;
+    }
+
+    this.clearSelectedCellContents(selection, action === 'cut' ? 'cutSelectedCellContents' : 'clearSelectedCellContents');
+  }
+
+  performPasteSelectedCells(): boolean {
+    if (!this.cellClipboard) return false;
+    const selection = this.getOrCreateCellPasteSelection();
+    if (!selection) return false;
+    void this.pasteCellClipboardIntoSelection(selection);
+    return true;
+  }
+
+  private getOrCreateCellPasteSelection(): CellOperationSelection | null {
+    if (!this.cursor.isInCellSelectionMode()) {
+      if (!this.cursor.isInCell()) return null;
+      if (!this.cursor.enterCellSelectionMode()) return null;
+      this.updateCellSelection();
+    }
+    return this.getSelectedCellOperationTargets();
+  }
+
+  private async pasteCellClipboardIntoSelection(selection: CellOperationSelection): Promise<void> {
+    const clipboard = this.cellClipboard;
+    if (!clipboard) return;
+    const choice = await showCellPasteChoiceDialog();
+    if (choice === 'cancel') return;
+
+    this.executeOperation({
+      kind: 'snapshot',
+      operationType: 'pasteSelectedCellContents',
+      operation: (wasm: WasmBridge) => {
+        for (const bbox of selection.bboxes) {
+          const text = this.getClipboardTextForCell(clipboard.rows, bbox, selection.range);
+          if (text === undefined) continue;
+          this.clearCellContent(wasm, selection.ctx, bbox.cellIdx);
+          this.insertCellText(wasm, selection.ctx, bbox.cellIdx, text);
+        }
+        return this.cursor.getPosition();
+      },
+    });
+    this.updateCellSelection();
+  }
+
+  private getClipboardTextForCell(
+    rows: string[][],
+    bbox: CellBbox,
+    range: { startRow: number; startCol: number },
+  ): string | undefined {
+    const rowOffset = bbox.row - range.startRow;
+    const colOffset = bbox.col - range.startCol;
+    const sourceRow = rows[rowOffset] ?? (rows.length === 1 ? rows[0] : undefined);
+    if (!sourceRow) return undefined;
+    const sourceText = sourceRow[colOffset] ?? (sourceRow.length === 1 ? sourceRow[0] : undefined);
+    return sourceText;
+  }
+
+  private getSelectedCellOperationTargets(): CellOperationSelection | null {
+    const range = this.cursor.getSelectedCellRange();
+    const ctx = this.cursor.getCellTableContext() as
+      | { sec: number; ppi: number; ci: number; rowCount?: number; colCount?: number; cellPath?: CellPathEntry[] }
+      | null;
+    if (!range || !ctx) return null;
+    const excluded = this.cursor.getExcludedCells();
+    const selectedBboxes = this.getTableBboxesForText(ctx)
+      .filter((bbox) => this.isCellBboxSelected(bbox, range, excluded))
+      .sort((a, b) => a.row - b.row || a.col - b.col || a.cellIdx - b.cellIdx);
+    const uniqueBboxes = new Map<number, CellBbox>();
+    for (const bbox of selectedBboxes) {
+      if (!uniqueBboxes.has(bbox.cellIdx)) uniqueBboxes.set(bbox.cellIdx, bbox);
+    }
+    const bboxes = [...uniqueBboxes.values()];
+    if (bboxes.length === 0) return null;
+    return { ctx, range, excluded, bboxes };
+  }
+
+  private isFullRowCellSelection(selection: {
+    ctx: { colCount?: number };
+    range: { startRow: number; startCol: number; endRow: number; endCol: number };
+    excluded: Set<string>;
+    bboxes: CellBbox[];
+  }): boolean {
+    return isFullRowCellSelectionCoverage({
+      colCount: selection.ctx.colCount,
+      range: selection.range,
+      excluded: selection.excluded,
+      bboxes: selection.bboxes,
+    });
+  }
+
+  private copySelectedCellsToClipboard(selection = this.getSelectedCellOperationTargets()): boolean {
+    if (!selection) return false;
+    const rows = new Map<number, Array<{ col: number; text: string }>>();
+    for (const bbox of selection.bboxes) {
+      const row = rows.get(bbox.row) ?? [];
+      row.push({ col: bbox.col, text: this.getCellFullText(selection.ctx, bbox.cellIdx) });
+      rows.set(bbox.row, row);
+    }
+    const matrix = [...rows.entries()]
+      .sort(([rowA], [rowB]) => rowA - rowB)
+      .map(([, cells]) => cells
+        .sort((a, b) => a.col - b.col)
+        .map((cell) => cell.text));
+    const text = matrix.map((row) => row.join('\t')).join('\n');
+    this.cellClipboard = { text, rows: matrix };
+    if (text) navigator.clipboard?.writeText(text).catch(() => {});
+    return true;
+  }
+
+  private clearSelectedCellContents(selection: CellOperationSelection, operationType: string): void {
+    const { ctx, bboxes } = selection;
+    this.executeOperation({
+      kind: 'snapshot',
+      operationType,
+      operation: (wasm: WasmBridge) => {
+        for (const bbox of bboxes) {
+          this.clearCellContent(wasm, ctx, bbox.cellIdx);
+        }
+        return this.cursor.getPosition();
+      },
+    });
+    this.updateCellSelection();
+  }
+
+  private deleteSelectedCellRows(selection: CellOperationSelection): void {
+    const { ctx, range } = selection;
+    this.executeOperation({
+      kind: 'snapshot',
+      operationType: 'deleteSelectedCellRows',
+      operation: (wasm: WasmBridge) => {
+        for (let row = range.endRow; row >= range.startRow; row -= 1) {
+          if (ctx.cellPath && ctx.cellPath.length > 1) {
+            wasm.deleteTableRowByPath(ctx.sec, ctx.ppi, JSON.stringify(ctx.cellPath), row);
+          } else {
+            wasm.deleteTableRow(ctx.sec, ctx.ppi, ctx.ci, row);
+          }
+        }
+        return this.cursor.getPosition();
+      },
+    });
+    this.cursor.exitCellSelectionMode();
+    this.cellSelectionRenderer?.clear();
+  }
+
+  private clearCellContent(
+    wasm: WasmBridge,
+    ctx: { sec: number; ppi: number; ci: number; cellPath?: CellPathEntry[] },
+    cellIdx: number,
+  ): void {
+    if (ctx.cellPath && ctx.cellPath.length > 1) {
+      const basePath = ctx.cellPath.map((entry, index) =>
+        index < ctx.cellPath!.length - 1 ? entry : { ...entry, cellIndex: cellIdx, cellParaIndex: 0 },
+      );
+      const paraCount = wasm.getCellParagraphCountByPath(ctx.sec, ctx.ppi, JSON.stringify(basePath));
+      for (let cp = paraCount - 1; cp >= 0; cp -= 1) {
+        const paraPath = basePath.map((entry, index) =>
+          index < basePath.length - 1 ? entry : { ...entry, cellParaIndex: cp },
+        );
+        const len = wasm.getCellParagraphLengthByPath(ctx.sec, ctx.ppi, JSON.stringify(paraPath));
+        if (len > 0) wasm.deleteTextInCellByPath(ctx.sec, ctx.ppi, JSON.stringify(paraPath), 0, len);
+      }
+      return;
+    }
+    const paraCount = wasm.getCellParagraphCount(ctx.sec, ctx.ppi, ctx.ci, cellIdx);
+    for (let cp = paraCount - 1; cp >= 0; cp -= 1) {
+      const len = wasm.getCellParagraphLength(ctx.sec, ctx.ppi, ctx.ci, cellIdx, cp);
+      if (len > 0) wasm.deleteTextInCell(ctx.sec, ctx.ppi, ctx.ci, cellIdx, cp, 0, len);
+    }
+  }
+
+  private insertCellText(
+    wasm: WasmBridge,
+    ctx: { sec: number; ppi: number; ci: number; cellPath?: CellPathEntry[] },
+    cellIdx: number,
+    text: string,
+  ): void {
+    const normalized = text.replace(/\r?\n/g, ' ');
+    if (!normalized) return;
+    if (ctx.cellPath && ctx.cellPath.length > 1) {
+      const path = ctx.cellPath.map((entry, index) =>
+        index < ctx.cellPath!.length - 1 ? entry : { ...entry, cellIndex: cellIdx, cellParaIndex: 0 },
+      );
+      wasm.insertTextInCellByPath(ctx.sec, ctx.ppi, JSON.stringify(path), 0, normalized);
+      return;
+    }
+    wasm.insertTextInCell(ctx.sec, ctx.ppi, ctx.ci, cellIdx, 0, 0, normalized);
+  }
+
+  private getCellPropertiesForBBox(
+    ctx: { sec: number; ppi: number; ci: number; cellPath?: CellPathEntry[] },
+    cellIdx: number,
+  ) {
+    if (ctx.cellPath && ctx.cellPath.length > 1) {
+      const path = ctx.cellPath.map((entry, index) =>
+        index < ctx.cellPath!.length - 1 ? entry : { ...entry, cellIndex: cellIdx, cellParaIndex: 0 },
+      );
+      return this.wasm.getCellPropertiesByPath(ctx.sec, ctx.ppi, JSON.stringify(path));
+    }
+    return this.wasm.getCellProperties(ctx.sec, ctx.ppi, ctx.ci, cellIdx);
   }
 
   /** 전체 선택 (커맨드 시스템용) */
@@ -2155,7 +3530,7 @@ export class InputHandler {
 
   /** 글꼴 크기 증감 (커맨드 시스템용, delta: HWPUNIT, 1pt=100) */
   adjustFontSize(delta: number): void {
-    if (!this.cursor.hasSelection()) return;
+    if (!this.cursor.hasSelection() && !this.cursor.isInCellSelectionMode()) return;
     const current = this.getCharPropertiesAtCursor();
     const newSize = Math.max(100, (current.fontSize ?? 1000) + delta); // 최소 1pt
     this.applyCharFormat({ fontSize: newSize });
@@ -2302,6 +3677,11 @@ export class InputHandler {
     }
     const pos = this.cursor.getPosition();
     if (pos.parentParaIndex !== undefined) {
+      if (pos.cellPath && pos.cellPath.length > 1) {
+        return this.wasm.getCellParaPropertiesAtByPath(
+          pos.sectionIndex, pos.parentParaIndex, JSON.stringify(pos.cellPath),
+        );
+      }
       return this.wasm.getCellParaPropertiesAt(
         pos.sectionIndex, pos.parentParaIndex, pos.controlIndex!,
         pos.cellIndex!, pos.cellParaIndex!,
@@ -2331,6 +3711,177 @@ export class InputHandler {
     return this.cursor.getSelectionOrdered();
   }
 
+  /** 현재 선택 영역의 텍스트 일부를 반환한다 (외부 확장/AI 메뉴용) */
+  getSelectedTextSnippet(maxChars = 240): string {
+    const tableSnippet = this.getSelectedTableOrCellsTextSnippet(maxChars);
+    if (tableSnippet) return tableSnippet;
+
+    const sel = this.cursor.getSelectionOrdered();
+    if (!sel || maxChars <= 0) return '';
+
+    const chunks: string[] = [];
+    let remaining = maxChars;
+    const append = (text: string): void => {
+      if (remaining <= 0 || !text) return;
+      const slice = text.slice(0, remaining);
+      chunks.push(slice);
+      remaining -= slice.length;
+    };
+
+    try {
+      const { start, end } = sel;
+      const isCellRange = this.isSameCellTextSelection(start, end);
+
+      if (isCellRange) {
+        const sec = start.sectionIndex;
+        const parentPara = start.parentParaIndex!;
+        const controlIdx = start.controlIndex!;
+        const cellIdx = start.cellIndex!;
+        const startPara = this.getEffectiveCellParaIndex(start) ?? 0;
+        const endPara = this.getEffectiveCellParaIndex(end) ?? startPara;
+        const basePath = start.cellPath;
+        for (let para = startPara; para <= endPara && remaining > 0; para += 1) {
+          const pathForPara = basePath && basePath.length > 1
+            ? basePath.map((entry, index) => (
+                index < basePath.length - 1 ? entry : { ...entry, cellParaIndex: para }
+              ))
+            : null;
+          const paraLen = pathForPara
+            ? this.wasm.getCellParagraphLengthByPath(sec, parentPara, JSON.stringify(pathForPara))
+            : this.wasm.getCellParagraphLength(sec, parentPara, controlIdx, cellIdx, para);
+          const from = para === startPara ? start.charOffset : 0;
+          const to = para === endPara ? end.charOffset : paraLen;
+          const text = pathForPara
+            ? this.wasm.getTextInCellByPath(sec, parentPara, JSON.stringify(pathForPara), from, Math.max(0, to - from))
+            : this.wasm.getTextInCell(sec, parentPara, controlIdx, cellIdx, para, from, Math.max(0, to - from));
+          append(text);
+          if (para < endPara) append('\n');
+        }
+        return chunks.join('').replace(/\s+/g, ' ').trim();
+      }
+
+      if (start.sectionIndex !== end.sectionIndex) return '';
+      for (let para = start.paragraphIndex; para <= end.paragraphIndex && remaining > 0; para += 1) {
+        const paraLen = this.wasm.getParagraphLength(start.sectionIndex, para);
+        const from = para === start.paragraphIndex ? start.charOffset : 0;
+        const to = para === end.paragraphIndex ? end.charOffset : paraLen;
+        append(this.wasm.getTextRange(start.sectionIndex, para, from, Math.max(0, to - from)));
+        if (para < end.paragraphIndex) append('\n');
+      }
+      return chunks.join('').replace(/\s+/g, ' ').trim();
+    } catch (e) {
+      console.warn('[InputHandler] 선택 텍스트 추출 실패:', e);
+      return '';
+    }
+  }
+
+  private getSelectedTableOrCellsTextSnippet(maxChars: number): string {
+    if (maxChars <= 0) return '';
+
+    try {
+      if (this.cursor.isInCellSelectionMode()) {
+        const ctx = this.cursor.getCellTableContext();
+        const range = this.cursor.getSelectedCellRange();
+        if (!ctx || !range) return '';
+        const excluded = this.cursor.getExcludedCells();
+        const bboxes = this.getTableBboxesForText(ctx)
+          .filter((bbox) => this.isCellBboxSelected(bbox, range, excluded));
+        return this.cellBboxesToDelimitedText(ctx, bboxes, maxChars);
+      }
+
+      if (this.cursor.isInTableObjectSelection()) {
+        const ref = this.cursor.getSelectedTableRef();
+        if (!ref) return '';
+        return this.cellBboxesToDelimitedText(ref, this.getTableBboxesForText(ref), maxChars);
+      }
+    } catch (e) {
+      console.warn('[InputHandler] 선택 표 텍스트 추출 실패:', e);
+    }
+    return '';
+  }
+
+  private getTableBboxesForText(ref: { sec: number; ppi: number; ci: number; cellPath?: CellPathEntry[] }): CellBbox[] {
+    return ref.cellPath && ref.cellPath.length > 1
+      ? this.wasm.getTableCellBboxesByPath(ref.sec, ref.ppi, JSON.stringify(ref.cellPath))
+      : this.wasm.getTableCellBboxes(ref.sec, ref.ppi, ref.ci);
+  }
+
+  private isCellBboxSelected(
+    bbox: CellBbox,
+    range: { startRow: number; startCol: number; endRow: number; endCol: number },
+    excluded: Set<string>,
+  ): boolean {
+    const rowEnd = bbox.row + Math.max(1, bbox.rowSpan) - 1;
+    const colEnd = bbox.col + Math.max(1, bbox.colSpan) - 1;
+    const intersects =
+      bbox.row <= range.endRow && rowEnd >= range.startRow &&
+      bbox.col <= range.endCol && colEnd >= range.startCol;
+    if (!intersects) return false;
+    if (excluded.size === 0) return true;
+    for (let row = Math.max(bbox.row, range.startRow); row <= Math.min(rowEnd, range.endRow); row++) {
+      for (let col = Math.max(bbox.col, range.startCol); col <= Math.min(colEnd, range.endCol); col++) {
+        if (!excluded.has(`${row},${col}`)) return true;
+      }
+    }
+    return false;
+  }
+
+  private cellBboxesToDelimitedText(
+    ref: { sec: number; ppi: number; ci: number; cellPath?: CellPathEntry[] },
+    bboxes: CellBbox[],
+    maxChars: number,
+  ): string {
+    const rows = new Map<number, Array<{ col: number; text: string }>>();
+    const sorted = [...bboxes].sort((a, b) => a.row - b.row || a.col - b.col || a.cellIdx - b.cellIdx);
+    for (const bbox of sorted) {
+      const text = this.getCellFullText(ref, bbox.cellIdx);
+      if (!text) continue;
+      const row = rows.get(bbox.row) ?? [];
+      row.push({ col: bbox.col, text });
+      rows.set(bbox.row, row);
+    }
+
+    const lines = [...rows.entries()]
+      .sort(([rowA], [rowB]) => rowA - rowB)
+      .map(([, cells]) => cells
+        .sort((a, b) => a.col - b.col)
+        .map((cell) => cell.text)
+        .join('\t'))
+      .filter(Boolean);
+    return lines.join('\n').slice(0, maxChars).trim();
+  }
+
+  private getCellFullText(
+    ref: { sec: number; ppi: number; ci: number; cellPath?: CellPathEntry[] },
+    cellIdx: number,
+  ): string {
+    const chunks: string[] = [];
+    if (ref.cellPath && ref.cellPath.length > 1) {
+      const basePath = ref.cellPath.map((entry, index) =>
+        index < ref.cellPath!.length - 1
+          ? entry
+          : { ...entry, cellIndex: cellIdx, cellParaIndex: 0 },
+      );
+      const paraCount = this.wasm.getCellParagraphCountByPath(ref.sec, ref.ppi, JSON.stringify(basePath));
+      for (let cp = 0; cp < paraCount; cp += 1) {
+        const paraPath = basePath.map((entry, index) =>
+          index < basePath.length - 1 ? entry : { ...entry, cellParaIndex: cp },
+        );
+        const len = this.wasm.getCellParagraphLengthByPath(ref.sec, ref.ppi, JSON.stringify(paraPath));
+        const text = this.wasm.getTextInCellByPath(ref.sec, ref.ppi, JSON.stringify(paraPath), 0, len).trim();
+        if (text) chunks.push(text);
+      }
+    } else {
+      const paraCount = this.wasm.getCellParagraphCount(ref.sec, ref.ppi, ref.ci, cellIdx);
+      for (let cp = 0; cp < paraCount; cp += 1) {
+        const len = this.wasm.getCellParagraphLength(ref.sec, ref.ppi, ref.ci, cellIdx, cp);
+        const text = this.wasm.getTextInCell(ref.sec, ref.ppi, ref.ci, cellIdx, cp, 0, len).trim();
+        if (text) chunks.push(text);
+      }
+    }
+    return chunks.join(' ').replace(/\s+/g, ' ').trim();
+  }
+
   /** 지정된 선택 범위에 글자 서식을 적용한다 (커맨드 시스템용) */
   applyCharPropsToRange(
     start: DocumentPosition,
@@ -2341,12 +3892,22 @@ export class InputHandler {
     this.executeOperation({ kind: 'command', command: cmd });
   }
 
+  /** 선택된 표 셀 전체에 글자 서식을 적용한다 (커맨드 시스템용) */
+  applyCharPropsToSelectedCells(props: Partial<CharProperties>): void {
+    this.applyCharFormatToSelectedCells(props);
+  }
+
   /** 지정된 선택 범위에 문단 서식을 적용한다 (커맨드 시스템용) */
   applyParaPropsToRange(
     start: DocumentPosition,
     end: DocumentPosition,
     props: Partial<ParaProperties>,
   ): void {
+    if (this.cursor.isInCellSelectionMode()) {
+      this.applyParaFormat(props as Record<string, unknown>);
+      return;
+    }
+
     const propsJson = JSON.stringify(props);
     try {
       // 머리말/꼬리말 모드
@@ -2360,10 +3921,24 @@ export class InputHandler {
         return;
       }
       if (start.parentParaIndex !== undefined) {
-        this.wasm.applyParaFormatInCell(
-          start.sectionIndex, start.parentParaIndex, start.controlIndex!,
-          start.cellIndex!, start.cellParaIndex!, propsJson,
-        );
+        const startPara = this.getEffectiveCellParaIndex(start) ?? 0;
+        const endPara = this.getEffectiveCellParaIndex(end) ?? startPara;
+        const basePath = start.cellPath;
+        for (let cp = startPara; cp <= endPara; cp += 1) {
+          if ((basePath?.length ?? 0) > 1) {
+            const paraPath = basePath!.map((entry, index) =>
+              index < basePath!.length - 1 ? entry : { ...entry, cellParaIndex: cp },
+            );
+            this.wasm.applyParaFormatInCellByPath(
+              start.sectionIndex, start.parentParaIndex, JSON.stringify(paraPath), propsJson,
+            );
+          } else {
+            this.wasm.applyParaFormatInCell(
+              start.sectionIndex, start.parentParaIndex, start.controlIndex!,
+              start.cellIndex!, cp, propsJson,
+            );
+          }
+        }
       } else {
         for (let p = start.paragraphIndex; p <= end.paragraphIndex; p++) {
           this.wasm.applyParaFormat(start.sectionIndex, p, propsJson);

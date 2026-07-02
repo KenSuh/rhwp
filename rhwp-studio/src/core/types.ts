@@ -189,6 +189,28 @@ export interface SelectionRect {
   height: number;
 }
 
+/** WASM getPageTextLayout() 반환 요소 */
+export interface TextLayoutRun {
+  text: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  charX: number[];
+  secIdx?: number;
+  paraIdx?: number;
+  charStart?: number;
+  parentParaIdx?: number;
+  controlIdx?: number;
+  cellIdx?: number;
+  cellParaIdx?: number;
+  cellPath?: CellPathEntry[];
+}
+
+export interface PageTextLayout {
+  runs: TextLayoutRun[];
+}
+
 /** 글자 서식 속성 (CharShape) */
 export interface CharProperties {
   fontFamily?: string;
@@ -380,7 +402,7 @@ export interface TableProperties {
 
 /** WASM getPageControlLayout() 반환 요소 */
 export interface ControlLayoutItem {
-  type: 'table' | 'image' | 'shape' | 'equation' | 'group';
+  type: 'table' | 'image' | 'shape' | 'equation' | 'group' | 'line';
   x: number;
   y: number;
   w: number;
@@ -388,10 +410,17 @@ export interface ControlLayoutItem {
   secIdx?: number;
   paraIdx?: number;
   controlIdx?: number;
+  parentParaIdx?: number;
   /** 표 셀 내 수식인 경우: 셀 인덱스 */
   cellIdx?: number;
   /** 표 셀 내 수식인 경우: 셀 내 문단 인덱스 */
   cellParaIdx?: number;
+  /** 표/중첩 표 내부 컨트롤인 경우: 최종 셀까지의 경로 */
+  cellPath?: CellPathEntry[];
+  x1?: number;
+  y1?: number;
+  x2?: number;
+  y2?: number;
 }
 
 /** 개체 참조 (그림/글상자 공용) */
@@ -399,11 +428,13 @@ export interface ObjectRef {
   sec: number;
   ppi: number;
   ci: number;
-  type: 'image' | 'shape' | 'equation' | 'group';
+  type: 'image' | 'shape' | 'equation' | 'group' | 'line';
   /** 표 셀 내 수식인 경우: 셀 인덱스 */
   cellIdx?: number;
   /** 표 셀 내 수식인 경우: 셀 내 문단 인덱스 */
   cellParaIdx?: number;
+  /** 표/중첩 표 내부 컨트롤인 경우: 최종 셀까지의 경로 */
+  cellPath?: CellPathEntry[];
 }
 
 /** WASM getShapeProperties() 반환 타입 */

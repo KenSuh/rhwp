@@ -12,6 +12,45 @@
 
 use rhwp::serializer::hwpx::roundtrip::roundtrip_ir_diff;
 
+fn section_texts(doc: &rhwp::model::document::Document) -> Vec<String> {
+    doc.sections
+        .iter()
+        .flat_map(|section| section.paragraphs.iter())
+        .map(|para| para.text.clone())
+        .collect()
+}
+
+fn first_table_location(doc: &rhwp::model::document::Document) -> Option<(usize, usize, usize)> {
+    for (section_idx, section) in doc.sections.iter().enumerate() {
+        for (para_idx, para) in section.paragraphs.iter().enumerate() {
+            for (ctrl_idx, ctrl) in para.controls.iter().enumerate() {
+                if matches!(ctrl, rhwp::model::control::Control::Table(_)) {
+                    return Some((section_idx, para_idx, ctrl_idx));
+                }
+            }
+        }
+    }
+    None
+}
+
+fn table_cell_texts(doc: &rhwp::model::document::Document) -> Vec<String> {
+    let mut texts = Vec::new();
+    for section in &doc.sections {
+        for para in &section.paragraphs {
+            for ctrl in &para.controls {
+                if let rhwp::model::control::Control::Table(table) = ctrl {
+                    for cell in &table.cells {
+                        for cell_para in &cell.paragraphs {
+                            texts.push(cell_para.text.clone());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    texts
+}
+
 #[test]
 fn stage0_blank_hwpx_roundtrip() {
     let bytes = include_bytes!("../samples/hwpx/blank_hwpx.hwpx");
@@ -79,8 +118,11 @@ fn stage5_ref_table_smoke() {
     }
     // 표가 section.xml 에 아직 출력되지 않으므로 IrDiff 가 있을 수 있다.
     // 단, 파싱·직렬화 자체는 성공해야 함 (크래시 금지).
-    assert!(diff.is_empty() || !diff.differences.is_empty(),
-        "ref_table roundtrip must not crash, diff={}", diff.differences.len());
+    assert!(
+        diff.is_empty() || !diff.differences.is_empty(),
+        "ref_table roundtrip must not crash, diff={}",
+        diff.differences.len()
+    );
 }
 
 #[test]
@@ -119,27 +161,51 @@ fn task177_lineseg_preserved_on_roundtrip_ref_text() {
 
     assert_eq!(doc1.sections.len(), doc2.sections.len());
     for (si, (s1, s2)) in doc1.sections.iter().zip(doc2.sections.iter()).enumerate() {
-        assert_eq!(s1.paragraphs.len(), s2.paragraphs.len(), "section {} paragraph count", si);
+        assert_eq!(
+            s1.paragraphs.len(),
+            s2.paragraphs.len(),
+            "section {} paragraph count",
+            si
+        );
         for (pi, (p1, p2)) in s1.paragraphs.iter().zip(s2.paragraphs.iter()).enumerate() {
             assert_eq!(
                 p1.line_segs.len(),
                 p2.line_segs.len(),
                 "section {} paragraph {} line_segs count",
-                si, pi,
+                si,
+                pi,
             );
             for (li, (l1, l2)) in p1.line_segs.iter().zip(p2.line_segs.iter()).enumerate() {
-                assert_eq!(l1.text_start, l2.text_start,
-                    "sec {} para {} lineseg {} text_start", si, pi, li);
-                assert_eq!(l1.vertical_pos, l2.vertical_pos,
-                    "sec {} para {} lineseg {} vertical_pos", si, pi, li);
-                assert_eq!(l1.line_height, l2.line_height,
-                    "sec {} para {} lineseg {} line_height", si, pi, li);
-                assert_eq!(l1.text_height, l2.text_height,
-                    "sec {} para {} lineseg {} text_height", si, pi, li);
-                assert_eq!(l1.baseline_distance, l2.baseline_distance,
-                    "sec {} para {} lineseg {} baseline_distance", si, pi, li);
-                assert_eq!(l1.line_spacing, l2.line_spacing,
-                    "sec {} para {} lineseg {} line_spacing", si, pi, li);
+                assert_eq!(
+                    l1.text_start, l2.text_start,
+                    "sec {} para {} lineseg {} text_start",
+                    si, pi, li
+                );
+                assert_eq!(
+                    l1.vertical_pos, l2.vertical_pos,
+                    "sec {} para {} lineseg {} vertical_pos",
+                    si, pi, li
+                );
+                assert_eq!(
+                    l1.line_height, l2.line_height,
+                    "sec {} para {} lineseg {} line_height",
+                    si, pi, li
+                );
+                assert_eq!(
+                    l1.text_height, l2.text_height,
+                    "sec {} para {} lineseg {} text_height",
+                    si, pi, li
+                );
+                assert_eq!(
+                    l1.baseline_distance, l2.baseline_distance,
+                    "sec {} para {} lineseg {} baseline_distance",
+                    si, pi, li
+                );
+                assert_eq!(
+                    l1.line_spacing, l2.line_spacing,
+                    "sec {} para {} lineseg {} line_spacing",
+                    si, pi, li
+                );
             }
         }
     }
@@ -160,8 +226,11 @@ fn task177_lineseg_preserved_on_roundtrip_ref_mixed() {
     let p2 = &doc2.sections[0].paragraphs[0];
     assert_eq!(p1.line_segs.len(), p2.line_segs.len());
     for (a, b) in p1.line_segs.iter().zip(p2.line_segs.iter()) {
-        assert_eq!(a.line_height, b.line_height,
-            "line_height 보존 실패: IR {} vs reparsed {}", a.line_height, b.line_height);
+        assert_eq!(
+            a.line_height, b.line_height,
+            "line_height 보존 실패: IR {} vs reparsed {}",
+            a.line_height, b.line_height
+        );
         assert_eq!(a.vertical_pos, b.vertical_pos);
     }
 }
@@ -182,19 +251,32 @@ fn task177_hwpx_02_regression() {
     let doc2 = parse_hwpx(&out).expect("reparse hwpx-02");
 
     // 섹션·문단 개수 보존
-    assert_eq!(doc1.sections.len(), doc2.sections.len(),
-        "hwpx-02 섹션 개수 불일치: {} vs {}", doc1.sections.len(), doc2.sections.len());
+    assert_eq!(
+        doc1.sections.len(),
+        doc2.sections.len(),
+        "hwpx-02 섹션 개수 불일치: {} vs {}",
+        doc1.sections.len(),
+        doc2.sections.len()
+    );
 
     // 첫 섹션의 문단별 line_segs 길이 일치 확인
     let s1 = &doc1.sections[0];
     let s2 = &doc2.sections[0];
-    assert_eq!(s1.paragraphs.len(), s2.paragraphs.len(),
-        "hwpx-02 문단 개수 불일치");
+    assert_eq!(
+        s1.paragraphs.len(),
+        s2.paragraphs.len(),
+        "hwpx-02 문단 개수 불일치"
+    );
 
     for (pi, (p1, p2)) in s1.paragraphs.iter().zip(s2.paragraphs.iter()).enumerate() {
-        assert_eq!(p1.line_segs.len(), p2.line_segs.len(),
+        assert_eq!(
+            p1.line_segs.len(),
+            p2.line_segs.len(),
             "hwpx-02 paragraph {} line_segs 길이 불일치: {} vs {}",
-            pi, p1.line_segs.len(), p2.line_segs.len());
+            pi,
+            p1.line_segs.len(),
+            p2.line_segs.len()
+        );
     }
 }
 
@@ -206,8 +288,8 @@ fn task177_hwpx_02_regression() {
 // 이 테스트는 cargo test --nocapture 로 돌려 수치를 관찰한다.
 
 fn count_validation_warnings(bytes: &[u8]) -> (usize, usize, usize, usize) {
-    use rhwp::document_core::DocumentCore;
     use rhwp::document_core::validation::WarningKind;
+    use rhwp::document_core::DocumentCore;
     let doc = DocumentCore::from_bytes(bytes).expect("load doc");
     let report = doc.validation_report();
     let mut empty = 0;
@@ -246,9 +328,15 @@ fn task177_hwpx_02_lineseg_histogram() {
                 paragraphs_with_segs += 1;
                 total_segs += p.line_segs.len();
                 for s in &p.line_segs {
-                    if s.line_height == 0 { zero_lh += 1; }
-                    if s.vertical_pos == 0 { zero_vpos += 1; }
-                    if s.segment_width == 0 { zero_sw += 1; }
+                    if s.line_height == 0 {
+                        zero_lh += 1;
+                    }
+                    if s.vertical_pos == 0 {
+                        zero_vpos += 1;
+                    }
+                    if s.segment_width == 0 {
+                        zero_sw += 1;
+                    }
                 }
             }
         }
@@ -267,28 +355,144 @@ fn task177_hwpx_02_lineseg_histogram() {
 #[test]
 fn task177_false_positive_measurement() {
     let samples = [
-        ("blank_hwpx", include_bytes!("../samples/hwpx/blank_hwpx.hwpx") as &[u8]),
-        ("ref_empty", include_bytes!("../samples/hwpx/ref/ref_empty.hwpx")),
-        ("ref_text", include_bytes!("../samples/hwpx/ref/ref_text.hwpx")),
-        ("ref_table", include_bytes!("../samples/hwpx/ref/ref_table.hwpx")),
-        ("ref_mixed", include_bytes!("../samples/hwpx/ref/ref_mixed.hwpx")),
+        (
+            "blank_hwpx",
+            include_bytes!("../samples/hwpx/blank_hwpx.hwpx") as &[u8],
+        ),
+        (
+            "ref_empty",
+            include_bytes!("../samples/hwpx/ref/ref_empty.hwpx"),
+        ),
+        (
+            "ref_text",
+            include_bytes!("../samples/hwpx/ref/ref_text.hwpx"),
+        ),
+        (
+            "ref_table",
+            include_bytes!("../samples/hwpx/ref/ref_table.hwpx"),
+        ),
+        (
+            "ref_mixed",
+            include_bytes!("../samples/hwpx/ref/ref_mixed.hwpx"),
+        ),
         ("hwpx-02", include_bytes!("../samples/hwpx/hwpx-02.hwpx")),
         ("form-002", include_bytes!("../samples/hwpx/form-002.hwpx")),
-        ("2025-q1", include_bytes!("../samples/hwpx/2025년 1분기 해외직접투자 보도자료f.hwpx")),
-        ("2025-q2", include_bytes!("../samples/hwpx/2025년 2분기 해외직접투자 (최종).hwpx")),
+        (
+            "2025-q1",
+            include_bytes!("../samples/hwpx/2025년 1분기 해외직접투자 보도자료f.hwpx"),
+        ),
+        (
+            "2025-q2",
+            include_bytes!("../samples/hwpx/2025년 2분기 해외직접투자 (최종).hwpx"),
+        ),
     ];
 
     eprintln!("\n=== #177 lineseg validation 경고 측정 ===");
-    eprintln!("{:<15} {:>8} {:>10} {:>11} {:>13}",
-        "sample", "total", "empty", "uncomputed", "textRunRefl");
+    eprintln!(
+        "{:<15} {:>8} {:>10} {:>11} {:>13}",
+        "sample", "total", "empty", "uncomputed", "textRunRefl"
+    );
     eprintln!("{}", "-".repeat(65));
     for (name, bytes) in samples {
         let (total, empty, uncomp, textrun) = count_validation_warnings(bytes);
-        eprintln!("{:<15} {:>8} {:>10} {:>11} {:>13}",
-            name, total, empty, uncomp, textrun);
+        eprintln!(
+            "{:<15} {:>8} {:>10} {:>11} {:>13}",
+            name, total, empty, uncomp, textrun
+        );
     }
     eprintln!();
 
     // assertion 없음 — 측정 결과는 기술문서에 기록
 }
 
+// ---------- Phase 1: edit → exportHwpx → reparse blocker smoke --------------
+// 상용화 blocker는 "열기만 되는가"가 아니라 "편집 후 저장하고 다시 열어도 결과가
+// 남는가"다. 이 테스트는 UI 저장 명령이 사용하는 동일한 export_hwpx_native 경로를
+// 네이티브에서 검증한다.
+
+#[test]
+fn phase1_body_text_edit_export_hwpx_reparse_smoke() {
+    use rhwp::document_core::DocumentCore;
+
+    let bytes = include_bytes!("../samples/hwpx/ref/ref_text.hwpx");
+    let mut core = DocumentCore::from_bytes(bytes).expect("load ref_text");
+    let before_section_count = core.document().sections.len();
+    let before_para_count = core.document().sections[0].paragraphs.len();
+    let marker = "[phase1-save-smoke]";
+
+    core.insert_text_native(0, 0, 0, marker)
+        .expect("insert marker");
+
+    let saved = core.export_hwpx_native().expect("export edited hwpx");
+    let reparsed = DocumentCore::from_bytes(&saved).expect("reparse edited hwpx");
+    let texts = section_texts(reparsed.document());
+
+    assert_eq!(
+        reparsed.document().sections.len(),
+        before_section_count,
+        "body edit save must not change section count",
+    );
+    assert_eq!(
+        reparsed.document().sections[0].paragraphs.len(),
+        before_para_count,
+        "body edit save must not change paragraph count",
+    );
+    assert!(
+        texts.iter().any(|text| text.contains(marker)),
+        "edited marker must survive exportHwpx/reparse; texts={:?}",
+        texts
+    );
+}
+
+#[test]
+fn phase1_table_cell_edit_export_hwpx_reparse_smoke() {
+    use rhwp::document_core::DocumentCore;
+
+    let bytes = include_bytes!("../samples/hwpx/ref/ref_table.hwpx");
+    let mut core = DocumentCore::from_bytes(bytes).expect("load ref_table");
+    let (section_idx, parent_para_idx, control_idx) =
+        first_table_location(core.document()).expect("ref_table must contain a table");
+    let before_table_texts = table_cell_texts(core.document());
+    let marker = "[phase1-cell-save-smoke]";
+
+    core.insert_text_in_cell_native(section_idx, parent_para_idx, control_idx, 0, 0, 0, marker)
+        .expect("insert marker in first table cell");
+
+    let saved = core.export_hwpx_native().expect("export edited table hwpx");
+    let reparsed = DocumentCore::from_bytes(&saved).expect("reparse edited table hwpx");
+    let after_table_texts = table_cell_texts(reparsed.document());
+
+    assert_eq!(
+        after_table_texts.len(),
+        before_table_texts.len(),
+        "table cell edit save must preserve top-level table cell paragraph count",
+    );
+    assert!(
+        after_table_texts.iter().any(|text| text.contains(marker)),
+        "edited table marker must survive exportHwpx/reparse; texts={:?}",
+        after_table_texts
+    );
+}
+
+#[test]
+fn phase1_form_002_export_hwpx_reparse_preserves_validation_cleanliness() {
+    use rhwp::document_core::DocumentCore;
+
+    let bytes = include_bytes!("../samples/hwpx/form-002.hwpx");
+    let core = DocumentCore::from_bytes(bytes).expect("load form-002");
+    assert_eq!(
+        core.validation_report().len(),
+        0,
+        "fixture starts validation-clean",
+    );
+
+    let saved = core.export_hwpx_native().expect("export form-002 hwpx");
+    let reparsed = DocumentCore::from_bytes(&saved).expect("reparse exported form-002");
+
+    assert_eq!(
+        reparsed.validation_report().len(),
+        0,
+        "form-002 export/reparse must not introduce lineseg warnings: {:?}",
+        reparsed.validation_report().warnings,
+    );
+}

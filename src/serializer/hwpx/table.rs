@@ -28,10 +28,17 @@ use std::io::Write;
 
 use quick_xml::Writer;
 
-use crate::model::shape::{CommonObjAttr, TextWrap, VertAlign, VertRelTo, HorzAlign, HorzRelTo};
+use crate::model::control::Control;
+use crate::model::paragraph::{CharShapeRef, LineSeg};
+use crate::model::shape::{
+    CommonObjAttr, HorzAlign, HorzRelTo, ShapeObject, TextWrap, VertAlign, VertRelTo,
+};
 use crate::model::table::{Cell, Table, TablePageBreak, VerticalAlign};
 
 use super::context::SerializeContext;
+use super::form::write_form;
+use super::picture::write_picture;
+use super::shape::{write_container_close, write_container_open, write_line, write_rect};
 use super::utils::{empty_tag, end_tag, start_tag, start_tag_attrs};
 use super::SerializeError;
 
@@ -93,11 +100,7 @@ pub fn write_table<W: Write>(
     // tr[]: 행 단위 반복. 각 행에 속한 셀 (cell.row == r) 을 col 오름차순으로 출력.
     for row_idx in 0..table.row_count {
         start_tag(w, "hp:tr")?;
-        let mut row_cells: Vec<&Cell> = table
-            .cells
-            .iter()
-            .filter(|c| c.row == row_idx)
-            .collect();
+        let mut row_cells: Vec<&Cell> = table.cells.iter().filter(|c| c.row == row_idx).collect();
         row_cells.sort_by_key(|c| c.col);
         for cell in row_cells {
             write_cell(w, cell, ctx)?;
@@ -227,7 +230,14 @@ fn write_sub_list<W: Write>(
         "hp:subList",
         &[
             ("id", ""),
-            ("textDirection", if cell.text_direction == 1 { "VERTICAL" } else { "HORIZONTAL" }),
+            (
+                "textDirection",
+                if cell.text_direction == 1 {
+                    "VERTICAL"
+                } else {
+                    "HORIZONTAL"
+                },
+            ),
             ("lineWrap", "BREAK"),
             ("vertAlign", cell_vert_align_str(cell.vertical_align)),
             ("linkListIDRef", "0"),
@@ -243,7 +253,7 @@ fn write_sub_list<W: Write>(
     for (pi, para) in cell.paragraphs.iter().enumerate() {
         ctx.para_shape_ids.reference(para.para_shape_id);
         ctx.style_ids.reference(para.style_id as u16);
-        if let Some(cs_ref) = para.char_shapes.first() {
+        for cs_ref in &para.char_shapes {
             ctx.char_shape_ids.reference(cs_ref.char_shape_id);
         }
 
@@ -263,31 +273,17 @@ fn write_sub_list<W: Write>(
             ],
         )?;
 
-        let cs = para.char_shapes.first().map(|r| r.char_shape_id).unwrap_or(0);
-        let cs_str = cs.to_string();
-        start_tag_attrs(w, "hp:run", &[("charPrIDRef", &cs_str)])?;
-        // 텍스트만 출력 (탭·소프트브레이크는 Stage 3 범위에서 제외 — section.rs 와 동일 방식으로 단순화)
-        write_cell_text(w, &para.text)?;
-        end_tag(w, "hp:run")?;
+        let first_cs = para
+            .char_shapes
+            .first()
+            .map(|r| r.char_shape_id)
+            .unwrap_or(0);
+        write_cell_text_runs(w, &para.text, &para.char_offsets, &para.char_shapes)?;
+        for control in &para.controls {
+            write_cell_control_run(w, control, ctx, first_cs)?;
+        }
 
-        // <hp:linesegarray> 최소 1개 lineseg
-        start_tag(w, "hp:linesegarray")?;
-        empty_tag(
-            w,
-            "hp:lineseg",
-            &[
-                ("textpos", "0"),
-                ("vertpos", "0"),
-                ("vertsize", "1000"),
-                ("textheight", "1000"),
-                ("baseline", "850"),
-                ("spacing", "600"),
-                ("horzpos", "0"),
-                ("horzsize", "12964"),
-                ("flags", "393216"),
-            ],
-        )?;
-        end_tag(w, "hp:linesegarray")?;
+        write_cell_linesegs(w, &para.line_segs)?;
 
         end_tag(w, "hp:p")?;
     }
@@ -296,8 +292,139 @@ fn write_sub_list<W: Write>(
     Ok(())
 }
 
+fn write_cell_linesegs<W: Write>(
+    w: &mut Writer<W>,
+    line_segs: &[LineSeg],
+) -> Result<(), SerializeError> {
+    start_tag(w, "hp:linesegarray")?;
+    if line_segs.is_empty() {
+        write_cell_fallback_lineseg(w)?;
+    } else {
+        for seg in line_segs {
+            let textpos = seg.text_start.to_string();
+            let vertpos = seg.vertical_pos.to_string();
+            let vertsize = seg.line_height.to_string();
+            let textheight = seg.text_height.to_string();
+            let baseline = seg.baseline_distance.to_string();
+            let spacing = seg.line_spacing.to_string();
+            let horzpos = seg.column_start.to_string();
+            let horzsize = seg.segment_width.to_string();
+            let flags = seg.tag.to_string();
+            empty_tag(
+                w,
+                "hp:lineseg",
+                &[
+                    ("textpos", &textpos),
+                    ("vertpos", &vertpos),
+                    ("vertsize", &vertsize),
+                    ("textheight", &textheight),
+                    ("baseline", &baseline),
+                    ("spacing", &spacing),
+                    ("horzpos", &horzpos),
+                    ("horzsize", &horzsize),
+                    ("flags", &flags),
+                ],
+            )?;
+        }
+    }
+    end_tag(w, "hp:linesegarray")?;
+    Ok(())
+}
+
+fn write_cell_fallback_lineseg<W: Write>(w: &mut Writer<W>) -> Result<(), SerializeError> {
+    empty_tag(
+        w,
+        "hp:lineseg",
+        &[
+            ("textpos", "0"),
+            ("vertpos", "0"),
+            ("vertsize", "1000"),
+            ("textheight", "1000"),
+            ("baseline", "850"),
+            ("spacing", "600"),
+            ("horzpos", "0"),
+            ("horzsize", "12964"),
+            ("flags", "393216"),
+        ],
+    )
+}
+
+fn write_cell_text_runs<W: Write>(
+    w: &mut Writer<W>,
+    text: &str,
+    char_offsets: &[u32],
+    char_shapes: &[CharShapeRef],
+) -> Result<(), SerializeError> {
+    if text.is_empty() {
+        let cs = first_char_shape_id(char_shapes).to_string();
+        start_tag_attrs(w, "hp:run", &[("charPrIDRef", &cs)])?;
+        write_cell_text(w, "")?;
+        end_tag(w, "hp:run")?;
+        return Ok(());
+    }
+
+    let mut current_shape: Option<u32> = None;
+    let mut current_text = String::new();
+    let mut fallback_utf16_pos = 0u32;
+
+    for (idx, ch) in text.chars().enumerate() {
+        let utf16_pos = char_offsets.get(idx).copied().unwrap_or(fallback_utf16_pos);
+        let shape_id = active_char_shape_id(char_shapes, utf16_pos);
+        fallback_utf16_pos = utf16_pos + char_utf16_len(ch);
+
+        if current_shape.is_some_and(|existing| existing != shape_id) {
+            write_cell_text_run(w, current_shape.unwrap_or(0), &current_text)?;
+            current_text.clear();
+        }
+
+        current_shape = Some(shape_id);
+        current_text.push(ch);
+    }
+
+    write_cell_text_run(
+        w,
+        current_shape.unwrap_or_else(|| first_char_shape_id(char_shapes)),
+        &current_text,
+    )
+}
+
+fn write_cell_text_run<W: Write>(
+    w: &mut Writer<W>,
+    char_shape_id: u32,
+    text: &str,
+) -> Result<(), SerializeError> {
+    let cs = char_shape_id.to_string();
+    start_tag_attrs(w, "hp:run", &[("charPrIDRef", &cs)])?;
+    write_cell_text(w, text)?;
+    end_tag(w, "hp:run")
+}
+
+fn first_char_shape_id(char_shapes: &[CharShapeRef]) -> u32 {
+    char_shapes.first().map(|r| r.char_shape_id).unwrap_or(0)
+}
+
+fn active_char_shape_id(char_shapes: &[CharShapeRef], utf16_pos: u32) -> u32 {
+    let mut active_id = first_char_shape_id(char_shapes);
+    for shape in char_shapes {
+        if shape.start_pos <= utf16_pos {
+            active_id = shape.char_shape_id;
+        } else {
+            break;
+        }
+    }
+    active_id
+}
+
+fn char_utf16_len(ch: char) -> u32 {
+    if ch == '\t' {
+        8
+    } else {
+        ch.len_utf16() as u32
+    }
+}
+
 fn write_cell_text<W: Write>(w: &mut Writer<W>, text: &str) -> Result<(), SerializeError> {
-    use quick_xml::events::{BytesStart, BytesEnd, BytesText, Event};
+    use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
     // <hp:t>text</hp:t>
     w.write_event(Event::Start(BytesStart::new("hp:t")))
         .map_err(|e| SerializeError::XmlError(e.to_string()))?;
@@ -308,6 +435,86 @@ fn write_cell_text<W: Write>(w: &mut Writer<W>, text: &str) -> Result<(), Serial
     w.write_event(Event::End(BytesEnd::new("hp:t")))
         .map_err(|e| SerializeError::XmlError(e.to_string()))?;
     Ok(())
+}
+
+fn write_cell_control_run<W: Write>(
+    w: &mut Writer<W>,
+    control: &Control,
+    ctx: &mut SerializeContext,
+    char_shape_id: u32,
+) -> Result<(), SerializeError> {
+    if !control_supported(control) {
+        return Ok(());
+    }
+
+    let cs_str = char_shape_id.to_string();
+    start_tag_attrs(w, "hp:run", &[("charPrIDRef", &cs_str)])?;
+    write_cell_control(w, control, ctx)?;
+    end_tag(w, "hp:run")?;
+    Ok(())
+}
+
+fn control_supported(control: &Control) -> bool {
+    match control {
+        Control::Table(_) | Control::Picture(_) | Control::Form(_) => true,
+        Control::Shape(shape) => shape_supported(shape),
+        _ => false,
+    }
+}
+
+fn write_cell_control<W: Write>(
+    w: &mut Writer<W>,
+    control: &Control,
+    ctx: &mut SerializeContext,
+) -> Result<(), SerializeError> {
+    match control {
+        Control::Table(table) => write_table(w, table, ctx),
+        Control::Picture(pic) => write_picture(w, pic, ctx),
+        Control::Shape(shape) => {
+            let _ = write_cell_shape(w, shape, ctx)?;
+            Ok(())
+        }
+        Control::Form(form) => write_form(w, form),
+        _ => Ok(()),
+    }
+}
+
+fn shape_supported(shape: &ShapeObject) -> bool {
+    match shape {
+        ShapeObject::Line(_) | ShapeObject::Rectangle(_) | ShapeObject::Picture(_) => true,
+        ShapeObject::Group(group) => group.children.iter().any(shape_supported),
+        _ => false,
+    }
+}
+
+fn write_cell_shape<W: Write>(
+    w: &mut Writer<W>,
+    shape: &ShapeObject,
+    ctx: &SerializeContext,
+) -> Result<bool, SerializeError> {
+    match shape {
+        ShapeObject::Line(line) => {
+            write_line(w, line)?;
+            Ok(true)
+        }
+        ShapeObject::Rectangle(rect) => {
+            write_rect(w, rect)?;
+            Ok(true)
+        }
+        ShapeObject::Group(group) => {
+            write_container_open(w, &group.common)?;
+            for child in &group.children {
+                let _ = write_cell_shape(w, child, ctx)?;
+            }
+            write_container_close(w)?;
+            Ok(true)
+        }
+        ShapeObject::Picture(pic) => {
+            write_picture(w, pic, ctx)?;
+            Ok(true)
+        }
+        _ => Ok(false),
+    }
 }
 
 fn write_cell_addr<W: Write>(w: &mut Writer<W>, cell: &Cell) -> Result<(), SerializeError> {
@@ -343,7 +550,11 @@ fn write_cell_margin<W: Write>(w: &mut Writer<W>, cell: &Cell) -> Result<(), Ser
 // ---------- enum 변환 헬퍼 ----------
 
 fn bool01(b: bool) -> &'static str {
-    if b { "1" } else { "0" }
+    if b {
+        "1"
+    } else {
+        "0"
+    }
 }
 
 fn text_wrap_str(w: TextWrap) -> &'static str {
@@ -430,7 +641,7 @@ fn cell_vert_align_str(v: VerticalAlign) -> &'static str {
 mod tests {
     use super::*;
     use crate::model::document::Document;
-    use crate::model::paragraph::Paragraph;
+    use crate::model::paragraph::{CharShapeRef, LineSeg, Paragraph};
     use crate::model::table::{Cell, Table};
     use crate::serializer::hwpx::context::SerializeContext;
 
@@ -479,7 +690,9 @@ mod tests {
         let cc = xml.find("colCnt=").unwrap();
         let bf = xml.find("borderFillIDRef=").unwrap();
         let na = xml.find("noAdjust=").unwrap();
-        assert!(ip < zp && zp < nt && nt < tw && tw < tf && tf < rc && rc < cc && cc < bf && bf < na);
+        assert!(
+            ip < zp && zp < nt && nt < tw && tw < tf && tf < rc && rc < cc && cc < bf && bf < na
+        );
     }
 
     #[test]
@@ -537,5 +750,78 @@ mod tests {
         write_table(&mut w, &t, &mut ctx).unwrap();
         // 99 는 등록되지 않은 borderFill → unresolved
         assert!(ctx.border_fill_ids.unresolved().contains(&99u16));
+    }
+
+    #[test]
+    fn cell_paragraph_linesegs_are_preserved() {
+        let mut t = empty_table(1, 1);
+        t.cells[0].paragraphs[0].text = "긴 셀 문단".to_string();
+        t.cells[0].paragraphs[0].line_segs = vec![
+            LineSeg {
+                text_start: 0,
+                vertical_pos: 123,
+                line_height: 1400,
+                text_height: 1100,
+                baseline_distance: 900,
+                line_spacing: 300,
+                column_start: 77,
+                segment_width: 8888,
+                tag: 111,
+            },
+            LineSeg {
+                text_start: 6,
+                vertical_pos: 1523,
+                line_height: 1300,
+                text_height: 1000,
+                baseline_distance: 820,
+                line_spacing: 250,
+                column_start: 99,
+                segment_width: 7777,
+                tag: 222,
+            },
+        ];
+
+        let xml = serialize(&t);
+        assert_eq!(xml.matches("<hp:lineseg ").count(), 2, "{}", xml);
+        assert!(
+            xml.contains(
+                r#"<hp:lineseg textpos="0" vertpos="123" vertsize="1400" textheight="1100" baseline="900" spacing="300" horzpos="77" horzsize="8888" flags="111"/>"#
+            ),
+            "{}",
+            xml,
+        );
+        assert!(
+            xml.contains(
+                r#"<hp:lineseg textpos="6" vertpos="1523" vertsize="1300" textheight="1000" baseline="820" spacing="250" horzpos="99" horzsize="7777" flags="222"/>"#
+            ),
+            "{}",
+            xml,
+        );
+    }
+
+    #[test]
+    fn cell_paragraph_char_shape_runs_are_preserved() {
+        let mut t = empty_table(1, 1);
+        t.cells[0].paragraphs[0].text = "가나다ABC".to_string();
+        t.cells[0].paragraphs[0].char_offsets = vec![0, 1, 2, 3, 4, 5];
+        t.cells[0].paragraphs[0].char_shapes = vec![
+            CharShapeRef {
+                start_pos: 0,
+                char_shape_id: 28,
+            },
+            CharShapeRef {
+                start_pos: 3,
+                char_shape_id: 39,
+            },
+        ];
+
+        let xml = serialize(&t);
+        assert!(
+            xml.contains(
+                r#"<hp:run charPrIDRef="28"><hp:t>가나다</hp:t></hp:run><hp:run charPrIDRef="39"><hp:t>ABC</hp:t></hp:run>"#
+            ),
+            "{}",
+            xml,
+        );
     }
 }

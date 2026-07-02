@@ -1,6 +1,6 @@
 use super::*;
-use crate::model::paragraph::{Paragraph, LineSeg};
-use crate::model::page::{PageDef, ColumnDef};
+use crate::model::page::{ColumnDef, PageDef};
+use crate::model::paragraph::{LineSeg, Paragraph};
 
 fn a4_page_def() -> PageDef {
     PageDef {
@@ -91,8 +91,8 @@ fn test_paginator_dpi() {
 #[test]
 fn test_table_page_split() {
     // 표가 페이지를 초과할 때 PartialTable로 분할되는지 테스트
-    use crate::model::table::{Table, Cell};
     use crate::model::control::Control;
+    use crate::model::table::{Cell, Table};
 
     let paginator = Paginator::with_default_dpi();
     let styles = ResolvedStyleSet::default();
@@ -104,14 +104,78 @@ fn test_table_page_split() {
         row_count: 4,
         col_count: 2,
         cells: vec![
-            Cell { row: 0, col: 0, row_span: 1, col_span: 1, height: 30000, width: 5000, ..Default::default() },
-            Cell { row: 0, col: 1, row_span: 1, col_span: 1, height: 30000, width: 5000, ..Default::default() },
-            Cell { row: 1, col: 0, row_span: 1, col_span: 1, height: 30000, width: 5000, ..Default::default() },
-            Cell { row: 1, col: 1, row_span: 1, col_span: 1, height: 30000, width: 5000, ..Default::default() },
-            Cell { row: 2, col: 0, row_span: 1, col_span: 1, height: 30000, width: 5000, ..Default::default() },
-            Cell { row: 2, col: 1, row_span: 1, col_span: 1, height: 30000, width: 5000, ..Default::default() },
-            Cell { row: 3, col: 0, row_span: 1, col_span: 1, height: 30000, width: 5000, ..Default::default() },
-            Cell { row: 3, col: 1, row_span: 1, col_span: 1, height: 30000, width: 5000, ..Default::default() },
+            Cell {
+                row: 0,
+                col: 0,
+                row_span: 1,
+                col_span: 1,
+                height: 30000,
+                width: 5000,
+                ..Default::default()
+            },
+            Cell {
+                row: 0,
+                col: 1,
+                row_span: 1,
+                col_span: 1,
+                height: 30000,
+                width: 5000,
+                ..Default::default()
+            },
+            Cell {
+                row: 1,
+                col: 0,
+                row_span: 1,
+                col_span: 1,
+                height: 30000,
+                width: 5000,
+                ..Default::default()
+            },
+            Cell {
+                row: 1,
+                col: 1,
+                row_span: 1,
+                col_span: 1,
+                height: 30000,
+                width: 5000,
+                ..Default::default()
+            },
+            Cell {
+                row: 2,
+                col: 0,
+                row_span: 1,
+                col_span: 1,
+                height: 30000,
+                width: 5000,
+                ..Default::default()
+            },
+            Cell {
+                row: 2,
+                col: 1,
+                row_span: 1,
+                col_span: 1,
+                height: 30000,
+                width: 5000,
+                ..Default::default()
+            },
+            Cell {
+                row: 3,
+                col: 0,
+                row_span: 1,
+                col_span: 1,
+                height: 30000,
+                width: 5000,
+                ..Default::default()
+            },
+            Cell {
+                row: 3,
+                col: 1,
+                row_span: 1,
+                col_span: 1,
+                height: 30000,
+                width: 5000,
+                ..Default::default()
+            },
         ],
         ..Default::default()
     })));
@@ -128,7 +192,11 @@ fn test_table_page_split() {
     );
 
     // 표가 1페이지에 안 맞으므로 2페이지 이상이어야 함
-    assert!(result.pages.len() >= 2, "표가 페이지를 넘어 분할되어야 함, pages={}", result.pages.len());
+    assert!(
+        result.pages.len() >= 2,
+        "표가 페이지를 넘어 분할되어야 함, pages={}",
+        result.pages.len()
+    );
 
     // PartialTable 항목이 존재하는지 확인
     let mut has_partial_table = false;
@@ -147,8 +215,8 @@ fn test_table_page_split() {
 #[test]
 fn test_table_fits_single_page() {
     // 표가 페이지에 들어가면 Table로 배치 (분할 안 됨)
-    use crate::model::table::{Table, Cell};
     use crate::model::control::Control;
+    use crate::model::table::{Cell, Table};
 
     let paginator = Paginator::with_default_dpi();
     let styles = ResolvedStyleSet::default();
@@ -158,10 +226,42 @@ fn test_table_fits_single_page() {
         row_count: 2,
         col_count: 2,
         cells: vec![
-            Cell { row: 0, col: 0, row_span: 1, col_span: 1, height: 2000, width: 5000, ..Default::default() },
-            Cell { row: 0, col: 1, row_span: 1, col_span: 1, height: 2000, width: 5000, ..Default::default() },
-            Cell { row: 1, col: 0, row_span: 1, col_span: 1, height: 2000, width: 5000, ..Default::default() },
-            Cell { row: 1, col: 1, row_span: 1, col_span: 1, height: 2000, width: 5000, ..Default::default() },
+            Cell {
+                row: 0,
+                col: 0,
+                row_span: 1,
+                col_span: 1,
+                height: 2000,
+                width: 5000,
+                ..Default::default()
+            },
+            Cell {
+                row: 0,
+                col: 1,
+                row_span: 1,
+                col_span: 1,
+                height: 2000,
+                width: 5000,
+                ..Default::default()
+            },
+            Cell {
+                row: 1,
+                col: 0,
+                row_span: 1,
+                col_span: 1,
+                height: 2000,
+                width: 5000,
+                ..Default::default()
+            },
+            Cell {
+                row: 1,
+                col: 1,
+                row_span: 1,
+                col_span: 1,
+                height: 2000,
+                width: 5000,
+                ..Default::default()
+            },
         ],
         ..Default::default()
     })));
@@ -181,14 +281,105 @@ fn test_table_fits_single_page() {
     assert_eq!(result.pages.len(), 1);
     // Table 항목이어야 함 (PartialTable 아님)
     let items = &result.pages[0].column_contents[0].items;
-    assert!(matches!(items[0], PageItem::Table { .. }), "작은 표는 Table로 배치되어야 함");
+    assert!(
+        matches!(items[0], PageItem::Table { .. }),
+        "작은 표는 Table로 배치되어야 함"
+    );
+}
+
+#[test]
+fn test_table_near_page_bottom_pushes_following_paragraph() {
+    use crate::model::control::Control;
+    use crate::model::shape::{CommonObjAttr, TextWrap, VertRelTo};
+    use crate::model::table::{Cell, Table};
+
+    let paginator = Paginator::with_default_dpi();
+    let styles = ResolvedStyleSet::default();
+
+    let lead_para = make_paragraph_with_height(40000);
+    let mut table_para = Paragraph::default();
+    table_para.controls.push(Control::Table(Box::new(Table {
+        row_count: 1,
+        col_count: 1,
+        cells: vec![Cell {
+            row: 0,
+            col: 0,
+            row_span: 1,
+            col_span: 1,
+            height: 25000,
+            width: 30000,
+            ..Default::default()
+        }],
+        common: CommonObjAttr {
+            text_wrap: TextWrap::TopAndBottom,
+            vert_rel_to: VertRelTo::Para,
+            height: 25000,
+            width: 30000,
+            ..Default::default()
+        },
+        ..Default::default()
+    })));
+    let following_para = make_paragraph_with_height(2000);
+
+    let paras = vec![lead_para, table_para, following_para];
+    let composed: Vec<ComposedParagraph> = Vec::new();
+    let (result, _measured) = paginator.paginate(
+        &paras,
+        &composed,
+        &styles,
+        &a4_page_def(),
+        &ColumnDef::default(),
+        0,
+    );
+
+    assert!(
+        result.pages.len() >= 2,
+        "표 뒤 문단이 다음 페이지로 밀려야 함"
+    );
+
+    let page_with_table = result
+        .pages
+        .iter()
+        .position(|page| {
+            page.column_contents.iter().any(|col| {
+                col.items.iter().any(|item| {
+                    matches!(
+                        item,
+                        PageItem::Table { para_index: 1, .. }
+                            | PageItem::PartialTable { para_index: 1, .. }
+                    )
+                })
+            })
+        })
+        .expect("표가 페이지 항목에 있어야 함");
+
+    let page_with_following = result
+        .pages
+        .iter()
+        .position(|page| {
+            page.column_contents.iter().any(|col| {
+                col.items.iter().any(|item| {
+                    matches!(
+                        item,
+                        PageItem::FullParagraph { para_index: 2 }
+                            | PageItem::PartialParagraph { para_index: 2, .. }
+                    )
+                })
+            })
+        })
+        .expect("표 뒤 문단이 페이지 항목에 있어야 함");
+
+    assert!(
+        page_with_following > page_with_table,
+        "표가 페이지 하단을 채우면 뒤 문단은 같은 페이지에서 겹치지 않고 다음 페이지로 이동해야 함"
+    );
 }
 
 #[test]
 fn test_table_split_with_repeat_header() {
     // repeat_header=true인 표가 분할될 때 is_continuation 확인
-    use crate::model::table::{Table, Cell};
     use crate::model::control::Control;
+    use crate::model::table::{Cell, Table};
 
     let paginator = Paginator::with_default_dpi();
     let styles = ResolvedStyleSet::default();
@@ -199,10 +390,43 @@ fn test_table_split_with_repeat_header() {
         col_count: 1,
         repeat_header: true,
         cells: vec![
-            Cell { row: 0, col: 0, row_span: 1, col_span: 1, height: 5000, width: 10000, is_header: true, ..Default::default() },
-            Cell { row: 1, col: 0, row_span: 1, col_span: 1, height: 40000, width: 10000, ..Default::default() },
-            Cell { row: 2, col: 0, row_span: 1, col_span: 1, height: 40000, width: 10000, ..Default::default() },
-            Cell { row: 3, col: 0, row_span: 1, col_span: 1, height: 40000, width: 10000, ..Default::default() },
+            Cell {
+                row: 0,
+                col: 0,
+                row_span: 1,
+                col_span: 1,
+                height: 5000,
+                width: 10000,
+                is_header: true,
+                ..Default::default()
+            },
+            Cell {
+                row: 1,
+                col: 0,
+                row_span: 1,
+                col_span: 1,
+                height: 40000,
+                width: 10000,
+                ..Default::default()
+            },
+            Cell {
+                row: 2,
+                col: 0,
+                row_span: 1,
+                col_span: 1,
+                height: 40000,
+                width: 10000,
+                ..Default::default()
+            },
+            Cell {
+                row: 3,
+                col: 0,
+                row_span: 1,
+                col_span: 1,
+                height: 40000,
+                width: 10000,
+                ..Default::default()
+            },
         ],
         ..Default::default()
     })));
@@ -226,7 +450,10 @@ fn test_table_split_with_repeat_header() {
     for page in result.pages.iter().skip(1) {
         for col in &page.column_contents {
             for item in &col.items {
-                if let PageItem::PartialTable { is_continuation, .. } = item {
+                if let PageItem::PartialTable {
+                    is_continuation, ..
+                } = item
+                {
                     if *is_continuation {
                         found_continuation = true;
                     }
@@ -234,7 +461,10 @@ fn test_table_split_with_repeat_header() {
             }
         }
     }
-    assert!(found_continuation, "연속 페이지에 is_continuation=true인 PartialTable이 있어야 함");
+    assert!(
+        found_continuation,
+        "연속 페이지에 is_continuation=true인 PartialTable이 있어야 함"
+    );
 }
 
 /// 여러 줄로 구성된 문단 생성 (줄 수, 줄당 높이 HWPUNIT)
@@ -268,7 +498,11 @@ fn test_partial_paragraph_split() {
     );
 
     // 2페이지 이상으로 분할되어야 함
-    assert!(result.pages.len() >= 2, "긴 문단이 2페이지 이상으로 분할되어야 함, pages={}", result.pages.len());
+    assert!(
+        result.pages.len() >= 2,
+        "긴 문단이 2페이지 이상으로 분할되어야 함, pages={}",
+        result.pages.len()
+    );
 
     // PartialParagraph 항목이 존재하는지 확인
     let mut has_partial = false;
@@ -276,7 +510,12 @@ fn test_partial_paragraph_split() {
     for page in &result.pages {
         for col in &page.column_contents {
             for item in &col.items {
-                if let PageItem::PartialParagraph { start_line, end_line, .. } = item {
+                if let PageItem::PartialParagraph {
+                    start_line,
+                    end_line,
+                    ..
+                } = item
+                {
                     has_partial = true;
                     partial_ranges.push((*start_line, *end_line));
                 }
@@ -291,15 +530,20 @@ fn test_partial_paragraph_split() {
     // 파트가 연속적이어야 함 (이전 end_line == 다음 start_line)
     for i in 1..partial_ranges.len() {
         assert_eq!(
-            partial_ranges[i - 1].1, partial_ranges[i].0,
+            partial_ranges[i - 1].1,
+            partial_ranges[i].0,
             "파트 {}의 end_line({})이 파트 {}의 start_line({})과 일치해야 함",
-            i - 1, partial_ranges[i - 1].1, i, partial_ranges[i].0,
+            i - 1,
+            partial_ranges[i - 1].1,
+            i,
+            partial_ranges[i].0,
         );
     }
 
     // 마지막 파트의 end_line은 전체 줄 수(10)여야 함
     assert_eq!(
-        partial_ranges.last().unwrap().1, 10,
+        partial_ranges.last().unwrap().1,
+        10,
         "마지막 파트 end_line은 전체 줄 수(10)여야 함"
     );
 }
@@ -322,7 +566,10 @@ fn test_short_paragraph_no_split() {
 
     assert_eq!(result.pages.len(), 1);
     let items = &result.pages[0].column_contents[0].items;
-    assert!(matches!(items[0], PageItem::FullParagraph { .. }), "짧은 문단은 FullParagraph여야 함");
+    assert!(
+        matches!(items[0], PageItem::FullParagraph { .. }),
+        "짧은 문단은 FullParagraph여야 함"
+    );
 }
 
 #[test]
@@ -341,7 +588,11 @@ fn test_partial_paragraph_multi_page_span() {
         0,
     );
 
-    assert!(result.pages.len() >= 3, "30줄 문단이 3페이지 이상이어야 함, pages={}", result.pages.len());
+    assert!(
+        result.pages.len() >= 3,
+        "30줄 문단이 3페이지 이상이어야 함, pages={}",
+        result.pages.len()
+    );
 }
 
 #[test]
@@ -368,19 +619,28 @@ fn test_partial_paragraph_after_content() {
 
     // 첫 페이지에 첫 문단 FullParagraph + 두번째 문단 PartialParagraph
     let page1_items = &result.pages[0].column_contents[0].items;
-    assert!(matches!(page1_items[0], PageItem::FullParagraph { para_index: 0 }),
-        "첫 문단은 FullParagraph여야 함");
-
-    let has_partial_on_page1 = page1_items.iter().any(|item|
-        matches!(item, PageItem::PartialParagraph { para_index: 1, .. })
+    assert!(
+        matches!(page1_items[0], PageItem::FullParagraph { para_index: 0 }),
+        "첫 문단은 FullParagraph여야 함"
     );
-    assert!(has_partial_on_page1, "첫 페이지에 두번째 문단의 PartialParagraph가 있어야 함");
+
+    let has_partial_on_page1 = page1_items
+        .iter()
+        .any(|item| matches!(item, PageItem::PartialParagraph { para_index: 1, .. }));
+    assert!(
+        has_partial_on_page1,
+        "첫 페이지에 두번째 문단의 PartialParagraph가 있어야 함"
+    );
 }
 
 /// 셀 내용이 포함된 CellBreak 표 생성 헬퍼
-fn make_cellbreak_table(row_count: u16, col_count: u16, cell_height: u32) -> crate::model::table::Table {
-    use crate::model::table::{Table, Cell, TablePageBreak};
+fn make_cellbreak_table(
+    row_count: u16,
+    col_count: u16,
+    cell_height: u32,
+) -> crate::model::table::Table {
     use crate::model::paragraph::LineSeg;
+    use crate::model::table::{Cell, Table, TablePageBreak};
 
     let mut cells = Vec::new();
     for r in 0..row_count {
@@ -443,8 +703,11 @@ fn test_table_cell_break_intra_row_split() {
     );
 
     // 2페이지 이상이어야 함
-    assert!(result.pages.len() >= 2,
-        "CellBreak 큰 행이 분할되어야 함, pages={}", result.pages.len());
+    assert!(
+        result.pages.len() >= 2,
+        "CellBreak 큰 행이 분할되어야 함, pages={}",
+        result.pages.len()
+    );
 
     // split_start_content_offset 또는 split_end_content_limit > 0인 PartialTable 존재 확인
     let mut has_intra_split = false;
@@ -453,8 +716,10 @@ fn test_table_cell_break_intra_row_split() {
             for item in &col.items {
                 if let PageItem::PartialTable {
                     split_start_content_offset,
-                    split_end_content_limit, ..
-                } = item {
+                    split_end_content_limit,
+                    ..
+                } = item
+                {
                     if *split_start_content_offset > 0.0 || *split_end_content_limit > 0.0 {
                         has_intra_split = true;
                     }
@@ -462,14 +727,17 @@ fn test_table_cell_break_intra_row_split() {
             }
         }
     }
-    assert!(has_intra_split, "CellBreak 표에 인트라-로우 분할이 발생해야 함");
+    assert!(
+        has_intra_split,
+        "CellBreak 표에 인트라-로우 분할이 발생해야 함"
+    );
 }
 
 #[test]
 fn test_table_none_also_intra_row_split() {
     // page_break=None 표도 인트라-로우 분할 적용 (모든 표에 적용)
-    use crate::model::table::TablePageBreak;
     use crate::model::control::Control;
+    use crate::model::table::TablePageBreak;
 
     let paginator = Paginator::with_default_dpi();
     let styles = ResolvedStyleSet::default();
@@ -493,8 +761,11 @@ fn test_table_none_also_intra_row_split() {
     );
 
     // 2페이지 이상이어야 함
-    assert!(result.pages.len() >= 2,
-        "None 표도 큰 행이 분할되어야 함, pages={}", result.pages.len());
+    assert!(
+        result.pages.len() >= 2,
+        "None 표도 큰 행이 분할되어야 함, pages={}",
+        result.pages.len()
+    );
 
     // 인트라-로우 분할이 발생해야 함
     let mut has_intra_split = false;
@@ -503,8 +774,10 @@ fn test_table_none_also_intra_row_split() {
             for item in &col.items {
                 if let PageItem::PartialTable {
                     split_start_content_offset,
-                    split_end_content_limit, ..
-                } = item {
+                    split_end_content_limit,
+                    ..
+                } = item
+                {
                     if *split_start_content_offset > 0.0 || *split_end_content_limit > 0.0 {
                         has_intra_split = true;
                     }
@@ -512,7 +785,10 @@ fn test_table_none_also_intra_row_split() {
             }
         }
     }
-    assert!(has_intra_split, "None 표에도 인트라-로우 분할이 발생해야 함");
+    assert!(
+        has_intra_split,
+        "None 표에도 인트라-로우 분할이 발생해야 함"
+    );
 }
 
 #[test]
@@ -540,15 +816,22 @@ fn test_table_cell_break_multi_page_row() {
     );
 
     // 3페이지 이상
-    assert!(result.pages.len() >= 3,
-        "200000 HWPUNIT 행이 3+페이지에 걸쳐야 함, pages={}", result.pages.len());
+    assert!(
+        result.pages.len() >= 3,
+        "200000 HWPUNIT 행이 3+페이지에 걸쳐야 함, pages={}",
+        result.pages.len()
+    );
 
     // content_offset이 누적되는지 확인
     let mut offsets: Vec<f64> = Vec::new();
     for page in &result.pages {
         for col in &page.column_contents {
             for item in &col.items {
-                if let PageItem::PartialTable { split_start_content_offset, .. } = item {
+                if let PageItem::PartialTable {
+                    split_start_content_offset,
+                    ..
+                } = item
+                {
                     offsets.push(*split_start_content_offset);
                 }
             }
@@ -559,11 +842,19 @@ fn test_table_cell_break_multi_page_row() {
     if offsets.len() >= 2 {
         assert_eq!(offsets[0], 0.0, "첫 페이지 offset은 0이어야 함");
         for i in 1..offsets.len() {
-            assert!(offsets[i] > 0.0,
-                "{}번째 페이지 offset은 0보다 커야 함: {}", i + 1, offsets[i]);
+            assert!(
+                offsets[i] > 0.0,
+                "{}번째 페이지 offset은 0보다 커야 함: {}",
+                i + 1,
+                offsets[i]
+            );
             if i >= 2 {
-                assert!(offsets[i] > offsets[i - 1],
-                    "offset이 증가해야 함: {} > {}", offsets[i], offsets[i - 1]);
+                assert!(
+                    offsets[i] > offsets[i - 1],
+                    "offset이 증가해야 함: {} > {}",
+                    offsets[i],
+                    offsets[i - 1]
+                );
             }
         }
     }
@@ -574,8 +865,8 @@ fn test_table_cell_break_multi_page_row() {
 /// 10행 표가 페이지 하단에서 시작 → 행 단위 분리 검증 (S1)
 #[test]
 fn test_table_split_10rows_at_page_bottom() {
-    use crate::model::table::{Table, Cell};
     use crate::model::control::Control;
+    use crate::model::table::{Cell, Table};
 
     let paginator = Paginator::with_default_dpi();
     let styles = ResolvedStyleSet::default();
@@ -588,32 +879,51 @@ fn test_table_split_10rows_at_page_bottom() {
     for r in 0..10u16 {
         for c in 0..2u16 {
             cells.push(Cell {
-                row: r, col: c, row_span: 1, col_span: 1,
-                height: 6000, width: 5000, ..Default::default()
+                row: r,
+                col: c,
+                row_span: 1,
+                col_span: 1,
+                height: 6000,
+                width: 5000,
+                ..Default::default()
             });
         }
     }
     let mut table_para = Paragraph::default();
     table_para.controls.push(Control::Table(Box::new(Table {
-        row_count: 10, col_count: 2, cells, ..Default::default()
+        row_count: 10,
+        col_count: 2,
+        cells,
+        ..Default::default()
     })));
 
     let paras = vec![filler, table_para];
     let composed: Vec<ComposedParagraph> = Vec::new();
     let (result, _measured) = paginator.paginate(
-        &paras, &composed, &styles, &a4_page_def(), &ColumnDef::default(), 0,
+        &paras,
+        &composed,
+        &styles,
+        &a4_page_def(),
+        &ColumnDef::default(),
+        0,
     );
 
     // 2페이지 이상으로 분할되어야 함
-    assert!(result.pages.len() >= 2,
-        "10행 표가 페이지 하단에서 분할되어야 함, pages={}", result.pages.len());
+    assert!(
+        result.pages.len() >= 2,
+        "10행 표가 페이지 하단에서 분할되어야 함, pages={}",
+        result.pages.len()
+    );
 
     // PartialTable들의 행 범위를 수집
     let mut partials: Vec<(usize, usize)> = Vec::new();
     for page in &result.pages {
         for col in &page.column_contents {
             for item in &col.items {
-                if let PageItem::PartialTable { start_row, end_row, .. } = item {
+                if let PageItem::PartialTable {
+                    start_row, end_row, ..
+                } = item
+                {
                     partials.push((*start_row, *end_row));
                 }
             }
@@ -626,21 +936,30 @@ fn test_table_split_10rows_at_page_bottom() {
 
     // 파트가 연속적이어야 함 (이전 end_row == 다음 start_row)
     for i in 1..partials.len() {
-        assert_eq!(partials[i - 1].1, partials[i].0,
+        assert_eq!(
+            partials[i - 1].1,
+            partials[i].0,
             "행 범위가 연속적이어야 함: 파트{} end_row={} ≠ 파트{} start_row={}",
-            i - 1, partials[i - 1].1, i, partials[i].0);
+            i - 1,
+            partials[i - 1].1,
+            i,
+            partials[i].0
+        );
     }
 
     // 마지막 파트 end_row=10
-    assert_eq!(partials.last().unwrap().1, 10,
-        "마지막 파트 end_row은 전체 행 수(10)여야 함");
+    assert_eq!(
+        partials.last().unwrap().1,
+        10,
+        "마지막 파트 end_row은 전체 행 수(10)여야 함"
+    );
 }
 
 /// 50행 대형 표 → 여러 페이지 분할 검증 (S2)
 #[test]
 fn test_table_split_50rows_multi_page() {
-    use crate::model::table::{Table, Cell};
     use crate::model::control::Control;
+    use crate::model::table::{Cell, Table};
 
     let paginator = Paginator::with_default_dpi();
     let styles = ResolvedStyleSet::default();
@@ -649,31 +968,50 @@ fn test_table_split_50rows_multi_page() {
     let mut cells = Vec::new();
     for r in 0..50u16 {
         cells.push(Cell {
-            row: r, col: 0, row_span: 1, col_span: 1,
-            height: 4000, width: 10000, ..Default::default()
+            row: r,
+            col: 0,
+            row_span: 1,
+            col_span: 1,
+            height: 4000,
+            width: 10000,
+            ..Default::default()
         });
     }
     let mut table_para = Paragraph::default();
     table_para.controls.push(Control::Table(Box::new(Table {
-        row_count: 50, col_count: 1, cells, ..Default::default()
+        row_count: 50,
+        col_count: 1,
+        cells,
+        ..Default::default()
     })));
 
     let paras = vec![table_para];
     let composed: Vec<ComposedParagraph> = Vec::new();
     let (result, _measured) = paginator.paginate(
-        &paras, &composed, &styles, &a4_page_def(), &ColumnDef::default(), 0,
+        &paras,
+        &composed,
+        &styles,
+        &a4_page_def(),
+        &ColumnDef::default(),
+        0,
     );
 
     // 3페이지 이상
-    assert!(result.pages.len() >= 3,
-        "50행 대형 표가 3+페이지에 걸쳐야 함, pages={}", result.pages.len());
+    assert!(
+        result.pages.len() >= 3,
+        "50행 대형 표가 3+페이지에 걸쳐야 함, pages={}",
+        result.pages.len()
+    );
 
     // 모든 PartialTable의 행 범위 수집
     let mut partials: Vec<(usize, usize)> = Vec::new();
     for page in &result.pages {
         for col in &page.column_contents {
             for item in &col.items {
-                if let PageItem::PartialTable { start_row, end_row, .. } = item {
+                if let PageItem::PartialTable {
+                    start_row, end_row, ..
+                } = item
+                {
                     partials.push((*start_row, *end_row));
                 }
             }
@@ -683,12 +1021,17 @@ fn test_table_split_50rows_multi_page() {
     // 전체 50행이 빠짐없이 커버되어야 함
     assert_eq!(partials[0].0, 0, "첫 파트 start_row=0");
     for i in 1..partials.len() {
-        assert_eq!(partials[i - 1].1, partials[i].0,
+        assert_eq!(
+            partials[i - 1].1,
+            partials[i].0,
             "행 범위 연속: 파트{} end={}  ≠ 파트{} start={}",
-            i - 1, partials[i - 1].1, i, partials[i].0);
+            i - 1,
+            partials[i - 1].1,
+            i,
+            partials[i].0
+        );
     }
-    assert_eq!(partials.last().unwrap().1, 50,
-        "마지막 파트 end_row=50");
+    assert_eq!(partials.last().unwrap().1, 50, "마지막 파트 end_row=50");
 
     // 각 파트의 행 범위가 비어있지 않아야 함
     for (i, (s, e)) in partials.iter().enumerate() {
@@ -699,9 +1042,9 @@ fn test_table_split_50rows_multi_page() {
 /// 셀 내 중첩 표가 있는 행의 분할 검증 (S3)
 #[test]
 fn test_table_split_with_nested_table() {
-    use crate::model::table::{Table, Cell};
     use crate::model::control::Control;
     use crate::model::paragraph::LineSeg;
+    use crate::model::table::{Cell, Table};
 
     let paginator = Paginator::with_default_dpi();
     let styles = ResolvedStyleSet::default();
@@ -710,37 +1053,61 @@ fn test_table_split_with_nested_table() {
     let mut nested_cells = Vec::new();
     for r in 0..10u16 {
         nested_cells.push(Cell {
-            row: r, col: 0, row_span: 1, col_span: 1,
-            height: 8000, width: 5000,
+            row: r,
+            col: 0,
+            row_span: 1,
+            col_span: 1,
+            height: 8000,
+            width: 5000,
             paragraphs: vec![Paragraph {
-                line_segs: vec![LineSeg { line_height: 8000, ..Default::default() }],
+                line_segs: vec![LineSeg {
+                    line_height: 8000,
+                    ..Default::default()
+                }],
                 ..Default::default()
             }],
             ..Default::default()
         });
     }
     let nested_table = Table {
-        row_count: 10, col_count: 1, cells: nested_cells, ..Default::default()
+        row_count: 10,
+        col_count: 1,
+        cells: nested_cells,
+        ..Default::default()
     };
 
     // 외부 표: 2행, 첫 행에 중첩 표 포함
     // 셀 높이를 중첩 표 전체 높이(~1067px)로 설정 → 본문 영역 초과 → 분할 필수
     let nested_h: i32 = 8000 * 10; // 80000 HWPUNIT
     let outer_cell_0 = Cell {
-        row: 0, col: 0, row_span: 1, col_span: 1,
-        height: nested_h as u32, width: 10000,
+        row: 0,
+        col: 0,
+        row_span: 1,
+        col_span: 1,
+        height: nested_h as u32,
+        width: 10000,
         paragraphs: vec![Paragraph {
-            line_segs: vec![LineSeg { line_height: nested_h, ..Default::default() }],
+            line_segs: vec![LineSeg {
+                line_height: nested_h,
+                ..Default::default()
+            }],
             controls: vec![Control::Table(Box::new(nested_table))],
             ..Default::default()
         }],
         ..Default::default()
     };
     let outer_cell_1 = Cell {
-        row: 1, col: 0, row_span: 1, col_span: 1,
-        height: 5000, width: 10000,
+        row: 1,
+        col: 0,
+        row_span: 1,
+        col_span: 1,
+        height: 5000,
+        width: 10000,
         paragraphs: vec![Paragraph {
-            line_segs: vec![LineSeg { line_height: 5000, ..Default::default() }],
+            line_segs: vec![LineSeg {
+                line_height: 5000,
+                ..Default::default()
+            }],
             ..Default::default()
         }],
         ..Default::default()
@@ -748,7 +1115,8 @@ fn test_table_split_with_nested_table() {
 
     let mut table_para = Paragraph::default();
     table_para.controls.push(Control::Table(Box::new(Table {
-        row_count: 2, col_count: 1,
+        row_count: 2,
+        col_count: 1,
         cells: vec![outer_cell_0, outer_cell_1],
         ..Default::default()
     })));
@@ -758,27 +1126,189 @@ fn test_table_split_with_nested_table() {
     let paras = vec![filler, table_para];
     let composed: Vec<ComposedParagraph> = Vec::new();
     let (result, _measured) = paginator.paginate(
-        &paras, &composed, &styles, &a4_page_def(), &ColumnDef::default(), 0,
+        &paras,
+        &composed,
+        &styles,
+        &a4_page_def(),
+        &ColumnDef::default(),
+        0,
     );
 
     // 페이지가 분할되어야 함
-    assert!(result.pages.len() >= 2,
-        "중첩 표가 있는 외부 표가 분할되어야 함, pages={}", result.pages.len());
+    assert!(
+        result.pages.len() >= 2,
+        "중첩 표가 있는 외부 표가 분할되어야 함, pages={}",
+        result.pages.len()
+    );
 
     // PartialTable 존재 확인
-    let has_partial = result.pages.iter().any(|p|
-        p.column_contents.iter().any(|c|
-            c.items.iter().any(|i| matches!(i, PageItem::PartialTable { .. }))
-        )
+    let has_partial = result.pages.iter().any(|p| {
+        p.column_contents.iter().any(|c| {
+            c.items
+                .iter()
+                .any(|i| matches!(i, PageItem::PartialTable { .. }))
+        })
+    });
+    assert!(
+        has_partial,
+        "중첩 표 포함 외부 표에 PartialTable이 존재해야 함"
     );
-    assert!(has_partial, "중첩 표 포함 외부 표에 PartialTable이 존재해야 함");
+}
+
+/// 셀 안의 treat_as_char 중첩 표는 새 페이지에 들어갈 수 있으면 하단에서 잘리지 않아야 한다.
+#[test]
+fn test_nested_tac_table_moves_to_next_page_when_not_fit_remaining() {
+    use crate::model::control::Control;
+    use crate::model::paragraph::LineSeg;
+    use crate::model::table::{Cell, Table};
+
+    let paginator = Paginator::with_default_dpi();
+    let styles = ResolvedStyleSet::default();
+
+    let nested_cell = Cell {
+        row: 0,
+        col: 0,
+        row_span: 1,
+        col_span: 1,
+        height: 30000,
+        width: 10000,
+        paragraphs: vec![Paragraph {
+            line_segs: vec![LineSeg {
+                line_height: 30000,
+                ..Default::default()
+            }],
+            ..Default::default()
+        }],
+        ..Default::default()
+    };
+    let mut nested_table = Table {
+        row_count: 1,
+        col_count: 1,
+        cells: vec![nested_cell],
+        ..Default::default()
+    };
+    nested_table.common.treat_as_char = true;
+    nested_table.common.width = 10000;
+    nested_table.common.height = 30000;
+
+    let outer_cell = Cell {
+        row: 0,
+        col: 0,
+        row_span: 1,
+        col_span: 1,
+        height: 30000,
+        width: 12000,
+        paragraphs: vec![Paragraph {
+            line_segs: vec![LineSeg {
+                line_height: 30000,
+                ..Default::default()
+            }],
+            controls: vec![Control::Table(Box::new(nested_table))],
+            ..Default::default()
+        }],
+        ..Default::default()
+    };
+
+    let mut table_para = Paragraph::default();
+    table_para.controls.push(Control::Table(Box::new(Table {
+        row_count: 1,
+        col_count: 1,
+        cells: vec![outer_cell],
+        ..Default::default()
+    })));
+
+    let filler = make_multiline_paragraph(5, 10000);
+    let paras = vec![filler, table_para];
+    let composed: Vec<ComposedParagraph> = Vec::new();
+    let (result, _measured) = paginator.paginate(
+        &paras,
+        &composed,
+        &styles,
+        &a4_page_def(),
+        &ColumnDef::default(),
+        0,
+    );
+
+    let first_page_splits_target_table = result
+        .pages
+        .first()
+        .map(|p| {
+            p.column_contents.iter().any(|c| {
+                c.items.iter().any(|i| {
+                    matches!(
+                        i,
+                        PageItem::PartialTable {
+                            para_index: 1,
+                            split_end_content_limit,
+                            ..
+                        } if *split_end_content_limit > 0.0
+                    )
+                })
+            })
+        })
+        .unwrap_or(false);
+    assert!(
+        !first_page_splits_target_table,
+        "새 페이지에 들어갈 수 있는 중첩 TAC 표 행이 첫 페이지 하단에서 잘리면 안 됨"
+    );
+
+    let target_table_on_later_page = result.pages.iter().skip(1).any(|p| {
+        p.column_contents.iter().any(|c| {
+            c.items.iter().any(|i| {
+                matches!(
+                    i,
+                    PageItem::Table {
+                        para_index: 1,
+                        control_index: 0
+                    }
+                )
+            })
+        })
+    });
+    assert!(
+        target_table_on_later_page,
+        "중첩 TAC 표 행은 다음 페이지에서 전체 표로 배치되어야 함"
+    );
+}
+
+#[test]
+fn test_nested_table_split_limit_snaps_to_safe_line_boundary() {
+    use crate::model::table::TablePageBreak;
+    use crate::renderer::height_measurer::{MeasuredCell, MeasuredTable};
+
+    let mt = MeasuredTable {
+        para_index: 0,
+        control_index: 0,
+        total_height: 450.0,
+        row_heights: vec![450.0],
+        caption_height: 0.0,
+        cell_spacing: 0.0,
+        cumulative_heights: vec![0.0, 450.0],
+        repeat_header: false,
+        has_header_cells: false,
+        cells: vec![MeasuredCell {
+            row: 0,
+            col: 0,
+            row_span: 1,
+            padding_top: 0.0,
+            padding_bottom: 0.0,
+            line_heights: vec![100.0, 250.0, 100.0],
+            total_content_height: 450.0,
+            para_line_counts: vec![1, 1, 1],
+            has_nested_table: true,
+        }],
+        page_break: TablePageBreak::CellBreak,
+    };
+
+    assert_eq!(mt.snap_nested_row_split_limit(0, 220.0), 100.0);
+    assert_eq!(mt.snap_nested_row_split_limit(0, 350.0), 350.0);
 }
 
 /// B-011 재현: 표 높이가 body area를 초과하지 않는지 검증 (S4)
 #[test]
 fn test_table_height_within_body_area() {
-    use crate::model::table::{Table, Cell};
     use crate::model::control::Control;
+    use crate::model::table::{Cell, Table};
 
     let paginator = Paginator::with_default_dpi();
     let styles = ResolvedStyleSet::default();
@@ -799,21 +1329,34 @@ fn test_table_height_within_body_area() {
         for r in 0..5u16 {
             for c in 0..2u16 {
                 cells.push(Cell {
-                    row: r, col: c, row_span: 1, col_span: 1,
-                    height: 10000, width: 5000, ..Default::default()
+                    row: r,
+                    col: c,
+                    row_span: 1,
+                    col_span: 1,
+                    height: 10000,
+                    width: 5000,
+                    ..Default::default()
                 });
             }
         }
         let mut table_para = Paragraph::default();
         table_para.controls.push(Control::Table(Box::new(Table {
-            row_count: 5, col_count: 2, cells, ..Default::default()
+            row_count: 5,
+            col_count: 2,
+            cells,
+            ..Default::default()
         })));
         paras.push(table_para);
     }
 
     let composed: Vec<ComposedParagraph> = Vec::new();
     let (result, measured) = paginator.paginate(
-        &paras, &composed, &styles, &page_def, &ColumnDef::default(), 0,
+        &paras,
+        &composed,
+        &styles,
+        &page_def,
+        &ColumnDef::default(),
+        0,
     );
 
     // 각 페이지의 콘텐츠 높이 합이 body area를 초과하지 않는지 확인
@@ -834,14 +1377,28 @@ fn test_table_height_within_body_area() {
                             height_sum += m.total_height;
                         }
                     }
-                    PageItem::PartialTable { para_index, start_row, end_row, .. } => {
+                    PageItem::PartialTable {
+                        para_index,
+                        start_row,
+                        end_row,
+                        ..
+                    } => {
                         let mt = measured.get_measured_table(*para_index, 0);
                         if let Some(m) = mt {
                             // cumulative_heights로 부분 높이 계산
                             let start_h = if *start_row > 0 {
-                                m.cumulative_heights.get(*start_row - 1).copied().unwrap_or(0.0)
-                            } else { 0.0 };
-                            let end_h = m.cumulative_heights.get(*end_row - 1).copied().unwrap_or(m.total_height);
+                                m.cumulative_heights
+                                    .get(*start_row - 1)
+                                    .copied()
+                                    .unwrap_or(0.0)
+                            } else {
+                                0.0
+                            };
+                            let end_h = m
+                                .cumulative_heights
+                                .get(*end_row - 1)
+                                .copied()
+                                .unwrap_or(m.total_height);
                             height_sum += end_h - start_h;
                         }
                     }
@@ -849,9 +1406,13 @@ fn test_table_height_within_body_area() {
                 }
             }
             // body area를 초과하면 안 됨 (약간의 여유 허용)
-            assert!(height_sum <= body_h_px + 2.0,
+            assert!(
+                height_sum <= body_h_px + 2.0,
                 "page {} 콘텐츠 높이({:.1}px)가 body area({:.1}px)를 초과함",
-                page_idx, height_sum, body_h_px);
+                page_idx,
+                height_sum,
+                body_h_px
+            );
         }
     }
 }

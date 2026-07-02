@@ -29,13 +29,21 @@ interface TabDef {
   builder: () => HTMLElement;
 }
 
+type TableContext = { sec: number; ppi: number; ci: number; cellPath?: unknown[] };
+
+function nestedPathJson(ctx: TableContext): string | null {
+  return Array.isArray(ctx.cellPath) && ctx.cellPath.length > 1
+    ? JSON.stringify(ctx.cellPath)
+    : null;
+}
+
 /**
  * 표/셀 속성 다이얼로그 (HWP 표준 6탭)
  */
 export class TableCellPropsDialog extends ModalDialog {
   private wasm: WasmBridge;
   private eventBus: EventBus;
-  private tableCtx: { sec: number; ppi: number; ci: number };
+  private tableCtx: TableContext;
   private cellIdx: number;
   /** 'table' = 표 선택 (6탭), 'cell' = 셀 선택 (4탭: 테두리·배경 제외) */
   private mode: 'table' | 'cell';
@@ -125,7 +133,7 @@ export class TableCellPropsDialog extends ModalDialog {
   constructor(
     wasm: WasmBridge,
     eventBus: EventBus,
-    tableCtx: { sec: number; ppi: number; ci: number },
+    tableCtx: TableContext,
     cellIdx: number,
     mode: 'table' | 'cell' = 'cell',
   ) {
@@ -141,8 +149,13 @@ export class TableCellPropsDialog extends ModalDialog {
     super.show();
     // 속성 조회
     const { sec, ppi, ci } = this.tableCtx;
-    this.cellProps = this.wasm.getCellProperties(sec, ppi, ci, this.cellIdx);
-    this.tableProps = this.wasm.getTableProperties(sec, ppi, ci);
+    const pathJson = nestedPathJson(this.tableCtx);
+    this.cellProps = pathJson
+      ? this.wasm.getCellPropertiesByPath(sec, ppi, pathJson)
+      : this.wasm.getCellProperties(sec, ppi, ci, this.cellIdx);
+    this.tableProps = pathJson
+      ? this.wasm.getTablePropertiesByPath(sec, ppi, pathJson)
+      : this.wasm.getTableProperties(sec, ppi, ci);
     this.populateFields();
   }
 
@@ -1348,7 +1361,12 @@ export class TableCellPropsDialog extends ModalDialog {
       }
     }
 
-    this.wasm.setCellProperties(sec, ppi, ci, this.cellIdx, newCellProps as Partial<CellProperties>);
+    const pathJson = nestedPathJson(this.tableCtx);
+    if (pathJson) {
+      this.wasm.setCellPropertiesByPath(sec, ppi, pathJson, newCellProps as Partial<CellProperties>);
+    } else {
+      this.wasm.setCellProperties(sec, ppi, ci, this.cellIdx, newCellProps as Partial<CellProperties>);
+    }
 
     // 표 속성 수정
     const pbValue = parseInt(this.tablePageBreakSelect.value, 10);
@@ -1408,7 +1426,11 @@ export class TableCellPropsDialog extends ModalDialog {
       }
     }
 
-    this.wasm.setTableProperties(sec, ppi, ci, newTableProps as Partial<TableProperties>);
+    if (pathJson) {
+      this.wasm.setTablePropertiesByPath(sec, ppi, pathJson, newTableProps as Partial<TableProperties>);
+    } else {
+      this.wasm.setTableProperties(sec, ppi, ci, newTableProps as Partial<TableProperties>);
+    }
 
     this.eventBus.emit('document-changed');
   }

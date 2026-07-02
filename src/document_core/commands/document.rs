@@ -1,20 +1,20 @@
 //! 문서 생성/로딩/저장/설정 관련 native 메서드
 
-use std::cell::RefCell;
-use std::collections::HashMap;
-use crate::model::control::Control;
-use crate::model::document::Document;
-use crate::model::paragraph::Paragraph;
-use crate::renderer::style_resolver::{resolve_styles, ResolvedStyleSet};
-use crate::renderer::composer::{compose_section, reflow_line_segs};
-use crate::renderer::layout::LayoutEngine;
-use crate::renderer::page_layout::PageLayoutInfo;
-use crate::renderer::DEFAULT_DPI;
 use crate::document_core::validation::{
     CellPath, ValidationReport, ValidationWarning, WarningKind,
 };
 use crate::document_core::{DocumentCore, DEFAULT_FALLBACK_FONT};
 use crate::error::HwpError;
+use crate::model::control::Control;
+use crate::model::document::Document;
+use crate::model::paragraph::Paragraph;
+use crate::renderer::composer::{compose_section, reflow_line_segs};
+use crate::renderer::layout::LayoutEngine;
+use crate::renderer::page_layout::PageLayoutInfo;
+use crate::renderer::style_resolver::{resolve_styles, ResolvedStyleSet};
+use crate::renderer::DEFAULT_DPI;
+use std::cell::RefCell;
+use std::collections::HashMap;
 
 /// HWP 내보내기 + 자기 재로드 검증 결과 (#178 Stage 6).
 ///
@@ -111,10 +111,19 @@ impl DocumentCore {
     ///
     /// 표 셀 내부 문단도 재귀 검사한다.
     pub(crate) fn validate_linesegs(document: &Document) -> ValidationReport {
+        let styles = resolve_styles(&document.doc_info, DEFAULT_DPI);
+        Self::validate_linesegs_with_styles(document, &styles, DEFAULT_DPI)
+    }
+
+    fn validate_linesegs_with_styles(
+        document: &Document,
+        styles: &ResolvedStyleSet,
+        dpi: f64,
+    ) -> ValidationReport {
         let mut report = ValidationReport::new();
         for (si, section) in document.sections.iter().enumerate() {
             for (pi, para) in section.paragraphs.iter().enumerate() {
-                Self::check_paragraph_linesegs(para, si, pi, None, &mut report);
+                Self::check_paragraph_linesegs(para, si, pi, None, styles, dpi, &mut report);
 
                 // 표 셀 내부 문단도 재귀 검사
                 for (ci, ctrl) in para.controls.iter().enumerate() {
@@ -132,6 +141,8 @@ impl DocumentCore {
                                     si,
                                     pi,
                                     Some(cell_path),
+                                    styles,
+                                    dpi,
                                     &mut report,
                                 );
                             }
@@ -148,6 +159,8 @@ impl DocumentCore {
         section_idx: usize,
         paragraph_idx: usize,
         cell_path: Option<CellPath>,
+        styles: &ResolvedStyleSet,
+        dpi: f64,
         report: &mut ValidationReport,
     ) {
         // 규칙 1: 텍스트가 있는데 lineseg 배열이 비어있음
@@ -179,6 +192,7 @@ impl DocumentCore {
         if para.line_segs.len() == 1
             && !para.text.contains('\n')
             && para.text.chars().count() > LONG_TEXT_THRESHOLD
+            && Self::single_lineseg_text_overflows(para, styles, dpi)
         {
             report.push(ValidationWarning {
                 section_idx,
@@ -189,24 +203,55 @@ impl DocumentCore {
         }
     }
 
+    fn single_lineseg_text_overflows(
+        para: &Paragraph,
+        styles: &ResolvedStyleSet,
+        dpi: f64,
+    ) -> bool {
+        use crate::renderer::composer::find_active_char_shape;
+        use crate::renderer::hwpunit_to_px;
+        use crate::renderer::layout::{estimate_text_width_unrounded, resolved_to_text_style};
+        use crate::renderer::style_resolver::detect_lang_category;
+
+        let Some(line_seg) = para.line_segs.first() else {
+            return false;
+        };
+        if line_seg.segment_width <= 0 {
+            return true;
+        }
+        let available_width_px = hwpunit_to_px(line_seg.segment_width, dpi);
+        let mut measured_width_px = 0.0;
+        for (idx, ch) in para.text.chars().enumerate() {
+            let utf16_pos = if idx < para.char_offsets.len() {
+                para.char_offsets[idx]
+            } else {
+                idx as u32
+            };
+            let style_id = find_active_char_shape(&para.char_shapes, utf16_pos);
+            let lang = detect_lang_category(ch);
+            let text_style = resolved_to_text_style(styles, style_id, lang);
+            measured_width_px += estimate_text_width_unrounded(&ch.to_string(), &text_style);
+        }
+
+        measured_width_px > available_width_px + 1.0
+    }
+
     /// lineSegArray가 없는(line_height=0) 문단에 대해 합성 LineSeg를 생성한다.
     ///
     /// HWPX 파일에서 `<hp:lineSegArray>`가 누락된 문단은 모든 LineSeg 필드가 0으로
     /// 설정되어 줄바꿈·문단 높이 계산이 불가능하다. 이 함수는 문서 로드 직후
     /// CharPr/ParaPr 기반으로 올바른 line_height/line_spacing을 계산한다.
     /// 본문 문단뿐 아니라 표 셀 내부 문단도 처리한다.
-    fn reflow_zero_height_paragraphs(
-        document: &mut Document,
-        styles: &ResolvedStyleSet,
-        dpi: f64,
-    ) {
+    fn reflow_zero_height_paragraphs(document: &mut Document, styles: &ResolvedStyleSet, dpi: f64) {
         use crate::model::control::Control;
 
         for section in &mut document.sections {
             let page_def = &section.section_def.page_def;
             let column_def = Self::find_initial_column_def(&section.paragraphs);
             let layout = PageLayoutInfo::from_page_def(page_def, &column_def, dpi);
-            let col_width = layout.column_areas.first()
+            let col_width = layout
+                .column_areas
+                .first()
                 .map(|a| a.width)
                 .unwrap_or(layout.body_area.width);
 
@@ -227,7 +272,10 @@ impl DocumentCore {
                     let mut max_tac_h: i32 = 0;
                     for ctrl in para.controls.iter() {
                         if let Control::Table(t) = ctrl {
-                            if t.common.treat_as_char && t.raw_ctrl_data.is_empty() && t.common.height > 0 {
+                            if t.common.treat_as_char
+                                && t.raw_ctrl_data.is_empty()
+                                && t.common.height > 0
+                            {
                                 max_tac_h = max_tac_h.max(t.common.height as i32);
                             }
                         }
@@ -245,16 +293,13 @@ impl DocumentCore {
                 // 표 셀 내부 문단 reflow
                 for ctrl in &mut para.controls {
                     if let Control::Table(ref mut table) = ctrl {
-                        for cell in &mut table.cells {
-                            for cell_para in &mut cell.paragraphs {
-                                if Self::needs_line_seg_reflow(cell_para) {
-                                    // 셀 너비가 아직 불확정이므로 컬럼 너비를 근사값으로 사용.
-                                    // 핵심은 line_height > 0을 보장하는 것이며,
-                                    // 실제 셀 내 줄바꿈은 테이블 레이아웃이 재수행한다.
-                                    reflow_line_segs(cell_para, col_width, styles, dpi);
-                                }
-                            }
-                        }
+                        Self::reflow_table_cell_paragraphs(
+                            table,
+                            styles,
+                            dpi,
+                            col_width,
+                            Self::needs_line_seg_reflow,
+                        );
                     }
                 }
             }
@@ -265,28 +310,44 @@ impl DocumentCore {
             for para in section.paragraphs.iter() {
                 for ctrl in &para.controls {
                     match ctrl {
-                        Control::Table(t) if t.common.treat_as_char && t.raw_ctrl_data.is_empty() && t.common.height > 0 => {
+                        Control::Table(t)
+                            if t.common.treat_as_char
+                                && t.raw_ctrl_data.is_empty()
+                                && t.common.height > 0 =>
+                        {
                             need_vpos_recalc = true;
                             break;
                         }
                         // 비-TAC TopAndBottom Picture/Table: LINE_SEG에 개체 높이 미포함
-                        Control::Picture(p) if !p.common.treat_as_char
-                            && matches!(p.common.text_wrap, crate::model::shape::TextWrap::TopAndBottom)
-                            && p.common.height > 0 => {
+                        Control::Picture(p)
+                            if !p.common.treat_as_char
+                                && matches!(
+                                    p.common.text_wrap,
+                                    crate::model::shape::TextWrap::TopAndBottom
+                                )
+                                && p.common.height > 0 =>
+                        {
                             need_vpos_recalc = true;
                             break;
                         }
-                        Control::Table(t) if !t.common.treat_as_char
-                            && matches!(t.common.text_wrap, crate::model::shape::TextWrap::TopAndBottom)
-                            && t.common.height > 0
-                            && t.raw_ctrl_data.is_empty() => {
+                        Control::Table(t)
+                            if !t.common.treat_as_char
+                                && matches!(
+                                    t.common.text_wrap,
+                                    crate::model::shape::TextWrap::TopAndBottom
+                                )
+                                && t.common.height > 0
+                                && t.raw_ctrl_data.is_empty() =>
+                        {
                             need_vpos_recalc = true;
                             break;
                         }
                         _ => {}
                     }
                 }
-                if need_vpos_recalc { break; }
+                if need_vpos_recalc {
+                    break;
+                }
             }
             if need_vpos_recalc {
                 let mut running_vpos: i32 = 0;
@@ -310,21 +371,46 @@ impl DocumentCore {
                     }
                     // 비-TAC TopAndBottom Picture/Table: 개체 높이를 vpos에 반영
                     for ctrl in para.controls.iter() {
-                        let (obj_height, obj_v_offset, obj_margin_top, obj_margin_bottom) = match ctrl {
-                            Control::Picture(p) if !p.common.treat_as_char
-                                && matches!(p.common.text_wrap, crate::model::shape::TextWrap::TopAndBottom)
-                                && p.common.height > 0 =>
-                                (p.common.height as i32, p.common.vertical_offset as i32, 0, 0),
-                            Control::Table(t) if !t.common.treat_as_char
-                                && matches!(t.common.text_wrap, crate::model::shape::TextWrap::TopAndBottom)
-                                && t.common.height > 0
-                                && t.raw_ctrl_data.is_empty() =>
-                                (t.common.height as i32, t.common.vertical_offset as i32,
-                                 t.outer_margin_top as i32, t.outer_margin_bottom as i32),
-                            _ => continue,
-                        };
-                        let obj_total = obj_height + obj_v_offset + obj_margin_top + obj_margin_bottom;
-                        let seg_lh_total: i32 = para.line_segs.iter()
+                        let (obj_height, obj_v_offset, obj_margin_top, obj_margin_bottom) =
+                            match ctrl {
+                                Control::Picture(p)
+                                    if !p.common.treat_as_char
+                                        && matches!(
+                                            p.common.text_wrap,
+                                            crate::model::shape::TextWrap::TopAndBottom
+                                        )
+                                        && p.common.height > 0 =>
+                                {
+                                    (
+                                        p.common.height as i32,
+                                        p.common.vertical_offset as i32,
+                                        0,
+                                        0,
+                                    )
+                                }
+                                Control::Table(t)
+                                    if !t.common.treat_as_char
+                                        && matches!(
+                                            t.common.text_wrap,
+                                            crate::model::shape::TextWrap::TopAndBottom
+                                        )
+                                        && t.common.height > 0
+                                        && t.raw_ctrl_data.is_empty() =>
+                                {
+                                    (
+                                        t.common.height as i32,
+                                        t.common.vertical_offset as i32,
+                                        t.outer_margin_top as i32,
+                                        t.outer_margin_bottom as i32,
+                                    )
+                                }
+                                _ => continue,
+                            };
+                        let obj_total =
+                            obj_height + obj_v_offset + obj_margin_top + obj_margin_bottom;
+                        let seg_lh_total: i32 = para
+                            .line_segs
+                            .iter()
                             .map(|s| s.line_height + s.line_spacing)
                             .sum();
                         if obj_total > seg_lh_total {
@@ -368,6 +454,84 @@ impl DocumentCore {
         false
     }
 
+    fn cell_reflow_width_px(
+        table_padding: crate::model::Padding,
+        cell_width: u32,
+        cell_padding: crate::model::Padding,
+        para_shape_id: u16,
+        styles: &ResolvedStyleSet,
+        dpi: f64,
+        fallback_width_px: f64,
+    ) -> f64 {
+        use crate::renderer::hwpunit_to_px;
+
+        let width_px = if cell_width > 0 {
+            hwpunit_to_px(cell_width as i32, dpi)
+        } else {
+            fallback_width_px
+        };
+        let pad_left = if cell_padding.left != 0 {
+            cell_padding.left
+        } else {
+            table_padding.left
+        };
+        let pad_right = if cell_padding.right != 0 {
+            cell_padding.right
+        } else {
+            table_padding.right
+        };
+        let content_width =
+            width_px - hwpunit_to_px(pad_left as i32, dpi) - hwpunit_to_px(pad_right as i32, dpi);
+        let para_style = styles.para_styles.get(para_shape_id as usize);
+        let margin_left = para_style.map(|s| s.margin_left).unwrap_or(0.0);
+        let margin_right = para_style.map(|s| s.margin_right).unwrap_or(0.0);
+        (content_width - margin_left - margin_right).max(1.0)
+    }
+
+    fn reflow_table_cell_paragraphs(
+        table: &mut crate::model::table::Table,
+        styles: &ResolvedStyleSet,
+        dpi: f64,
+        fallback_width_px: f64,
+        should_reflow: fn(&crate::model::paragraph::Paragraph) -> bool,
+    ) -> usize {
+        let mut reflowed = 0usize;
+        let table_padding = table.padding;
+
+        for cell in &mut table.cells {
+            let cell_width = cell.width;
+            let cell_padding = cell.padding;
+            for cell_para in &mut cell.paragraphs {
+                let cell_width_px = Self::cell_reflow_width_px(
+                    table_padding,
+                    cell_width,
+                    cell_padding,
+                    cell_para.para_shape_id,
+                    styles,
+                    dpi,
+                    fallback_width_px,
+                );
+                if should_reflow(cell_para) {
+                    reflow_line_segs(cell_para, cell_width_px, styles, dpi);
+                    reflowed += 1;
+                }
+                for ctrl in &mut cell_para.controls {
+                    if let Control::Table(ref mut nested_table) = ctrl {
+                        reflowed += Self::reflow_table_cell_paragraphs(
+                            nested_table,
+                            styles,
+                            dpi,
+                            cell_width_px,
+                            should_reflow,
+                        );
+                    }
+                }
+            }
+        }
+
+        reflowed
+    }
+
     /// 사용자 명시 요청에 의한 전체 lineseg reflow (#177).
     ///
     /// `validate_linesegs` 에 기록된 경고 대상 문단들 중 reflow 가능한 것을 모두 처리한다.
@@ -380,6 +544,12 @@ impl DocumentCore {
         let styles = resolve_styles(&self.document.doc_info, self.dpi);
         let dpi = self.dpi;
         let mut reflowed = 0usize;
+
+        let current_report = Self::validate_linesegs_with_styles(&self.document, &styles, dpi);
+        if current_report.is_empty() {
+            self.validation_report = current_report;
+            return 0;
+        }
 
         for section in &mut self.document.sections {
             let page_def = &section.section_def.page_def;
@@ -403,14 +573,13 @@ impl DocumentCore {
                 // 표 셀 내부 문단도 동일 처리
                 for ctrl in &mut para.controls {
                     if let Control::Table(ref mut table) = ctrl {
-                        for cell in &mut table.cells {
-                            for cell_para in &mut cell.paragraphs {
-                                if Self::needs_reflow_broadly(cell_para) {
-                                    reflow_line_segs(cell_para, col_width, &styles, dpi);
-                                    reflowed += 1;
-                                }
-                            }
-                        }
+                        reflowed += Self::reflow_table_cell_paragraphs(
+                            table,
+                            &styles,
+                            dpi,
+                            col_width,
+                            Self::needs_reflow_broadly,
+                        );
                     }
                 }
             }
@@ -430,6 +599,8 @@ impl DocumentCore {
             self.paginate();
         }
 
+        self.validation_report = Self::validate_linesegs(&self.document);
+
         reflowed
     }
 
@@ -441,7 +612,11 @@ impl DocumentCore {
             .map_err(|e| HwpError::InvalidFile(e.to_string()))?;
 
         let styles = resolve_styles(&document.doc_info, self.dpi);
-        let composed = document.sections.iter().map(|s| compose_section(s)).collect();
+        let composed = document
+            .sections
+            .iter()
+            .map(|s| compose_section(s))
+            .collect();
         let sec_count = document.sections.len();
 
         self.document = document;
@@ -534,7 +709,10 @@ impl DocumentCore {
     pub fn set_document(&mut self, doc: Document) {
         self.document = doc;
         self.styles = resolve_styles(&self.document.doc_info, self.dpi);
-        self.composed = self.document.sections.iter()
+        self.composed = self
+            .document
+            .sections
+            .iter()
             .map(|s| compose_section(s))
             .collect();
         self.mark_all_sections_dirty();
@@ -577,13 +755,19 @@ impl DocumentCore {
     /// 지정 ID의 스냅샷으로 Document를 복원한다.
     /// 스타일 재해소 + 문단 구성 + 페이지네이션까지 수행.
     pub fn restore_snapshot_native(&mut self, id: u32) -> Result<String, HwpError> {
-        let idx = self.snapshot_store.iter().position(|(sid, _)| *sid == id)
+        let idx = self
+            .snapshot_store
+            .iter()
+            .position(|(sid, _)| *sid == id)
             .ok_or_else(|| HwpError::RenderError(format!("스냅샷 {} 없음", id)))?;
         let (_, doc) = self.snapshot_store[idx].clone();
         self.document = doc;
         // 캐시 전체 재구성
         self.styles = resolve_styles(&self.document.doc_info, self.dpi);
-        self.composed = self.document.sections.iter()
+        self.composed = self
+            .document
+            .sections
+            .iter()
             .map(|s| compose_section(s))
             .collect();
         self.mark_all_sections_dirty();
@@ -610,11 +794,17 @@ impl DocumentCore {
         use crate::renderer::composer::estimate_composed_line_width;
         use crate::renderer::hwpunit_to_px;
 
-        let section = self.document.sections.get(section_idx)
-            .ok_or_else(|| HwpError::InvalidFile(format!("section {} not found", section_idx)))?;
-        let para = section.paragraphs.get(para_idx)
+        let section =
+            self.document.sections.get(section_idx).ok_or_else(|| {
+                HwpError::InvalidFile(format!("section {} not found", section_idx))
+            })?;
+        let para = section
+            .paragraphs
+            .get(para_idx)
             .ok_or_else(|| HwpError::InvalidFile(format!("para {} not found", para_idx)))?;
-        let composed = self.composed.get(section_idx)
+        let composed = self
+            .composed
+            .get(section_idx)
             .and_then(|s| s.get(para_idx))
             .ok_or_else(|| HwpError::InvalidFile("composed paragraph not found".into()))?;
 
@@ -635,7 +825,9 @@ impl DocumentCore {
             let mut runs_json = Vec::new();
             for run in &composed_line.runs {
                 let ts = crate::renderer::layout::resolved_to_text_style(
-                    &self.styles, run.char_style_id, run.lang_index,
+                    &self.styles,
+                    run.char_style_id,
+                    run.lang_index,
                 );
                 let run_width = crate::renderer::layout::estimate_text_width(&run.text, &ts);
                 runs_json.push(format!(
@@ -647,9 +839,7 @@ impl DocumentCore {
                 ));
             }
 
-            let line_text: String = composed_line.runs.iter()
-                .map(|r| r.text.as_str())
-                .collect();
+            let line_text: String = composed_line.runs.iter().map(|r| r.text.as_str()).collect();
 
             lines_json.push(format!(
                 r#"{{"line_index":{},"text":"{}","runs":[{}],"our_width_px":{:.2},"stored_segment_width_hwpunit":{},"stored_width_px":{:.2},"error_px":{:.2},"error_hwpunit":{}}}"#,
@@ -686,15 +876,22 @@ impl DocumentCore {
             // 삭제 대상 field_range 인덱스와 삭제할 문자 범위 수집
             let mut removals: Vec<(usize, usize, usize)> = Vec::new(); // (fr_idx, start, end)
             for (fri, fr) in para.field_ranges.iter().enumerate() {
-                if fr.start_char_idx >= fr.end_char_idx { continue; }
+                if fr.start_char_idx >= fr.end_char_idx {
+                    continue;
+                }
                 if let Some(Control::Field(f)) = para.controls.get(fr.control_idx) {
-                    if f.field_type != FieldType::ClickHere { continue; }
-                    if f.properties & (1 << 15) != 0 { continue; } // 이미 수정된 상태
-                    // 필드 값이 안내문과 동일한지 확인
+                    if f.field_type != FieldType::ClickHere {
+                        continue;
+                    }
+                    if f.properties & (1 << 15) != 0 {
+                        continue;
+                    } // 이미 수정된 상태
+                      // 필드 값이 안내문과 동일한지 확인
                     if let Some(guide) = f.guide_text() {
                         let chars: Vec<char> = para.text.chars().collect();
                         if fr.end_char_idx <= chars.len() {
-                            let field_val: String = chars[fr.start_char_idx..fr.end_char_idx].iter().collect();
+                            let field_val: String =
+                                chars[fr.start_char_idx..fr.end_char_idx].iter().collect();
                             // trailing 공백 제거 후 비교 (한컴이 안내문 뒤에 공백을 추가하는 경우)
                             if field_val.trim_end() == guide || field_val == guide {
                                 removals.push((fri, fr.start_char_idx, fr.end_char_idx));
@@ -712,7 +909,9 @@ impl DocumentCore {
                 para.field_ranges[fri].end_char_idx = start;
                 // 이후 field_ranges의 char_idx 조정
                 for i in 0..para.field_ranges.len() {
-                    if i == fri { continue; }
+                    if i == fri {
+                        continue;
+                    }
                     let other = &mut para.field_ranges[i];
                     if other.start_char_idx >= end {
                         other.start_char_idx -= removed_len;
@@ -806,7 +1005,11 @@ mod validate_linesegs_tests {
         doc.sections.push(section);
 
         let report = DocumentCore::validate_linesegs(&doc);
-        assert!(report.is_empty(), "healthy paragraph should not warn: {:?}", report.warnings);
+        assert!(
+            report.is_empty(),
+            "healthy paragraph should not warn: {:?}",
+            report.warnings
+        );
     }
 
     /// 빈 문단 (텍스트도 line_segs 도 없음) — 경고 없음 (빈 문단은 허용)
@@ -852,7 +1055,9 @@ mod validate_linesegs_tests {
         let report = DocumentCore::validate_linesegs(&doc);
         assert_eq!(report.len(), 1);
         assert_eq!(report.warnings[0].kind, WarningKind::LinesegArrayEmpty);
-        let cp = report.warnings[0].cell_path.expect("cell_path should be set");
+        let cp = report.warnings[0]
+            .cell_path
+            .expect("cell_path should be set");
         assert_eq!(cp.table_ctrl_idx, 0);
         assert_eq!(cp.row, 0);
         assert_eq!(cp.col, 0);
@@ -881,7 +1086,12 @@ mod validate_linesegs_tests {
         assert_eq!(report.len(), 2);
         let summary = report.summary();
         assert_eq!(summary.get("lineseg 배열이 비어있음").copied(), Some(1));
-        assert_eq!(summary.get("lineseg 가 미계산 상태 (line_height=0)").copied(), Some(1));
+        assert_eq!(
+            summary
+                .get("lineseg 가 미계산 상태 (line_height=0)")
+                .copied(),
+            Some(1)
+        );
     }
 
     /// needs_reflow_broadly: 빈 line_segs + text → true
@@ -963,7 +1173,9 @@ mod validate_linesegs_tests {
         let mut doc = Document::default();
         let mut section = Section::default();
         let mut para = Paragraph::default();
-        para.text = "충분히 긴 텍스트이지만 줄바꿈이 있습니다.\n그래서 R3은 해당하지 않아야 합니다.".to_string();
+        para.text =
+            "충분히 긴 텍스트이지만 줄바꿈이 있습니다.\n그래서 R3은 해당하지 않아야 합니다."
+                .to_string();
         let mut seg = LineSeg::default();
         seg.line_height = 1000;
         para.line_segs.push(seg);
@@ -982,5 +1194,55 @@ mod validate_linesegs_tests {
         seg.line_height = 1000;
         para.line_segs.push(seg);
         assert!(DocumentCore::needs_reflow_broadly(&para));
+    }
+
+    #[test]
+    fn reflow_table_cells_uses_actual_cell_width() {
+        use crate::model::table::{Cell, Table};
+
+        let text = "이것은 좁은 표 셀 안에서 여러 줄로 다시 계산되어야 하는 긴 한국어 문장입니다";
+        let mut para = Paragraph::new_empty();
+        para.insert_text_at(0, text);
+        para.line_segs = vec![LineSeg {
+            text_start: 0,
+            line_height: 1000,
+            text_height: 1000,
+            baseline_distance: 850,
+            line_spacing: 0,
+            segment_width: 60_000,
+            tag: 0x00060000,
+            ..Default::default()
+        }];
+
+        let mut cell = Cell::default();
+        cell.width = 3_000;
+        cell.paragraphs.push(para);
+
+        let mut table = Table::default();
+        table.row_count = 1;
+        table.col_count = 1;
+        table.cells.push(cell);
+
+        let styles = resolve_styles(&Document::default().doc_info, DEFAULT_DPI);
+        let reflowed = DocumentCore::reflow_table_cell_paragraphs(
+            &mut table,
+            &styles,
+            DEFAULT_DPI,
+            600.0,
+            DocumentCore::needs_reflow_broadly,
+        );
+
+        let lines = &table.cells[0].paragraphs[0].line_segs;
+        assert_eq!(reflowed, 1);
+        assert!(
+            lines.len() > 1,
+            "좁은 셀 폭으로 reflow 하면 여러 lineseg 가 생성되어야 함: {:?}",
+            lines
+        );
+        assert!(
+            lines.iter().all(|line| line.segment_width <= 3_000),
+            "셀 lineseg 폭은 본문 컬럼 폭이 아니라 셀 폭 이하여야 함: {:?}",
+            lines
+        );
     }
 }

@@ -75,8 +75,15 @@ export class ValidationModal {
 
     const desc = document.createElement('p');
     desc.style.margin = '0 0 12px 0';
-    desc.textContent = `이 문서는 HWPX 명세를 일부 준수하지 않는 값을 포함합니다 (경고 ${this.report.count}건). 렌더링 품질을 위해 자동 보정을 권장합니다.`;
+    desc.textContent = `이 문서는 HWPX 명세를 일부 준수하지 않는 값을 포함합니다 (경고 ${this.report.count}건). 줄 선택, 표 안 텍스트 선택, 페이지 렌더링 품질을 위해 자동 보정을 권장합니다.`;
     body.appendChild(desc);
+
+    const note = document.createElement('p');
+    note.style.margin = '0 0 12px 0';
+    note.style.fontSize = '13px';
+    note.style.color = '#555';
+    note.textContent = '자동 보정은 원문 텍스트를 바꾸지 않고 문단 줄 정보(lineseg)와 높이 계산만 다시 맞춥니다.';
+    body.appendChild(note);
 
     // 경고 요약
     const summary = document.createElement('ul');
@@ -118,7 +125,8 @@ export class ValidationModal {
       const cellStr = w.cell
         ? ` [셀 ctrl=${w.cell.ctrl} row=${w.cell.row} col=${w.cell.col} para=${w.cell.innerPara}]`
         : '';
-      line.textContent = `section=${w.section} para=${w.paragraph} ${w.kind}${cellStr}`;
+      const kindLabel = this.formatWarningKind(w.kind);
+      line.textContent = `section=${w.section} para=${w.paragraph} ${kindLabel}${cellStr}`;
       detailList.appendChild(line);
     }
     if (this.report.warnings.length > maxShow) {
@@ -178,6 +186,19 @@ export class ValidationModal {
       e.stopPropagation();
     };
     document.addEventListener('keydown', this.captureHandler, true);
+  }
+
+  private formatWarningKind(kind: ValidationReport['warnings'][number]['kind']): string {
+    switch (kind) {
+      case 'LinesegArrayEmpty':
+        return 'lineseg 없음';
+      case 'LinesegUncomputed':
+        return 'lineseg 미계산';
+      case 'LinesegTextRunReflow':
+        return 'textRun 기준 reflow 필요';
+      default:
+        return kind;
+    }
   }
 
   private resolve(choice: ValidationChoice): void {

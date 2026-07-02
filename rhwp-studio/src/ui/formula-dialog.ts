@@ -16,6 +16,13 @@ interface FormulaContext {
   ppi: number;
   ci: number;
   cellIndex: number;
+  cellPath?: unknown[];
+}
+
+function nestedPathJson(ctx: FormulaContext): string | null {
+  return Array.isArray(ctx.cellPath) && ctx.cellPath.length > 1
+    ? JSON.stringify(ctx.cellPath)
+    : null;
 }
 
 const FUNCTIONS = [
@@ -183,9 +190,12 @@ export class FormulaDialog extends ModalDialog {
 
     try {
       let colCount = 1;
+      const pathJson = nestedPathJson(this.ctx);
       try {
-        const props = this.wasm.getTableProperties(this.ctx.sec, this.ctx.ppi, this.ctx.ci);
-        colCount = props.colCount || props.cols || 1;
+        const dims = pathJson
+          ? this.wasm.getTableDimensionsByPath(this.ctx.sec, this.ctx.ppi, pathJson)
+          : this.wasm.getTableDimensions(this.ctx.sec, this.ctx.ppi, this.ctx.ci);
+        colCount = dims.colCount || 1;
       } catch {
         colCount = Math.max(1, this.ctx.cellIndex + 1);
       }
@@ -193,10 +203,9 @@ export class FormulaDialog extends ModalDialog {
       const col = this.ctx.cellIndex % colCount;
 
       // 먼저 검증 (write_result=false)
-      const validateResult = this.wasm.evaluateTableFormula(
-        this.ctx.sec, this.ctx.ppi, this.ctx.ci,
-        row, col, formula, false,
-      );
+      const validateResult = pathJson
+        ? this.wasm.evaluateTableFormulaByPath(this.ctx.sec, this.ctx.ppi, pathJson, row, col, formula, false)
+        : this.wasm.evaluateTableFormula(this.ctx.sec, this.ctx.ppi, this.ctx.ci, row, col, formula, false);
       const validated = JSON.parse(validateResult);
 
       if (!validated.ok) {
@@ -205,10 +214,11 @@ export class FormulaDialog extends ModalDialog {
       }
 
       // 검증 통과 → 실제 적용 (write_result=true)
-      this.wasm.evaluateTableFormula(
-        this.ctx.sec, this.ctx.ppi, this.ctx.ci,
-        row, col, formula, true,
-      );
+      if (pathJson) {
+        this.wasm.evaluateTableFormulaByPath(this.ctx.sec, this.ctx.ppi, pathJson, row, col, formula, true);
+      } else {
+        this.wasm.evaluateTableFormula(this.ctx.sec, this.ctx.ppi, this.ctx.ci, row, col, formula, true);
+      }
 
       // 형식 + 쉼표 처리
       let displayValue = validated.result;
@@ -222,10 +232,14 @@ export class FormulaDialog extends ModalDialog {
         parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
         const formatted = parts.join('.');
         try {
-          this.wasm.insertTextInCell(
-            this.ctx.sec, this.ctx.ppi, this.ctx.ci,
-            this.ctx.cellIndex, 0, 0, formatted,
-          );
+          if (pathJson) {
+            this.wasm.insertTextInCellByPath(this.ctx.sec, this.ctx.ppi, pathJson, 0, formatted);
+          } else {
+            this.wasm.insertTextInCell(
+              this.ctx.sec, this.ctx.ppi, this.ctx.ci,
+              this.ctx.cellIndex, 0, 0, formatted,
+            );
+          }
         } catch { /* 쉼표 포맷 기록 실패 시 기본값 유지 */ }
       }
 
