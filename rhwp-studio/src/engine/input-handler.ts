@@ -91,6 +91,7 @@ export class InputHandler {
     lastPageY: number;
     totalDeltaH: number;  // 누적 HWPUNIT 델타 (Undo용)
     totalDeltaV: number;
+    pageIndex: number;  // 드래그 시작 페이지 (delta 좌표계 고정용)
   } | null = null;
 
   // 그림 삽입 배치 모드 상태
@@ -561,10 +562,12 @@ export class InputHandler {
     const centerY = (minY + maxY) / 2;
     const cX = centerX - contentRect.left;
     const cY = centerY - contentRect.top;
-    const pageIdx = this.virtualScroll.getPageAtY(cY);
+    const pageIdx = this.virtualScroll.getPageAtXY(cX, cY);
     const pageOffset = this.virtualScroll.getPageOffset(pageIdx);
     const pageDisplayWidth = this.virtualScroll.getPageWidth(pageIdx);
-    const pageLeft = ((scrollContent as HTMLElement).clientWidth - pageDisplayWidth) / 2;
+    const pageLeft = this.virtualScroll.getPageLeft(pageIdx) >= 0
+      ? this.virtualScroll.getPageLeft(pageIdx)
+      : ((scrollContent as HTMLElement).clientWidth - pageDisplayWidth) / 2;
     const paperX = ((cX - pageLeft) / zoom) * 75;
     const paperY = ((cY - pageOffset) / zoom) * 75;
     const horzOffset = Math.max(0, Math.round(paperX - wHwp / 2));
@@ -776,10 +779,12 @@ export class InputHandler {
         const contentRect = scrollContent.getBoundingClientRect();
         const cX = centerX - contentRect.left;
         const cY = centerY - contentRect.top;
-        const pageIdx = this.virtualScroll.getPageAtY(cY);
+        const pageIdx = this.virtualScroll.getPageAtXY(cX, cY);
         const pageOffset = this.virtualScroll.getPageOffset(pageIdx);
         const pageDisplayWidth = this.virtualScroll.getPageWidth(pageIdx);
-        const pageLeft = (scrollContent.clientWidth - pageDisplayWidth) / 2;
+        const pageLeft = this.virtualScroll.getPageLeft(pageIdx) >= 0
+          ? this.virtualScroll.getPageLeft(pageIdx)
+          : (scrollContent.clientWidth - pageDisplayWidth) / 2;
         // 종이 좌표 (px → HWPUNIT)
         const paperX = ((cX - pageLeft) / zoom) * 75;
         const paperY = ((cY - pageOffset) / zoom) * 75;
@@ -873,10 +878,12 @@ export class InputHandler {
     const contentRect = scrollContent.getBoundingClientRect();
     const contentX = e.clientX - contentRect.left;
     const contentY = e.clientY - contentRect.top;
-    const pageIdx = this.virtualScroll.getPageAtY(contentY);
+    const pageIdx = this.virtualScroll.getPageAtXY(contentX, contentY);
     const pageOffset = this.virtualScroll.getPageOffset(pageIdx);
     const pageDisplayWidth = this.virtualScroll.getPageWidth(pageIdx);
-    const pageLeft = (scrollContent.clientWidth - pageDisplayWidth) / 2;
+    const pageLeft = this.virtualScroll.getPageLeft(pageIdx) >= 0
+      ? this.virtualScroll.getPageLeft(pageIdx)
+      : (scrollContent.clientWidth - pageDisplayWidth) / 2;
     const pageX = (contentX - pageLeft) / zoom;
     const pageY = (contentY - pageOffset) / zoom;
     try {
@@ -2075,10 +2082,12 @@ export class InputHandler {
     const contentRect = scrollContent.getBoundingClientRect();
     const contentX = e.clientX - contentRect.left;
     const contentY = e.clientY - contentRect.top;
-    const pageIdx = this.virtualScroll.getPageAtY(contentY);
+    const pageIdx = this.virtualScroll.getPageAtXY(contentX, contentY);
     const pageOffset = this.virtualScroll.getPageOffset(pageIdx);
     const pageDisplayWidth = this.virtualScroll.getPageWidth(pageIdx);
-    const pageLeft = (scrollContent.clientWidth - pageDisplayWidth) / 2;
+    const pageLeft = this.virtualScroll.getPageLeft(pageIdx) >= 0
+      ? this.virtualScroll.getPageLeft(pageIdx)
+      : (scrollContent.clientWidth - pageDisplayWidth) / 2;
     const pageX = (contentX - pageLeft) / zoom;
     const pageY = (contentY - pageOffset) / zoom;
     try {

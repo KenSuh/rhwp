@@ -548,10 +548,14 @@ export function updatePictureMoveDrag(this: any, e: MouseEvent): void {
   const cr = sc.getBoundingClientRect();
   const cx = e.clientX - cr.left;
   const cy = e.clientY - cr.top;
-  const pi = this.virtualScroll.getPageAtY(cy);
+  // 이동 delta는 시작 페이지 좌표계에 고정 — grid(다중 열)에서 열을 재판정하면
+  // 열 경계 통과 시 원점이 바뀌어 delta가 튄다 (히트테스트와 달리 드래그는 고정이 맞다)
+  const pi = this.pictureMoveState.pageIndex;
   const po = this.virtualScroll.getPageOffset(pi);
   const pw = this.virtualScroll.getPageWidth(pi);
-  const pl = (sc.clientWidth - pw) / 2;
+  const pl = this.virtualScroll.getPageLeft(pi) >= 0
+    ? this.virtualScroll.getPageLeft(pi)
+    : (sc.clientWidth - pw) / 2;
   const px = (cx - pl) / zoom;
   const py = (cy - po) / zoom;
 
