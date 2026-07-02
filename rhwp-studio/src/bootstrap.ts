@@ -1,9 +1,15 @@
-// Task #1790 1단계 — main.ts 의 초기화 로직을 재사용 가능한 bootstrap(rootEl) 로 추출.
-// 스탠드얼론 앱 동작 불변: main.ts 가 #studio-root 로 호출하는 유일한 진입점.
+// Task #1790 — main.ts 의 초기화 로직을 재사용 가능한 bootstrap(rootEl, opts) 로 추출.
+// 1단계: 추출 (스탠드얼론 동작 불변 — opts 미지정 시 기존과 완전 동일).
+// 2단계: 임베드 opts + 반환 핸들 — 외부 호스트(GearUp iframe 등)가 rhwp 를
+//        복제 없이 정본 그대로 소비할 수 있는 공식 표면.
 // DOM 접근은 rootEl 스코프 query 로 통일 (동일 id 는 studio-root 내부에 존재).
 // document/window 레벨 리스너(전역 단축키·drop 방지·postMessage)는 기존과 동일하게 유지.
 import { WasmBridge } from '@/core/wasm-bridge';
-import type { DocumentInfo } from '@/core/types';
+import type { DocumentInfo, DocumentPosition } from '@/core/types';
+import type { ContextMenuItem } from '@/ui/context-menu';
+import { StudioExtensionAPI } from '@/command/extension-api';
+import { InsertTextCommand, SplitParagraphCommand, SplitParagraphInCellCommand } from '@/engine/command';
+import type { EditCommand } from '@/engine/command';
 import { EventBus } from '@/core/event-bus';
 import { CanvasView } from '@/view/canvas-view';
 import { InputHandler } from '@/engine/input-handler';
@@ -30,7 +36,47 @@ import { TableObjectRenderer } from '@/engine/table-object-renderer';
 import { TableResizeRenderer } from '@/engine/table-resize-renderer';
 import { Ruler } from '@/view/ruler';
 
-export function bootstrap(rootEl: HTMLElement): void {
+/** 임베드 호스트가 주입하는 옵션 — 미지정 시 스탠드얼론 기본 동작. */
+export interface BootstrapOpts {
+  /** iframe postMessage API(hwpctl-load / rhwp-request) 등록 여부. 기본 true. */
+  enablePostMessageApi?: boolean;
+  /** 컨텍스트 메뉴 항목 확장 훅 — 호스트가 항목을 추가/재배열. */
+  extendContextMenuItems?(input: {
+    x: number;
+    y: number;
+    items: ReadonlyArray<ContextMenuItem>;
+    context: EditorContext;
+  }): ReadonlyArray<ContextMenuItem>;
+  /** 임베드 정책. */
+  embed?: {
+    /**
+     * 줌 하한. zoom ≤ 0.5(GRID_ZOOM_THRESHOLD) 에서 grid(다중 열) 레이아웃로
+     * 전환되면 마우스 히트테스트(단일 열 전제)와 어긋나 편집이 깨지므로,
+     * 편집 임베드는 0.5 초과 값(예: 0.55)을 지정해 grid 진입을 차단한다.
+     * 문서 로드 시 현재 줌이 하한 미만이면 100% 로 정규화.
+     */
+    minZoom?: number;
+  };
+}
+
+/** bootstrap 반환 핸들 — 임베드 호스트의 공식 소비 표면. */
+export interface BootstrapHandle {
+  wasm: WasmBridge;
+  eventBus: EventBus;
+  extensionAPI: StudioExtensionAPI;
+  createInsertTextCommand(pos: DocumentPosition, text: string): EditCommand;
+  createSplitParagraphCommand(pos: DocumentPosition): EditCommand;
+  /** WASM + 폰트 + InputHandler 초기화 완료 promise. 실패 시 reject. */
+  ready: Promise<void>;
+  getInputHandler(): InputHandler | null;
+  getCanvasView(): CanvasView | null;
+  loadFile(file: File): Promise<void>;
+  loadBytes(data: Uint8Array, fileName: string, fileHandle?: WasmBridge['currentFileHandle']): Promise<void>;
+  createNewDocument(): Promise<void>;
+  destroy(): void;
+}
+
+export function bootstrap(rootEl: HTMLElement, opts: BootstrapOpts = {}): BootstrapHandle {
   const q = <T extends HTMLElement = HTMLElement>(id: string): T =>
     rootEl.querySelector(`#${id}`) as T;
 
@@ -107,6 +153,14 @@ export function bootstrap(rootEl: HTMLElement): void {
       const container = q('scroll-container');
       canvasView = new CanvasView(container, wasm, eventBus);
 
+      // 임베드 줌 하한 — grid 레이아웃(마우스 히트테스트 미지원) 진입 차단.
+      const minZoom = opts.embed?.minZoom;
+      if (minZoom !== undefined) {
+        const vm = canvasView.getViewportManager();
+        const rawSetZoom = vm.setZoom.bind(vm);
+        vm.setZoom = (zoom: number) => rawSetZoom(Math.max(minZoom, zoom));
+      }
+
       // 눈금자 초기화
       ruler = new Ruler(
         q<HTMLCanvasElement>('h-ruler'),
@@ -129,7 +183,17 @@ export function bootstrap(rootEl: HTMLElement): void {
 
       // InputHandler에 커맨드 디스패처 및 컨텍스트 메뉴 주입
       inputHandler.setDispatcher(dispatcher);
-      inputHandler.setContextMenu(new ContextMenu(dispatcher, registry));
+      const contextMenu = new ContextMenu(dispatcher, registry);
+      // 임베드 훅 — 호스트가 컨텍스트 메뉴 항목을 확장/재배열.
+      if (opts.extendContextMenuItems) {
+        const extend = opts.extendContextMenuItems;
+        const rawShow = contextMenu.show.bind(contextMenu);
+        contextMenu.show = (x, y, items) => {
+          const extended = extend({ x, y, items, context: getContext() });
+          rawShow(x, y, (extended ?? items) as ContextMenuItem[]);
+        };
+      }
+      inputHandler.setContextMenu(contextMenu);
       inputHandler.setCommandPalette(new CommandPalette(registry, dispatcher));
       inputHandler.setCellSelectionRenderer(
         new CellSelectionRenderer(container, canvasView.getVirtualScroll()),
@@ -197,6 +261,8 @@ export function bootstrap(rootEl: HTMLElement): void {
     } catch (error) {
       msg.textContent = `WASM 초기화 실패: ${error}`;
       console.error('[main] WASM 초기화 실패:', error);
+      // 임베드 핸들의 ready 가 실패를 감지할 수 있게 rethrow.
+      throw error;
     }
   }
 
@@ -428,6 +494,12 @@ export function bootstrap(rootEl: HTMLElement): void {
       inputHandler?.deactivate();
       console.log('[initDoc] 4. canvasView loadDocument');
       canvasView?.loadDocument();
+      // 임베드 줌 정규화 — 이전 상태(모바일 폭맞춤 등)로 하한 미만이면 100% 로.
+      {
+        const minZoom = opts.embed?.minZoom;
+        const vm = canvasView?.getViewportManager();
+        if (minZoom !== undefined && vm && vm.getZoom() < minZoom) vm.setZoom(1.0);
+      }
       console.log('[initDoc] 5. toolbar setEnabled');
       toolbar?.setEnabled(true);
       console.log('[initDoc] 6. toolbar initStyleDropdown');
@@ -586,13 +658,16 @@ export function bootstrap(rootEl: HTMLElement): void {
     }
   }
 
-  initialize();
+  const ready = initialize();
+  // 스탠드얼론(핸들 미사용)에서 초기화 실패가 unhandled rejection 이 되지 않게 —
+  // 실패 메시지는 initialize 내부에서 상태 표시줄에 이미 노출됨.
+  ready.catch(() => { /* handled in initialize */ });
 
   // ── iframe 연동 API (postMessage) ──
   // 부모 페이지에서 postMessage로 에디터를 제어할 수 있다.
   // 요청: { type: 'rhwp-request', id, method, params }
   // 응답: { type: 'rhwp-response', id, result?, error? }
-  window.addEventListener('message', async (e) => {
+  if (opts.enablePostMessageApi !== false) window.addEventListener('message', async (e) => {
     const msg = e.data;
     if (!msg || typeof msg !== 'object') return;
 
@@ -643,4 +718,28 @@ export function bootstrap(rootEl: HTMLElement): void {
   });
 
   void ruler;
+
+  // ── 임베드 핸들 ──
+  const extensionAPI = new StudioExtensionAPI(registry, dispatcher, q('menu-bar'));
+  return {
+    wasm,
+    eventBus,
+    extensionAPI,
+    createInsertTextCommand: (pos, text) => new InsertTextCommand(pos, text),
+    createSplitParagraphCommand: (pos) =>
+      pos.parentParaIndex !== undefined
+        ? new SplitParagraphInCellCommand(pos)
+        : new SplitParagraphCommand(pos),
+    ready,
+    getInputHandler: () => inputHandler,
+    getCanvasView: () => canvasView,
+    loadFile,
+    loadBytes: (data, fileName, fileHandle = null) => loadBytes(data, fileName, fileHandle),
+    createNewDocument,
+    destroy: () => {
+      inputHandler?.deactivate();
+      eventBus.removeAll();
+      rootEl.innerHTML = '';
+    },
+  };
 }
