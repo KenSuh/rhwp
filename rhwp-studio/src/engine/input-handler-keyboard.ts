@@ -4,7 +4,7 @@
 import { InsertTextCommand, InsertLineBreakCommand, InsertTabCommand, SplitParagraphCommand, SplitParagraphInCellCommand } from './command';
 import { matchShortcut, defaultShortcuts } from '@/command/shortcut-map';
 import * as _connector from './input-handler-connector';
-import type { DocumentPosition } from '@/core/types';
+import type { DocumentPosition, CellPathEntry } from '@/core/types';
 import type { WasmBridge } from '@/core/wasm-bridge';
 
 /** 비-PNG 이미지를 PNG Blob으로 변환한다. PNG는 그대로 반환. */
@@ -85,7 +85,7 @@ export function copySelectedTableControl(wasm: WasmBridge, ref: SelectedObjectRe
   return wasm.copyControl(ref.sec, ref.ppi, ref.ci);
 }
 
-export function deleteSelectedTableControl(wasm: WasmBridge, ref: SelectedObjectRef): string {
+export function deleteSelectedTableControl(wasm: WasmBridge, ref: SelectedObjectRef): { ok: boolean } {
   const path = tableControlPath(ref);
   if (path) {
     return wasm.deleteTableControlByPath(ref.sec, ref.ppi, JSON.stringify(path));
@@ -1155,7 +1155,7 @@ export function onPaste(this: any, e: ClipboardEvent): void {
           );
           const parsed = JSON.parse(result);
           if (parsed.ok) {
-            const nextPath = path.map((entry, index) => index === path.length - 1
+            const nextPath = path.map((entry: CellPathEntry, index: number) => index === path.length - 1
               ? { ...entry, cellParaIndex: parsed.cellParaIdx ?? entry.cellParaIndex }
               : entry);
             return {
@@ -1215,7 +1215,7 @@ export function onPaste(this: any, e: ClipboardEvent): void {
           newPos.cellParaIndex = parsed.cellParaIdx ?? p.cellParaIndex;
           if (path?.length) {
             newPos.cellParaIndex = parsed.cellParaIdx ?? p.cellParaIndex;
-            newPos.cellPath = path.map((entry, index) => index === path!.length - 1
+            newPos.cellPath = path.map((entry: CellPathEntry, index: number) => index === path!.length - 1
               ? { ...entry, cellParaIndex: parsed.cellParaIdx ?? entry.cellParaIndex }
               : entry);
           } else if (p.cellPath?.length) {
@@ -1279,7 +1279,7 @@ export function onPaste(this: any, e: ClipboardEvent): void {
           newPos.cellIndex = p.cellIndex;
           newPos.cellParaIndex = parsed.cellParaIdx ?? p.cellParaIndex;
           if (p.cellPath?.length) {
-            newPos.cellPath = p.cellPath.map((entry, index) => index === p.cellPath!.length - 1
+            newPos.cellPath = p.cellPath.map((entry: CellPathEntry, index: number) => index === p.cellPath!.length - 1
               ? { ...entry, cellParaIndex: newPos.cellParaIndex! }
               : entry
             );

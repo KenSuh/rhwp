@@ -232,9 +232,9 @@ export const tableCommands: CommandDef[] = [
       try {
         runTableSnapshot(services, 'insertTableRowAbove', (wasm) => {
           if (pathJson) {
-            wasm.insertTableRowByPath(pos.sectionIndex, pos.parentParaIndex, pathJson, cellInfo.row, false);
+            wasm.insertTableRowByPath(pos.sectionIndex, pos.parentParaIndex!, pathJson, cellInfo.row, false);
           } else {
-            wasm.insertTableRow(pos.sectionIndex, pos.parentParaIndex, pos.controlIndex, cellInfo.row, false);
+            wasm.insertTableRow(pos.sectionIndex, pos.parentParaIndex!, pos.controlIndex!, cellInfo.row, false);
           }
         });
       } catch (e) {
@@ -256,9 +256,9 @@ export const tableCommands: CommandDef[] = [
       try {
         runTableSnapshot(services, 'insertTableRowBelow', (wasm) => {
           if (pathJson) {
-            wasm.insertTableRowByPath(pos.sectionIndex, pos.parentParaIndex, pathJson, cellInfo.row, true);
+            wasm.insertTableRowByPath(pos.sectionIndex, pos.parentParaIndex!, pathJson, cellInfo.row, true);
           } else {
-            wasm.insertTableRow(pos.sectionIndex, pos.parentParaIndex, pos.controlIndex, cellInfo.row, true);
+            wasm.insertTableRow(pos.sectionIndex, pos.parentParaIndex!, pos.controlIndex!, cellInfo.row, true);
           }
         });
       } catch (e) {
@@ -281,9 +281,9 @@ export const tableCommands: CommandDef[] = [
       try {
         runTableSnapshot(services, 'insertTableColumnLeft', (wasm) => {
           if (pathJson) {
-            wasm.insertTableColumnByPath(pos.sectionIndex, pos.parentParaIndex, pathJson, cellInfo.col, false);
+            wasm.insertTableColumnByPath(pos.sectionIndex, pos.parentParaIndex!, pathJson, cellInfo.col, false);
           } else {
-            wasm.insertTableColumn(pos.sectionIndex, pos.parentParaIndex, pos.controlIndex, cellInfo.col, false);
+            wasm.insertTableColumn(pos.sectionIndex, pos.parentParaIndex!, pos.controlIndex!, cellInfo.col, false);
           }
         });
       } catch (e) {
@@ -305,9 +305,9 @@ export const tableCommands: CommandDef[] = [
       try {
         runTableSnapshot(services, 'insertTableColumnRight', (wasm) => {
           if (pathJson) {
-            wasm.insertTableColumnByPath(pos.sectionIndex, pos.parentParaIndex, pathJson, cellInfo.col, true);
+            wasm.insertTableColumnByPath(pos.sectionIndex, pos.parentParaIndex!, pathJson, cellInfo.col, true);
           } else {
-            wasm.insertTableColumn(pos.sectionIndex, pos.parentParaIndex, pos.controlIndex, cellInfo.col, true);
+            wasm.insertTableColumn(pos.sectionIndex, pos.parentParaIndex!, pos.controlIndex!, cellInfo.col, true);
           }
         });
       } catch (e) {
@@ -329,9 +329,9 @@ export const tableCommands: CommandDef[] = [
       try {
         runTableSnapshot(services, 'deleteTableRow', (wasm) => {
           if (pathJson) {
-            wasm.deleteTableRowByPath(pos.sectionIndex, pos.parentParaIndex, pathJson, cellInfo.row);
+            wasm.deleteTableRowByPath(pos.sectionIndex, pos.parentParaIndex!, pathJson, cellInfo.row);
           } else {
-            wasm.deleteTableRow(pos.sectionIndex, pos.parentParaIndex, pos.controlIndex, cellInfo.row);
+            wasm.deleteTableRow(pos.sectionIndex, pos.parentParaIndex!, pos.controlIndex!, cellInfo.row);
           }
         });
       } catch (e) {
@@ -354,9 +354,9 @@ export const tableCommands: CommandDef[] = [
       try {
         runTableSnapshot(services, 'deleteTableColumn', (wasm) => {
           if (pathJson) {
-            wasm.deleteTableColumnByPath(pos.sectionIndex, pos.parentParaIndex, pathJson, cellInfo.col);
+            wasm.deleteTableColumnByPath(pos.sectionIndex, pos.parentParaIndex!, pathJson, cellInfo.col);
           } else {
-            wasm.deleteTableColumn(pos.sectionIndex, pos.parentParaIndex, pos.controlIndex, cellInfo.col);
+            wasm.deleteTableColumn(pos.sectionIndex, pos.parentParaIndex!, pos.controlIndex!, cellInfo.col);
           }
         });
       } catch (e) {
@@ -490,9 +490,9 @@ export const tableCommands: CommandDef[] = [
         const cursorAfterDelete = cursorAfterTableDelete(pos);
         runTableSnapshot(services, 'deleteTable', (wasm) => {
           if (pathJson) {
-            wasm.deleteTableControlByPath(pos.sectionIndex, pos.parentParaIndex, pathJson);
+            wasm.deleteTableControlByPath(pos.sectionIndex, pos.parentParaIndex!, pathJson);
           } else {
-            wasm.deleteTableControl(pos.sectionIndex, pos.parentParaIndex, pos.controlIndex);
+            wasm.deleteTableControl(pos.sectionIndex, pos.parentParaIndex!, pos.controlIndex!);
           }
           return cursorAfterDelete;
         });
