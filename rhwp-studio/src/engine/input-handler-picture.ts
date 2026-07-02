@@ -548,10 +548,12 @@ export function updatePictureMoveDrag(this: any, e: MouseEvent): void {
   const cr = sc.getBoundingClientRect();
   const cx = e.clientX - cr.left;
   const cy = e.clientY - cr.top;
-  const pi = this.virtualScroll.getPageAtY(cy);
+  const pi = this.virtualScroll.getPageAtXY(cx, cy);
   const po = this.virtualScroll.getPageOffset(pi);
   const pw = this.virtualScroll.getPageWidth(pi);
-  const pl = (sc.clientWidth - pw) / 2;
+  const pl = this.virtualScroll.getPageLeft(pi) >= 0
+    ? this.virtualScroll.getPageLeft(pi)
+    : (sc.clientWidth - pw) / 2;
   const px = (cx - pl) / zoom;
   const py = (cy - po) / zoom;
 

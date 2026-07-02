@@ -139,6 +139,29 @@ export class VirtualScroll {
     return 0;
   }
 
+  /** 문서 좌표(X, Y)가 속하는 페이지 인덱스를 반환한다 — 그리드(다중 열) 모드에서 X로 열을 판정한다 */
+  getPageAtXY(docX: number, docY: number): number {
+    const yIdx = this.getPageAtY(docY);
+    if (!this.gridMode || this.columns <= 1) return yIdx;
+
+    // 같은 행의 페이지들은 동일 offset을 공유 → yIdx가 속한 행에서 X로 열 선택
+    const rowStart = Math.floor(yIdx / this.columns) * this.columns;
+    const rowEnd = Math.min(rowStart + this.columns - 1, this.pageOffsets.length - 1);
+    let best = yIdx;
+    let bestDist = Infinity;
+    for (let i = rowStart; i <= rowEnd; i++) {
+      const left = this.pageLefts[i];
+      const right = left + this.pageWidths[i];
+      const dist = docX < left ? left - docX : docX > right ? docX - right : 0;
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = i;
+        if (dist === 0) break;
+      }
+    }
+    return best;
+  }
+
   getPageOffset(pageIdx: number): number {
     return this.pageOffsets[pageIdx] ?? 0;
   }
