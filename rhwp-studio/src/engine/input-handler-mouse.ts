@@ -316,6 +316,7 @@ export function onClick(this: any, e: MouseEvent): void {
               startPageX: px, startPageY: py,
               lastPageX: px, lastPageY: py,
               totalDeltaH: 0, totalDeltaV: 0,
+              pageIndex: pi,
             };
             this.container.style.cursor = 'move';
             document.addEventListener('mouseup', this.onMouseUpBound, { once: true });

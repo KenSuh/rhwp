@@ -91,6 +91,7 @@ export class InputHandler {
     lastPageY: number;
     totalDeltaH: number;  // 누적 HWPUNIT 델타 (Undo용)
     totalDeltaV: number;
+    pageIndex: number;  // 드래그 시작 페이지 (delta 좌표계 고정용)
   } | null = null;
 
   // 그림 삽입 배치 모드 상태
