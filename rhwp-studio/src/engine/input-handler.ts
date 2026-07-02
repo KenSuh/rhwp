@@ -948,9 +948,9 @@ export class InputHandler {
       );
       if (!clicked) return hit;
 
-      const lastIndex = hit.cellPath.length - 1;
-      const current = hit.cellPath[lastIndex];
-      const correctedPath = hit.cellPath.map((entry, index) =>
+      const lastIndex = hit.cellPath!.length - 1;
+      const current = hit.cellPath![lastIndex];
+      const correctedPath = hit.cellPath!.map((entry, index) =>
         index === lastIndex
           ? { ...entry, cellIndex: clicked.cellIdx, cellParaIndex: 0 }
           : entry,
