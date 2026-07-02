@@ -10,6 +10,12 @@ import type { ContextMenuItem } from '@/ui/context-menu';
 import { StudioExtensionAPI } from '@/command/extension-api';
 import { InsertTextCommand, SplitParagraphCommand, SplitParagraphInCellCommand } from '@/engine/command';
 import type { EditCommand } from '@/engine/command';
+import {
+  EmbedInsertPictureCommand,
+  EmbedInsertTableCommand,
+  type EmbedPictureSpec,
+  type EmbedTableSpec,
+} from '@/engine/embed-commands';
 import { EventBus } from '@/core/event-bus';
 import { CanvasView } from '@/view/canvas-view';
 import { InputHandler } from '@/engine/input-handler';
@@ -66,6 +72,9 @@ export interface BootstrapHandle {
   extensionAPI: StudioExtensionAPI;
   createInsertTextCommand(pos: DocumentPosition, text: string): EditCommand;
   createSplitParagraphCommand(pos: DocumentPosition): EditCommand;
+  /** 3단계 — 표/그림 spec 삽입 (스냅샷 undo·본문/셀 내부 지원). */
+  createInsertTableCommand(pos: DocumentPosition, spec: EmbedTableSpec): EditCommand;
+  createInsertPictureCommand(pos: DocumentPosition, spec: EmbedPictureSpec): EditCommand;
   /** WASM + 폰트 + InputHandler 초기화 완료 promise. 실패 시 reject. */
   ready: Promise<void>;
   getInputHandler(): InputHandler | null;
@@ -730,6 +739,8 @@ export function bootstrap(rootEl: HTMLElement, opts: BootstrapOpts = {}): Bootst
       pos.parentParaIndex !== undefined
         ? new SplitParagraphInCellCommand(pos)
         : new SplitParagraphCommand(pos),
+    createInsertTableCommand: (pos, spec) => new EmbedInsertTableCommand(pos, spec),
+    createInsertPictureCommand: (pos, spec) => new EmbedInsertPictureCommand(pos, spec),
     ready,
     getInputHandler: () => inputHandler,
     getCanvasView: () => canvasView,
