@@ -407,6 +407,8 @@ function readJpegDimensions(bytes: Uint8Array): { width: number; height: number 
     const isSof = marker >= 0xc0 && marker <= 0xcf
       && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
     if (isSof) {
+      // SOF 세그먼트 = len(2)+precision(1)+h(2)+w(2) 최소 7바이트. 잘린 SOF는 fallback.
+      if (segLen < 7 || offset + 7 > len) return null;
       const height = readUint16be(bytes, offset + 3);
       const width = readUint16be(bytes, offset + 5);
       return width > 0 && height > 0 ? { width, height } : null;
@@ -420,8 +422,9 @@ function readJpegDimensions(bytes: Uint8Array): { width: number; height: number 
 /** GIF — 논리 화면 기술자의 width/height(16bit LE, offset 6/8). */
 function readGifDimensions(bytes: Uint8Array): { width: number; height: number } | null {
   if (bytes.byteLength < 10) return null;
-  // "GIF8" (87a/89a 공통)
+  // "GIF87a" 또는 "GIF89a" 정확 매칭
   if (bytes[0] !== 0x47 || bytes[1] !== 0x49 || bytes[2] !== 0x46 || bytes[3] !== 0x38) return null;
+  if ((bytes[4] !== 0x37 && bytes[4] !== 0x39) || bytes[5] !== 0x61) return null;
   const width = readUint16le(bytes, 6);
   const height = readUint16le(bytes, 8);
   return width > 0 && height > 0 ? { width, height } : null;
@@ -433,13 +436,22 @@ function readWebpDimensions(bytes: Uint8Array): { width: number; height: number 
   // "RIFF" .... "WEBP"
   if (bytes[0] !== 0x52 || bytes[1] !== 0x49 || bytes[2] !== 0x46 || bytes[3] !== 0x46) return null;
   if (bytes[8] !== 0x57 || bytes[9] !== 0x45 || bytes[10] !== 0x42 || bytes[11] !== 0x50) return null;
+  // RIFF 선언 크기('WEBP' 4바이트 이상)가 실제 버퍼를 넘으면 잘린 파일 → fallback.
+  const riffSize = readUint32le(bytes, 4);
+  if (riffSize < 4 || riffSize + 8 > bytes.byteLength) return null;
   const fourcc = String.fromCharCode(bytes[12] ?? 0, bytes[13] ?? 0, bytes[14] ?? 0, bytes[15] ?? 0);
+  const chunkSize = readUint32le(bytes, 16);
   if (fourcc === 'VP8 ') {
+    // 키프레임 start code(0x9D012A) + 치수(26-29)까지 최소 10바이트 chunk.
+    if (chunkSize < 10) return null;
+    if (bytes[23] !== 0x9d || bytes[24] !== 0x01 || bytes[25] !== 0x2a) return null;
     const width = readUint16le(bytes, 26) & 0x3fff;
     const height = readUint16le(bytes, 28) & 0x3fff;
     return width > 0 && height > 0 ? { width, height } : null;
   }
   if (fourcc === 'VP8L') {
+    // 시그니처(1)+치수 비트필드(4) 최소 5바이트 chunk.
+    if (chunkSize < 5) return null;
     if (bytes[20] !== 0x2f) return null; // 시그니처
     const b0 = bytes[21] ?? 0;
     const b1 = bytes[22] ?? 0;
@@ -450,6 +462,8 @@ function readWebpDimensions(bytes: Uint8Array): { width: number; height: number 
     return width > 0 && height > 0 ? { width, height } : null;
   }
   if (fourcc === 'VP8X') {
+    // flags(4)+width-1(3)+height-1(3) 고정 10바이트 chunk.
+    if (chunkSize < 10) return null;
     const width = 1 + readUint24le(bytes, 24);
     const height = 1 + readUint24le(bytes, 27);
     return width > 0 && height > 0 ? { width, height } : null;
@@ -467,6 +481,15 @@ function readUint16le(bytes: Uint8Array, offset: number): number {
 
 function readUint24le(bytes: Uint8Array, offset: number): number {
   return (bytes[offset] ?? 0) | ((bytes[offset + 1] ?? 0) << 8) | ((bytes[offset + 2] ?? 0) << 16);
+}
+
+function readUint32le(bytes: Uint8Array, offset: number): number {
+  return (
+    ((bytes[offset] ?? 0) |
+      ((bytes[offset + 1] ?? 0) << 8) |
+      ((bytes[offset + 2] ?? 0) << 16)) +
+    (bytes[offset + 3] ?? 0) * 0x1000000
+  );
 }
 
 function readUint32be(bytes: Uint8Array, offset: number): number {
