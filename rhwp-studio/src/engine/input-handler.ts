@@ -36,6 +36,32 @@ type CellOperationSelection = {
   bboxes: CellBbox[];
 };
 
+export interface ImagePlacementInput {
+  readonly data: Uint8Array;
+  readonly ext: string;
+  readonly naturalWidth: number;
+  readonly naturalHeight: number;
+  readonly fileName?: string;
+  readonly requestId?: string;
+}
+
+export interface ImagePlacementFinished {
+  readonly requestId?: string;
+  readonly position: {
+    readonly page?: number;
+    readonly x: number;
+    readonly y: number;
+    readonly w: number;
+    readonly h: number;
+    readonly unit: 'px';
+    readonly sectionIndex: number;
+    readonly paragraphIndex: number;
+    readonly charOffset: number;
+    readonly hwpWidth: number;
+    readonly hwpHeight: number;
+  };
+}
+
 /** 클릭 커서 배치 + 키보드 입력을 처리한다 */
 export class InputHandler {
   private cursor: CursorState;
@@ -96,10 +122,7 @@ export class InputHandler {
 
   // 그림 삽입 배치 모드 상태
   private imagePlacementMode = false;
-  private imagePlacementData: {
-    data: Uint8Array; ext: string; fileName: string;
-    naturalWidth: number; naturalHeight: number;
-  } | null = null;
+  private imagePlacementData: ImagePlacementInput | null = null;
   private imagePlacementDrag: {
     startClientX: number; startClientY: number;
     currentClientX: number; currentClientY: number;
@@ -435,9 +458,9 @@ export class InputHandler {
   // ─── 그림 삽입 배치 모드 ───────────────────────────────
 
   /** 그림 배치 모드 진입: 파일 선택 후 호출. 마우스로 영역 지정 대기 */
-  enterImagePlacementMode(data: Uint8Array, ext: string, naturalWidth: number, naturalHeight: number, fileName: string = ''): void {
+  enterImagePlacementMode(input: ImagePlacementInput): void {
     this.imagePlacementMode = true;
-    this.imagePlacementData = { data, ext, fileName, naturalWidth, naturalHeight };
+    this.imagePlacementData = { ...input, fileName: input.fileName ?? '' };
     this.imagePlacementDrag = null;
     this.container.style.cursor = 'crosshair';
   }

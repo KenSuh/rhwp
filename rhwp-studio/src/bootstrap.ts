@@ -18,7 +18,11 @@ import {
 } from '@/engine/embed-commands';
 import { EventBus } from '@/core/event-bus';
 import { CanvasView } from '@/view/canvas-view';
-import { InputHandler } from '@/engine/input-handler';
+import {
+  InputHandler,
+  type ImagePlacementFinished,
+  type ImagePlacementInput,
+} from '@/engine/input-handler';
 import { Toolbar } from '@/ui/toolbar';
 import { MenuBar } from '@/ui/menu-bar';
 import { loadWebFonts } from '@/core/font-loader';
@@ -83,6 +87,79 @@ export interface BootstrapHandle {
   loadBytes(data: Uint8Array, fileName: string, fileHandle?: WasmBridge['currentFileHandle']): Promise<void>;
   createNewDocument(): Promise<void>;
   destroy(): void;
+}
+
+const MAX_SEAL_PLACE_BYTES = 10 * 1024 * 1024;
+const SEAL_PLACE_TARGET_TTL_MS = 120_000;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object';
+}
+
+function readSealBytes(value: unknown): Uint8Array | null {
+  if (value instanceof Uint8Array) return value;
+  if (value instanceof ArrayBuffer) return new Uint8Array(value);
+  if (ArrayBuffer.isView(value)) {
+    return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+  }
+  if (
+    Array.isArray(value) &&
+    value.every((item) => Number.isInteger(item) && item >= 0 && item <= 255)
+  ) {
+    return new Uint8Array(value);
+  }
+  return null;
+}
+
+function readPositiveNumber(params: Record<string, unknown>, key: string): number {
+  const value = params[key];
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value;
+  throw new Error(`SEAL_PLACE_${key.toUpperCase()}_INVALID`);
+}
+
+function readSealExt(value: unknown): string {
+  const ext = typeof value === 'string' ? value.toLowerCase().replace(/^\./, '') : '';
+  if (/^(png|jpe?g|gif|bmp|webp)$/.test(ext)) return ext;
+  throw new Error('SEAL_PLACE_EXT_INVALID');
+}
+
+function parseSealPlaceParams(params: unknown): ImagePlacementInput {
+  if (!isRecord(params)) throw new Error('SEAL_PLACE_PARAMS_INVALID');
+  const data = readSealBytes(params.data);
+  if (!data || data.byteLength === 0) throw new Error('SEAL_PLACE_BYTES_INVALID');
+  if (data.byteLength > MAX_SEAL_PLACE_BYTES) throw new Error('SEAL_PLACE_BYTES_TOO_LARGE');
+  const ext = readSealExt(params.ext);
+  const naturalWidth = readPositiveNumber(params, 'naturalWidth');
+  const naturalHeight = readPositiveNumber(params, 'naturalHeight');
+  return {
+    data,
+    ext,
+    naturalWidth,
+    naturalHeight,
+    fileName: typeof params.fileName === 'string' && params.fileName.length > 0
+      ? params.fileName
+      : `seal.${ext}`,
+  };
+}
+
+function isImagePlacementFinished(value: unknown): value is ImagePlacementFinished {
+  if (!isRecord(value)) return false;
+  if (value.requestId !== undefined && typeof value.requestId !== 'string') return false;
+  const position = value.position;
+  return (
+    isRecord(position) &&
+    (position.page === undefined || typeof position.page === 'number') &&
+    typeof position.x === 'number' &&
+    typeof position.y === 'number' &&
+    typeof position.w === 'number' &&
+    typeof position.h === 'number' &&
+    position.unit === 'px' &&
+    typeof position.sectionIndex === 'number' &&
+    typeof position.paragraphIndex === 'number' &&
+    typeof position.charOffset === 'number' &&
+    typeof position.hwpWidth === 'number' &&
+    typeof position.hwpHeight === 'number'
+  );
 }
 
 export function bootstrap(rootEl: HTMLElement, opts: BootstrapOpts = {}): BootstrapHandle {
@@ -671,6 +748,16 @@ export function bootstrap(rootEl: HTMLElement, opts: BootstrapOpts = {}): Bootst
   // 스탠드얼론(핸들 미사용)에서 초기화 실패가 unhandled rejection 이 되지 않게 —
   // 실패 메시지는 initialize 내부에서 상태 표시줄에 이미 노출됨.
   ready.catch(() => { /* handled in initialize */ });
+  const sealPlacementTargets = new Map<string, MessageEventSource>();
+  eventBus.on('image-placement-finished', (payload) => {
+    if (!isImagePlacementFinished(payload) || !payload.requestId) return;
+    const target = sealPlacementTargets.get(payload.requestId);
+    sealPlacementTargets.delete(payload.requestId);
+    target?.postMessage(
+      { type: 'seal-placed', id: payload.requestId, result: { position: payload.position } },
+      { targetOrigin: '*' },
+    );
+  });
 
   // ── iframe 연동 API (postMessage) ──
   // 부모 페이지에서 postMessage로 에디터를 제어할 수 있다.
@@ -718,6 +805,28 @@ export function bootstrap(rootEl: HTMLElement, opts: BootstrapOpts = {}): Bootst
         case 'ready':
           reply(true);
           break;
+        case 'seal-place': {
+          if (typeof id !== 'string' || id.length === 0) {
+            reply(undefined, 'SEAL_PLACE_ID_INVALID');
+            break;
+          }
+          if (!e.source) {
+            reply(undefined, 'SEAL_PLACE_SOURCE_INVALID');
+            break;
+          }
+          const ih = inputHandler;
+          if (!ih) {
+            reply(undefined, 'SEAL_PLACE_EDITOR_UNAVAILABLE');
+            break;
+          }
+          sealPlacementTargets.set(id, e.source);
+          window.setTimeout(() => {
+            if (sealPlacementTargets.get(id) === e.source) sealPlacementTargets.delete(id);
+          }, SEAL_PLACE_TARGET_TTL_MS);
+          ih.enterImagePlacementMode({ ...parseSealPlaceParams(params), requestId: id });
+          reply({ state: 'placement_started' });
+          break;
+        }
         default:
           reply(undefined, `Unknown method: ${method}`);
       }

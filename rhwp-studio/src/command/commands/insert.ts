@@ -62,7 +62,13 @@ export const insertCommands: CommandDef[] = [
         await new Promise<void>(r => { img.onload = () => r(); });
         URL.revokeObjectURL(img.src);
         // 마우스 영역 지정 모드 진입
-        ih.enterImagePlacementMode(data, ext, img.naturalWidth, img.naturalHeight, file.name);
+        ih.enterImagePlacementMode({
+          data,
+          ext,
+          naturalWidth: img.naturalWidth,
+          naturalHeight: img.naturalHeight,
+          fileName: file.name,
+        });
       };
       input.click();
     },

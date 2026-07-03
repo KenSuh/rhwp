@@ -330,6 +330,30 @@ export function finishImagePlacement(this: any, e: MouseEvent): void {
     const result = this.wasm.insertPicture(sec, paraIdx, charOffset, imgData.data, wHwp, hHwp, imgData.naturalWidth, imgData.naturalHeight, imgData.ext, desc);
     if (result.ok) {
       this.eventBus.emit('document-changed');
+      const cursorPageIndex = typeof hit.cursorRect?.pageIndex === 'number' ? hit.cursorRect.pageIndex : undefined;
+      let pageIndex = cursorPageIndex;
+      if (pageIndex === undefined) {
+        try {
+          const pageResult = this.wasm.getPageOfPosition(sec, paraIdx);
+          if (pageResult.ok && typeof pageResult.page === 'number') pageIndex = pageResult.page;
+        } catch {}
+      }
+      this.eventBus.emit('image-placement-finished', {
+        requestId: imgData.requestId,
+        position: {
+          ...(pageIndex === undefined ? {} : { page: pageIndex + 1 }),
+          x: typeof hit.cursorRect?.x === 'number' ? hit.cursorRect.x : 0,
+          y: typeof hit.cursorRect?.y === 'number' ? hit.cursorRect.y : 0,
+          w: wHwp / 75,
+          h: hHwp / 75,
+          unit: 'px',
+          sectionIndex: sec,
+          paragraphIndex: paraIdx,
+          charOffset,
+          hwpWidth: wHwp,
+          hwpHeight: hHwp,
+        },
+      });
     }
   } catch (err) {
     console.warn('[InputHandler] 그림 삽입 실패:', err);
