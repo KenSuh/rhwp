@@ -421,30 +421,50 @@ impl Paginator {
                 }
             });
             // 비-TAC 어울림(text_wrap=0) 표: 후속 빈 문단의 cs를 기록
-            let has_non_tac_table = has_table && !has_tac_block_table;
+            let has_non_tac_flow_table = para.controls.iter().any(|c| {
+                matches!(
+                    c,
+                    Control::Table(t)
+                        if !t.common.treat_as_char
+                            && !matches!(
+                                t.common.text_wrap,
+                                crate::model::shape::TextWrap::InFrontOfText
+                                    | crate::model::shape::TextWrap::BehindText
+                            )
+                )
+            });
+            let has_non_tac_square_flow_table = para.controls.iter().any(|c| {
+                matches!(
+                    c,
+                    Control::Table(t)
+                        if !t.common.treat_as_char
+                            && matches!(t.common.text_wrap, crate::model::shape::TextWrap::Square)
+                )
+            });
             // 표 존재 시 플래그 설정 (vpos drift 보정용)
             // TAC/비-TAC 모두 layout의 vpos 보정과 drift를 만들 수 있음
             if has_table && !page_changed {
                 st.page_has_block_table = true;
             }
-            if has_non_tac_table {
-                let is_wrap_around = para.controls.iter().any(|c| {
-                    if let Control::Table(t) = c {
-                        matches!(t.common.text_wrap, crate::model::shape::TextWrap::Square)
-                    } else {
-                        false
-                    }
-                });
-                if is_wrap_around {
-                    // 어울림 배치: 표의 LINE_SEG (cs, sw) 쌍과 동일한 후속 문단은
-                    // 표 옆에 배치되므로 높이를 소비하지 않음
-                    wrap_around_cs = para.line_segs.first().map(|s| s.column_start).unwrap_or(0);
-                    wrap_around_sw = para
-                        .line_segs
-                        .first()
-                        .map(|s| s.segment_width as i32)
-                        .unwrap_or(0);
+            if has_non_tac_square_flow_table {
+                // 어울림 배치: 표의 LINE_SEG (cs, sw) 쌍과 동일한 후속 문단은
+                // 표 옆에 배치되므로 높이를 소비하지 않음
+                let body_w = (page_def.width as i32)
+                    - (page_def.margin_left as i32)
+                    - (page_def.margin_right as i32);
+                wrap_around_cs = para.line_segs.first().map(|s| s.column_start).unwrap_or(0);
+                wrap_around_sw = para
+                    .line_segs
+                    .first()
+                    .map(|s| s.segment_width as i32)
+                    .unwrap_or(0);
+                let has_horizontal_wrap_space =
+                    wrap_around_sw > 0 && wrap_around_sw + 1000 < body_w;
+                if has_horizontal_wrap_space {
                     wrap_around_table_para = para_idx;
+                } else {
+                    wrap_around_cs = -1;
+                    wrap_around_sw = -1;
                 }
             }
 
@@ -521,7 +541,7 @@ impl Paginator {
                 } else {
                     para_height
                 };
-                if height_added > cap {
+                if !has_non_tac_flow_table && height_added > cap {
                     st.current_height = height_before_controls + cap;
                 }
 
