@@ -1,13 +1,16 @@
 //! Contents/section{N}.xml — Section 본문 직렬화
 //!
 //! Stage 2 (#182): 기존 템플릿 기반 구조를 유지하되, `<hp:p>` 와 `<hp:run>` 의 속성을
-//! IR에서 가져와 동적으로 생성한다. `secPr`/`pagePr`/`grid` 등 섹션 정의는 템플릿 보존
+//! IR에서 가져와 동적으로 생성한다. `secPr`/`grid` 등 섹션 정의는 템플릿 보존
 //! (IR에 대응 필드가 더 담길 때까지 점진적으로 동적화 예정).
 //!
 //! Stage #177 (2026-04-18): `<hp:lineseg>` 직렬화를 IR 기반으로 전환.
 //! `Paragraph.line_segs` 의 6개 필드(line_height, text_height, baseline_distance,
 //! line_spacing, column_start/segment_width, tag)를 그대로 출력하여 **원본 lineseg 값
 //! 보존**. rhwp 는 자신의 문서에서 새로 부정확한 값을 생산하지 않는다.
+//!
+//! v316 (2026-10-04): `<hp:pagePr>`/`<hp:margin>` 을 `section_def.page_def` 에서 생성하여
+//! 원본 용지 크기·여백 7개·방향·제책을 보존. 모든 필드가 기본값인 PageDef 는 템플릿 유지.
 //!
 //! IR 매핑 관행:
 //!   - `section.paragraphs` 여러 개 = 하드 문단 경계 (`<hp:p>` 여러 개)
@@ -18,11 +21,13 @@
 //!   - `paragraph.column_type` → `<hp:p pageBreak/columnBreak>`
 //!   - `paragraph.char_shapes[0].char_shape_id` → 첫 `<hp:run charPrIDRef>`
 //!   - `paragraph.line_segs[i]` → 각 `<hp:lineseg>` 속성 (6개 필드 그대로 출력)
+//!   - `section.section_def.page_def` → `<hp:pagePr>`/`<hp:margin>` (기본값뿐이면 템플릿)
 
 use quick_xml::Writer;
 
 use crate::model::control::{Control, PageHide, PageNumberPos};
 use crate::model::document::{Document, Section};
+use crate::model::page::{BindingMethod, PageDef};
 use crate::model::paragraph::{ColumnBreakType, LineSeg, Paragraph};
 use crate::model::shape::ShapeObject;
 
@@ -38,6 +43,8 @@ const EMPTY_SECTION_XML: &str = include_str!("templates/empty_section0.xml");
 const TEXT_SLOT: &str = "<hp:t/>";
 const LINESEG_SLOT_OPEN: &str = "<hp:linesegarray>";
 const LINESEG_SLOT_CLOSE: &str = "</hp:linesegarray>";
+const PAGE_PR_OPEN: &str = "<hp:pagePr ";
+const PAGE_PR_CLOSE: &str = "</hp:pagePr>";
 const PARA_CLOSE: &str = "</hp:p></hs:sec>";
 
 // 템플릿 내 첫 <hp:p> 태그의 실제 문자열 (id="3121190098" 랜덤 해시 포함).
@@ -69,7 +76,12 @@ pub fn write_section(
     };
     vert_cursor = first_advance;
 
-    let mut out = EMPTY_SECTION_XML.replacen(TEXT_SLOT, &first_t, 1);
+    // 저장된 PageDef 가 있으면 템플릿의 `<hp:pagePr>` 를 IR 값으로 교체 (없으면 템플릿 유지)
+    let template = match render_page_pr(&section.section_def.page_def) {
+        Some(page_pr) => replace_page_pr(EMPTY_SECTION_XML, &page_pr),
+        None => EMPTY_SECTION_XML.to_string(),
+    };
+    let mut out = template.replacen(TEXT_SLOT, &first_t, 1);
     out = replace_first_linesegs(&out, &first_linesegs);
 
     // 첫 문단 `<hp:p>` 태그를 IR 기반 속성으로 교체
@@ -468,6 +480,70 @@ fn replace_first_linesegs(xml: &str, new_inner: &str) -> String {
     out.push_str(&xml[..inner_start]);
     out.push_str(new_inner);
     out.push_str(&xml[inner_end..]);
+    out
+}
+
+/// `section_def.page_def` 를 `<hp:pagePr>`(+`<hp:margin>`) 요소로 직렬화한다.
+///
+/// - 모든 필드가 기본값인 PageDef(예: `Section::default()`)는 "PageDef 없음"으로 보고 `None`.
+///   호출자는 템플릿 값을 그대로 쓴다 (기존 동작).
+/// - 크기·여백은 모델(u32) 값 그대로 쓴다. 크기 0 같은 스키마 밖 값도 보정하지 않는다.
+/// - `landscape`: 한컴 실파일 관측 — 세로 문서 = `WIDELY`, 가로 문서(1건) = `NARROWLY` 이고 가로여도
+///   width/height 를 세로형(짧은 변/긴 변) 그대로 저장한다. 모델(HWP 규약)과 같으므로 교환하지 않는다.
+/// - `gutterType`(제책 방법): 한쪽 `LEFT_ONLY`, 맞쪽 `LEFT_RIGHT`, 위로 넘기기 `TOP_BOTTOM`.
+fn render_page_pr(pd: &PageDef) -> Option<String> {
+    if page_def_is_unset(pd) {
+        return None;
+    }
+    let landscape = if pd.landscape { "NARROWLY" } else { "WIDELY" };
+    let gutter_type = match pd.binding {
+        BindingMethod::SingleSided => "LEFT_ONLY",
+        BindingMethod::DuplexSided => "LEFT_RIGHT",
+        BindingMethod::TopFlip => "TOP_BOTTOM",
+    };
+    Some(format!(
+        r#"<hp:pagePr landscape="{}" width="{}" height="{}" gutterType="{}"><hp:margin header="{}" footer="{}" gutter="{}" left="{}" right="{}" top="{}" bottom="{}"/></hp:pagePr>"#,
+        landscape,
+        pd.width,
+        pd.height,
+        gutter_type,
+        pd.margin_header,
+        pd.margin_footer,
+        pd.margin_gutter,
+        pd.margin_left,
+        pd.margin_right,
+        pd.margin_top,
+        pd.margin_bottom,
+    ))
+}
+
+/// 모든 필드가 `PageDef::default()` 와 같은가 — 파서가 `<hp:pagePr>` 를 보지 못한 구역의 상태.
+fn page_def_is_unset(pd: &PageDef) -> bool {
+    pd.width == 0
+        && pd.height == 0
+        && pd.margin_left == 0
+        && pd.margin_right == 0
+        && pd.margin_top == 0
+        && pd.margin_bottom == 0
+        && pd.margin_header == 0
+        && pd.margin_footer == 0
+        && pd.margin_gutter == 0
+        && pd.attr == 0
+        && !pd.landscape
+        && pd.binding == BindingMethod::SingleSided
+}
+
+/// 템플릿의 첫 `<hp:pagePr …>…</hp:pagePr>` 를 `page_pr` 로 바꾼다.
+fn replace_page_pr(xml: &str, page_pr: &str) -> String {
+    let start = xml.find(PAGE_PR_OPEN).expect("template has pagePr");
+    let close_rel = xml[start..]
+        .find(PAGE_PR_CLOSE)
+        .expect("template has closing pagePr");
+    let end = start + close_rel + PAGE_PR_CLOSE.len();
+    let mut out = String::with_capacity(xml.len() - (end - start) + page_pr.len());
+    out.push_str(&xml[..start]);
+    out.push_str(page_pr);
+    out.push_str(&xml[end..]);
     out
 }
 
