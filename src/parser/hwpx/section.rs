@@ -15,7 +15,7 @@ use crate::model::document::{Section, SectionDef};
 use crate::model::footnote::{Endnote, Footnote};
 use crate::model::header_footer::{Footer, Header, HeaderFooterApply};
 use crate::model::image::{CropInfo, ImageAttr, ImageEffect};
-use crate::model::page::{ColumnDef, ColumnDirection, ColumnType, PageDef};
+use crate::model::page::{BindingMethod, ColumnDef, ColumnDirection, ColumnType, PageDef};
 use crate::model::paragraph::{CharShapeRef, LineSeg, Paragraph};
 use crate::model::shape::{
     ArcShape, CommonObjAttr, CurveShape, DrawingObjAttr, EllipseShape, GroupShape, HorzAlign,
@@ -87,15 +87,24 @@ fn parse_page_pr(e: &quick_xml::events::BytesStart, page: &mut PageDef) {
         match attr.key.as_ref() {
             b"width" => page.width = parse_u32(&attr),
             b"height" => page.height = parse_u32(&attr),
-            // HWPX에서는 landscape 플래그를 false로 유지한다.
-            // HWPX의 width/height는 이미 실제 용지 방향대로 저장되어 있어
-            // 렌더러가 추가로 교환(swap)할 필요가 없다.
-            // HWP 바이너리는 항상 짧은변=width, 긴변=height로 저장하고
-            // landscape=true일 때 렌더러가 교환하지만, HWPX는 다른 규약을 따른다.
-            b"landscape" => { /* 무시: landscape = false 유지 */ }
+            // 한컴 HWPX는 가로도 저장 치수를 유지한다. 방향 교환은 렌더러가 한다.
+            b"landscape" => page.landscape = attr.value.as_ref() == b"NARROWLY",
+            b"gutterType" => {
+                page.binding = match attr.value.as_ref() {
+                    b"LEFT_RIGHT" => BindingMethod::DuplexSided,
+                    b"TOP_BOTTOM" => BindingMethod::TopFlip,
+                    _ => BindingMethod::SingleSided,
+                };
+            }
             _ => {}
         }
     }
+    let binding_attr = match page.binding {
+        BindingMethod::SingleSided => 0,
+        BindingMethod::DuplexSided => 1 << 1,
+        BindingMethod::TopFlip => 2 << 1,
+    };
+    page.attr = (page.attr & !0x07) | u32::from(page.landscape) | binding_attr;
 }
 
 fn parse_page_margin(e: &quick_xml::events::BytesStart, page: &mut PageDef) {

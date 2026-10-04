@@ -10,7 +10,7 @@
 //! 직렬화기가 만든 값으로 기대값을 만들지 않는다.
 
 use std::collections::BTreeMap;
-use std::io::Read;
+use std::io::{Read, Write};
 
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::Reader;
@@ -157,6 +157,207 @@ fn doc_with_sections(defs: Vec<(PageDef, bool)>) -> Document {
         doc.sections.push(section);
     }
     doc
+}
+
+fn fixture_with_page_pr(page_pr: &str) -> Vec<u8> {
+    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(FORM_002)).expect("fixture ZIP");
+    let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    for i in 0..archive.len() {
+        let mut entry = archive.by_index(i).expect("fixture member");
+        if entry.name() == "Contents/section0.xml" {
+            let mut xml = String::new();
+            entry.read_to_string(&mut xml).expect("section XML");
+            let start = xml.find("<hp:pagePr ").expect("fixture pagePr");
+            let end = xml[start..].find("</hp:pagePr>").expect("pagePr close")
+                + start
+                + "</hp:pagePr>".len();
+            xml.replace_range(start..end, page_pr);
+            writer
+                .start_file(entry.name(), zip::write::SimpleFileOptions::default())
+                .expect("write section");
+            writer.write_all(xml.as_bytes()).expect("section contents");
+        } else {
+            writer.raw_copy_file(entry).expect("copy fixture member");
+        }
+    }
+    writer.finish().expect("finish fixture ZIP").into_inner()
+}
+
+fn nondefault_page_pr(landscape: &str, gutter_type: &str) -> String {
+    format!(
+        r#"<hp:pagePr landscape="{landscape}" width="59528" height="84186" gutterType="{gutter_type}"><hp:margin header="5555" footer="6666" gutter="7777" left="1111" right="2222" top="3333" bottom="4444"/></hp:pagePr>"#
+    )
+}
+
+fn svg_dimensions(core: &DocumentCore) -> (f64, f64) {
+    let svg = core.render_page_svg_native(0).expect("native SVG");
+    let mut reader = Reader::from_str(&svg);
+    loop {
+        match reader.read_event().expect("SVG XML") {
+            Event::Start(e) if local(e.name().as_ref()) == b"svg" => {
+                let attrs = attrs_of(&e);
+                return (
+                    attrs["width"].parse().expect("SVG width"),
+                    attrs["height"].parse().expect("SVG height"),
+                );
+            }
+            Event::Eof => panic!("SVG root missing"),
+            _ => {}
+        }
+    }
+}
+
+#[test]
+fn file_roundtrip_preserves_orientation_and_all_binding_modes() {
+    for (landscape_xml, landscape, gutter_xml, binding, attr) in [
+        ("WIDELY", false, "LEFT_ONLY", BindingMethod::SingleSided, 0),
+        ("WIDELY", false, "LEFT_RIGHT", BindingMethod::DuplexSided, 2),
+        ("WIDELY", false, "TOP_BOTTOM", BindingMethod::TopFlip, 4),
+        ("NARROWLY", true, "LEFT_ONLY", BindingMethod::SingleSided, 1),
+        (
+            "NARROWLY",
+            true,
+            "LEFT_RIGHT",
+            BindingMethod::DuplexSided,
+            3,
+        ),
+        ("NARROWLY", true, "TOP_BOTTOM", BindingMethod::TopFlip, 5),
+    ] {
+        // Given: real fixture members, with manually specified pagePr values.
+        let input = fixture_with_page_pr(&nondefault_page_pr(landscape_xml, gutter_xml));
+        let expected_xml = page_pr_xml(&section_xmls(&input)[0]);
+        let expected_ir = (
+            59528,
+            84186,
+            [1111, 2222, 3333, 4444, 5555, 6666, 7777],
+            attr,
+            landscape,
+            binding,
+        );
+
+        // When: file import -> export -> reload -> re-export.
+        let core = DocumentCore::from_bytes(&input).expect("import fixture");
+        let exported = core.export_hwpx_native().expect("export fixture");
+        let reloaded = DocumentCore::from_bytes(&exported).expect("reload export");
+        let reexported = reloaded.export_hwpx_native().expect("re-export fixture");
+
+        // Then: independently specified IR and input XML survive each boundary.
+        for doc in [core.document(), reloaded.document()] {
+            assert_eq!(fields(&doc.sections[0].section_def.page_def), expected_ir);
+        }
+        for bytes in [&exported, &reexported] {
+            assert_eq!(page_pr_xml(&section_xmls(bytes)[0]), expected_xml);
+        }
+        println!("FILE_ROUNDTRIP {landscape_xml}/{gutter_xml} attr={attr} preserved");
+    }
+}
+
+#[test]
+fn native_render_interprets_landscape_once_without_rewriting_stored_dimensions() {
+    // Given: Hancom's stored A4 dimensions, with landscape selected independently.
+    let input = fixture_with_page_pr(&nondefault_page_pr("NARROWLY", "LEFT_RIGHT"));
+    let core = DocumentCore::from_bytes(&input).expect("import landscape fixture");
+
+    // When: native rendering consumes the imported PageDef.
+    let (width, height) = svg_dimensions(&core);
+
+    // Then: display is landscape, storage is unchanged, and body uses the same axes.
+    assert!((width - 1122.48).abs() < 0.000_001);
+    assert!((height - 793.706_666_666_666_7).abs() < 0.000_001);
+    let pd = &core.document().sections[0].section_def.page_def;
+    assert_eq!((pd.width, pd.height), (59528, 84186));
+    let areas = rhwp::model::page::PageAreas::from_page_def(pd);
+    assert_eq!(areas.body_area.width(), 73076);
+    assert_eq!(areas.body_area.height(), 39530);
+    println!(
+        "NATIVE_LANDSCAPE stored=59528x84186 svg={width}x{height} pages={}",
+        core.page_count()
+    );
+}
+
+#[test]
+fn landscape_does_not_infer_or_normalize_dimension_order() {
+    // Given: an explicit flag with unusual stored dimensions; no heuristic repair.
+    let page_pr = nondefault_page_pr("NARROWLY", "LEFT_ONLY").replace(
+        "width=\"59528\" height=\"84186\"",
+        "width=\"84186\" height=\"59528\"",
+    );
+    let input = fixture_with_page_pr(&page_pr);
+    let core = DocumentCore::from_bytes(&input).expect("import unusual dimensions");
+
+    // When: native rendering applies only the explicit orientation flag.
+    let (width, height) = svg_dimensions(&core);
+
+    // Then: one swap, with no short-side/long-side normalization or export swap.
+    assert!((width - 793.706_666_666_666_7).abs() < 0.000_001);
+    assert!((height - 1122.48).abs() < 0.000_001);
+    let exported = core
+        .export_hwpx_native()
+        .expect("export unusual dimensions");
+    assert_eq!(
+        page_pr_xml(&section_xmls(&exported)[0]),
+        page_pr_xml(&section_xmls(&input)[0])
+    );
+}
+
+#[test]
+fn missing_orientation_and_binding_keep_legacy_defaults_and_explicit_zero_margins() {
+    // Given: attributes absent, while dimensions make the zero margins intentional.
+    let input = fixture_with_page_pr(
+        r#"<hp:pagePr width="59528" height="84186"><hp:margin header="0" footer="0" gutter="0" left="0" right="0" top="0" bottom="0"/></hp:pagePr>"#,
+    );
+
+    // When: importing and exporting the file.
+    let core = DocumentCore::from_bytes(&input).expect("import missing attributes");
+    let exported = core
+        .export_hwpx_native()
+        .expect("export missing attributes");
+    let reloaded = parse_hwpx(&exported).expect("reload missing attributes");
+
+    // Then: defaults stay portrait/single-sided, and zero margins remain zero.
+    for doc in [core.document(), &reloaded] {
+        assert_eq!(
+            fields(&doc.sections[0].section_def.page_def),
+            (59528, 84186, [0; 7], 0, false, BindingMethod::SingleSided)
+        );
+    }
+}
+
+#[test]
+fn input_mutations_are_detected_without_changing_engine_source() {
+    // Given: fixed expected IR and four independently corrupted input values.
+    let valid = nondefault_page_pr("NARROWLY", "LEFT_RIGHT");
+    let expected = (
+        59528,
+        84186,
+        [1111, 2222, 3333, 4444, 5555, 6666, 7777],
+        3,
+        true,
+        BindingMethod::DuplexSided,
+    );
+    for (name, mutant) in [
+        ("orientation", valid.replace("NARROWLY", "WIDELY")),
+        ("binding", valid.replace(" gutterType=\"LEFT_RIGHT\"", "")),
+        (
+            "dimensions",
+            valid.replace(
+                "width=\"59528\" height=\"84186\"",
+                "width=\"84186\" height=\"59528\"",
+            ),
+        ),
+        ("zero-margin", valid.replace("left=\"1111\"", "left=\"0\"")),
+    ] {
+        // When: importing the corrupted HWPX archive.
+        let doc = parse_hwpx(&fixture_with_page_pr(&mutant)).expect("import input mutation");
+
+        // Then: keeping the original expectation would fail for every corruption.
+        assert_ne!(
+            fields(&doc.sections[0].section_def.page_def),
+            expected,
+            "{name} mutation escaped"
+        );
+        println!("INPUT_MUTATION {name} detected");
+    }
 }
 
 #[test]
