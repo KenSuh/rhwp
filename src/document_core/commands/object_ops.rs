@@ -2169,7 +2169,7 @@ impl DocumentCore {
         let row_sizes: Vec<i16> = (0..row_count).map(|_| col_count as i16).collect();
         let outer_margin: i16 = 283;
         let mut raw_ctrl_data = vec![0u8; 38];
-        let flags: u32 = (1 << 0) | (0 << 3) | (3 << 8) | (4 << 15) | (2 << 18) | (1 << 21);
+        let flags: u32 = (1 << 0) | (3 << 8) | (4 << 15) | (2 << 18) | (1 << 21);
         raw_ctrl_data[0..4].copy_from_slice(&flags.to_le_bytes());
         raw_ctrl_data[12..16].copy_from_slice(&total_width.to_le_bytes());
         raw_ctrl_data[16..20].copy_from_slice(&total_height.to_le_bytes());
