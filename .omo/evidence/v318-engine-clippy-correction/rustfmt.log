@@ -1,0 +1,37 @@
+Diff in /Users/ken/orca/workspaces/rhwp/v318-engine-clippy-correction/src/document_core/commands/table_ops.rs:773:
+             );
+         }
+ 
+[31m-        if let Ok(table) =
+(B[m[31m-            self.get_table_mut_by_cell_path(section_idx, parent_para_idx, &path)
+(B[m[31m-        {
+(B[m[32m+        if let Ok(table) = self.get_table_mut_by_cell_path(section_idx, parent_para_idx, &path) {
+(B[m             table.dirty = true;
+         }
+         if let Some(section) = self.document.sections.get_mut(section_idx) {
+Diff in /Users/ken/orca/workspaces/rhwp/v318-engine-clippy-correction/src/document_core/queries/cursor_nav.rs:239:
+ 
+         // ═══ PHASE 3: 목표 위치 결정 ═══
+         // 결과: (sec, para, char_offset, cell_ctx)
+[31m-        let new_pos: (usize, usize, usize, Option<(usize, usize, usize, usize)>) = if target_line >= 0
+(B[m[32m+        let new_pos: (usize, usize, usize, Option<(usize, usize, usize, usize)>) = if target_line
+(B[m[32m+            >= 0
+(B[m             && (target_line as usize) < line_info.line_count
+         {
+             // CASE A: 같은 문단 내 다른 줄
+Diff in /Users/ken/orca/workspaces/rhwp/v318-engine-clippy-correction/src/document_core/queries/cursor_nav.rs:264:
+             (sec, para, new_offset, cell_ctx)
+         } else if cell_ctx.is_some() {
+             // CASE C: 셀 내부 경계
+[31m-            self.handle_cell_boundary(
+(B[m[31m-                sec,
+(B[m[31m-                para,
+(B[m[31m-                char_offset,
+(B[m[31m-                delta,
+(B[m[31m-                actual_px,
+(B[m[31m-                cell_ctx.unwrap(),
+(B[m[31m-            )?
+(B[m[32m+            self.handle_cell_boundary(sec, para, char_offset, delta, actual_px, cell_ctx.unwrap())?
+(B[m         } else {
+             // CASE B: 본문 문단/구역 경계
+             self.handle_body_boundary(sec, para, delta, actual_px)?

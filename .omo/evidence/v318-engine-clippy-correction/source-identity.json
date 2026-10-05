@@ -1,0 +1,28 @@
+{
+  "base": "3033ae22c9031919757be1357a998471e67f1fab",
+  "source_head": "e957b3b87a8bebaf9091d3cf590a388c7a7d1ad7",
+  "source_tree": "377e08af4758266c2a9f271723e32a7f5f7f87c3",
+  "owned_rust": [
+    "src/document_core/commands/object_ops.rs",
+    "src/document_core/commands/table_ops.rs",
+    "src/document_core/queries/cursor_nav.rs",
+    "src/document_core/queries/form_query.rs",
+    "src/document_core/queries/rendering.rs",
+    "src/model/style.rs",
+    "src/parser/body_text.rs",
+    "src/parser/byte_reader.rs",
+    "src/parser/control.rs",
+    "src/serializer/hwpx/section.rs",
+    "src/wmf/parser/objects/structure/mod.rs"
+  ],
+  "actual_model": "gpt-6.1-sol",
+  "actual_effort": "xhigh",
+  "recommendation_effort": "max",
+  "actual_effort_evidence": "dispatch-identity.log terminal.preview",
+  "expected_baseline_clippy_rc": 101,
+  "expected_baseline_errors": 14,
+  "strict_clippy_status": "FAIL",
+  "strict_clippy_blocker": "src/main.rs:1331 useless_borrows_in_formatting (outside initial11)",
+  "jev": "used",
+  "heavy_checks": "NOT_RUN; parent final exact-head CI after R2 convergence"
+}

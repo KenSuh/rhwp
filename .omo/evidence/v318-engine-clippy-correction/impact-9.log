@@ -1,0 +1,2023 @@
+IMPACT at=code:3033ae22c9031919757be1357a998471e67f1fab@3033ae22c903 query="src/parser/control.rs" mode=path jev=used(cache) jev_threshold=0.45 files=646 rows=5253 det_ms=537 total_ms=539 jev_requests=0 jev_http_attempts=0 jev_input_tokens=0
+  ! Jev 에 보내지 않은 파일 526 (상한 --max-files=120 또는 비밀 성격 경로)
+- [code] mydocs/plans/task_m100_178_impl.md  channel=doc binding=mention jev=0.53★ rows=12
+    :29 [basename/mention] | HWP 직렬화기 (`serializer/cfb_writer.rs`, `body_text.rs`, `control.rs`) | HWP→HWP 라운드트립 정상 | 출력 |
+    :34 [basename/mention] 1. **HWP 직렬화기 코드 0줄 수정** — `serializer/cfb_writer.rs`, `body_text.rs`, `control.rs`, `header.rs`, `doc_info.rs` 중 어느 하나라도 수정 PR 이 발생하면 본 타스크 범위 위반. (필
+    :65 [basename/mention] `src/serializer/cfb_writer.rs`, `body_text.rs`, `control.rs` 는 **단 한 줄도 수정하지 않는다**. 안정성 보존.
+- [code] src/model/paragraph.rs  channel=other binding=mention jev=0.50★ rows=17
+    :3 [stem/stem_weak] use super::control::Control;
+    :11 [stem/stem_weak] pub control_mask: u32,
+    :34 [stem/stem_weak] pub controls: Vec<Control>,
+- [code] src/document_core/queries/field_query.rs  channel=other binding=mention jev=0.49★ rows=46
+    :7 [stem/stem_weak] use crate::model::control::{Control, Field, FieldType};
+    :22 [stem/stem_weak] /// 표 셀: (control_index, cell_index, para_index)
+    :24 [stem/stem_weak] control_index: usize,
+- [code] src/parser/control/tests.rs  channel=other binding=mention jev=0.49★ rows=45
+    :16 [stem/stem_weak] data.extend_from_slice(&0u32.to_le_bytes()); // control_mask
+    :73 [stem/stem_weak] let ctrl = parse_table_control(&[], &child_records);
+    :82 [stem/stem_weak] panic!("Expected Table control");
+- [code] src/serializer/control/tests.rs  channel=other binding=mention jev=0.48★ rows=22
+    :41 [stem/stem_weak] controls: vec![Control::SectionDef(Box::new(sd))],
+    :75 [stem/stem_weak] controls: vec![Control::ColumnDef(cd)],
+    :89 [stem/stem_weak] .controls
+- [code] src/document_core/commands/clipboard.rs  channel=other binding=mention jev=0.46★ rows=120
+    :9 [stem/stem_weak] use crate::model::control::Control;
+    :14 [stem/stem_weak] fn inline_control_height(control: &Control) -> i32 {
+    :15 [stem/stem_weak] match control {
+- [code] rhwp-studio/src/core/wasm-bridge.ts  channel=other binding=mention jev=0.45★ rows=112
+    :276 [stem/stem_weak] splitParagraphInCell(sec: number, parentPara: number, controlIdx: number, cellIdx: number, cellParaIdx: number, charOffset: number): string {
+    :278 [stem/stem_weak] return this.doc.splitParagraphInCell(sec, parentPara, controlIdx, cellIdx, cellParaIdx, charOffset);
+    :281 [stem/stem_weak] mergeParagraphInCell(sec: number, parentPara: number, controlIdx: number, cellIdx: number, cellParaIdx: number): string {
+- [code] src/document_core/queries/cursor_nav.rs  channel=other binding=mention jev=0.43 rows=28
+    :4 [stem/stem_weak] get_textbox_from_shape, has_table_control, navigable_text_len, utf16_pos_to_char_idx,
+    :9 [stem/stem_weak] use crate::model::control::Control;
+    :37 [stem/stem_weak] control_idx: usize,
+- [code] src/renderer/layout.rs  channel=other binding=mention jev=0.43 rows=96
+    :18 [stem/stem_weak] use crate::model::control::Control;
+    :50 [stem/stem_weak] pub control_index: usize,
+    :70 [stem/stem_weak] pub fn outermost_control(&self) -> usize {
+- [code] src/document_core/queries/form_query.rs  channel=other binding=mention jev=0.42 rows=17
+    :6 [stem/stem_weak] use crate::model::control::{Control, FormType};
+    :38 [stem/stem_weak] (tpi, form.control_index)
+    :40 [stem/stem_weak] (form.para_index, form.control_index)
+- [code] src/renderer/pagination/engine.rs  channel=other binding=mention jev=0.41 rows=73
+    :5 [stem/stem_weak] use crate::model::control::Control;
+    :49 [stem/stem_weak] Self::collect_header_footer_controls(paragraphs, section_index);
+    :104 [stem/stem_weak] let trimmed = para.text.replace(|c: char| c.is_control(), "");
+- [code] src/wasm_api.rs  channel=other binding=mention jev=0.41 rows=210
+    :19 [stem/stem_weak] use crate::model::control::Control;
+    :122 [stem/stem_weak] pub fn get_show_control_codes(&self) -> bool {
+    :123 [stem/stem_weak] self.show_control_codes
+- [code] web/editor.js  channel=other binding=mention jev=0.41 rows=33
+    :20 [stem/stem_weak] let controlLayout = new ControlLayoutManager();
+    :562 [stem/stem_weak] controlLayout.loadPage(currentPage, doc);
+    :570 [stem/stem_weak] selectionController = new SelectionController(canvas, textLayout, selectionRenderer, controlLayout);
+- [code] src/document_core/queries/doc_tree_nav.rs  channel=other binding=mention jev=0.40 rows=43
+    :7 [stem/stem_weak] find_control_text_positions, get_textbox_from_shape, navigable_text_len,
+    :10 [stem/stem_weak] use crate::model::control::Control;
+    :99 [stem/stem_weak] let ctrl = para.controls.get(entry.ctrl_idx)?;
+- [code] src/wasm_api/tests.rs  channel=other binding=exec jev=0.39 rows=530
+    :171 [stem/stem_weak] use crate::model::control::Control;
+    :288 [stem/stem_weak] controls: vec![Control::Table(Box::new(table))],
+    :318 [stem/stem_weak] if let Some(Control::Table(table)) = doc.document.sections[0].paragraphs[0].controls.get(0) {
+- [code] src/renderer/typeset.rs  channel=other binding=mention jev=0.39 rows=39
+    :15 [stem/stem_weak] use crate::model::control::Control;
+    :337 [stem/stem_weak] Self::collect_header_footer_controls(paragraphs, section_index);
+    :383 [stem/stem_weak] for (ctrl_idx, ctrl) in para.controls.iter().enumerate() {
+- [code] rhwp-studio/tests/selection-rects.test.ts  channel=test binding=mention jev=0.38 rows=12
+    :83 [stem/stem_weak] controlIdx: 0,
+    :97 [stem/stem_weak] controlIdx: 0,
+    :106 [stem/stem_weak] controlIndex: 0,
+- [code] src/serializer/body_text.rs  channel=other binding=mention jev=0.38 rows=32
+    :19 [stem/stem_weak] use crate::model::control::Control;
+    :75 [stem/stem_weak] // control_mask 재계산: 실제 controls에서 비트 마스크를 산출한다.
+    :76 [stem/stem_weak] // 모델의 control_mask가 controls와 불일치하면 한컴이 파일 손상으로 판단하므로,
+- [code] tests/hwpx_phase1_corpus.rs  channel=other binding=mention jev=0.38 rows=48
+    :9 [stem/stem_weak] use rhwp::model::control::Control;
+    :17 [stem/stem_weak] top_level_controls: usize,
+    :47 [stem/stem_weak] metrics.top_level_controls += paragraph.controls.len();
+- [code] src/document_core/commands/formatting.rs  channel=other binding=mention jev=0.37 rows=31
+    :9 [stem/stem_weak] use crate::model::control::Control;
+    :40 [stem/stem_weak] control_idx: usize,
+    :49 [stem/stem_weak] control_idx,
+- [code] src/document_core/commands/text_editing.rs  channel=other binding=mention jev=0.37 rows=102
+    :6 [stem/stem_weak] use crate::model::control::Control;
+    :98 [stem/stem_weak] (para.controls.len() as u32) * 8
+    :204 [stem/stem_weak] (para.controls.len() as u32) * 8
+- [code] src/renderer/layout/table_partial.rs  channel=other binding=mention jev=0.37 rows=22
+    :17 [stem/stem_weak] use crate::model::control::Control;
+    :36 [stem/stem_weak] control_index: usize,
+    :55 [stem/stem_weak] let table = match para.controls.get(control_index) {
+- [code] mydocs/working/task_m100_178_stage4.md  channel=doc binding=link jev=0.36 rows=6
+    :38 [basename/mention] HWP 직렬화기 (`serializer/control.rs:40 + 171-241`) 는 `paragraph.controls` 를 순회하며
+    :36 [stem/stem_weak] **`Control::SectionDef` 컨트롤을 첫 문단의 `controls` 에 삽입하지 않음**.
+    :67 [stem/link] | [src/document_core/converters/hwpx_to_hwp.rs](src/document_core/converters/hwpx_to_hwp.rs) | `insert_section_def_control(section)` 추가 (PAGE_DEF 살리기 
+- [code] rhwp-studio/src/engine/embed-commands.ts  channel=other binding=mention jev=0.36 rows=9
+    :150 [stem/stem_weak] { controlIndex: result.controlIdx ?? 0, cellIndex: r * cols + c, cellParaIndex: 0 },
+    :186 [stem/stem_weak] { controlIndex: result.controlIdx ?? 0, cellIndex: 0, cellParaIndex: 0 },
+    :208 [stem/stem_weak] const controlIdx = result.controlIdx ?? 0;
+- [code] src/document_core/commands/table_ops.rs  channel=other binding=mention jev=0.36 rows=102
+    :6 [stem/stem_weak] use crate::model::control::Control;
+    :16 [stem/stem_weak] control_idx: usize,
+    :18 [stem/stem_weak] let path = path_from_flat(parent_para_idx, control_idx);
+- [code] src/renderer/layout/paragraph_layout.rs  channel=other binding=mention jev=0.36 rows=41
+    :21 [stem/stem_weak] use crate::model::control::Control;
+    :51 [stem/stem_weak] use crate::model::control::Control;
+    :68 [stem/stem_weak] .controls
+- [code] src/document_core/commands/html_import.rs  channel=other binding=mention jev=0.35 rows=14
+    :6 [stem/stem_weak] use crate::model::control::Control;
+    :13 [stem/stem_weak] !para.text.is_empty() || !para.controls.is_empty()
+    :35 [stem/stem_weak] if clip_count == 1 && parsed_paras[0].controls.is_empty() {
+- [code] src/renderer/layout/picture_footnote.rs  channel=other binding=mention jev=0.35 rows=19
+    :17 [stem/stem_weak] use crate::model::control::Control;
+    :36 [stem/stem_weak] control_index: Option<usize>,
+    :111 [stem/stem_weak] control_index,
+- [code] mydocs/eng/tech/hwp_save_guide.md  channel=doc binding=mention jev=0.34 rows=16
+    :77 [stem/stem_weak] | caret_char_pos | 16 | 2 controls (SectionDef, ColumnDef) x 8 WCHAR |
+    :85 [stem/stem_weak] | Paragraph[0] | text='' char_count=17 controls=2 (SectionDef, ColumnDef) |
+    :181 [stem/stem_weak] | PARA_TEXT (control character encoding) | Exact match |
+- [code] rhwp-studio/src/engine/input-handler-mouse.ts  channel=other binding=mention jev=0.34 rows=25
+    :13 [stem/stem_weak] return entry?.controlIndex === other?.controlIndex &&
+    :22 [stem/stem_weak] if (a.controlIndex === undefined || b.controlIndex === undefined) return false;
+    :23 [stem/stem_weak] if (a.parentParaIndex !== b.parentParaIndex || a.controlIndex !== b.controlIndex) return false;
+- [code] rhwp-studio/public/rhwp.js  channel=other binding=mention jev=0.32 rows=203
+    :59 [stem/stem_weak] * @param {number} control_idx
+    :65 [stem/stem_weak] applyCellStyle(sec_idx, parent_para_idx, control_idx, cell_idx, cell_para_idx, style_id) {
+    :69 [stem/stem_weak] const ret = wasm.hwpdocument_applyCellStyle(this.__wbg_ptr, sec_idx, parent_para_idx, control_idx, cell_idx, cell_para_idx, style_id);
+- [code] rhwp-studio/src/engine/input-handler.ts  channel=other binding=mention jev=0.32 rows=77
+    :625 [stem/stem_weak] this.cursor.enterPictureObjectSelectionDirect(sec, result.paraIdx, result.controlIdx, 'shape');
+    :846 [stem/stem_weak] this.cursor.enterPictureObjectSelectionDirect(sec, result.paraIdx, result.controlIdx, selType);
+    :935 [stem/stem_weak] if (!hit || hit.parentParaIndex === undefined || hit.controlIndex === undefined) {
+- [code] src/renderer/height_measurer.rs  channel=other binding=mention jev=0.32 rows=50
+    :9 [stem/stem_weak] use crate::model::control::Control;
+    :24 [stem/stem_weak] controls: &[Control],
+    :33 [stem/stem_weak] let tac_tables: Vec<&Table> = controls
+- [code] src/renderer/pagination.rs  channel=other binding=mention jev=0.32 rows=34
+    :14 [stem/stem_weak] use crate::model::control::Control;
+    :49 [stem/stem_weak] pub page_number_pos: Option<crate::model::control::PageNumberPos>,
+    :51 [stem/stem_weak] pub page_hide: Option<crate::model::control::PageHide>,
+- [code] src/renderer/web_canvas.rs  channel=other binding=mention jev=0.32 rows=10
+    :25 [stem/stem_weak] use crate::model::control::FormType;
+    :144 [stem/stem_weak] pub show_control_codes: bool,
+    :163 [stem/stem_weak] show_control_codes: false,
+- [code] mydocs/report/table_architecture_review.md  channel=doc binding=mention jev=0.31 rows=17
+    :590 [basename/mention] - `Box<Table>`로 재귀 타입 문제 해결 (`src/model/control.rs:20`)
+    :598 [basename/mention] | **파싱** | **완전** | `parser/control.rs:54-149` | 재귀 파싱으로 임의 깊이 지원 |
+    :599 [basename/mention] | **직렬화** | **완전** | `serializer/control.rs:305-332` | 재귀 직렬화, level 관리 |
+- [code] rhwp-studio/src/engine/input-handler-keyboard.ts  channel=other binding=mention jev=0.31 rows=27
+    :35 [stem/stem_weak] controlPath?: { controlIndex: number; cellIndex: number; cellParaIndex: number }[] | null,
+    :37 [stem/stem_weak] const pathJson = controlPath ? JSON.stringify(controlPath) : null;
+    :57 [stem/stem_weak] cellPath?: { controlIndex: number; cellIndex: number; cellParaIndex: number }[];
+- [code] src/document_core/converters/hwpx_to_hwp.rs  channel=other binding=mention jev=0.31 rows=20
+    :8 [basename/mention] //!   `control.rs` 등은 변경하지 않는다.
+    :108 [basename/mention] /// HWP 직렬화기 (`serializer/control.rs:40 + 171-241`) 는 `paragraph.controls` 를
+    :157 [basename/mention] // 2. attr 동기화: serializer/control.rs:349 가 raw_ctrl_data 를 그대로 쓰므로
+- [code] src/parser/body_text/tests.rs  channel=other binding=mention jev=0.31 rows=12
+    :351 [basename/mention] // 표 컨트롤 → control.rs로 위임되어 Table로 파싱
+    :17 [stem/stem_weak] data.extend_from_slice(&0u32.to_le_bytes()); // controlMask
+    :55 [stem/stem_weak] // tab: 0x0009 + 7 dummy code units (inline control data)
+- [code] web/rhwp.js  channel=other binding=mention jev=0.31 rows=48
+    :57 [stem/stem_weak] * @param {number} control_idx
+    :65 [stem/stem_weak] applyCharFormatInCell(sec_idx, parent_para_idx, control_idx, cell_idx, cell_para_idx, start_offset, end_offset, props_json) {
+    :71 [stem/stem_weak] const ret = wasm.hwpdocument_applyCharFormatInCell(this.__wbg_ptr, sec_idx, parent_para_idx, control_idx, cell_idx, cell_para_idx, start_offset, end_o
+- [code] mydocs/troubleshootings/cell_split_save_corruption.md  channel=doc binding=mention jev=0.30 rows=17
+    :34 [stem/stem_weak] ### 근본 원인: 고아 문단의 control_mask 불일치
+    :40 [stem/stem_weak] | `control_mask` | `0x00000800` (TABLE 비트) | 실제 controls 배열은 **빈 배열** |
+    :43 [stem/stem_weak] | `controls` | `[]` | 빈 배열 |
+- [code] src/document_core/commands/document.rs  channel=other binding=mention jev=0.30 rows=15
+    :8 [stem/stem_weak] use crate::model::control::Control;
+    :76 [stem/stem_weak] show_control_codes: false,
+    :129 [stem/stem_weak] for (ci, ctrl) in para.controls.iter().enumerate() {
+- [code] src/parser/body_text.rs  channel=other binding=mention jev=0.30 rows=15
+    :521 [basename/mention] // 표, 도형, 그림, 머리말/꼬리말 등은 control.rs에서 처리
+    :22 [stem/stem_weak] use crate::model::control::{Control, UnknownControl};
+    :75 [stem/stem_weak] for ctrl in &paragraph.controls {
+- [code] rhwp-studio/src/engine/cursor.ts  channel=other binding=mention jev=0.29 rows=26
+    :105 [stem/stem_weak] a.controlIndex !== b.controlIndex ||
+    :109 [stem/stem_weak] if (a.controlIndex !== b.controlIndex) return a.controlIndex! < b.controlIndex! ? -1 : 1;
+    :163 [stem/stem_weak] const { sectionIndex: sec, parentParaIndex: ppi, controlIndex: ci, cellIndex: cei } = this.position;
+- [code] src/document_core/queries/rendering.rs  channel=other binding=mention jev=0.29 rows=73
+    :6 [stem/stem_weak] use crate::model::control::Control;
+    :28 [stem/stem_weak] renderer.show_control_codes = self.show_control_codes;
+    :46 [stem/stem_weak] renderer.show_control_codes = self.show_control_codes;
+- [code] rhwp-studio/src/engine/command.ts  channel=other binding=mention jev=0.28 rows=16
+    :58 [stem/stem_weak] if (entry.controlIndex !== other.controlIndex || entry.cellIndex !== other.cellIndex) return false;
+    :72 [stem/stem_weak] wasm.insertTextInCell(pos.sectionIndex, pos.parentParaIndex!, pos.controlIndex!, pos.cellIndex!, pos.cellParaIndex!, pos.charOffset, text);
+    :82 [stem/stem_weak] wasm.deleteTextInCell(pos.sectionIndex, pos.parentParaIndex!, pos.controlIndex!, pos.cellIndex!, pos.cellParaIndex!, pos.charOffset, count);
+- [code] src/document_core/commands/footnote_ops.rs  channel=other binding=mention jev=0.28 rows=30
+    :5 [stem/stem_weak] use crate::model::control::Control;
+    :16 [stem/stem_weak] control_idx: usize,
+    :26 [stem/stem_weak] let ctrl = para.controls.get_mut(control_idx).ok_or_else(|| {
+- [code] src/document_core/commands/header_footer_ops.rs  channel=other binding=mention jev=0.28 rows=41
+    :9 [stem/stem_weak] use crate::model::control::Control;
+    :44 [stem/stem_weak] /// 반환: (para_index, control_index)
+    :45 [stem/stem_weak] fn find_header_footer_control(
+- [code] src/document_core/html_table_import.rs  channel=other binding=mention jev=0.28 rows=8
+    :6 [stem/stem_weak] use crate::model::control::Control;
+    :12 [stem/stem_weak] use crate::model::control::Control;
+    :345 [stem/stem_weak] .all(|p| p.text.trim().is_empty() && p.controls.is_empty())
+- [code] mydocs/working/archives/task_25_step2.md  channel=doc binding=mention jev=0.27 rows=8
+    :11 [stem/stem_weak] | `loadPage(pageNum, doc)` | WASM `getPageControlLayout()` 호출 → controls 배열 파싱 |
+    :13 [stem/stem_weak] | `hitTestCell(x, y, control)` | 표 컨트롤 내 특정 셀 히트테스트 → 셀 정보 반환 |
+    :18 [stem/stem_weak] - `controlLayoutManager` 옵션 파라미터 추가 (4번째 인자)
+- [code] mydocs/plans/task_m100_111_impl.md  channel=doc binding=mention jev=0.26 rows=11
+    :28 [stem/stem_weak] `parent_para_index`/`control_index` 보완 로직 (line 452-462)이 TextRun(`runs`)에서만 값을 찾으므로
+    :41 [stem/stem_weak] && ctx.path[0].control_index == cb.control_index // 0 vs 실제값
+    :52 [stem/stem_weak] `FormObjectNode`에는 `section_index`, `para_index`, `control_index` (line 233-238 of render_tree.rs)가 있다.
+- [code] mydocs/working/task_m100_111_stage1.md  channel=doc binding=mention jev=0.26 rows=11
+    :16 [stem/stem_weak] `collect_runs()`가 `TableCell` bbox를 `parent_para_index=0, control_index=0`으로 등록한 뒤,
+    :25 [stem/stem_weak] - `RenderNodeType::Table` 진입 시 `(section_index, para_index, control_index)` 추출하여 하위 전파
+    :26 [stem/stem_weak] - `TableCell` 노드 등록 시 `table_meta`로 즉시 `section_index`, `parent_para_index`, `control_index` 채움
+- [code] src/document_core/queries/cursor_rect.rs  channel=other binding=mention jev=0.26 rows=75
+    :4 [stem/stem_weak] color_ref_to_css, find_char_at_x, has_table_control, navigable_text_len, utf16_pos_to_char_idx,
+    :9 [stem/stem_weak] use crate::model::control::Control;
+    :182 [stem/stem_weak] if !self.show_control_codes {
+- [code] src/serializer/control.rs  channel=other binding=mention jev=0.26 rows=17
+    :3 [stem/stem_weak] //! `parser::body_text::parse_ctrl_header` + `parser::control::parse_control`의 역방향.
+    :9 [stem/stem_weak] use crate::model::control::*;
+    :29 [stem/stem_weak] pub fn serialize_control(
+- [code] mydocs/eng/tech/hwp_errata_public_comparison.md  channel=doc binding=mention jev=0.25 rows=21
+    :52 [stem/stem_weak] | `control_mask` recalculation | "Control mask" (Table 60) | Must be dynamically recalculated from controls within the paragraph on save | **Controls 
+    :53 [stem/stem_weak] | `control_mask` inline bits | "Control mask" (Table 60) | Must include inline control characters like TAB (bit 9), FIELD_END (bit 4), LINE_BREAK (bit
+    :54 [stem/stem_weak] | FIELD_BEGIN/END ordering | Not mentioned | FIELD_END immediately after FIELD_BEGIN; trailing END placed right after the corresponding control | **Fi
+- [code] mydocs/eng/working/archives/task_23_step3.md  channel=doc binding=mention jev=0.25 rows=13
+    :28 [basename/mention] ### 3-2. `src/serializer/control.rs` (~570 lines)
+    :14 [stem/stem_weak] | `serialize_para_header(para)` | PARA_HEADER data (char_count, control_mask, shape_id, style_id, break_type) |
+    :15 [stem/stem_weak] | `serialize_para_text(para)` | PARA_TEXT — text + controls → UTF-16LE |
+- [code] src/document_core/commands/object_ops.rs  channel=other binding=mention jev=0.25 rows=218
+    :6 [stem/stem_weak] use crate::model::control::Control;
+    :22 [stem/stem_weak] control_idx: usize,
+    :30 [stem/stem_weak] let ctrl = para.controls.get(control_idx).ok_or_else(|| {
+- [code] src/document_core/helpers.rs  channel=other binding=mention jev=0.25 rows=25
+    :6 [stem/stem_weak] use crate::model::control::Control;
+    :18 [stem/stem_weak] .controls
+    :23 [stem/stem_weak] let positions = find_control_text_positions(para);
+- [code] mydocs/eng/tech/table_layout_rules.md  channel=doc binding=mention jev=0.24 rows=11
+    :5 [stem/stem_weak] In HWP, tables exist as controls within paragraphs, and the typesetting method is determined by a combination of two properties:
+    :31 [stem/stem_weak] - Independent of body flow — placed as `PageItem::Table` in `process_controls`, then continue
+    :32 [stem/stem_weak] - `paginate_table_control` is not called → no height/row splitting/column changes
+- [code] mydocs/eng/troubleshootings/cell_split_save_corruption.md  channel=doc binding=mention jev=0.24 rows=22
+    :34 [stem/stem_weak] ### Root Cause: control_mask Mismatch in Orphan Paragraph
+    :40 [stem/stem_weak] | `control_mask` | `0x00000800` (TABLE bit) | Actual controls array is **empty** |
+    :41 [stem/stem_weak] | `has_para_text` | `true` | Neither text nor controls -- an **empty paragraph** |
+- [code] src/renderer/layout/table_layout.rs  channel=other binding=mention jev=0.24 rows=33
+    :17 [stem/stem_weak] use crate::model::control::Control;
+    :160 [stem/stem_weak] p.controls.iter().enumerate().find_map(|(ctrl_idx, c)| {
+    :176 [stem/stem_weak] control_index: nested_ctrl_idx,
+- [code] src/serializer/hwpx/section.rs  channel=other binding=mention jev=0.24 rows=10
+    :28 [stem/stem_weak] use crate::model::control::{Control, PageHide, PageNumberPos};
+    :103 [stem/stem_weak] let controls_xml = render_controls_xml(p, ctx)?;
+    :104 [stem/stem_weak] if !controls_xml.is_empty() {
+- [code] tests/hwpx_to_hwp_adapter.rs  channel=other binding=mention jev=0.24 rows=11
+    :11 [stem/stem_weak] use rhwp::model::control::Control;
+    :130 [stem/stem_weak] for ctrl in &para.controls {
+    :157 [stem/stem_weak] for ctrl in &para.controls {
+- [code] mydocs/eng/working/archives/task_25_step2.md  channel=doc binding=mention jev=0.23 rows=12
+    :7 [stem/stem_weak] Implemented control layout manager following the same pattern as `TextLayoutManager`:
+    :11 [stem/stem_weak] | `loadPage(pageNum, doc)` | Calls WASM `getPageControlLayout()` → parses controls array |
+    :12 [stem/stem_weak] | `hitTestControl(x, y)` | Checks if coordinates are within control bounding box → returns hit control info |
+- [code] mydocs/tech/hwp_spec_errata.md  channel=doc binding=mention jev=0.23 rows=20
+    :45 [path/mention] | 수정 파일 | `src/parser/control.rs` |
+    :154 [path/mention] | 수정 파일 | `src/model/table.rs`, `src/parser/control.rs`, `src/renderer/layout.rs` |
+    :187 [path/mention] | 수정 파일 | `src/parser/control.rs` |
+- [code] src/main.rs  channel=other binding=mention jev=0.23 rows=35
+    :14 [stem/stem_weak] Some("dump") => dump_controls(&args[2..]),
+    :45 [stem/stem_weak] println!("      --show-control-codes    조판부호 보이기 (문단부호 + 개체 마커 등)");
+    :94 [stem/stem_weak] let mut show_control_codes = false;
+- [code] src/renderer/render_tree.rs  channel=other binding=mention jev=0.23 rows=19
+    :113 [stem/stem_weak] tn.control_index
+    :238 [stem/stem_weak] pub control_index: usize,
+    :245 [stem/stem_weak] pub form_type: crate::model::control::FormType,
+- [code] src/renderer/svg.rs  channel=other binding=mention jev=0.23 rows=10
+    :16 [stem/stem_weak] use crate::model::control::FormType;
+    :53 [stem/stem_weak] pub show_control_codes: bool,
+    :87 [stem/stem_weak] control_index: usize,
+- [code] src/serializer/hwpx/table.rs  channel=other binding=mention jev=0.23 rows=12
+    :31 [stem/stem_weak] use crate::model::control::Control;
+    :282 [stem/stem_weak] for control in &para.controls {
+    :283 [stem/stem_weak] write_cell_control_run(w, control, ctx, first_cs)?;
+- [code] mydocs/eng/tech/hwp_spec_errata.md  channel=doc binding=mention jev=0.22 rows=37
+    :45 [path/mention] | Modified file | `src/parser/control.rs` |
+    :154 [path/mention] | Modified files | `src/model/table.rs`, `src/parser/control.rs`, `src/renderer/layout.rs` |
+    :187 [path/mention] | Modified file | `src/parser/control.rs` |
+- [code] mydocs/eng/troubleshootings/task_56_hwp_control_char_bytes.md  channel=doc binding=mention jev=0.22 rows=9
+    :5 [stem/stem_weak] Confusion arose while interpreting the byte size of control characters defined in the HWP 5.0 spec document's "Table 6: Paragraph Text."
+    :11 [stem/stem_weak] | 0-1 | Character control | 1 | Unused, reserved |
+    :12 [stem/stem_weak] | 2-3 | Extended control | 8 | Extended control |
+- [code] mydocs/eng/working/archives/task_142_step4.md  channel=doc binding=mention jev=0.22 rows=10
+    :5 [basename/mention] Completed splitting parser/control.rs, serializer/control.rs, serializer/cfb_writer.rs, model/table.rs.
+    :9 [basename/mention] ### parser/control.rs (1,744 lines → 585 lines)
+    :13 [basename/mention] | `control.rs` | 585 | parse_control dispatcher + table/header-footer/footnote-endnote/simple control parsers |
+- [code] rhwp-studio/src/command/commands/table.ts  channel=other binding=mention jev=0.22 rows=36
+    :19 [stem/stem_weak] controlIndex?: number;
+    :23 [stem/stem_weak] }): Array<{ controlIndex: number; cellIndex: number; cellParaIndex: number }> {
+    :25 [stem/stem_weak] return pos.cellPath as Array<{ controlIndex: number; cellIndex: number; cellParaIndex: number }>;
+- [code] src/document_core/queries/bookmark_query.rs  channel=other binding=mention jev=0.22 rows=14
+    :3 [stem/stem_weak] use crate::document_core::helpers::find_control_text_positions;
+    :6 [stem/stem_weak] use crate::model::control::{Bookmark, Control};
+    :74 [stem/stem_weak] let insert_idx = find_control_insert_index(paragraph, char_offset);
+- [code] web/text_selection.js  channel=other binding=mention jev=0.22 rows=25
+    :194 [stem/stem_weak] /** @type {Array<{type: string, x: number, y: number, w: number, h: number, secIdx?: number, paraIdx?: number, controlIdx?: number, rowCount?: number,
+    :195 [stem/stem_weak] this.controls = [];
+    :205 [stem/stem_weak] this.controls = [];
+- [code] mydocs/eng/plans/task_247.md  channel=doc binding=mention jev=0.21 rows=9
+    :5 [stem/stem_weak] Hancom stores shapes (gso) as inline controls within paragraphs (char code 11, 16 bytes).
+    :6 [stem/stem_weak] Multiple shapes and text can coexist in one paragraph, and cursor movement/text insertion between controls is possible.
+    :9 [stem/stem_weak] - No cursor movement between controls
+- [code] src/renderer/composer.rs  channel=other binding=mention jev=0.21 rows=30
+    :10 [stem/stem_weak] use crate::model::control::Control;
+    :75 [stem/stem_weak] /// Paragraph.controls 내 인덱스
+    :76 [stem/stem_weak] pub control_index: usize,
+- [code] mydocs/eng/troubleshootings/multi_tac_table_pagination.md  channel=doc binding=mention jev=0.20 rows=9
+    :7 [stem/stem_weak] - **Source paragraph**: pi=103 -- a single paragraph with 2 TAC table controls (ctrl[0]: 6x5, ctrl[1]: 14x5)
+    :13 [stem/stem_weak] In `pagination/engine.rs`'s `paginate_table_control()`, the height determination for TAC tables:
+    :24 [stem/stem_weak] - `process_controls()` iterates through ctrl[0] and ctrl[1], calling `paginate_table_control()` for each, but both receive the same `para_height_for_f
+- [code] src/parser/mod.rs  channel=other binding=mention jev=0.20 rows=25
+    :10 [stem/stem_weak] //! 5. 컨트롤 파싱 → 표/도형/그림 (control)
+    :22 [stem/stem_weak] pub mod control;
+    :351 [stem/stem_weak] use crate::model::control::AutoNumberType;
+- [code] src/renderer/layout/shape_layout.rs  channel=other binding=mention jev=0.20 rows=58
+    :19 [stem/stem_weak] use crate::model::control::Control;
+    :43 [stem/stem_weak] let ctrl = match para.controls.get(ci) {
+    :135 [stem/stem_weak] control_index: usize,
+- [code] mydocs/eng/plans/archives/task_4_impl.md  channel=doc binding=mention jev=0.19 rows=10
+    :68 [stem/stem_weak] Split paragraph text into lines, and within each line split into multiple TextRuns based on CharShapeRef boundaries. Identify inline control (table/sh
+    :90 [stem/stem_weak] inline_controls: Vec<InlineControl>, // Inline control positions
+    :97 [stem/stem_weak] control_index: usize,    // Index within Paragraph.controls
+- [code] mydocs/eng/report/table_architecture_review.md  channel=doc binding=mention jev=0.19 rows=18
+    :590 [basename/mention] - `Box<Table>` resolves the recursive type issue (`src/model/control.rs:20`)
+    :598 [basename/mention] | **Parsing** | **Complete** | `parser/control.rs:54-149` | Recursive parsing supports arbitrary depth |
+    :599 [basename/mention] | **Serialization** | **Complete** | `serializer/control.rs:305-332` | Recursive serialization, level management |
+- [code] mydocs/eng/working/archives/task_229_final.md  channel=doc binding=mention jev=0.19 rows=9
+    :12 [path/mention] - **`src/parser/control.rs`**: Added field ctrl_id matching in `parse_control()`, implemented `parse_field_control()` (parsing properties 4B + extra_p
+    :46 [path/mention] | `src/parser/control.rs` | `parse_field_control()`, `ctrl_id_to_field_type()` |
+    :13 [basename/mention] - **`src/model/control.rs`**: Extended `Field` struct with `properties`, `extra_properties`, `field_id`, `ctrl_id` fields, added `guide_text()` method
+- [code] mydocs/plans/archives/task_25_impl.md  channel=doc binding=mention jev=0.19 rows=18
+    :28 [stem/stem_weak] pub fn get_page_control_layout(&self, page_num: u32) -> String
+    :34 [stem/stem_weak] "controls": [
+    :38 [stem/stem_weak] "secIdx": 0, "paraIdx": 2, "controlIdx": 0,
+- [code] mydocs/plans/archives/task_44_architecture.md  channel=doc binding=mention jev=0.19 rows=53
+    :59 [stem/stem_weak] - `identify_inline_controls()` → 현재 모든 컨트롤을 line_index=0으로 배치. 정확한 줄 위치 계산 필요
+    :499 [stem/stem_weak] - Paragraph (text, char_offsets, char_shapes, controls)
+    :585 [stem/stem_weak] | { type: 'table'; paraIndex: number; controlIndex: number; height: number; }
+- [code] mydocs/eng/plans/archives/task_142_impl.md  channel=doc binding=mention jev=0.18 rows=20
+    :25 [path/mention] | `src/parser/control.rs` | 1,744 | Step 4 |
+    :26 [basename/mention] | `src/serializer/control.rs` | 1,520 | Step 4 |
+    :245 [basename/mention] ### 4-A. parser/control.rs (1,744 lines)
+- [code] mydocs/plans/archives/task_142_impl.md  channel=doc binding=mention jev=0.18 rows=19
+    :25 [path/mention] | `src/parser/control.rs` | 1,744 | 4단계 |
+    :26 [basename/mention] | `src/serializer/control.rs` | 1,520 | 4단계 |
+    :245 [basename/mention] ### 4-A. parser/control.rs (1,744줄)
+- [code] mydocs/plans/task_383.md  channel=doc binding=mention jev=0.18 rows=8
+    :39 [stem/stem_weak] `process_controls` 호출 전후에 높이를 측정하여, 혼합 문단이면 통합 높이로 보정.
+    :41 [stem/stem_weak] **위치**: `paginate_text_lines` 내부, `process_controls` 호출 후 (line 260 부근)
+    :44 [stem/stem_weak] // process_controls 호출 전
+- [code] mydocs/tech/table_layout_rules.md  channel=doc binding=mention jev=0.18 rows=10
+    :31 [stem/stem_weak] - 본문 흐름과 무관 — `process_controls`에서 `PageItem::Table`로 배치 후 continue
+    :32 [stem/stem_weak] - `paginate_table_control` 미호출 → 높이/행 분할/단 변경 없음
+    :43 [stem/stem_weak] | 높이 차지 | `paginate_table_control`에서 `table_total_height`로 계산 |
+- [code] mydocs/working/archives/task_142_step4.md  channel=doc binding=mention jev=0.18 rows=10
+    :5 [basename/mention] parser/control.rs, serializer/control.rs, serializer/cfb_writer.rs, model/table.rs 분할 완료.
+    :9 [basename/mention] ### parser/control.rs (1,744줄 → 585줄)
+    :13 [basename/mention] | `control.rs` | 585 | parse_control 디스패처 + 테이블/헤더푸터/각주미주/단순 컨트롤 파서 |
+- [code] mydocs/working/archives/task_181_stage1.md  channel=doc binding=mention jev=0.18 rows=9
+    :12 [path/mention] ### 2. 바이너리 HWP 파서 (`src/parser/control.rs`)
+    :58 [path/mention] | `src/parser/control.rs` | parse_equation_control() |
+    :8 [basename/mention] ### 1. 모델 정의 (`src/model/control.rs`)
+- [code] rhwp-studio/src/engine/input-handler-picture.ts  channel=other binding=mention jev=0.18 rows=12
+    :17 [stem/stem_weak] function sameCellPath(a?: { controlIndex: number; cellIndex: number; cellParaIndex: number }[], b?: { controlIndex: number; cellIndex: number; cellPar
+    :22 [stem/stem_weak] return entry.controlIndex === other.controlIndex &&
+    :28 [stem/stem_weak] function controlMatchesRef(ctrl: any, ref: { sec: number; ppi: number; ci: number; cellPath?: unknown[] }): boolean {
+- [code] src/parser/hwpx/section.rs  channel=other binding=mention jev=0.18 rows=38
+    :10 [stem/stem_weak] use crate::model::control::{
+    :187 [stem/stem_weak] para.controls.push(Control::Table(Box::new(table)));
+    :193 [stem/stem_weak] para.controls.push(pic);
+- [code] mydocs/eng/plans/archives/task_240.md  channel=doc binding=mention jev=0.17 rows=7
+    :27 [path/mention] - HWP binary parser (`src/parser/control.rs`) — `parse_bookmark()`
+    :26 [basename/mention] - `Bookmark` model (`src/model/control.rs`) — `name: String`
+    :29 [basename/mention] - Serializer (`src/serializer/control.rs`) — `serialize_bookmark()`
+- [code] mydocs/eng/plans/archives/task_25_impl.md  channel=doc binding=mention jev=0.17 rows=21
+    :13 [stem/stem_weak] - JS hitTest checks only TextRun bounding boxes — cannot determine control areas
+    :24 [stem/stem_weak] Recursively traverse the render tree similar to `get_page_text_layout_native()`, but collect control nodes:
+    :28 [stem/stem_weak] pub fn get_page_control_layout(&self, page_num: u32) -> String
+- [code] mydocs/eng/plans/archives/task_71_impl.md  channel=doc binding=mention jev=0.17 rows=9
+    :11 [path/mention] **Modified files**: `src/model/control.rs`, `src/parser/control.rs`, `src/serializer/control.rs`
+    :95 [path/mention] | `src/parser/control.rs` | Bit offset fixes + field parsing additions | ~20 lines |
+    :15 [basename/mention] #### model/control.rs — Field Additions
+- [code] mydocs/report/rag_feature_analysis.md  channel=doc binding=mention jev=0.17 rows=9
+    :99 [stem/stem_weak] "controls": [],
+    :174 [stem/stem_weak] "controls": [
+    :237 [stem/stem_weak] "controls": [
+- [code] mydocs/eng/plans/archives/task_240_impl.md  channel=doc binding=mention jev=0.16 rows=8
+    :9 [stem/stem_weak] - Add bookmark (insert Bookmark into paragraph controls at cursor position + recompose)
+    :10 [stem/stem_weak] - Delete bookmark (remove control by sec/para/ctrl_idx + recompose)
+    :17 [stem/stem_weak] - `src/document_core/commands/text_editing.rs` — Add `Control::Bookmark` to `classify_control()`
+- [code] mydocs/eng/troubleshootings/table_paste_file_corruption.md  channel=doc binding=mention jev=0.16 rows=9
+    :358 [basename/mention] | `src/serializer/control.rs` | 305-332 | serialize_table (record order) |
+    :359 [basename/mention] | `src/serializer/control.rs` | 377-421 | serialize_cell |
+    :43 [stem/stem_weak] - **Location**: Paragraph containing table control (PARA_HEADER)
+- [code] mydocs/eng/working/archives/task_3_step_4.md  channel=doc binding=mention jev=0.16 rows=29
+    :9 [path/mention] | `src/parser/control.rs` | ~610 | Control parsing (tables, shapes, pictures, headers/footers, footnotes/endnotes, hidden comments, simple controls) |
+    :16 [basename/mention] #### control.rs - Control Parsing Dispatcher
+    :89 [basename/mention] - `parse_paragraph()`: Changed from private to `pub fn` (reused in control.rs)
+- [code] mydocs/plans/archives/task_71_impl.md  channel=doc binding=mention jev=0.16 rows=8
+    :11 [path/mention] **수정 파일**: `src/model/control.rs`, `src/parser/control.rs`, `src/serializer/control.rs`
+    :95 [path/mention] | `src/parser/control.rs` | 비트 오프셋 수정 + 필드 파싱 추가 | ~20줄 |
+    :15 [basename/mention] #### model/control.rs — 필드 추가
+- [code] mydocs/tech/hwp_errata_public_comparison.md  channel=doc binding=mention jev=0.16 rows=8
+    :52 [stem/stem_weak] | `control_mask` 재계산 | "컨트롤 마스크" (표 60) | 저장 시 문단 내 컨트롤에서 동적 재계산 필요 | **컨트롤(표/그림) 인식 불가** |
+    :53 [stem/stem_weak] | `control_mask` 인라인 비트 | "컨트롤 마스크" (표 60) | TAB(bit 9), FIELD_END(bit 4), LINE_BREAK(bit 10) 등 인라인 제어문자도 포함 필수 | **한컴 2010 비정상 종료** |
+    :89 [stem/stem_weak] [§7 위반] control_mask 항상 0
+- [code] src/renderer/pagination/tests.rs  channel=other binding=mention jev=0.16 rows=28
+    :94 [stem/stem_weak] use crate::model::control::Control;
+    :103 [stem/stem_weak] table_para.controls.push(Control::Table(Box::new(Table {
+    :218 [stem/stem_weak] use crate::model::control::Control;
+- [code] mydocs/eng/plans/archives/task_12.md  channel=doc binding=mention jev=0.15 rows=7
+    :13 [path/mention] - `src/parser/control.rs`: Parsing complete with `parse_auto_number()` function
+    :12 [basename/mention] - `src/model/control.rs`: `AutoNumber`, `AutoNumberType` structs defined
+    :5 [stem/stem_weak] Implement rendering of HWP document auto numbering controls (`atno`) so that numbers are displayed in captions, footnotes, endnotes, etc.
+- [code] mydocs/working/archives/task_229_final.md  channel=doc binding=mention jev=0.15 rows=8
+    :12 [path/mention] - **`src/parser/control.rs`**: `parse_control()`에 필드 ctrl_id 매칭 추가, `parse_field_control()` 구현 (속성 4B + 기타속성 1B + command 가변 + id 4B 파싱)
+    :46 [path/mention] | `src/parser/control.rs` | `parse_field_control()`, `ctrl_id_to_field_type()` |
+    :13 [basename/mention] - **`src/model/control.rs`**: `Field` struct에 `properties`, `extra_properties`, `field_id`, `ctrl_id` 필드 확장, `guide_text()` 메서드 추가
+- [code] mydocs/working/archives/task_23_step3.md  channel=doc binding=mention jev=0.15 rows=8
+    :28 [basename/mention] ### 3-2. `src/serializer/control.rs` (약 570줄)
+    :14 [stem/stem_weak] | `serialize_para_header(para)` | PARA_HEADER 데이터 (char_count, control_mask, shape_id, style_id, break_type) |
+    :19 [stem/stem_weak] | `control_char_code(ctrl)` | Control enum → PARA_TEXT 컨트롤 문자 코드 매핑 |
+- [code] mydocs/eng/plans/task_248.md  channel=doc binding=mention jev=0.14 rows=7
+    :6 [stem/stem_weak] Remaining issue: Shape marker placement/cursor movement/F11 selection in control code display mode.
+    :10 [stem/stem_weak] In control code display mode:
+    :11 [stem/stem_weak] - Inline controls are rendered as **actual-width TextRuns** in `[ControlName]` format
+- [code] mydocs/eng/plans/task_255.md  channel=doc binding=mention jev=0.14 rows=7
+    :13 [stem/stem_weak] - Text editing on `paragraphs: Vec<Paragraph>` inside footnote control
+    :24 [stem/stem_weak] | `find_footnote_control()` | Locate footnote control by (para_idx, control_idx) within section |
+    :36 [stem/stem_weak] - `getFootnoteInfo(sec, paraIdx, controlIdx)`
+- [code] mydocs/eng/plans/task_383.md  channel=doc binding=mention jev=0.14 rows=8
+    :39 [stem/stem_weak] Measure height before and after `process_controls` call, and correct to integrated height for mixed paragraphs.
+    :41 [stem/stem_weak] **Location**: Inside `paginate_text_lines`, after `process_controls` call (around line 260)
+    :44 [stem/stem_weak] // Before process_controls call
+- [code] mydocs/eng/working/archives/task_38_final.md  channel=doc binding=mention jev=0.14 rows=8
+    :20 [stem/stem_weak] | 6 | Table Control Paragraph generation: `\u{0002}` control character, `Control::Table` attachment |
+    :26 [stem/stem_weak] | `paste_html_native` extension | Added direct insertion path when control-containing paragraphs detected (merge_from does not propagate controls) |
+    :27 [stem/stem_weak] | `paste_html_in_cell_native` protection | Table nesting inside cells not allowed -> auto-converts control paragraphs to text |
+- [code] mydocs/working/archives/task_3_step_4.md  channel=doc binding=mention jev=0.14 rows=27
+    :9 [path/mention] | `src/parser/control.rs` | ~610 | 컨트롤 파싱 (표, 도형, 그림, 머리말/꼬리말, 각주/미주, 숨은 설명, 단순 컨트롤) |
+    :16 [basename/mention] #### control.rs - 컨트롤 파싱 디스패처
+    :89 [basename/mention] - `parse_paragraph()`: 비공개 → `pub fn`으로 변경 (control.rs에서 재사용)
+- [code] src/renderer/composer/line_breaking.rs  channel=other binding=mention jev=0.14 rows=8
+    :1012 [stem/stem_weak] use crate::model::control::Control;
+    :1013 [stem/stem_weak] let max_inline_control_height = para
+    :1014 [stem/stem_weak] .controls
+- [code] mydocs/orders/20260402.md  channel=doc binding=link jev=0.13 rows=1
+    :14 [stem/link] | [#31](https://github.com/edwardkim/rhwp/issues/31) | 인라인 TAC 표가 텍스트 흐름에 배치되지 않음 | 완료 | composer tac_controls 추가, layout_inline_table_paragraph 세로 정렬
+- [code] mydocs/eng/plans/archives/task_65_impl.md  channel=doc binding=mention jev=0.13 rows=7
+    :8 [stem/stem_weak] - Already has `para_index`, `control_index`
+    :11 [stem/stem_weak] 2. `layout_shape_object()` (line 3447): Add `section_index, para_index, control_index` parameters
+    :15 [stem/stem_weak] 3. `layout_textbox_content()` (line 3606): Add `section_index, para_index, control_index` parameters
+- [code] mydocs/eng/plans/task_266.md  channel=doc binding=mention jev=0.13 rows=8
+    :6 [stem/stem_weak] - Insert/remove PageHide control on the current page at cursor position
+    :11 [stem/stem_weak] - Add to existing control codes (section break, page break, etc.):
+    :12 [stem/stem_weak] - `[Page Hide]` — PageHide control
+- [code] README_EN.md  channel=doc binding=link jev=0.12 rows=1
+    :79 [stem/link] - HWPX interleaved control char-offset fix for linebreak/embedded controls ([#213](https://github.com/edwardkim/rhwp/pull/213) by @jskang / [@yl-star7
+- [code] mydocs/eng/working/archives/task_37_stage1.md  channel=doc binding=mention jev=0.12 rows=8
+    :12 [basename/mention] | `src/model/control.rs` | `Control`, `HiddenComment` |
+    :93 [basename/mention] | `src/model/control.rs` | Added Clone derive (Control, HiddenComment) |
+    :39 [stem/stem_weak] | `copy_control_native()` | Copy control object (table/image/shape) |
+- [code] mydocs/plans/archives/task_157_impl.md  channel=doc binding=mention jev=0.12 rows=9
+    :16 [stem/stem_weak] **`create_shape_control_native()`** — 글상자 생성
+    :61 [stem/stem_weak] - 반환: `{"ok":true,"paraIdx":N,"controlIdx":0}`
+    :88 [stem/stem_weak] **`delete_shape_control_native()`** — 삭제
+- [code] mydocs/eng/orders/20260402.md  channel=doc binding=link jev=0.11 rows=2
+    :14 [stem/link] | [#31](https://github.com/edwardkim/rhwp/issues/31) | Inline TAC table not placed in text flow | Done | Composer tac_controls addition, layout_inline
+    :15 [stem/link] | [#32](https://github.com/edwardkim/rhwp/issues/32) | createTable API extension -- treat_as_char + precision design | Done | createTableEx, logical o
+- [code] mydocs/eng/plans/archives/task_154.md  channel=doc binding=mention jev=0.11 rows=8
+    :142 [path/mention] - `src/parser/control.rs`, `src/parser/control/shape.rs` — Binary HWP parser (conversion target)
+    :51 [basename/mention] - Binary HWP parser supports all of these (control.rs, control/shape.rs)
+    :130 [basename/mention] | **HIGH** | `<hp:ctrl>` parsing | Fields, hyperlinks, bookmarks, auto-numbering | `parser/control.rs` |
+- [code] CLAUDE.md  channel=doc binding=mention jev=- rows=3
+    :81 [stem/stem_weak] rhwp export-svg sample.hwp --show-control-codes    # 조판부호 표시 (문단부호+개체마커)
+    :136 [stem/stem_weak] --- 문단 2.45 --- cc=9, text_len=0, controls=1
+    :156 [stem/stem_weak] 비교 항목: text, char_count, char_offsets, char_shapes, line_segs, controls, tab_extended, ParaShape(여백/줄간격/탭), TabDef(위치/종류/채움).
+- [code] mydocs/eng/feedback/code-refactoring-strategy.md  channel=doc binding=mention jev=- rows=1
+    :209 [stem/stem_weak] |   +-- dump_controls.rs <- Control dump command
+- [code] mydocs/eng/feedback/dynamic_reflow.md  channel=doc binding=mention jev=- rows=1
+    :38 [stem/stem_weak] * **Precise cursor control:**
+- [code] mydocs/eng/feedback/font-metrics.md  channel=doc binding=mention jev=- rows=5
+    :41 [stem/stem_weak] 2. **Rendering:** Leverage Skia's powerful GPU acceleration to draw glyphs. (This goes beyond Google Docs — a 'fully self-controlled' approach.)
+    :44 [stem/stem_weak] Google's approach is a case of **"maximizing standard browser capabilities (Painting) while self-implementing only the parts needing control (Layout)"
+    :56 [stem/stem_weak] The biggest weakness of the Canvas 2D API is the difficulty of fine-grained text rendering control. Using Skia as Wasm allows internal use of the **Ha
+- [code] mydocs/eng/feedback/hwpx2ir.md  channel=doc binding=mention jev=- rows=5
+    :8 [stem/stem_weak] When encoding HWPX XML-defined controls into IR, where does the discrepancy originate when HWP encodes correctly but HWPX does not?
+    :10 [stem/stem_weak] The fact that there are no issues with rendering the controls themselves, but problems occur in height calculation and placement, leads to the logical
+    :14 [stem/stem_weak] When encoding controls like tables and images into IR?
+- [code] mydocs/eng/feedback/iso_safari_ime.md  channel=doc binding=mention jev=- rows=1
+    :26 [stem/stem_weak] * **Composition event control:** Instead of blocking the browser's default input, it precisely intercepts three events:
+- [code] mydocs/eng/feedback/layout-quality-report.md  channel=doc binding=mention jev=- rows=2
+    :147 [stem/stem_weak] **A single function builds the entire page**, so despite sub-function calls, the control flow and branching are excessively complex.
+    :223 [stem/stem_weak] - `table_meta: Option<(usize, usize)>` -- struct `TableMeta { para_index, control_index }` instead of anonymous tuple
+- [code] mydocs/eng/feedback/r-code-review-4th.md  channel=doc binding=mention jev=- rows=1
+    :101 [basename/mention] | serializer/control.rs | 331 | Low (memory buffer IO) |
+- [code] mydocs/eng/feedback/r-code-review-report.md  channel=doc binding=mention jev=- rows=5
+    :88 [basename/mention] - Adding new HWP control types to the `Control` enum requires simultaneous modifications to parser/control.rs, serializer/control.rs, layout.rs, etc.
+    :172 [basename/mention] | 7 | `parser/control.rs` | 1,744 | Good |
+    :173 [basename/mention] | 8 | `serializer/control.rs` | 1,520 | Good |
+- [code] mydocs/eng/feedback/rhwp-studio-code-review.md  channel=doc binding=mention jev=- rows=1
+    :113 [stem/stem_weak] CommandDef handles high-level control (UI binding, activation conditions), EditCommand handles low-level editing (direct WASM calls, restoration). Thi
+- [code] mydocs/eng/manual/dump_command.md  channel=doc binding=mention jev=- rows=5
+    :5 [stem/stem_weak] A debugging tool that outputs the typesetting control structure of an HWP document as text.
+    :54 [stem/stem_weak] --- Paragraph 0.3 --- cc=17, text_len=0, controls=2 [ColumnBreak]
+    :61 [stem/stem_weak] | `cc` | char_count (total characters including control characters) |
+- [code] mydocs/eng/manual/e2e-cdp.md  channel=doc binding=mention jev=- rows=3
+    :113 [stem/stem_weak] | `e2e/shape-inline.test.mjs` | Inline shape control -- cursor movement and text insertion | -- |
+    :258 [stem/stem_weak] w.doc.insertTextInCell(0, tr.paraIdx, tr.controlIdx, 0, 0, 0, 'Cell');
+    :336 [stem/stem_weak] Using the `TestReporter` class directly allows fine-grained control such as test case grouping:
+- [code] mydocs/eng/manual/e2e_verification_guide.md  channel=doc binding=mention jev=- rows=5
+    :97 [stem/stem_weak] { rule: 'table-baseline-align', paraIndex: 1, controlIndex: 0, tolerance: 10.0 },
+    :98 [stem/stem_weak] { rule: 'space-before-table', paraIndex: 1, controlIndex: 0, minGap: 5.0 },
+    :99 [stem/stem_weak] { rule: 'space-after-table', paraIndex: 1, controlIndex: 0, minGap: 5.0 },
+- [code] mydocs/eng/manual/hyper_waterfall.md  channel=doc binding=mention jev=- rows=3
+    :72 [stem/stem_weak] The macro direction is controlled with **Waterfall discipline** — plans, approvals, step-by-step reporting, and final verification. The micro executio
+    :116 [stem/stem_weak] ### Principle 2: The task director must maintain control
+    :312 [stem/stem_weak] 5. **Discipline** — Self-control to not slip into vibe coding just because it's easier
+- [code] mydocs/eng/manual/ir_diff_command.md  channel=doc binding=mention jev=- rows=3
+    :58 [stem/stem_weak] | `cc` (char_count) | Character count (UTF-16 code units) | Tab/control code unit mapping error |
+    :62 [stem/stem_weak] | `controls` | Control count | Table/picture/textbox parsing omission |
+    :113 [stem/stem_weak] - **controls count differences**: SectionDef and similar are handled separately in HWPX
+- [code] mydocs/eng/manual/onboarding_guide.md  channel=doc binding=mention jev=- rows=3
+    :107 [stem/stem_weak] - **Tables**: Red dashed borders + `s{section}:pi={index} ci={control} {rows}x{cols} y={coordinate}` label (top-right)
+    :143 [stem/stem_weak] --- Paragraph 2.45 --- cc=9, text_len=0, controls=1
+    :157 [stem/stem_weak] 2. **Showing control codes**: Checking the positions of tabs, spaces, and line breaks in Hancom
+- [code] mydocs/eng/orders/20260210.md  channel=doc binding=mention jev=- rows=1
+    :9 [stem/stem_weak] | 38 | HTML table paste -> HWP table control conversion | Done | parse_table_html reimplementation, Table Control creation, BorderFill registration, c
+- [code] mydocs/eng/orders/20260211.md  channel=doc binding=mention jev=- rows=2
+    :5 [stem/stem_weak] | 38 | Save feature fix: Text insertion before control bug fix | Done | PARA_TEXT control order preservation, LineSeg original value preservation, 464
+    :10 [stem/stem_weak] | 40 | HWP save basic feature implementation | Done | Spec cross-validation, text/table/image/table+image FROM SCRATCH save HWP open confirmed, other 
+- [code] mydocs/eng/orders/20260213.md  channel=doc binding=mention jev=- rows=3
+    :10 [stem/stem_weak] | 54 | Page paper margin display | Done | WASM getPageInfo margin 6-field extension, canvas 4-corner L-shaped corner marks rendering, Hancom coreEngin
+    :11 [stem/stem_weak] | 55 | Menu bar dropdown UI implementation | Done | Hancom Web Gian-gi identical 7 menus (File/Edit/View/Insert/Format/Page/Table) dropdown UI. ~65 it
+    :13 [stem/stem_weak] | 57 | Dynamic Reflow feedback acceptance strategy | Done | 4 external feedback proposals analyzed. Knuth-Plass->Greedy line breaking replacement acce
+- [code] mydocs/eng/orders/20260214.md  channel=doc binding=mention jev=- rows=1
+    :23 [stem/stem_weak] | B1 | ~~Text rendering missing in paragraphs containing both text+Table controls~~ | 2026-02-14 | **Resolved in Task 66** |
+- [code] mydocs/eng/orders/20260217.md  channel=doc binding=mention jev=- rows=3
+    :7 [stem/stem_weak] | 102-3 | Table refactoring Phase 3: Path-based access + recursive height measurement | Done | DocumentPath type, navigate_path_to_table recursive acc
+    :10 [stem/stem_weak] | 103 | "In front of text" placement control body push-down exception | Done | Promoted from B-001. InFrontOfText added to calculate_shape_reserved_he
+    :18 [stem/stem_weak] | B-001 | "In front of text" placement control body push-down exception | 2026-02-17 | Resolved in Task 103 |
+- [code] mydocs/eng/orders/20260218.md  channel=doc binding=mention jev=- rows=1
+    :14 [stem/stem_weak] | B-001 | "In front of text" placement control body push-down exception | 2026-02-17 | Resolved in Task 103 |
+- [code] mydocs/eng/orders/20260221.md  channel=doc binding=mention jev=- rows=3
+    :13 [stem/stem_weak] | 133 | New blank document creation + save | Done | Prerequisite: Enter key bug fix (split_at char_count control not included, raw_header_extra lost).
+    :18 [stem/stem_weak] | 138 | Image insertion feature | Done | Rust insertPicture WASM API (BinData add + Picture control creation + paragraph insertion). Mouse area design
+    :26 [stem/stem_weak] | B-008 | ~~File corruption when saving after text input + table creation~~ | 2026-02-21 | Resolved | Fixed in Task 133. split_at() raw_header_extra l
+- [code] mydocs/eng/orders/20260222.md  channel=doc binding=mention jev=- rows=2
+    :7 [stem/stem_weak] | 141 | build_page_tree cache for hitTest/getPageControlLayout performance | Done | Task 137 regression root cause (binary search), build_page_tree_ca
+    :27 [stem/stem_weak] | B-008 | ~~File corruption when saving after text input + table creation~~ | 2026-02-21 | Resolved | Fixed in Task 133. split_at() raw_header_extra l
+- [code] mydocs/eng/orders/20260223.md  channel=doc binding=mention jev=- rows=3
+    :7 [stem/stem_weak] | 154 | HWPX rendering enhancement | Done | P1. 3 stages completed: HWPX ctrl/paragraph control complete parsing, renderingInfo affine transform (grou
+    :9 [stem/stem_weak] | 156 | Edit mode left/right margin clipping removal | Done | P1. Resolved with alignment-based spacing compression. Justify negative word spacing, Ja
+    :17 [stem/stem_weak] | B-008 | ~~File corruption when saving after text input + table creation~~ | 2026-02-21 | Resolved | Fixed in Task 133. split_at() raw_header_extra l
+- [code] mydocs/eng/orders/20260228.md  channel=doc binding=mention jev=- rows=1
+    :7 [stem/stem_weak] | 177 | Undo/Redo refinement (paste/object delete) | Done | Document snapshot-based SnapshotCommand introduced. Paste (internal/HTML/control) + object
+- [code] mydocs/eng/orders/20260305.md  channel=doc binding=mention jev=- rows=1
+    :6 [stem/stem_weak] | 186 | Line control rendering and table placement bug fix | Done | Line object rendering, table coordinate placement fix |
+- [code] mydocs/eng/orders/20260306.md  channel=doc binding=mention jev=- rows=1
+    :5 [stem/stem_weak] | 189 | Image control properties UI enhancement | Waiting | |
+- [code] mydocs/eng/orders/20260311.md  channel=doc binding=mention jev=- rows=1
+    :7 [stem/stem_weak] | 201 | Composition marks objects -- table/image/TextBox etc. | Done | [Table], [Image], [TextBox], [Equation], [Header], [Footer], [Footnote] red bra
+- [code] mydocs/eng/orders/20260315.md  channel=doc binding=mention jev=- rows=3
+    :5 [stem/stem_weak] | 222 | plan_tech_01.hwp p1 nested table height clipping + caption auto-number fix | Done | vpos-based para_y correction + auto-number control charact
+    :10 [stem/stem_weak] | 227 | New page creation bug when text block copy/paste fix | Done | Clipboard structural controls (SectionDef/ColumnDef) removed + clipboardHasContr
+    :12 [stem/stem_weak] | 229 | Field control parsing and basic rendering | Done | 15 field types parsed + FieldRange tracking + ClickHere guide text red italic rendering + s
+- [code] mydocs/eng/orders/20260316.md  channel=doc binding=mention jev=- rows=2
+    :7 [stem/stem_weak] | 234 | F11 key feature implementation (control selection) | Done | Select nearest control in cursor previous direction |
+    :20 [stem/stem_weak] | - | HWPTAG_CTRL_DATA full cross-check (vs hwplib) | Missed that bookmark names are stored in CTRL_DATA ParameterSet. FIELD_BOOKMARK (%bmk) parsing a
+- [code] mydocs/eng/orders/20260317.md  channel=doc binding=mention jev=- rows=2
+    :5 [stem/stem_weak] | 241 | HWPTAG_CTRL_DATA full cross-check (vs hwplib) | Done | Nested structure bookmark collection, CTRL_DATA ParameterSet creation/synchronization, 
+    :8 [stem/stem_weak] | 247 | Shape inline control structure conversion | Done | Shape inline insertion + Hancom-compatible serialization (5 scenarios passed) |
+- [code] mydocs/eng/orders/20260322.md  channel=doc binding=mention jev=- rows=1
+    :20 [stem/stem_weak] | 324 | Unicode control character handling full survey | Done | Full survey result: current handling normal. C0 control characters skip, \u{2007} nume
+- [code] mydocs/eng/orders/20260323.md  channel=doc binding=mention jev=- rows=2
+    :20 [stem/stem_weak] | 324 | Unicode control character handling full survey | Done | Full survey result: current handling normal. C0 control characters skip, \u{2007} nume
+    :53 [stem/stem_weak] | B-004 | TAC inline control run boundary missing | 2026-03-23 | Unresolved | TAC equations/images at run end excluded from run_tacs filter (`< run_ch
+- [code] mydocs/eng/orders/20260324.md  channel=doc binding=mention jev=- rows=3
+    :12 [stem/stem_weak] | 352 | TAC inline control run boundary missing fix | Done | run_tacs filter < -> <= (last run). exam_math_no pi=40 circled-5 10 correctly placed. B-0
+    :39 [stem/stem_weak] | B-004 | TAC inline control run boundary missing | 2026-03-23 | Resolved | Task 352: run_tacs filter < -> <= (last run) |
+    :46 [stem/stem_weak] | B-012 | hwpctl control navigation | 2026-03-24 | Unresolved | HeadCtrl, Next, CtrlID, DeleteCtrl |
+- [code] mydocs/eng/orders/20260325.md  channel=doc binding=mention jev=- rows=2
+    :13 [stem/stem_weak] | 378 | Equation editor error on equation click in cell | Done | paragraph_layout equation nodes get cell_index/cell_para_index set. Host paragraph in
+    :29 [stem/stem_weak] | B-012 | hwpctl control navigation | 2026-03-24 | Unresolved | HeadCtrl, Next, CtrlID, DeleteCtrl |
+- [code] mydocs/eng/plans/archives/table_refactoring_plan.md  channel=doc binding=mention jev=- rows=5
+    :134 [stem/stem_weak] for ctrl in &para.controls {
+    :167 [stem/stem_weak] - Remove `calc_cell_controls_height() → 0` → recursive height measurement
+    :178 [stem/stem_weak] | calc Modification | `src/renderer/layout.rs` | `calc_cell_controls_height()` → actual nested table height calculation |
+- [code] mydocs/eng/plans/archives/task_107.md  channel=doc binding=mention jev=- rows=1
+    :33 [basename/mention] - parser/control.rs, parser/doc_info.rs: Transparency parsing
+- [code] mydocs/eng/plans/archives/task_109.md  channel=doc binding=mention jev=- rows=4
+    :20 [stem/stem_weak] - Parser removes extended control characters from text → no image placeholder
+    :21 [stem/stem_weak] - `layout_horizontal_cell_text()` places text and controls independently
+    :55 [stem/stem_weak] - Track `inline_x` during control placement, use sequential X positions (reference textbox pattern)
+- [code] mydocs/eng/plans/archives/task_11.md  channel=doc binding=mention jev=- rows=6
+    :67 [path/mention] - `src/parser/control.rs`:
+    :92 [path/mention] | `src/parser/control.rs` | parse_caption(), table/picture caption parsing |
+    :15 [basename/mention] | Caption parsing | Not implemented | Needs implementation in control.rs |
+- [code] mydocs/eng/plans/archives/task_110.md  channel=doc binding=mention jev=- rows=1
+    :39 [path/mention] - `src/parser/control.rs` — Extract outer margin during table parsing
+- [code] mydocs/eng/plans/archives/task_11_impl.md  channel=doc binding=mention jev=- rows=6
+    :50 [path/mention] - `src/parser/control.rs`
+    :77 [path/mention] - `src/parser/control.rs`
+    :5 [stem/stem_weak] Implement parsing and rendering of captions for HWP Table and Picture controls.
+- [code] mydocs/eng/plans/archives/task_121.md  channel=doc binding=mention jev=- rows=1
+    :53 [basename/mention] | `src/serializer/control.rs` | Modify | Add horizontal_align field to section definition serialization |
+- [code] mydocs/eng/plans/archives/task_12_impl.md  channel=doc binding=mention jev=- rows=1
+    :50 [stem/stem_weak] - Generate number string when inline control is found
+- [code] mydocs/eng/plans/archives/task_13.md  channel=doc binding=mention jev=- rows=1
+    :10 [stem/stem_weak] - `AutoNumber` (atno control): Auto numbering for figures/tables/footnotes, etc. -- already implemented
+- [code] mydocs/eng/plans/archives/task_132.md  channel=doc binding=mention jev=- rows=3
+    :60 [stem/stem_weak] 6. Create Paragraph containing Table (char_count=9, control_mask=0x800)
+    :66 [stem/stem_weak] 10. Return JSON: `{"ok":true,"paraIdx":<N>,"controlIdx":0}`
+    :84 [stem/stem_weak] rows: number, cols: number): { ok: boolean; paraIdx: number; controlIdx: number } {
+- [code] mydocs/eng/plans/archives/task_133.md  channel=doc binding=mention jev=- rows=6
+    :22 [stem/stem_weak] | para[0] PARA_HEADER | 24B, cc=17 | 24B, **cc=1** | **char_count excludes controls** |
+    :23 [stem/stem_weak] | para[0] PARA_TEXT | 34B (with controls) | 34B (same) | cc=1 but 34B PARA_TEXT → **mismatch=corruption** |
+    :31 [stem/stem_weak] 1. **char_count excludes control code units**: `self.char_count = split_pos + 1` → The 8xN code units from remaining controls after split are not refl
+- [code] mydocs/eng/plans/archives/task_13_impl.md  channel=doc binding=mention jev=- rows=1
+    :66 [stem/stem_weak] - Process `^n`, `^N` control codes in number format strings
+- [code] mydocs/eng/plans/archives/task_142.md  channel=doc binding=mention jev=- rows=4
+    :20 [basename/mention] | 6 | parser/control.rs | 1,744 | Control parser |
+    :21 [basename/mention] | 7 | serializer/control.rs | 1,520 | Control serialization |
+    :133 [basename/mention] | parser/control.rs | 1,744 | control.rs + control_shape.rs |
+- [code] mydocs/eng/plans/archives/task_144_impl.md  channel=doc binding=mention jev=- rows=1
+    :71 [stem/stem_weak] | `{"ok":true,"paraIdx":N,"controlIdx":0}` | object_ops.rs | 2 |
+- [code] mydocs/eng/plans/archives/task_146_impl.md  channel=doc binding=mention jev=- rows=1
+    :26 [stem/stem_weak] Extract paginate_text_lines (~330 lines), paginate_table_control (~600 lines), finalize_pages (~124 lines). Achieve ~85-line orchestrator.
+- [code] mydocs/eng/plans/archives/task_155.md  channel=doc binding=mention jev=- rows=1
+    :145 [stem/stem_weak] | `src/parser/control/shape.rs` | CommonObjAttr bit parsing logic |
+- [code] mydocs/eng/plans/archives/task_157_impl.md  channel=doc binding=mention jev=- rows=3
+    :16 [stem/stem_weak] **`create_shape_control_native()`** — Text box creation
+    :22 [stem/stem_weak] - Returns: `{"ok":true,"paraIdx":N,"controlIdx":0}`
+    :28 [stem/stem_weak] **`delete_shape_control_native()`** — Delete (follows delete_picture_control_native pattern)
+- [code] mydocs/eng/plans/archives/task_158.md  channel=doc binding=mention jev=- rows=3
+    :22 [stem/stem_weak] | Object properties dialog | N/A | 85~90% complete | Some controls disabled |
+    :34 [stem/stem_weak] 6. **Activate disabled UI controls**: Line transparency, shadow direction, etc.
+    :57 [stem/stem_weak] - Activate implementable items among disabled dialog controls
+- [code] mydocs/eng/plans/archives/task_17_impl.md  channel=doc binding=mention jev=- rows=1
+    :59 [stem/stem_weak] 3. `app.js` integration: Load text layout after page rendering and initialize controller
+- [code] mydocs/eng/plans/archives/task_181.md  channel=doc binding=mention jev=- rows=2
+    :5 [stem/stem_weak] HWP file equation (Equation) controls are currently not parsed or rendered.
+    :31 [stem/stem_weak] 4. Integrate equation controls into existing rendering pipeline
+- [code] mydocs/eng/plans/archives/task_181_impl.md  channel=doc binding=mention jev=- rows=4
+    :13 [path/mention] | `src/parser/control.rs` | Add `CTRL_EQUATION` branch → `parse_equation_control()` |
+    :12 [basename/mention] | `src/model/control.rs` | Define `Equation` struct, add `Control::Equation(Box<Equation>)` variant |
+    :15 [basename/mention] | `src/serializer/control.rs` | Add `Control::Equation` serialization (round-trip) |
+- [code] mydocs/eng/plans/archives/task_189.md  channel=doc binding=mention jev=- rows=1
+    :5 [stem/stem_weak] Complete the properties binding and detail attribute change reflection for the image (Picture) control's context menu → "Object Properties" dialog.
+- [code] mydocs/eng/plans/archives/task_194.md  channel=doc binding=mention jev=- rows=1
+    :21 [stem/stem_weak] - **Complete deletion**: Toolbar [Delete] button → remove control entirely
+- [code] mydocs/eng/plans/archives/task_194_impl.md  channel=doc binding=mention jev=- rows=1
+    :11 [stem/stem_weak] - `page.ts`: Add `page:headerfooter-delete` command (exit editing mode → delete control → refresh canvas)
+- [code] mydocs/eng/plans/archives/task_200.md  channel=doc binding=mention jev=- rows=2
+    :52 [stem/stem_weak] - Hancom Help: `mydocs/manual/hwp/Help/extracted/view/control_code.htm`
+    :54 [stem/stem_weak] - Screenshot: `mydocs/manual/hwp/Help/extracted/images/3v_control_code_01.gif`
+- [code] mydocs/eng/plans/archives/task_201.md  channel=doc binding=mention jev=- rows=3
+    :26 [stem/stem_weak] - Can be separated into a dedicated `show_control_codes` in the future
+    :45 [stem/stem_weak] - Hancom Help: `mydocs/manual/hwp/Help/extracted/view/control_code.htm`
+    :46 [stem/stem_weak] - Screenshot: `mydocs/manual/hwp/Help/extracted/images/3v_control_code_01.gif`
+- [code] mydocs/eng/plans/archives/task_210.md  channel=doc binding=mention jev=- rows=1
+    :14 [stem/stem_weak] When rendering controls (nested table) within a cell paragraph, `layout_table()` call has `Alignment::Left` hardcoded.
+- [code] mydocs/eng/plans/archives/task_211_impl.md  channel=doc binding=mention jev=- rows=6
+    :23 [stem/stem_weak] // adding controls_height separately would double-count
+    :30 [stem/stem_weak] // adding controls_height separately would double-count
+    :32 [stem/stem_weak] let non_inline_height = self.measure_non_inline_controls_height(paragraphs);
+- [code] mydocs/eng/plans/archives/task_212.md  channel=doc binding=mention jev=- rows=1
+    :17 [stem/stem_weak] 1. `paginate_table_control()` (engine.rs:535-703) — determines if table fits on current page
+- [code] mydocs/eng/plans/archives/task_213.md  channel=doc binding=mention jev=- rows=3
+    :10 [stem/stem_weak] - **Problem 3 (Current)**: p67~p68 composed only of empty paragraphs (para 675~751, text="", controls=0) rendering as empty pages. These empty paragra
+    :19 [stem/stem_weak] 2. Table control's cell paragraph indices are confused with section paragraph indices, judging para 675~ as external
+    :23 [stem/stem_weak] 2. Exclude consecutive empty paragraphs (text="", controls=0) from pagination or correctly assign them to their table cells
+- [code] mydocs/eng/plans/archives/task_227.md  channel=doc binding=mention jev=- rows=2
+    :12 [stem/stem_weak] 1. Check if control characters (\r, 0x000D) are included in clipboard paragraph during copy
+    :13 [stem/stem_weak] 2. Verify single-paragraph determination (`clip_count == 1 && controls.is_empty()`) is correct during paste
+- [code] mydocs/eng/plans/archives/task_229.md  channel=doc binding=mention jev=- rows=1
+    :9 [stem/stem_weak] - **CTRL_DATA preservation**: Each control's CTRL_DATA binary preserved in `ctrl_data_records` for round-trip
+- [code] mydocs/eng/plans/archives/task_229_field_roadmap.md  channel=doc binding=mention jev=- rows=1
+    :5 [stem/stem_weak] Since the goal is a web document authoring system, not just simple rendering but data binding through external APIs is the core requirement. Hancom's 
+- [code] mydocs/eng/plans/archives/task_23.md  channel=doc binding=mention jev=- rows=1
+    :34 [basename/mention] | `src/serializer/control.rs` | New: Control serialization |
+- [code] mydocs/eng/plans/archives/task_232.md  channel=doc binding=mention jev=- rows=6
+    :32 [path/mention] | `src/parser/control.rs` | Add `parse_form_control()` function |
+    :31 [basename/mention] | `src/model/control.rs` | Add `FormObject` struct + `FormType` enum, `Control::Form` variant |
+    :11 [stem/stem_weak] Hancom word processor form objects are interactive UI controls inserted into documents. There are 5 types:
+- [code] mydocs/eng/plans/archives/task_233.md  channel=doc binding=mention jev=- rows=3
+    :17 [stem/stem_weak] - `getFormValue(sec, para, controlIndex)` — query form object value
+    :18 [stem/stem_weak] - `setFormValue(sec, para, controlIndex, value)` — set form object value + re-render
+    :19 [stem/stem_weak] - `getFormObjectInfo(sec, para, controlIndex)` — return detailed form object info
+- [code] mydocs/eng/plans/archives/task_234.md  channel=doc binding=mention jev=- rows=1
+    :5 [stem/stem_weak] Implement Hancom's F11 key behavior. Find the nearest control (table, image, text box, equation, etc.) **backward** from the current cursor position a
+- [code] mydocs/eng/plans/archives/task_238_impl.md  channel=doc binding=mention jev=- rows=1
+    :12 [stem/stem_weak] - Search inside nested controls such as table cells, text boxes
+- [code] mydocs/eng/plans/archives/task_24.md  channel=doc binding=mention jev=- rows=2
+    :26 [stem/stem_weak] - Add cell identification info to each run (tableIdx, cellIdx, or controlIndex)
+    :30 [stem/stem_weak] - Paragraph path: section → paragraph (table control owner) → control (Table) → cell → cell paragraph
+- [code] mydocs/eng/plans/archives/task_241.md  channel=doc binding=mention jev=- rows=3
+    :5 [stem/stem_weak] During Task 240 bookmark implementation, a bug was discovered where the bookmark name was not extracted from the CTRL_DATA ParameterSet. Cross-checkin
+    :9 [stem/stem_weak] 1. Identify the ParameterSet structure for all controls that use CTRL_DATA based on hwplib
+    :23 [stem/stem_weak] - Document which ParameterSet id/items are used for each control → add parsing later if needed
+- [code] mydocs/eng/plans/archives/task_241_impl.md  channel=doc binding=mention jev=- rows=4
+    :10 [stem/stem_weak] - FIELD_BOOKMARK (%bmk) field control
+    :12 [stem/stem_weak] - Aggregate control type counts for fields/bookmarks across multiple sample HWP files
+    :26 [stem/stem_weak] - Identify CTRL_DATA usage for 7 control types (SectionDef, Table, Picture, Rectangle, GSO, etc.) based on hwplib
+- [code] mydocs/eng/plans/archives/task_242.md  channel=doc binding=mention jev=- rows=5
+    :26 [stem/stem_weak] | Various shape creation API | Medium | Extend `create_shape_control_native()` (type parameter) |
+    :29 [stem/stem_weak] | Connector (ObjectLinkLine) | High | `$col` ctrl_id, start/end object connection, control points, auto routing. Model/parser not implemented |
+    :31 [stem/stem_weak] | Polygon/Curve editing | High | Vertex/control point editing mode |
+- [code] mydocs/eng/plans/archives/task_242_impl.md  channel=doc binding=mention jev=- rows=1
+    :7 [stem/stem_weak] - `src/document_core/commands/object_ops.rs` — Modify `create_shape_control_native()`
+- [code] mydocs/eng/plans/archives/task_24_impl.md  channel=doc binding=mention jev=- rows=4
+    :25 [stem/stem_weak] - `parent_para_index: Option<usize>` — Parent paragraph index that owns the table control
+    :26 [stem/stem_weak] - `control_index: Option<usize>` — Control index within parent paragraph
+    :42 [stem/stem_weak] - Add `insert_text_in_cell(section_idx, parent_para_idx, control_idx, cell_idx, cell_para_idx, char_offset, text)`
+- [code] mydocs/eng/plans/archives/task_25.md  channel=doc binding=mention jev=- rows=4
+    :5 [stem/stem_weak] Implement the mechanism for selecting control objects such as tables/images/shapes, and the ability to select table cells as units. This feature is a 
+    :31 [stem/stem_weak] 1. **Provide control area info from render tree** — Pass bounding boxes of tables/images/shapes to JS
+    :32 [stem/stem_weak] 2. **Extended hit-testing** — Return object selection when click coordinates fall within a control area
+- [code] mydocs/eng/plans/archives/task_27.md  channel=doc binding=mention jev=- rows=1
+    :49 [stem/stem_weak] - Add `PageItem::PartialTable { para_index, control_index, start_row, end_row, is_continuation }`
+- [code] mydocs/eng/plans/archives/task_27_impl.md  channel=doc binding=mention jev=- rows=1
+    :24 [stem/stem_weak] control_index: usize,
+- [code] mydocs/eng/plans/archives/task_2_impl.md  channel=doc binding=mention jev=- rows=1
+    :25 [basename/mention] - `control.rs` - Inline controls (Ruby, Caption, Hyperlink, Field, Bookmark)
+- [code] mydocs/eng/plans/archives/task_3.md  channel=doc binding=mention jev=- rows=1
+    :26 [stem/stem_weak] | BodyText Parsing | Section/paragraph/control/table/shape record parsing |
+- [code] mydocs/eng/plans/archives/task_37.md  channel=doc binding=mention jev=- rows=1
+    :4 [stem/stem_weak] 1. HWP → our editor: paste control objects via HTML format
+- [code] mydocs/eng/plans/archives/task_37_impl.md  channel=doc binding=mention jev=- rows=1
+    :4 [stem/stem_weak] copy_selection(), copy_control(), paste_internal() APIs. Style ID remapping, BinData merging.
+- [code] mydocs/eng/plans/archives/task_3_impl.md  channel=doc binding=mention jev=- rows=6
+    :91 [path/mention] - `src/parser/control.rs` creation — Control parser
+    :136 [path/mention] | `src/parser/control.rs` | 4 | Control parsing (tables/shapes/pictures) |
+    :68 [stem/stem_weak] - `HWPTAG_PARA_HEADER` → Paragraph basic info (char count, control mask, para_shape_id, style_id)
+- [code] mydocs/eng/plans/archives/task_4.md  channel=doc binding=mention jev=- rows=3
+    :27 [stem/stem_weak] → Inline control position identification (table/shape insertion points)
+    :68 [stem/stem_weak] 3. **Inline controls not identified**: Table/shape insertion positions within paragraphs not recognized → table rendering impossible
+    :84 [stem/stem_weak] - Inline control position identification → table/shape insertion position mapping
+- [code] mydocs/eng/plans/archives/task_40.md  channel=doc binding=mention jev=- rows=3
+    :5 [stem/stem_weak] 2. Incrementally add controls, save, verify in Hancom
+    :6 [stem/stem_weak] 3. Write per-control save technical guide
+    :8 [stem/stem_weak] ## Steps: (1) Spec cross-verification (2) Text save (3) Table save (4) Image save (5) Other controls + docs
+- [code] mydocs/eng/plans/archives/task_41.md  channel=doc binding=mention jev=- rows=1
+    :7 [stem/stem_weak] Improve Table control quality in `parse_table_html()` for Hancom compatibility.
+- [code] mydocs/eng/plans/archives/task_43.md  channel=doc binding=mention jev=- rows=2
+    :5 [stem/stem_weak] Hancom's web document authoring system allows frontend developers to programmatically control HWP documents via JavaScript API (HwpCtrl). If rhwp prov
+    :16 [stem/stem_weak] | HwpCtrl | Main document control interface | Properties 11 + Methods 53 = 64 |
+- [code] mydocs/eng/plans/archives/task_43_feature_def.md  channel=doc binding=mention jev=- rows=3
+    :62 [stem/stem_weak] | HwpCtrl Methods | 67 | Core document control methods |
+    :82 [stem/stem_weak] Grade X (Stub): ~10 APIs including UI control, spell check, server-dependent features
+    :93 [stem/stem_weak] | X (Stub) | Can be handled with empty functions | UI control, server-only features |
+- [code] mydocs/eng/plans/archives/task_44.md  channel=doc binding=mention jev=- rows=2
+    :10 [stem/stem_weak] - **No text/page flow engine**: no incremental reflow, table splitting, widow/orphan control
+    :32 [stem/stem_weak] 6. Cursor model design (line-level processing, paragraph control identification)
+- [code] mydocs/eng/plans/archives/task_44_architecture.md  channel=doc binding=mention jev=- rows=2
+    :43 [stem/stem_weak] - `ComposedParagraph` — Line list + inline control positions
+    :259 [stem/stem_weak] Handles: paragraph spacing (before/after), table heights, inline controls, floating elements (TopAndBottom wrapping reflected in vertical layout; Squa
+- [code] mydocs/eng/plans/archives/task_44_impl.md  channel=doc binding=mention jev=- rows=1
+    :50 [stem/stem_weak] - Cursor model design: line-level processing, paragraph control detection, cursor context switching
+- [code] mydocs/eng/plans/archives/task_45.md  channel=doc binding=mention jev=- rows=1
+    :53 [stem/stem_weak] - Basic UI: file open button, zoom controls (+/-/100%), page display (current/total)
+- [code] mydocs/eng/plans/archives/task_45_impl.md  channel=doc binding=mention jev=- rows=1
+    :35 [stem/stem_weak] - Basic UI: file open button, zoom controls, page indicator
+- [code] mydocs/eng/plans/archives/task_51_impl.md  channel=doc binding=mention jev=- rows=2
+    :66 [stem/stem_weak] &self, section_idx: u32, parent_para_idx: u32, control_idx: u32, cell_idx: u32,
+    :104 [stem/stem_weak] &mut self, section_idx: u32, parent_para_idx: u32, control_idx: u32, cell_idx: u32,
+- [code] mydocs/eng/plans/archives/task_52_impl.md  channel=doc binding=mention jev=- rows=2
+    :9 [stem/stem_weak] - `getCellCharPropertiesAt(secIdx, parentParaIdx, controlIdx, cellIdx, cellParaIdx, charOffset)` → JSON
+    :11 [stem/stem_weak] - `applyCharFormatInCell(secIdx, parentParaIdx, controlIdx, cellIdx, cellParaIdx, startOffset, endOffset, propsJson)` → same for cell
+- [code] mydocs/eng/plans/archives/task_53.md  channel=doc binding=mention jev=- rows=1
+    :9 [stem/stem_weak] - Zoom controls and page info are positioned at the right side of the style bar (`#style-bar`)
+- [code] mydocs/eng/plans/archives/task_65.md  channel=doc binding=mention jev=- rows=3
+    :34 [stem/stem_weak] | `src/renderer/layout.rs` | Propagate CellContext in `layout_textbox_content()` — add section_index, para_index, control_index parameters |
+    :49 [stem/stem_weak] Table cell: CellContext { parent_para_index, control_index, cell_index: 0..N, cell_para_index }
+    :50 [stem/stem_weak] TextBox:    CellContext { parent_para_index, control_index, cell_index: 0,    cell_para_index }
+- [code] mydocs/eng/plans/archives/task_66.md  channel=doc binding=mention jev=- rows=2
+    :5 [stem/stem_weak] During Task 65, a problem was discovered on page 1 of `img-start-001.hwp` where text in paragraphs containing both text and a Table control was not be
+    :9 [stem/stem_weak] - `para[1]` contains both text (80 characters: "Department: Digital Transformation Promotion Team, Director Oh Eun...") and a Table control simultaneo
+- [code] mydocs/eng/plans/archives/task_70.md  channel=doc binding=mention jev=- rows=4
+    :5 [stem/stem_weak] HWP documents include Header and Footer controls, and most official documents/reports display page numbers in the footer area.
+    :17 [stem/stem_weak] 3. No actual page number text is generated at `PageNumberPos` control positions
+    :25 [stem/stem_weak] - Hide: PageHide control can hide on specific pages
+- [code] mydocs/eng/plans/archives/task_70_impl.md  channel=doc binding=mention jev=- rows=6
+    :3 [stem/stem_weak] ## Verification Target: `samples/hwp-multi-001.hwp` (contains Footer control)
+    :25 [stem/stem_weak] pub para_index: usize,        // Paragraph index containing Header/Footer control
+    :26 [stem/stem_weak] pub control_index: usize,     // Control index within that paragraph
+- [code] mydocs/eng/plans/archives/task_74_impl.md  channel=doc binding=mention jev=- rows=3
+    :47 [path/mention] **Modified file**: `src/parser/control.rs`
+    :100 [path/mention] | `src/parser/control.rs` | Add PICTURE parsing to parse_container_children() | ~15 lines |
+    :12 [basename/mention] | `parser/control.rs:724-736` | `parse_container_children()` does not handle PICTURE tag → creates default empty Rectangle |
+- [code] mydocs/eng/plans/archives/task_77.md  channel=doc binding=mention jev=- rows=1
+    :48 [stem/stem_weak] 4. `layout_partial_table()` has `start_line >= end_line` → `continue` → **paragraph's image controls are also skipped**
+- [code] mydocs/eng/plans/archives/task_78.md  channel=doc binding=mention jev=- rows=5
+    :28 [basename/mention] **Misidentified group container** in `parse_gso_control()` (control.rs:332-334):
+    :9 [stem/stem_weak] Paragraph 25 has a GSO control (rectangle), with actual structure:
+    :41 [stem/stem_weak] 1. This GSO control is a **Rectangle with TextBox**
+- [code] mydocs/eng/plans/archives/task_78_impl.md  channel=doc binding=mention jev=- rows=6
+    :11 [path/mention] **File**: `src/parser/control.rs`
+    :38 [path/mention] **File**: `src/parser/control.rs`
+    :97 [path/mention] | `src/parser/control.rs` | Refine Group detection level comparison (1 location) + parse_container_children level filtering (1 location) | ~4 lines |
+- [code] mydocs/eng/plans/archives/task_81.md  channel=doc binding=mention jev=- rows=1
+    :9 [basename/mention] - **Parser**: `cell.text_direction` already parsed (control.rs:215, bits 16-18)
+- [code] mydocs/eng/plans/archives/task_83.md  channel=doc binding=mention jev=- rows=2
+    :10 [stem/stem_weak] - **CursorState**: Cell internal position management (`parentParaIndex`, `controlIndex`, `cellIndex`)
+    :15 [stem/stem_weak] - **get_page_control_layout_native**: API that already exports cell bbox as JSON from render tree (not connected to frontend)
+- [code] mydocs/eng/plans/archives/task_83_impl.md  channel=doc binding=mention jev=- rows=2
+    :13 [stem/stem_weak] &self, section_idx: u32, parent_para_idx: u32, control_idx: u32,
+    :26 [stem/stem_weak] getTableCellBboxes(sec, parentPara, controlIdx): CellBbox[]
+- [code] mydocs/eng/plans/archives/task_84.md  channel=doc binding=mention jev=- rows=3
+    :65 [stem/stem_weak] | Gradation | Composite control | BorderFill | Future |
+    :92 [stem/stem_weak] 1. **Build complete UI first**: Implement UI for all 6 tabs. Disabled controls for unimplemented features are shown, with field references preserved f
+    :105 [stem/stem_weak] | `rhwp-studio/src/style.css` | Add tab UI styles + dialog control styles |
+- [code] mydocs/eng/plans/archives/task_84_impl.md  channel=doc binding=mention jev=- rows=1
+    :87 [stem/stem_weak] All controls have DOM references saved as instance members for future activation.
+- [code] mydocs/eng/plans/archives/task_87.md  channel=doc binding=mention jev=- rows=2
+    :11 [stem/stem_weak] - hitTest detects table cell context (parentParaIndex, controlIndex, cellIndex) done
+    :38 [stem/stem_weak] - Delete/Backspace in table object selection state → remove table control
+- [code] mydocs/eng/plans/archives/task_87_impl.md  channel=doc binding=mention jev=- rows=3
+    :11 [stem/stem_weak] **Goal**: Add WASM API returning table-wide bounding box, implement table control deletion in Rust model
+    :19 [stem/stem_weak] - Remove the table control from paragraph's controls array
+    :21 [stem/stem_weak] - Add `remove_control(index)` method (remove from controls array at given index)
+- [code] mydocs/eng/plans/archives/task_89.md  channel=doc binding=mention jev=- rows=2
+    :76 [stem/stem_weak] - Basic controls (section definition, tab, line break)
+    :81 [stem/stem_weak] - Advanced controls (fields, bookmarks, headers/footers, footnotes)
+- [code] mydocs/eng/plans/archives/task_89_impl.md  channel=doc binding=mention jev=- rows=1
+    :92 [stem/stem_weak] 2. Paragraph (`<p>`) iteration → extract text/controls from each paragraph's runs (`<run>`)
+- [code] mydocs/eng/plans/archives/task_90.md  channel=doc binding=mention jev=- rows=1
+    :50 [stem/stem_weak] - `src/parser/hwpx/section.rs` — table cell/image/special character/control parsing improvements
+- [code] mydocs/eng/plans/archives/task_91.md  channel=doc binding=mention jev=- rows=4
+    :38 [stem/stem_weak] In HWP, ColumnDef is stored as a paragraph control:
+    :40 [stem/stem_weak] Section → Paragraph[0] → controls[0] = Control::SectionDef(...)
+    :41 [stem/stem_weak] Section → Paragraph[0] → controls[1] = Control::ColumnDef(...)  <- initial column definition
+- [code] mydocs/eng/plans/archives/task_91_impl.md  channel=doc binding=mention jev=- rows=1
+    :16 [stem/stem_weak] for ctrl in &para.controls {
+- [code] mydocs/eng/plans/archives/task_93.md  channel=doc binding=mention jev=- rows=3
+    :30 [path/mention] | `src/parser/control.rs` | Fix 6 shape parser functions |
+    :10 [stem/stem_weak] - hwplib shape models: `/home/edward/vsworks/shwp/hwplib/src/main/java/kr/dogfoot/hwplib/object/bodytext/control/gso/shapecomponenteach/`
+    :11 [stem/stem_weak] - hwplib shape readers: `/home/edward/vsworks/shwp/hwplib/src/main/java/kr/dogfoot/hwplib/reader/bodytext/paragraph/control/gso/`
+- [code] mydocs/eng/plans/archives/task_93_impl.md  channel=doc binding=mention jev=- rows=1
+    :15 [path/mention] **File**: `src/parser/control.rs`
+- [code] mydocs/eng/plans/archives/task_94.md  channel=doc binding=mention jev=- rows=2
+    :39 [path/mention] | `src/parser/control.rs` | Parse attr bits 5-7 (vert_align), 10-12 (horz_align) |
+    :41 [basename/mention] | `src/serializer/control.rs` | Reflect new fields in serialization (already included in attr bits, so minimal change) |
+- [code] mydocs/eng/plans/archives/task_94_impl.md  channel=doc binding=mention jev=- rows=1
+    :7 [path/mention] **Files**: `src/model/shape.rs`, `src/parser/control.rs`
+- [code] mydocs/eng/plans/archives/task_96.md  channel=doc binding=mention jev=- rows=1
+    :17 [stem/stem_weak] - `ControlContainer.java` — manages child controls as `ArrayList<GsoControl>`
+- [code] mydocs/eng/plans/task_244.md  channel=doc binding=mention jev=- rows=2
+    :10 [stem/stem_weak] ### 1. Shape Creation API Extension (create_shape_control_native)
+    :13 [stem/stem_weak] - Curve requires control point editing, to be considered separately
+- [code] mydocs/eng/plans/task_245.md  channel=doc binding=mention jev=- rows=1
+    :23 [stem/stem_weak] | 36 | u32 | countOfControlPoints | Number of control points |
+- [code] mydocs/eng/plans/task_247_impl.md  channel=doc binding=mention jev=- rows=2
+    :4 [stem/stem_weak] - `create_shape_control_native` changed to inline insertion
+    :22 [stem/stem_weak] - Return `max(text_len, max_ctrl_pos + 1)` considering inline control text_positions
+- [code] mydocs/eng/plans/task_252.md  channel=doc binding=mention jev=- rows=3
+    :42 [path/mention] - Parser: src/parser/control.rs (parse_footnote_control)
+    :23 [stem/stem_weak] - Rust: `insert_footnote_native(sec, para, char_offset)` → Create Footnote control
+    :35 [stem/stem_weak] - Remove Footnote control when footnote number control is deleted from body
+- [code] mydocs/eng/plans/task_256.md  channel=doc binding=mention jev=- rows=3
+    :23 [stem/stem_weak] | `hitTestFootnote(pageNum, x, y)` | Returns whether click is in footnote area + (paraIdx, controlIdx) |
+    :24 [stem/stem_weak] | `hitTestInFootnote(pageNum, paraIdx, controlIdx, x, y)` | Returns exact (fnParaIdx, charOffset) within footnote |
+    :25 [stem/stem_weak] | `getCursorRectInFootnote(sec, paraIdx, controlIdx, fnParaIdx, charOffset)` | Returns cursor rect within footnote |
+- [code] mydocs/eng/plans/task_262.md  channel=doc binding=mention jev=- rows=1
+    :13 [stem/stem_weak] | **Starting number mode control** | Not implemented |
+- [code] mydocs/eng/plans/task_265.md  channel=doc binding=mention jev=- rows=3
+    :6 [stem/stem_weak] - In Hancom, the `[Page Hide]` control (`pghd`) hides the page number on the first page
+    :12 [stem/stem_weak] - Ensure PageHide control is parsed correctly
+    :16 [stem/stem_weak] - Collect PageHide in `collect_header_footer_controls` (including paragraph index)
+- [code] mydocs/eng/plans/task_267.md  channel=doc binding=mention jev=- rows=2
+    :29 [path/mention] | src/parser/control.rs | list_attr bit 16 check + padding clear |
+    :15 [basename/mention] ### Parser Fix (control.rs)
+- [code] mydocs/eng/plans/task_283.md  channel=doc binding=mention jev=- rows=1
+    :24 [stem/stem_weak] - `src/document_core/queries/rendering.rs`: Return nested control paths within cells
+- [code] mydocs/eng/plans/task_291.md  channel=doc binding=mention jev=- rows=3
+    :15 [stem/stem_weak] - Can be hidden via `hide_master_page` flag or PageHide control
+    :22 [stem/stem_weak] [0]  tag=72(CTRL_HEADER) level=2 size=34   ← Master page control header
+    :39 [stem/stem_weak] | CTRL_HEADER(tag=72) level=2 | Ignored | Master page control header |
+- [code] mydocs/eng/plans/task_298.md  channel=doc binding=mention jev=- rows=3
+    :23 [stem/stem_weak] | Control position restoration | `helpers.rs` → `find_control_text_positions()` | Position restoration via char_offsets gap — done |
+    :24 [stem/stem_weak] | Navigable text length | `helpers.rs` → `navigable_text_len()` | Inline control position reflected — done |
+    :37 [stem/stem_weak] - In `doc_tree_nav.rs`, when a Shape exists at a control position:
+- [code] mydocs/eng/plans/task_303.md  channel=doc binding=mention jev=- rows=1
+    :39 [stem/stem_weak] - No pagination changes needed (Shape also doesn't consume height in process_controls; handled via shape_reserved mechanism)
+- [code] mydocs/eng/plans/task_307.md  channel=doc binding=mention jev=- rows=1
+    :23 [stem/stem_weak] 2. **TAC control lh correction**: lh = max(default lh, control height)
+- [code] mydocs/eng/plans/task_315.md  channel=doc binding=mention jev=- rows=2
+    :11 [stem/stem_weak] - Stored as **paragraph control** (`Control::ColumnDef`)
+    :20 [stem/stem_weak] - Two controls are independent — modifying only ColumnDef changes columns
+- [code] mydocs/eng/plans/task_321.md  channel=doc binding=mention jev=- rows=1
+    :105 [stem/stem_weak] - Apply same logic to all master page controls (currently only tables are fixed)
+- [code] mydocs/eng/plans/task_341.md  channel=doc binding=mention jev=- rows=2
+    :12 [stem/stem_weak] 1. **Composer** (composer.rs:110-135): Equations always registered in `tac_controls`
+    :26 [stem/stem_weak] - When iterating `tac_offsets_px`, call `set_inline_shape_position()` for Equation controls
+- [code] mydocs/eng/plans/task_400.md  channel=doc binding=mention jev=- rows=1
+    :30 [stem/stem_weak] - Re-measure controlled samples (lseg-01~06) + existing samples
+- [code] mydocs/eng/plans/task_403.md  channel=doc binding=mention jev=- rows=1
+    :5 [stem/stem_weak] Programmatically generate controlled HWP test case files, have them verified in Hancom by the project lead, then analyze LINE_SEG to build a systemati
+- [code] mydocs/eng/plans/task_403_impl.md  channel=doc binding=mention jev=- rows=1
+    :113 [stem/stem_weak] - `src/webview/zoom-control.ts` — Zoom control
+- [code] mydocs/eng/plans/task_B009.md  channel=doc binding=mention jev=- rows=3
+    :240 [stem/stem_weak] ✓ Core Engine has 100% control over final output
+    :451 [stem/stem_weak] - printpdf, lopdf, etc. (loss of control)
+    :455 [stem/stem_weak] Reason: Must work in WASM environments, and byte-level control is a prerequisite for security watermark insertion.
+- [code] mydocs/eng/plans/task_e2e_verification.md  channel=doc binding=mention jev=- rows=4
+    :56 [stem/stem_weak] controls: [{ type: 'Table', rows: 2, cols: 2, treatAsChar: true }] },
+    :65 [stem/stem_weak] { rule: 'table-baseline-align', paraIndex: 1, controlIndex: 0,
+    :68 [stem/stem_weak] { rule: 'space-before-table', paraIndex: 1, controlIndex: 0,
+- [code] mydocs/eng/plans/task_m100_22.md  channel=doc binding=mention jev=- rows=1
+    :42 [stem/stem_weak] - Sizes: `--radius-sm/md/lg`, `--control-height-sm/md/lg`
+- [code] mydocs/eng/plans/task_m100_3.md  channel=doc binding=mention jev=- rows=3
+    :23 [stem/stem_weak] In `table_layout.rs`'s cell TAC image placement loop, compare `composed.tac_controls`' char positions with `composed.lines`' `char_start` to determine
+    :30 [stem/stem_weak] - For each TAC control, determine which `composed.lines[i].char_start` range its `abs_pos` falls into
+    :42 [stem/stem_weak] - Clean up debug output code added for cell internal control details (decide to keep or remove)
+- [code] mydocs/eng/report/issue2_context.md  channel=doc binding=mention jev=- rows=1
+    :39 [stem/stem_weak] | Accuracy | 100% match on 3 multi-size ground truths, 6/6 controlled samples at 100% |
+- [code] mydocs/eng/report/midterm_review_day21.md  channel=doc binding=mention jev=- rows=3
+    :64 [stem/stem_weak] | 13 | HeadCtrl | C | `findNextEditableControl()` | **Partial** | DFS traversal for control lookup |
+    :67 [stem/stem_weak] | 16 | ParentCtrl | C | Navigation context has parent info | **Partial** | NavContextEntry has parent control info |
+    :461 [stem/stem_weak] | Edit control | 10 | 5 | 50% |
+- [code] mydocs/eng/report/table_algorithm_research.md  channel=doc binding=mention jev=- rows=2
+    :115 [stem/stem_weak] **Current**: `calc_cell_controls_height()` returns 0. Nested table height changes do not propagate to parent.
+    :209 [stem/stem_weak] PathSegment::Control(0),     // First control (top-level table)
+- [code] mydocs/eng/report/task_133_final.md  channel=doc binding=mention jev=- rows=5
+    :13 [stem/stem_weak] | `split_at()` char_count excluded controls | Include control characters in char_count | `src/model/paragraph.rs` |
+    :16 [stem/stem_weak] | Orphaned control_mask -> file corruption | Recompute control_mask from controls array during serialization | `src/serializer/body_text.rs` |
+    :45 [stem/stem_weak] - **Root cause**: Orphaned paragraph's `control_mask=0x800` (TABLE bit) mismatched with actual `controls=[]` + PARA_TEXT written for empty paragraphs
+- [code] mydocs/eng/report/task_24_final.md  channel=doc binding=mention jev=- rows=1
+    :21 [stem/stem_weak] [Key input]  -> getDocumentPos() -> {secIdx, charOffset, parentParaIdx, controlIdx, cellIdx, cellParaIdx}
+- [code] mydocs/eng/report/task_2_final.md  channel=doc binding=mention jev=- rows=1
+    :65 [basename/mention] footnote.rs, control.rs, bin_data.rs
+- [code] mydocs/eng/report/task_36_final.md  channel=doc binding=mention jev=- rows=1
+    :50 [path/mention] | `src/parser/control.rs` | Related fixes |
+- [code] mydocs/eng/report/task_3_final.md  channel=doc binding=mention jev=- rows=7
+    :32 [path/mention] | control | `src/parser/control.rs` | 893 | Control parsing (tables/shapes/images/headers) |
+    :27 [stem/stem_weak] | tags | `src/parser/tags.rs` | 296 | HWP tag/control constants (ctrl_id BE encoding) |
+    :49 [stem/stem_weak] +-- Parse BodyText sections (body_text + control)
+- [code] mydocs/eng/report/task_43_final.md  channel=doc binding=mention jev=- rows=1
+    :116 [stem/stem_weak] |     +-- Strategic positioning (human editing vs AI control)
+- [code] mydocs/eng/report/task_74.md  channel=doc binding=mention jev=- rows=2
+    :52 [path/mention] | `src/parser/control.rs` | PICTURE parsing, rendering transform matrix composition, HorzRelTo bit fix, legacy group detection fix |
+    :54 [basename/mention] | `src/serializer/control.rs` | Added ShapeObject::Picture branch |
+- [code] mydocs/eng/report/task_96_final.md  channel=doc binding=mention jev=- rows=4
+    :16 [path/mention] **Fix**: `src/parser/control.rs` — corrected to compose rotation first, then scale
+    :34 [path/mention] - `src/parser/control.rs` — Parsed vertical alignment from LIST_HEADER for both independent shapes and group children
+    :59 [path/mention] | `src/parser/control.rs` | Matrix composition order fix, LIST_HEADER parsing, 4-tuple return |
+- [code] mydocs/eng/tech/dev_roadmap.md  channel=doc binding=mention jev=- rows=1
+    :242 [stem/stem_weak] | Text box insert/edit | Medium | TextBox control |
+- [code] mydocs/eng/tech/dev_roadmap_v1_backup.md  channel=doc binding=mention jev=- rows=5
+    :102 [stem/stem_weak] | P0 | `<table>`, `<tr>`, `<td>` | Table control + Cell |
+    :105 [stem/stem_weak] | P1 | `<img>` | Picture control (BinData) |
+    :138 [stem/stem_weak] | B. Direct PDF Generation | `printpdf` | No SVG intermediate step, fine-grained control | Layout logic reimplementation needed |
+- [code] mydocs/eng/tech/direct_printing_guideline.md  channel=doc binding=mention jev=- rows=1
+    :81 [stem/stem_weak] | Output Quality | Depends on driver quality | **Core Engine has 100% control** |
+- [code] mydocs/eng/tech/hwp_ctrl_data.md  channel=doc binding=mention jev=- rows=5
+    :5 [stem/stem_weak] HWPTAG_CTRL_DATA (tag = HWPTAG_BEGIN + 71) is a record that stores supplementary control data in ParameterSet format.
+    :6 [stem/stem_weak] It is located immediately after CTRL_HEADER and contains information such as control names/properties.
+    :98 [stem/stem_weak] | Other control structural parsing | Not needed (raw preservation is sufficient) |
+- [code] mydocs/eng/tech/hwp_form_object_api.md  channel=doc binding=mention jev=- rows=3
+    :230 [path/mention] | Parser | `src/parser/control.rs` -- parse_form_control, parse_form_properties |
+    :229 [basename/mention] | Model | `src/model/control.rs` -- FormType, FormObject |
+    :217 [stem/stem_weak] 3. Regex match `controlName.InsertString("item", index)` pattern
+- [code] mydocs/eng/tech/hwp_hwpx_ir_differences.md  channel=doc binding=mention jev=- rows=2
+    :45 [stem/stem_weak] - `line_height`: includes height of inline controls such as tables/images
+    :92 [stem/stem_weak] | Drawing Objects | control/shape.rs | `<rect>`, `<line>`, etc. | HWPX not implemented |
+- [code] mydocs/eng/tech/hwpers_analysis.md  channel=doc binding=mention jev=- rows=7
+    :53 [basename/mention] control.rs, bin_data.rs, crypto.rs
+    :57 [basename/mention] body_text.rs, record.rs                  control.rs, table.rs, style.rs
+    :70 [basename/mention] control.rs, record_writer.rs
+- [code] mydocs/eng/tech/layout_engine_research.md  channel=doc binding=mention jev=- rows=3
+    :140 [stem/stem_weak] | `trHeight` + `hRule` | Row height control (exact/atLeast/auto) |
+    :173 [stem/stem_weak] | Orphan/widow control | Excellent | Currently limited |
+    :245 [stem/stem_weak] control_index: usize,
+- [code] mydocs/eng/tech/project_vision.md  channel=doc binding=mention jev=- rows=3
+    :298 [stem/stem_weak] Bypasses the HTML intermediate step to directly control HWP-native formatting.
+    :306 [stem/stem_weak] add_table(rows, cols, data)       Add table (cell merge, HWPUNIT size control)
+    :313 [stem/stem_weak] **Advantage**: HWPUNIT-based precise margins, direct control of ParaShape/CharShape, HWP-native features like headers/footers/page numbers.
+- [code] mydocs/eng/tech/rendering_engine_design.md  channel=doc binding=mention jev=- rows=1
+    :118 [basename/mention] │   ├── control.rs      # Control (18 types), Field, Bookmark, Hyperlink, Ruby
+- [code] mydocs/eng/tech/text_layout_review.md  channel=doc binding=mention jev=- rows=1
+    :114 [stem/stem_weak] - Width control is based on letter spacing/character width ratios, not OpenType shaping (kerning/ligatures)
+- [code] mydocs/eng/tech/webhwp_vs_rhwp_parsing.md  channel=doc binding=mention jev=- rows=1
+    :141 [stem/stem_weak] - Direct HWP binary control (parsing + saving)
+- [code] mydocs/eng/troubleshootings/column_def_proportional_widths.md  channel=doc binding=mention jev=- rows=1
+    :69 [basename/mention] ### File: `src/serializer/control.rs`
+- [code] mydocs/eng/troubleshootings/picture_save_hancom_compatibility.md  channel=doc binding=mention jev=- rows=3
+    :118 [path/mention] - `src/parser/control.rs`: parse_common_obj_attr
+    :117 [basename/mention] - `src/serializer/control.rs`: serialize_common_obj_attr, serialize_shape_component, serialize_picture_data, serialize_picture_control
+    :25 [stem/stem_weak] **Fix**: Use `tags::SHAPE_PICTURE_ID` (`$pic`) in `serialize_picture_control()`.
+- [code] mydocs/eng/troubleshootings/repeat_header_image_duplication.md  channel=doc binding=mention jev=- rows=4
+    :5 [path/mention] > Modified files: `src/renderer/layout.rs`, `src/model/table.rs`, `src/parser/control.rs`, `src/renderer/height_measurer.rs`, `src/renderer/pagination
+    :103 [path/mention] // src/parser/control.rs - parse_cell()
+    :123 [stem/stem_weak] // Skip controls (images/shapes) in is_header repeated cells, only repeat text
+- [code] mydocs/eng/troubleshootings/shape_fill_transparency.md  channel=doc binding=mention jev=- rows=1
+    :147 [path/mention] | `src/parser/control.rs` | `parse_shape_component_full()`: shadow info parsing (text box margins -> shadow info) |
+- [code] mydocs/eng/troubleshootings/table_reflow_and_cell_rendering.md  channel=doc binding=mention jev=- rows=1
+    :53 [stem/stem_weak] - Then the control loop places the image at the advanced para_y -> image height double-counted
+- [code] mydocs/eng/troubleshootings/task_70_page_number_false_completion.md  channel=doc binding=mention jev=- rows=1
+    :20 [path/mention] `src/parser/control.rs` in `parse_page_num_pos()`:
+- [code] mydocs/eng/troubleshootings/task_75_table_text_vertical_offset.md  channel=doc binding=mention jev=- rows=4
+    :18 [stem/stem_weak] Paragraph 28 is a **mixed paragraph that contains both a table control character and text**.
+    :22 [stem/stem_weak] - char_offsets[0] = 8 -> table control character (8 code units) is at the start of the character stream
+    :35 [stem/stem_weak] - `char_offsets[0] = 8` -> table control character occupies code units 0-7 at the character stream start
+- [code] mydocs/eng/troubleshootings/task_96_group_child_matrix_composition_order.md  channel=doc binding=mention jev=- rows=2
+    :62 [path/mention] In `src/parser/control.rs`'s `parse_shape_component_full()` function, the Scale and Rotation application order was reversed during rendering matrix co
+    :94 [path/mention] | `src/parser/control.rs` (lines 680-681) | Changed matrix composition order to `R -> S` |
+- [code] mydocs/eng/troubleshootings/task_96_group_child_textbox_vertical_align.md  channel=doc binding=mention jev=- rows=3
+    :105 [path/mention] | `src/parser/control.rs` | `parse_container_children()`: LIST_HEADER data capture and parsing |
+    :106 [path/mention] | `src/parser/control.rs` | `parse_shape_component_full()`: Return type extended to 4-tuple |
+    :42 [basename/mention] In the `parse_container_children()` function (control.rs), when iterating through child shape records:
+- [code] mydocs/eng/working/archives/task_102_step1.md  channel=doc binding=mention jev=- rows=2
+    :26 [path/mention] - `src/parser/control.rs`: HWP binary parser — called just before table parsing completion
+    :55 [path/mention] | `src/parser/control.rs` | +1 line |
+- [code] mydocs/eng/working/archives/task_102_step2.md  channel=doc binding=mention jev=- rows=5
+    :12 [stem/stem_weak] - Before: `paragraphs, para_index, control_index` → indirectly extracted Table
+    :15 [stem/stem_weak] - `table_meta: Option<(usize, usize)>`: (para_index, control_index) metadata for top-level table
+    :27 [stem/stem_weak] - Body (line ~429): Extracts table via `paragraphs.get()` + `para.controls.get()`
+- [code] mydocs/eng/working/archives/task_102_step3.md  channel=doc binding=mention jev=- rows=5
+    :27 [stem/stem_weak] - `cell_controls_height()`: Helper to calculate total height of nested tables within a cell (pub)
+    :33 [stem/stem_weak] ### 4. Actual Implementation of calc_cell_controls_height (`src/renderer/layout.rs`)
+    :35 [stem/stem_weak] - After: calls `HeightMeasurer::cell_controls_height()` to return actual nested table height
+- [code] mydocs/eng/working/archives/task_103.md  channel=doc binding=mention jev=- rows=1
+    :10 [stem/stem_weak] The HWP editor pushes body content (tables) down by the control area even when "InFrontOfText" is set.
+- [code] mydocs/eng/working/archives/task_104.md  channel=doc binding=mention jev=- rows=1
+    :14 [stem/stem_weak] → Cell context (parent_para_index, control_index, etc.) for TextRuns within nested tables all become None.
+- [code] mydocs/eng/working/archives/task_107_final.md  channel=doc binding=mention jev=- rows=2
+    :49 [path/mention] | src/parser/control.rs | Opacity parsing |
+    :24 [basename/mention] - parser/control.rs, parser/doc_info.rs: Opacity parsing
+- [code] mydocs/eng/working/archives/task_109_step1to4.md  channel=doc binding=mention jev=- rows=4
+    :29 [stem/stem_weak] Investigation revealed that inline images (hancom logo) in request.hwp are not inside **table cells** but inside **text boxes (shapes)**. No Picture i
+    :34 [stem/stem_weak] - Calculated total inline control width (`tb_inline_width`) before `layout_composed_paragraph` call
+    :39 [stem/stem_weak] - Pre-calculated inline control total width, passed offset to `layout_composed_paragraph`
+- [code] mydocs/eng/working/archives/task_11_complete.md  channel=doc binding=mention jev=- rows=5
+    :16 [path/mention] - `src/parser/control.rs`: Implemented `parse_caption()` function
+    :53 [path/mention] | `src/parser/control.rs` | parse_caption(), table/picture caption parsing |
+    :5 [stem/stem_weak] Implemented caption parsing and rendering for HWP Table and Picture controls.
+- [code] mydocs/eng/working/archives/task_122_report.md  channel=doc binding=mention jev=- rows=2
+    :37 [basename/mention] - Serializer: Output outline_numbering_id (control.rs)
+    :80 [basename/mention] | src/serializer/control.rs | SectionDef.outline_numbering_id serialization |
+- [code] mydocs/eng/working/archives/task_137_report.md  channel=doc binding=mention jev=- rows=1
+    :57 [stem/stem_weak] - **Advantage**: Simpler and safer than control move (delete+insert)
+- [code] mydocs/eng/working/archives/task_13_step3.md  channel=doc binding=mention jev=- rows=1
+    :12 [stem/stem_weak] - Replaces `^N` control codes (N=1-7) with actual numbers
+- [code] mydocs/eng/working/archives/task_142_step0.md  channel=doc binding=mention jev=- rows=2
+    :73 [path/mention] | `src/parser/control.rs` | 1,744 | Phase 5 |
+    :74 [basename/mention] | `src/serializer/control.rs` | 1,520 | Phase 5 |
+- [code] mydocs/eng/working/archives/task_154_stage3.md  channel=doc binding=mention jev=- rows=1
+    :44 [stem/stem_weak] All `<hp:ctrl>` child controls implemented based on `hwp2hwpx/ForChars.java` mapping:
+- [code] mydocs/eng/working/archives/task_157_step1_done.md  channel=doc binding=mention jev=- rows=3
+    :12 [stem/stem_weak] | `src/renderer/render_tree.rs` | Added `section_index`, `para_index`, `control_index` fields to `RectangleNode` |
+    :27 [stem/stem_weak] | `create_shape_control(json)` | `createShapeControl` | Insert text box at cursor position |
+    :30 [stem/stem_weak] | `delete_shape_control(sec, para, ctrl)` | `deleteShapeControl` | Delete text box |
+- [code] mydocs/eng/working/archives/task_181_stage1.md  channel=doc binding=mention jev=- rows=4
+    :12 [path/mention] ### 2. Binary HWP Parser (`src/parser/control.rs`)
+    :8 [basename/mention] ### 1. Model Definition (`src/model/control.rs`)
+    :14 [stem/stem_weak] - Implemented `parse_equation_control()`: CommonObjAttr + HWPTAG_EQEDIT child record parsing
+- [code] mydocs/eng/working/archives/task_181_stage3.md  channel=doc binding=mention jev=- rows=1
+    :26 [stem/stem_weak] - Body/shape/table/partial table layout: Equation control branches added
+- [code] mydocs/eng/working/archives/task_193_step1.md  channel=doc binding=mention jev=- rows=2
+    :9 [stem/stem_weak] - 5 internal helpers: find_header_footer_control, get_hf_paragraph_mut/ref, reflow_hf_paragraph, find_section_for_page, get_active_hf_apply_to
+    :12 [stem/stem_weak] 1. Header/Footer stored as paragraph controls: `Control::Header(Box<Header>)` in `section.paragraphs[0].controls`
+- [code] mydocs/eng/working/archives/task_195_final.md  channel=doc binding=mention jev=- rows=1
+    :19 [stem/stem_weak] - HWP controls occupy 8 UTF-16 code units; char_count was not updated when adding/removing header/footer controls, causing rendering omissions in `com
+- [code] mydocs/eng/working/archives/task_215_step1.md  channel=doc binding=mention jev=- rows=2
+    :21 [stem/stem_weak] - Removed existing Phase 1 compatibility code (process_table_controls, split_table_into_pages)
+    :22 [stem/stem_weak] - Applied format -> fits -> place/split pattern for each control:
+- [code] mydocs/eng/working/archives/task_215_step4.md  channel=doc binding=mention jev=- rows=1
+    :37 [stem/stem_weak] - Phase 1 stubs (`process_table_controls`, `split_table_into_pages`): Already removed
+- [code] mydocs/eng/working/archives/task_227_step2.md  channel=doc binding=mention jev=- rows=6
+    :7 [stem/stem_weak] The first paragraph of the blank document (blank2010.hwp) template contains two **structural controls**: `SectionDef` and `ColumnDef`. When performing
+    :10 [stem/stem_weak] 1. `clipboardHasControl()` -> returned `true` (structural controls were also included in the check)
+    :18 [stem/stem_weak] 1. **`copy_selection_native()`** (L100-105): Removed `SectionDef`, `ColumnDef` structural controls from clipboard paragraphs
+- [code] mydocs/eng/working/archives/task_230_final.md  channel=doc binding=mention jev=- rows=2
+    :5 [basename/mention] ### 1. Field Model Extension (`src/model/control.rs`)
+    :50 [basename/mention] | `src/model/control.rs` | Added field_name(), field_type_str(), extract_wstring_value() |
+- [code] mydocs/eng/working/archives/task_24_step1.md  channel=doc binding=mention jev=- rows=3
+    :7 [stem/stem_weak] - `parent_para_index: Option<usize>` — Parent paragraph index owning the table control
+    :8 [stem/stem_weak] - `control_index: Option<usize>` — Control index within parent paragraph
+    :17 [stem/stem_weak] - Passes actual `CellContext` when calling cell paragraph layout (section_index, para_index, control_index, cell_idx, cell_para_idx)
+- [code] mydocs/eng/working/archives/task_24_step2.md  channel=doc binding=mention jev=- rows=3
+    :8 [stem/stem_weak] - `insertTextInCell(section_idx, parent_para_idx, control_idx, cell_idx, cell_para_idx, char_offset, text)` — Insert text into cell paragraph
+    :9 [stem/stem_weak] - `deleteTextInCell(section_idx, parent_para_idx, control_idx, cell_idx, cell_para_idx, char_offset, count)` — Delete text from cell paragraph
+    :19 [stem/stem_weak] - Added cell identification info to TextRun JSON: `parentParaIdx`, `controlIdx`, `cellIdx`, `cellParaIdx`
+- [code] mydocs/eng/working/archives/task_24_step3.md  channel=doc binding=mention jev=- rows=1
+    :8 [stem/stem_weak] - When getting caret position from a run inside a table cell, includes `parentParaIdx`, `controlIdx`, `cellIdx`, `cellParaIdx`
+- [code] mydocs/eng/working/archives/task_24_step4.md  channel=doc binding=mention jev=- rows=1
+    :9 [stem/stem_weak] | `test_cell_text_edit_invalid_indices` | Error handling for invalid indices (cell, control, section) |
+- [code] mydocs/eng/working/archives/task_25_final.md  channel=doc binding=mention jev=- rows=4
+    :5 [stem/stem_weak] - B-901: Table/image/shape control object selection (dashed border + handle visualization)
+    :14 [stem/stem_weak] | `render_tree.rs` | Added document coordinate fields (section_index, para_index, control_index) to TableNode, ImageNode |
+    :15 [stem/stem_weak] | `layout.rs` | Tags control nodes with document coordinates during layout |
+- [code] mydocs/eng/working/archives/task_25_step1.md  channel=doc binding=mention jev=- rows=7
+    :6 [stem/stem_weak] - Added 3 document coordinate fields to `TableNode`: `section_index`, `para_index`, `control_index`
+    :7 [stem/stem_weak] - Added 3 document coordinate fields to `ImageNode`: `section_index`, `para_index`, `control_index`
+    :11 [stem/stem_weak] - `layout_body_picture()`: Added 3 parameters (`section_index`, `para_index`, `control_index`), passes to ImageNode
+- [code] mydocs/eng/working/archives/task_25_step3.md  channel=doc binding=mention jev=- rows=2
+    :21 [stem/stem_weak] let selectedControl = null;  // Selected control info
+    :52 [stem/stem_weak] | `findControlForCell(docPos)` | Search for parent table control by document coordinates |
+- [code] mydocs/eng/working/archives/task_2_step_2.md  channel=doc binding=mention jev=- rows=1
+    :21 [basename/mention] | `control.rs` | Control(enum), AutoNumber, Bookmark, Hyperlink, Ruby, Field, etc. | Inline controls |
+- [code] mydocs/eng/working/archives/task_32_stage_1.md  channel=doc binding=mention jev=- rows=2
+    :37 [stem/stem_weak] - `getCellCharPropertiesAt(secIdx, parentParaIdx, controlIdx, cellIdx, cellParaIdx, charOffset)` → Cell character properties
+    :39 [stem/stem_weak] - `getCellParaPropertiesAt(secIdx, parentParaIdx, controlIdx, cellIdx, cellParaIdx)` → Cell paragraph properties
+- [code] mydocs/eng/working/archives/task_37_final.md  channel=doc binding=mention jev=- rows=5
+    :63 [basename/mention] | `src/model/control.rs` | 1 | Added Clone derive |
+    :15 [stem/stem_weak] | Native API (8) | has/get/clear_clipboard, copy_selection, copy_selection_in_cell, copy_control, paste_internal, paste_internal_in_cell |
+    :17 [stem/stem_weak] | Copy strategy | Single paragraph partial selection (split_at), multi-paragraph, control object copy |
+- [code] mydocs/eng/working/archives/task_37_stage2.md  channel=doc binding=mention jev=- rows=2
+    :9 [stem/stem_weak] | Ctrl+C | Caret/selection/control selection active | Calls `handleCopyToInternal()`, no `preventDefault` (text_selection.js handles browser clipboard
+    :40 [stem/stem_weak] 1. Not supported in control object selection state (warn)
+- [code] mydocs/eng/working/archives/task_37_stage3.md  channel=doc binding=mention jev=- rows=3
+    :11 [stem/stem_weak] | `export_control_html_native()` | `exportControlHtml` | Control object (table/image) -> HTML |
+    :65 [stem/stem_weak] | `writeControlHtmlToClipboard()` | Registers control object HTML to clipboard |
+    :107 [stem/stem_weak] | `test_export_control_html_table` | Table control HTML generation (`<table>`, `<tr>`, `<td>` structure) |
+- [code] mydocs/eng/working/archives/task_3_step_1.md  channel=doc binding=mention jev=- rows=2
+    :9 [stem/stem_weak] | `src/parser/tags.rs` | HWP 5.0 tag constants (DocInfo 17, BodyText 30, inline codes 9, control IDs 18) |
+    :22 [stem/stem_weak] - Inline control codes: CHAR_SECTION_COLUMN_DEF ~ CHAR_FIXED_WIDTH_SPACE (9)
+- [code] mydocs/eng/working/archives/task_3_step_3.md  channel=doc binding=mention jev=- rows=6
+    :26 [stem/stem_weak] CTRL_HEADER (level 1)     -> controls
+    :37 [stem/stem_weak] - 0x0000~0x001F range are control characters
+    :38 [stem/stem_weak] - **Extended controls** (8 code units = 16 bytes): 0x0002 (section/column), 0x0003 (field start), 0x000B (table/shape), etc.
+- [code] mydocs/eng/working/archives/task_3_step_5.md  channel=doc binding=mention jev=- rows=6
+    :153 [path/mention] | control | `src/parser/control.rs` | Control parsing (tables/shapes/pictures/headers) |
+    :50 [basename/mention] - Table delegated to control.rs but ctrl_id mismatch -> Unknown processing
+    :47 [stem/stem_weak] This bug caused **all control IDs to mismatch** including 'secd' (SectionDef), 'cold' (ColumnDef), 'tbl ' (table):
+- [code] mydocs/eng/working/archives/task_40_final.md  channel=doc binding=mention jev=- rows=7
+    :5 [stem/stem_weak] A task to add controls one by one to an empty HWP document, save, and verify that Hancom word processor opens them correctly, while writing technical 
+    :12 [stem/stem_weak] - Required record matrix per control type organized
+    :29 [stem/stem_weak] Key discovery: Table paragraphs require exactly 2 (table + blank line), segment_width=0, control_mask=0x00000804
+- [code] mydocs/eng/working/archives/task_41_final.md  channel=doc binding=mention jev=- rows=1
+    :5 [stem/stem_weak] Improve the quality of Table controls generated by the `parse_table_html()` function so that HWP files saved after pasting can be opened correctly in 
+- [code] mydocs/eng/working/archives/task_41_step1.md  channel=doc binding=mention jev=- rows=2
+    :34 [stem/stem_weak] - **Test file**: `samples/20250130-hongbo.hwp` (32 paragraphs, 9 controls)
+    :37 [stem/stem_weak] - **Insertion result**: 33 paragraphs (original 32 + table 1), 10 controls (Table 6->7)
+- [code] mydocs/eng/working/archives/task_41_step2.md  channel=doc binding=mention jev=- rows=1
+    :68 [stem/stem_weak] - `test_paste_html_table_as_control`: DIFF-5, DIFF-7 verification (assertions updated)
+- [code] mydocs/eng/working/archives/task_43_step3.md  channel=doc binding=mention jev=- rows=2
+    :22 [stem/stem_weak] | X (Stub) | 3 areas | UI control, Spell check, Engine settings |
+    :45 [stem/stem_weak] - **Strategic positioning**: "Humans edit via UI" (Hancom) vs "AI controls via API" (rhwp)
+- [code] mydocs/eng/working/archives/task_44_final.md  channel=doc binding=mention jev=- rows=1
+    :118 [basename/mention] | `src/model/control.rs` | ~200 | Control enum, inline controls |
+- [code] mydocs/eng/working/archives/task_44_step3.md  channel=doc binding=mention jev=- rows=5
+    :27 [stem/stem_weak] | **ControlContext** | Inline control selected | controlIndex, controlType, boundingBox |
+    :33 [stem/stem_weak] - TextContext <-> ControlContext: Arrow keys reach control position / Escape
+    :40 [stem/stem_weak] Confirmed limitation where current WASM's `identify_inline_controls()` places all controls at line_index=0, and designed WASM extension API for the ed
+- [code] mydocs/eng/working/archives/task_44_step4.md  channel=doc binding=mention jev=- rows=1
+    :86 [stem/stem_weak] 3. **Phase 3** (1 week): Cursor/hit testing -- control position fix, Phase 3 APIs
+- [code] mydocs/eng/working/archives/task_45_final.md  channel=doc binding=mention jev=- rows=2
+    :16 [stem/stem_weak] | **4** | UI + zoom + finalization | Drag-and-drop, zoom controls, code cleanup |
+    :71 [stem/stem_weak] - Zoom controls: buttons + keyboard (Ctrl+/Ctrl-/Ctrl+0)
+- [code] mydocs/eng/working/archives/task_45_step1.md  channel=doc binding=mention jev=- rows=1
+    :54 [stem/stem_weak] - File open, zoom controls, page information, status display
+- [code] mydocs/eng/working/archives/task_45_step3.md  channel=doc binding=mention jev=- rows=2
+    :26 [stem/stem_weak] Central controller combining 5 modules:
+    :46 [stem/stem_weak] - Zoom controls: button clicks + keyboard shortcuts (Ctrl+/Ctrl-/Ctrl+0)
+- [code] mydocs/eng/working/archives/task_47_final.md  channel=doc binding=mention jev=- rows=3
+    :63 [stem/stem_weak] getCellParagraphCount(section_idx: number, parent_para_idx: number, control_idx: number, cell_idx: number): number;
+    :64 [stem/stem_weak] getCellParagraphLength(section_idx: number, parent_para_idx: number, control_idx: number, cell_idx: number, cell_para_idx: number): number;
+    :65 [stem/stem_weak] getTextInCell(section_idx: number, parent_para_idx: number, control_idx: number, cell_idx: number, cell_para_idx: number, char_offset: number, count: 
+- [code] mydocs/eng/working/archives/task_48_step4.md  channel=doc binding=mention jev=- rows=1
+    :43 [stem/stem_weak] - Added 4 cell context fields to `RunInfo` struct (`parent_para_index`, `control_index`, `cell_index`, `cell_para_index`)
+- [code] mydocs/eng/working/archives/task_4_step_2.md  channel=doc binding=mention jev=- rows=4
+    :25 [stem/stem_weak] | `ComposedParagraph` | Composed paragraph (lines + para_style_id + inline_controls) |
+    :26 [stem/stem_weak] | `InlineControl` | Inline control position information (line_index + control_type) |
+    :74 [stem/stem_weak] | test_compose_with_ctrl_char_gap | Extended control character position gap |
+- [code] mydocs/eng/working/archives/task_4_step_3.md  channel=doc binding=mention jev=- rows=2
+    :11 [stem/stem_weak] | `src/renderer/pagination.rs` | +15 lines added | Inline control (table/shape) detection -> PageItem::Table/Shape generation |
+    :69 [stem/stem_weak] Detects Table/Shape from `controls` array during paragraph traversal:
+- [code] mydocs/eng/working/archives/task_4_step_4.md  channel=doc binding=mention jev=- rows=4
+    :12 [path/mention] | `src/parser/control.rs` | ~10 lines modified | find_list_header_paragraphs level bug fix |
+    :47 [basename/mention] **1. find_list_header_paragraphs level bug (control.rs)**
+    :27 [stem/stem_weak] - `FootnoteSource` enum: `Body { para_index, control_index }`, `TableCell { ... }`
+- [code] mydocs/eng/working/archives/task_51_step_report.md  channel=doc binding=mention jev=- rows=1
+    :113 [stem/stem_weak] - Table control copied from HWP program -> paste: Confirmed normal table rendering
+- [code] mydocs/eng/working/archives/task_65_final.md  channel=doc binding=mention jev=- rows=5
+    :15 [path/mention] | `src/parser/control.rs` | Auto-correction for 2-byte offset in SHAPE_COMPONENT fill, reused `parse_fill()` |
+    :32 [stem/stem_weak] - TextRun in render tree includes `parent_para_index`, `control_index`, `cell_index`, `cell_para_index`
+    :39 [stem/stem_weak] - `handle_cell_boundary()`: Shape controls escape to body without cell movement
+- [code] mydocs/eng/working/archives/task_66_final.md  channel=doc binding=mention jev=- rows=4
+    :8 [stem/stem_weak] In `img-start-001.hwp` page 1, para[1] contains both text (80 characters: "[Main Department] Digital Transformation Promotion Team...") and a Table co
+    :12 [stem/stem_weak] para[1]: [Table control(8 UTF-16)] [zero-width space] [text 80 chars] [paragraph end control]
+    :15 [stem/stem_weak] - char_offsets: [8, 9, 10, ...] (starts after table control)
+- [code] mydocs/eng/working/archives/task_70_final.md  channel=doc binding=mention jev=- rows=2
+    :7 [stem/stem_weak] Implemented rendering of actual content in HWP document Header and Footer areas, and implemented PageNumberPos control processing.
+    :20 [stem/stem_weak] - Added `HeaderFooterRef` struct: references Header/Footer by paragraph index + control index
+- [code] mydocs/eng/working/archives/task_71_final.md  channel=doc binding=mention jev=- rows=6
+    :14 [path/mention] | `src/parser/control.rs` | Fixed AutoNumber bit offsets (format 8-bit, superscript bit 12) + decoration character parsing, PageNumberPos decoration c
+    :13 [basename/mention] | `src/model/control.rs` | Added number/user_symbol/prefix_char/suffix_char fields to AutoNumber, added user_symbol/prefix_char/suffix_char/dash_char 
+    :15 [basename/mention] | `src/serializer/control.rs` | Fixed AutoNumber/PageNumberPos serialization bit offsets + decoration character output | +15 lines |
+- [code] mydocs/eng/working/archives/task_75_final.md  channel=doc binding=mention jev=- rows=1
+    :16 [stem/stem_weak] Paragraph 28 is a mixed paragraph containing both table control characters and text. The table control character is at the start of the char stream (c
+- [code] mydocs/eng/working/archives/task_77_final.md  channel=doc binding=mention jev=- rows=1
+    :12 [stem/stem_weak] 4. `layout_partial_table()` skips when `start_line >= end_line` -> `continue` -> image control also skipped
+- [code] mydocs/eng/working/archives/task_78_final.md  channel=doc binding=mention jev=- rows=5
+    :19 [path/mention] | `src/parser/control.rs` | Changed legacy Group detection condition from `r.level > first_level` to `r.level == first_level + 1`. Only direct child l
+    :20 [path/mention] | `src/parser/control.rs` | Added level filtering to SHAPE_COMPONENT index collection in `parse_container_children()`. Only direct child level (child_
+    :5 [stem/stem_weak] Resolved an issue where only 1 of 2 inline images inside a Rectangle in `samples/20250130-hongbo.hwp` page 2 was rendered. The root cause was the pars
+- [code] mydocs/eng/working/archives/task_87_final.md  channel=doc binding=mention jev=- rows=5
+    :13 [stem/stem_weak] - `deleteTableControl(sec, ppi, ci)` — Finds control position via char_offsets gap in UTF-16 stream and deletes control + adjusts subsequent offsets
+    :14 [stem/stem_weak] - `remove_control(index)` — Removes control from paragraph.rs controls array
+    :15 [stem/stem_weak] - 2 Rust tests added (`test_get_table_bbox`, `test_delete_table_control`)
+- [code] mydocs/eng/working/archives/task_87_step1.md  channel=doc binding=mention jev=- rows=4
+    :11 [stem/stem_weak] - Removes from controls array + removes ctrl_data_records
+    :12 [stem/stem_weak] - char_offsets gap adjustment (identifies control position with same logic as serialization -> decreases subsequent offset by 8)
+    :15 [stem/stem_weak] - Added 2 tests: `test_get_table_bbox`, `test_delete_table_control`
+- [code] mydocs/eng/working/archives/task_91_step1.md  channel=doc binding=mention jev=- rows=2
+    :21 [basename/mention] **Fix**: `src/serializer/control.rs`
+    :56 [basename/mention] | `src/serializer/control.rs` | ColumnDef serialization: same bitfield format |
+- [code] mydocs/eng/working/archives/task_92_report.md  channel=doc binding=mention jev=- rows=4
+    :33 [path/mention] **File**: `src/parser/control.rs`
+    :67 [path/mention] **Files**: `src/parser/control.rs`, `src/renderer/layout.rs`
+    :96 [path/mention] | `src/parser/control.rs` | Polygon/curve parser: (x,y) interleaved pair read + fixed-point 16.16 -> HWPUNIT conversion |
+- [code] mydocs/eng/working/archives/task_93_report.md  channel=doc binding=mention jev=- rows=2
+    :46 [path/mention] | `src/parser/control.rs` | 6 shape parser function fixes |
+    :47 [basename/mention] | `src/serializer/control.rs` | 6 shape serialization function fixes |
+- [code] mydocs/eng/working/archives/task_94_final.md  channel=doc binding=mention jev=- rows=1
+    :47 [path/mention] | `src/parser/control.rs` | Shape parser improvements |
+- [code] mydocs/eng/working/archives/task_95_final.md  channel=doc binding=mention jev=- rows=1
+    :46 [stem/stem_weak] - Added detailed master page info output in `main.rs` dump mode (count, apply_to, paragraph count, control list)
+- [code] mydocs/eng/working/task_232_final.md  channel=doc binding=mention jev=- rows=7
+    :41 [path/mention] | `src/parser/control.rs` | parse_form_control, decode_utf16le, parse_form_properties, apply_form_property |
+    :39 [basename/mention] | `src/model/control.rs` | FormType enum, FormObject struct, Control::Form variant |
+    :49 [basename/mention] | `src/serializer/control.rs` | Control::Form serialization arm |
+- [code] mydocs/eng/working/task_233_final.md  channel=doc binding=mention jev=- rows=2
+    :24 [stem/stem_weak] - Pattern matching `controlName.InsertString("item", index)` to extract item list
+    :34 [stem/stem_weak] | `src/renderer/render_tree.rs` | Added section_index, para_index, control_index, name to FormObjectNode |
+- [code] mydocs/eng/working/task_233_stage1.md  channel=doc binding=mention jev=- rows=1
+    :6 [stem/stem_weak] - `src/renderer/render_tree.rs`: Added `section_index`, `para_index`, `control_index`, `name` fields to FormObjectNode
+- [code] mydocs/eng/working/task_235_final.md  channel=doc binding=mention jev=- rows=1
+    :12 [stem/stem_weak] - **Fix**: For host paragraphs containing only spaces, added space width before FFFC (table control character) to `effective_margin`
+- [code] mydocs/eng/working/task_240_stage1.md  channel=doc binding=mention jev=- rows=3
+    :7 [stem/stem_weak] - `add_bookmark_native()` — Inserts Bookmark control at cursor position (rejects duplicate names)
+    :16 [stem/stem_weak] - Added `Control::Bookmark` → `"bookmark"` in `classify_control()`
+    :17 [stem/stem_weak] - F11 now recognizes bookmark controls as selection targets
+- [code] mydocs/eng/working/task_240_stage2.md  channel=doc binding=mention jev=- rows=2
+    :6 [stem/stem_weak] - Renders `[Bookmark:name]` marker at bookmark control positions in layout code mode (`show_control_codes`)
+    :7 [stem/stem_weak] - Calculates control text position via `find_control_text_positions()`
+- [code] mydocs/eng/working/task_240_stage4.md  channel=doc binding=mention jev=- rows=1
+    :35 [stem/stem_weak] - Existing code only processed CTRL_DATA for Field controls
+- [code] mydocs/eng/working/task_241_stage1.md  channel=doc binding=mention jev=- rows=2
+    :39 [stem/stem_weak] hwplib's `ForParagraph.control()` also parses based on CTRL_HEADER records.
+    :50 [stem/stem_weak] 1. Add char code 22 dedicated bookmark parsing path (PARA_TEXT inline → Bookmark control creation)
+- [code] mydocs/eng/working/task_241_stage2.md  channel=doc binding=mention jev=- rows=2
+    :12 [stem/stem_weak] - When inserting new Bookmark control, also inserts CTRL_DATA record into `ctrl_data_records`
+    :16 [stem/stem_weak] - Also removes corresponding index from `ctrl_data_records` when deleting control
+- [code] mydocs/eng/working/task_241_stage3.md  channel=doc binding=mention jev=- rows=2
+    :9 [stem/stem_weak] - CTRL_DATA usage status per 7 control types (based on hwplib)
+    :15 [stem/stem_weak] - Structural parsing becomes necessary when: modifying those control properties via UI
+- [code] mydocs/eng/working/task_242_stage1.md  channel=doc binding=mention jev=- rows=3
+    :6 [stem/stem_weak] - **object_ops.rs**: `create_shape_control_native()` — Added `shape_type` parameter
+    :11 [stem/stem_weak] - **render_tree.rs**: Added section/para/control index fields to LineNode, EllipseNode
+    :13 [stem/stem_weak] - **rendering.rs**: Collects Line/Ellipse as selectable shapes in `collect_controls`
+- [code] mydocs/eng/working/task_398_baseline.md  channel=doc binding=mention jev=- rows=1
+    :9 [stem/stem_weak] - Font: Batang 10pt (controlled sample), various fonts (existing samples)
+- [code] mydocs/eng/working/task_3_step1_complete.md  channel=doc binding=mention jev=- rows=1
+    :29 [stem/stem_weak] - Cell internal control detailed output code (`src/main.rs`) **retained** (useful for debugging)
+- [code] mydocs/eng/working/task_5_complete.md  channel=doc binding=mention jev=- rows=1
+    :9 [path/mention] - `src/parser/control.rs` -- HWP binary table record zones parsing
+- [code] mydocs/feedback/code-refactoring-strategy.md  channel=doc binding=mention jev=- rows=1
+    :209 [stem/stem_weak] │   ├── dump_controls.rs ← 컨트롤 덤프 명령
+- [code] mydocs/feedback/layout-quality-report.md  channel=doc binding=mention jev=- rows=1
+    :223 [stem/stem_weak] - `table_meta: Option<(usize, usize)>` — 익명 튜플 대신 struct `TableMeta { para_index, control_index }`
+- [code] mydocs/feedback/r-code-review-4th.md  channel=doc binding=mention jev=- rows=1
+    :101 [basename/mention] | serializer/control.rs | 331 | 낮음 (메모리 버퍼 IO) |
+- [code] mydocs/feedback/r-code-review-report.md  channel=doc binding=mention jev=- rows=5
+    :88 [basename/mention] - HWP 컨트롤 타입(`Control` enum)에 새 타입 추가 시 parser/control.rs, serializer/control.rs, layout.rs 등 다수 파일을 동시에 수정해야 함
+    :172 [basename/mention] | 7 | `parser/control.rs` | 1,744 | 양호 |
+    :173 [basename/mention] | 8 | `serializer/control.rs` | 1,520 | 양호 |
+- [code] mydocs/feedback/rag_hwp_strategy.md  channel=doc binding=mention jev=- rows=1
+    :95 [stem/stem_weak] "controls": [
+- [code] mydocs/manual/OWPML SCHEMA/ParaList XML schema.xml  channel=other binding=mention jev=- rows=1
+    :2494 [stem/stem_weak] <xs:element name="controlPoints" minOccurs="0">
+- [code] mydocs/manual/dump_command.md  channel=doc binding=mention jev=- rows=2
+    :54 [stem/stem_weak] --- 문단 0.3 --- cc=17, text_len=0, controls=2 [단나누기]
+    :63 [stem/stem_weak] | `controls` | 컨트롤 개수 |
+- [code] mydocs/manual/e2e-cdp.md  channel=doc binding=mention jev=- rows=1
+    :262 [stem/stem_weak] w.doc.insertTextInCell(0, tr.paraIdx, tr.controlIdx, 0, 0, 0, 'Cell');
+- [code] mydocs/manual/e2e_verification_guide.md  channel=doc binding=mention jev=- rows=3
+    :97 [stem/stem_weak] { rule: 'table-baseline-align', paraIndex: 1, controlIndex: 0, tolerance: 10.0 },
+    :98 [stem/stem_weak] { rule: 'space-before-table', paraIndex: 1, controlIndex: 0, minGap: 5.0 },
+    :99 [stem/stem_weak] { rule: 'space-after-table', paraIndex: 1, controlIndex: 0, minGap: 5.0 },
+- [code] mydocs/manual/ir_diff_command.md  channel=doc binding=mention jev=- rows=2
+    :62 [stem/stem_weak] | `controls` | 컨트롤 수 | 표/그림/글상자 파싱 누락 |
+    :113 [stem/stem_weak] - **controls 수 차이**: HWPX에서 SectionDef 등이 별도 처리됨
+- [code] mydocs/manual/memory/feedback_search_troubleshootings_first.md  channel=doc binding=mention jev=- rows=1
+    :9 [stem/stem_weak] **Why**: 같은 함정에 반복 빠짐. #178 두 번째 시도가 한컴 거부를 만난 후에야 `picture_save_hancom_compatibility.md`, `cell_split_save_corruption.md`, `table_paste_file_corrupti
+- [code] mydocs/manual/onboarding_guide.md  channel=doc binding=mention jev=- rows=1
+    :143 [stem/stem_weak] --- 문단 2.45 --- cc=9, text_len=0, controls=1
+- [code] mydocs/orders/20260217.md  channel=doc binding=mention jev=- rows=1
+    :7 [stem/stem_weak] | 102-3 | 표 리팩토링 3단계: 경로 기반 접근 + 재귀적 높이 측정 | 완료 | DocumentPath 타입, navigate_path_to_table 재귀 접근, measure_table 중첩 표 재귀 측정, calc_cell_controls_height 실
+- [code] mydocs/orders/20260221.md  channel=doc binding=mention jev=- rows=1
+    :13 [stem/stem_weak] | 133 | 빈 문서 만들기 + 저장 | 완료 | 선결: 엔터키 버그 수정(split_at char_count 컨트롤 미포함, raw_header_extra 유실). 내장 템플릿(blank2010.hwp) 기반 새 문서 생성 + 문서 초기화 리팩터링 + file:ne
+- [code] mydocs/orders/20260222.md  channel=doc binding=mention jev=- rows=1
+    :7 [stem/stem_weak] | 141 | build_page_tree 캐시로 hitTest/getPageControlLayout 성능 개선 | 완료 | 타스크 137 회귀 원인 분석(이진탐색), build_page_tree_cached 도입(RefCell+Vec 캐시), PageRenderTre
+- [code] mydocs/orders/20260311.md  channel=doc binding=mention jev=- rows=1
+    :7 [stem/stem_weak] | 201 | 조판부호 개체 — 표/그림/글상자 등 | 완료 | [표], [그림], [글상자], [수식], [머리말], [꼬리말], [각주] 붉은색 대괄호, show_control_codes 독립 토글 |
+- [code] mydocs/plans/archives/table_refactoring_plan.md  channel=doc binding=mention jev=- rows=5
+    :134 [stem/stem_weak] for ctrl in &para.controls {
+    :167 [stem/stem_weak] - `calc_cell_controls_height() → 0` 제거 → 재귀적 높이 측정
+    :178 [stem/stem_weak] | calc 수정 | `src/renderer/layout.rs` | `calc_cell_controls_height()` → 중첩 표 높이 실제 계산 |
+- [code] mydocs/plans/archives/task_107.md  channel=doc binding=mention jev=- rows=1
+    :33 [basename/mention] - parser/control.rs, parser/doc_info.rs: 투명도 파싱
+- [code] mydocs/plans/archives/task_11.md  channel=doc binding=mention jev=- rows=5
+    :67 [path/mention] - `src/parser/control.rs`:
+    :92 [path/mention] | `src/parser/control.rs` | parse_caption(), 표/그림 캡션 파싱 |
+    :15 [basename/mention] | 캡션 파싱 | ❌ 미구현 | control.rs에서 구현 필요 |
+- [code] mydocs/plans/archives/task_110.md  channel=doc binding=mention jev=- rows=1
+    :39 [path/mention] - `src/parser/control.rs` — 표 파싱 시 외부 여백 추출
+- [code] mydocs/plans/archives/task_11_impl.md  channel=doc binding=mention jev=- rows=4
+    :50 [path/mention] - `src/parser/control.rs`
+    :77 [path/mention] - `src/parser/control.rs`
+    :81 [stem/stem_weak] 1. `parse_table_control()` 수정:
+- [code] mydocs/plans/archives/task_12.md  channel=doc binding=mention jev=- rows=2
+    :13 [path/mention] - `src/parser/control.rs`: `parse_auto_number()` 함수로 파싱 완료
+    :12 [basename/mention] - `src/model/control.rs`: `AutoNumber`, `AutoNumberType` 구조체 정의됨
+- [code] mydocs/plans/archives/task_121.md  channel=doc binding=mention jev=- rows=2
+    :162 [basename/mention] **파일**: `src/serializer/control.rs` (serialize_section_def)
+    :192 [basename/mention] | `src/serializer/control.rs` | 수정 | 구역정의 직렬화 horizontal_align 필드 추가 |
+- [code] mydocs/plans/archives/task_132.md  channel=doc binding=mention jev=- rows=3
+    :60 [stem/stem_weak] 6. Table을 포함하는 Paragraph 생성 (char_count=9, control_mask=0x800)
+    :66 [stem/stem_weak] 10. JSON 반환: `{"ok":true,"paraIdx":<N>,"controlIdx":0}`
+    :84 [stem/stem_weak] rows: number, cols: number): { ok: boolean; paraIdx: number; controlIdx: number } {
+- [code] mydocs/plans/archives/task_133.md  channel=doc binding=mention jev=- rows=2
+    :31 [stem/stem_weak] 1. **char_count가 컨트롤 코드유닛 미포함**: `self.char_count = split_pos + 1` → 분할 후 남은 controls의 8×N 코드유닛이 반영되지 않음. cc=1이지만 PARA_TEXT에 컨트롤 데이터가 포함되어 HWP 파서가 "손상
+    :49 [stem/stem_weak] let ctrl_code_units: u32 = self.controls.len() as u32 * 8;
+- [code] mydocs/plans/archives/task_142.md  channel=doc binding=mention jev=- rows=4
+    :20 [basename/mention] | 6 | parser/control.rs | 1,744 | 컨트롤 파서 |
+    :21 [basename/mention] | 7 | serializer/control.rs | 1,520 | 컨트롤 직렬화 |
+    :133 [basename/mention] | parser/control.rs | 1,744 | control.rs + control_shape.rs |
+- [code] mydocs/plans/archives/task_144_impl.md  channel=doc binding=mention jev=- rows=1
+    :71 [stem/stem_weak] | `{"ok":true,"paraIdx":N,"controlIdx":0}` | object_ops.rs | 2 |
+- [code] mydocs/plans/archives/task_146_impl.md  channel=doc binding=mention jev=- rows=1
+    :26 [stem/stem_weak] paginate_text_lines (~330줄), paginate_table_control (~600줄), finalize_pages (~124줄) 등 추출. 오케스트레이터 ~85줄 달성.
+- [code] mydocs/plans/archives/task_154.md  channel=doc binding=mention jev=- rows=5
+    :142 [path/mention] - `src/parser/control.rs`, `src/parser/control/shape.rs` — HWP 바이너리 파서 (변환 대상)
+    :51 [basename/mention] - HWP(바이너리) 파서는 이들을 모두 지원 (control.rs, control/shape.rs)
+    :130 [basename/mention] | **HIGH** | `<hp:ctrl>` 파싱 | 필드, 하이퍼링크, 책갈피, 자동번호 | `parser/control.rs` |
+- [code] mydocs/plans/archives/task_155.md  channel=doc binding=mention jev=- rows=1
+    :145 [stem/stem_weak] | `src/parser/control/shape.rs` | CommonObjAttr 비트 파싱 로직 |
+- [code] mydocs/plans/archives/task_181.md  channel=doc binding=mention jev=- rows=2
+    :93 [path/mention] - `src/parser/control.rs`: `CTRL_EQUATION` → `parse_equation_control()` (HWPTAG_EQEDIT에서 스크립트 추출)
+    :92 [basename/mention] - `src/model/control.rs`: `Equation` 구조체 + `Control::Equation` variant 추가
+- [code] mydocs/plans/archives/task_181_impl.md  channel=doc binding=mention jev=- rows=5
+    :13 [path/mention] | `src/parser/control.rs` | `CTRL_EQUATION` 분기 추가 → `parse_equation_control()` |
+    :12 [basename/mention] | `src/model/control.rs` | `Equation` 구조체 정의, `Control::Equation(Box<Equation>)` variant 추가 |
+    :15 [basename/mention] | `src/serializer/control.rs` | `Control::Equation` 직렬화 처리 (라운드트립) |
+- [code] mydocs/plans/archives/task_193_impl.md  channel=doc binding=mention jev=- rows=1
+    :39 [stem/stem_weak] - 머리말/꼬리말 문단 접근: `section.paragraphs[para_idx].controls` → Header/Footer 컨트롤 탐색
+- [code] mydocs/plans/archives/task_200.md  channel=doc binding=mention jev=- rows=2
+    :52 [stem/stem_weak] - 한컴 도움말: `mydocs/manual/hwp/Help/extracted/view/control_code.htm`
+    :54 [stem/stem_weak] - 스크린샷: `mydocs/manual/hwp/Help/extracted/images/3v_control_code_01.gif`
+- [code] mydocs/plans/archives/task_201.md  channel=doc binding=mention jev=- rows=3
+    :26 [stem/stem_weak] - 향후 별도 `show_control_codes` 분리 가능
+    :45 [stem/stem_weak] - 한컴 도움말: `mydocs/manual/hwp/Help/extracted/view/control_code.htm`
+    :46 [stem/stem_weak] - 스크린샷: `mydocs/manual/hwp/Help/extracted/images/3v_control_code_01.gif`
+- [code] mydocs/plans/archives/task_211_impl.md  channel=doc binding=mention jev=- rows=5
+    :23 [stem/stem_weak] // controls_height를 별도로 더하면 이중 계산됨
+    :30 [stem/stem_weak] // controls_height를 별도로 더하면 이중 계산됨
+    :32 [stem/stem_weak] let non_inline_height = self.measure_non_inline_controls_height(paragraphs);
+- [code] mydocs/plans/archives/task_212.md  channel=doc binding=mention jev=- rows=1
+    :17 [stem/stem_weak] 1. `paginate_table_control()` (engine.rs:535-703) — 표가 현재 페이지에 맞는지 판단
+- [code] mydocs/plans/archives/task_213.md  channel=doc binding=mention jev=- rows=2
+    :10 [stem/stem_weak] - **문제 3 (현재)**: p67~p68이 빈 문단(para 675~751, text="", controls=0)으로만 구성되어 빈 페이지로 렌더링됨. 이 빈 문단들은 표 셀 내부 문단이 구역 수준으로 잘못 pagination됨
+    :23 [stem/stem_weak] 2. 빈 문단(text="", controls=0)이 연속으로 나오는 경우 pagination에서 제외하거나 올바른 표 셀에 소속시킴
+- [code] mydocs/plans/archives/task_215.md  channel=doc binding=mention jev=- rows=2
+    :39 [stem/stem_weak] Table { para_index: usize, control_index: usize, start_row: usize,
+    :149 [stem/stem_weak] - TypesetEngine Phase 1 호환 스텁(process_table_controls, split_table_into_pages) 제거
+- [code] mydocs/plans/archives/task_22.md  channel=doc binding=mention jev=- rows=2
+    :79 [stem/stem_weak] - 분할되는 메타데이터: text, char_offsets, char_shapes, line_segs, range_tags, controls, char_count
+    :109 [stem/stem_weak] - 결합되는 메타데이터: text, char_offsets, char_shapes, line_segs, range_tags, controls, char_count
+- [code] mydocs/plans/archives/task_227.md  channel=doc binding=mention jev=- rows=1
+    :13 [stem/stem_weak] 2. 붙여넣기 시 단일 문단 판정(`clip_count == 1 && controls.is_empty()`)이 올바른지 확인
+- [code] mydocs/plans/archives/task_229.md  channel=doc binding=mention jev=- rows=4
+    :36 [path/mention] - `src/parser/control.rs`: `parse_control()`에 필드 ctrl_id 매칭 추가 → `parse_field()` 호출
+    :37 [basename/mention] - `src/model/control.rs`: `Field` struct 확장 (속성, id, 읽기전용 여부, 메모 등)
+    :64 [basename/mention] - `src/serializer/control.rs`: `Control::Field` 직렬화 (ctrl_id + 속성 + command)
+- [code] mydocs/plans/archives/task_23.md  channel=doc binding=mention jev=- rows=4
+    :110 [basename/mention] **파일**: `src/serializer/body_text.rs`, `src/serializer/control.rs`
+    :163 [basename/mention] | `src/serializer/control.rs` | 신규: Control 직렬화 |
+    :114 [stem/stem_weak] - PARA_HEADER (L0): char_count, control_mask, para_shape_id, style_id
+- [code] mydocs/plans/archives/task_232.md  channel=doc binding=mention jev=- rows=2
+    :102 [path/mention] | `src/parser/control.rs` | `parse_form_control()` 함수 추가 |
+    :101 [basename/mention] | `src/model/control.rs` | `FormObject` 구조체 + `FormType` enum 추가, `Control::Form` 변형 추가 |
+- [code] mydocs/plans/archives/task_232_impl.md  channel=doc binding=mention jev=- rows=3
+    :12 [path/mention] - `src/parser/control.rs` — `parse_form_control()` 함수 구현 (ctrl_data + HWPTAG_FORM_OBJECT 파싱)
+    :10 [basename/mention] - `src/model/control.rs` — `FormType` enum, `FormObject` 구조체, `Control::Form` 변형 추가
+    :29 [stem/stem_weak] 4. `parse_form_control()`: ctrl_data에서 width/height 추출 + HWPTAG_FORM_OBJECT에서 타입ID와 속성 문자열 파싱
+- [code] mydocs/plans/archives/task_233.md  channel=doc binding=mention jev=- rows=3
+    :29 [stem/stem_weak] - `getFormValue(sec, para, controlIndex)` — 양식 개체 값 조회
+    :30 [stem/stem_weak] - `setFormValue(sec, para, controlIndex, value)` — 양식 개체 값 설정 + 리렌더링
+    :31 [stem/stem_weak] - `getFormObjectInfo(sec, para, controlIndex)` — 양식 개체 상세 정보 반환
+- [code] mydocs/plans/archives/task_234.md  channel=doc binding=mention jev=- rows=2
+    :12 [stem/stem_weak] - 컨트롤 텍스트 위치 매핑: `find_control_text_positions()` — char_offsets 갭으로 컨트롤의 문단 내 문자 위치 결정
+    :22 [stem/stem_weak] - `find_control_text_positions()`로 각 컨트롤의 문단 내 문자 위치 매핑
+- [code] mydocs/plans/archives/task_24.md  channel=doc binding=mention jev=- rows=2
+    :26 [stem/stem_weak] - 각 run에 셀 식별 정보 추가 (tableIdx, cellIdx 또는 controlIndex)
+    :30 [stem/stem_weak] - 문단 경로: section → paragraph(표 컨트롤 소유) → control(Table) → cell → cell paragraph
+- [code] mydocs/plans/archives/task_240.md  channel=doc binding=mention jev=- rows=3
+    :27 [path/mention] - HWP 바이너리 파서 (`src/parser/control.rs`) — `parse_bookmark()`
+    :26 [basename/mention] - `Bookmark` 모델 (`src/model/control.rs`) — `name: String`
+    :29 [basename/mention] - 직렬화기 (`src/serializer/control.rs`) — `serialize_bookmark()`
+- [code] mydocs/plans/archives/task_240_impl.md  channel=doc binding=mention jev=- rows=3
+    :9 [stem/stem_weak] - 책갈피 추가 (커서 위치 문단의 controls에 Bookmark 삽입 + recompose)
+    :17 [stem/stem_weak] - `src/document_core/commands/text_editing.rs` — `classify_control()`에 `Control::Bookmark` 추가
+    :25 [stem/stem_weak] - `show_control_codes` 모드일 때 `[책갈피: 이름]` 텍스트 마커 삽입
+- [code] mydocs/plans/archives/task_242.md  channel=doc binding=mention jev=- rows=2
+    :26 [stem/stem_weak] | 다양한 도형 생성 API | 중간 | `create_shape_control_native()` 확장 (타입 파라미터) |
+    :55 [stem/stem_weak] - **`create_shape_control_native()` 확장**: shape_type 파라미터 추가
+- [code] mydocs/plans/archives/task_242_impl.md  channel=doc binding=mention jev=- rows=1
+    :7 [stem/stem_weak] - `src/document_core/commands/object_ops.rs` — `create_shape_control_native()` 수정
+- [code] mydocs/plans/archives/task_24_impl.md  channel=doc binding=mention jev=- rows=3
+    :26 [stem/stem_weak] - `control_index: Option<usize>` — 부모 문단 내 컨트롤 인덱스
+    :42 [stem/stem_weak] - `insert_text_in_cell(section_idx, parent_para_idx, control_idx, cell_idx, cell_para_idx, char_offset, text)` 추가
+    :59 [stem/stem_weak] - `getDocumentPos()` 반환값에 `parentParaIdx`, `controlIdx`, `cellIdx`, `cellParaIdx` 추가
+- [code] mydocs/plans/archives/task_27.md  channel=doc binding=mention jev=- rows=1
+    :49 [stem/stem_weak] - `PageItem::PartialTable { para_index, control_index, start_row, end_row, is_continuation }` 추가
+- [code] mydocs/plans/archives/task_27_impl.md  channel=doc binding=mention jev=- rows=3
+    :24 [stem/stem_weak] control_index: usize,
+    :72 [stem/stem_weak] PageItem::PartialTable { para_index, control_index, start_row, end_row, is_continuation } => {
+    :75 [stem/stem_weak] *para_index, *control_index,
+- [code] mydocs/plans/archives/task_2_impl.md  channel=doc binding=mention jev=- rows=1
+    :25 [basename/mention] - `control.rs` - 인라인 컨트롤 (Ruby, Caption, Hyperlink, Field, Bookmark)
+- [code] mydocs/plans/archives/task_32_impl.md  channel=doc binding=mention jev=- rows=2
+    :197 [stem/stem_weak] &mut self, sec_idx: u32, parent_para_idx: u32, control_idx: u32,
+    :211 [stem/stem_weak] &mut self, sec_idx: u32, parent_para_idx: u32, control_idx: u32,
+- [code] mydocs/plans/archives/task_37_impl.md  channel=doc binding=mention jev=- rows=7
+    :71 [stem/stem_weak] control_idx: u32, cell_idx: u32,
+    :78 [stem/stem_weak] **`src/wasm_api.rs`** — `copy_control()` 함수 추가
+    :82 [stem/stem_weak] pub fn copy_control(&mut self, section_idx: u32, para_idx: u32,
+- [code] mydocs/plans/archives/task_38.md  channel=doc binding=mention jev=- rows=2
+    :44 [stem/stem_weak] - `copy_control_native()` (wasm_api.rs:2105) 패턴 참고
+    :46 [stem/stem_weak] - `controls: vec![Control::Table(Box::new(table))]` 설정
+- [code] mydocs/plans/archives/task_38_impl.md  channel=doc binding=mention jev=- rows=2
+    :123 [stem/stem_weak] - `copy_control_native()` 패턴 참고 (wasm_api.rs:2105-2129)
+    :125 [stem/stem_weak] - `controls: vec![Control::Table(Box::new(table))]`
+- [code] mydocs/plans/archives/task_3_impl.md  channel=doc binding=mention jev=- rows=2
+    :91 [path/mention] - `src/parser/control.rs` 생성 - 컨트롤 파서
+    :136 [path/mention] | `src/parser/control.rs` | 4 | 컨트롤 파싱 (표/도형/그림) |
+- [code] mydocs/plans/archives/task_40_impl.md  channel=doc binding=mention jev=- rows=1
+    :125 [basename/mention] | `src/serializer/control.rs` | 발견 버그 수정 |
+- [code] mydocs/plans/archives/task_4_impl.md  channel=doc binding=mention jev=- rows=4
+    :90 [stem/stem_weak] inline_controls: Vec<InlineControl>, // 인라인 컨트롤 위치
+    :97 [stem/stem_weak] control_index: usize,    // Paragraph.controls 내 인덱스
+    :98 [stem/stem_weak] control_type: InlineControlType,  // Table, Shape 등
+- [code] mydocs/plans/archives/task_51_impl.md  channel=doc binding=mention jev=- rows=2
+    :66 [stem/stem_weak] &self, section_idx: u32, parent_para_idx: u32, control_idx: u32, cell_idx: u32,
+    :104 [stem/stem_weak] &mut self, section_idx: u32, parent_para_idx: u32, control_idx: u32, cell_idx: u32,
+- [code] mydocs/plans/archives/task_52_impl.md  channel=doc binding=mention jev=- rows=2
+    :9 [stem/stem_weak] - `getCellCharPropertiesAt(secIdx, parentParaIdx, controlIdx, cellIdx, cellParaIdx, charOffset)` → JSON
+    :11 [stem/stem_weak] - `applyCharFormatInCell(secIdx, parentParaIdx, controlIdx, cellIdx, cellParaIdx, startOffset, endOffset, propsJson)` → 셀 내 동일
+- [code] mydocs/plans/archives/task_65.md  channel=doc binding=mention jev=- rows=3
+    :34 [stem/stem_weak] | `src/renderer/layout.rs` | `layout_textbox_content()`에 CellContext 전파 — section_index, para_index, control_index 파라미터 추가 |
+    :49 [stem/stem_weak] 테이블 셀:  CellContext { parent_para_index, control_index, cell_index: 0..N, cell_para_index }
+    :50 [stem/stem_weak] 글상자:     CellContext { parent_para_index, control_index, cell_index: 0,    cell_para_index }
+- [code] mydocs/plans/archives/task_65_impl.md  channel=doc binding=mention jev=- rows=4
+    :8 [stem/stem_weak] - 이미 `para_index`, `control_index` 보유
+    :11 [stem/stem_weak] 2. `layout_shape_object()` (line 3447): `section_index, para_index, control_index` 파라미터 추가
+    :15 [stem/stem_weak] 3. `layout_textbox_content()` (line 3606): `section_index, para_index, control_index` 파라미터 추가
+- [code] mydocs/plans/archives/task_70_impl.md  channel=doc binding=mention jev=- rows=2
+    :27 [stem/stem_weak] pub control_index: usize,     // 해당 문단 내 컨트롤 인덱스
+    :60 [stem/stem_weak] .controls.get(hf_ref.control_index)
+- [code] mydocs/plans/archives/task_74_impl.md  channel=doc binding=mention jev=- rows=3
+    :47 [path/mention] **수정 파일**: `src/parser/control.rs`
+    :100 [path/mention] | `src/parser/control.rs` | parse_container_children()에 PICTURE 파싱 추가 | ~15줄 |
+    :12 [basename/mention] | `parser/control.rs:724-736` | `parse_container_children()`에서 PICTURE 태그 미처리 → 기본 빈 Rectangle 생성 |
+- [code] mydocs/plans/archives/task_78.md  channel=doc binding=mention jev=- rows=2
+    :28 [basename/mention] `parse_gso_control()` (control.rs:332-334)에서 **그룹 컨테이너 오인식** 발생:
+    :68 [stem/stem_weak] `parse_gso_control()`의 구버전 Group 감지 조건을 수정하여, TextBox 내 인라인 컨트롤의 깊은 레벨 SHAPE_COMPONENT가 Group 자식으로 오인식되지 않도록 한다.
+- [code] mydocs/plans/archives/task_78_impl.md  channel=doc binding=mention jev=- rows=4
+    :11 [path/mention] **파일**: `src/parser/control.rs`
+    :38 [path/mention] **파일**: `src/parser/control.rs`
+    :98 [path/mention] | `src/parser/control.rs` | Group 감지 조건 레벨 비교 정밀화 (1곳) + parse_container_children 레벨 필터링 (1곳) | ~4줄 |
+- [code] mydocs/plans/archives/task_81.md  channel=doc binding=mention jev=- rows=1
+    :9 [basename/mention] - **파서**: `cell.text_direction` 이미 파싱됨 (control.rs:215, bits 16-18)
+- [code] mydocs/plans/archives/task_83.md  channel=doc binding=mention jev=- rows=2
+    :10 [stem/stem_weak] - **CursorState**: 셀 내부 위치 관리 (`parentParaIndex`, `controlIndex`, `cellIndex`)
+    :15 [stem/stem_weak] - **get_page_control_layout_native**: 렌더 트리에서 셀 bbox를 이미 JSON으로 내보내는 API 존재 (프론트엔드 미연동)
+- [code] mydocs/plans/archives/task_83_impl.md  channel=doc binding=mention jev=- rows=2
+    :13 [stem/stem_weak] &self, section_idx: u32, parent_para_idx: u32, control_idx: u32,
+    :26 [stem/stem_weak] getTableCellBboxes(sec, parentPara, controlIdx): CellBbox[]
+- [code] mydocs/plans/archives/task_87.md  channel=doc binding=mention jev=- rows=1
+    :11 [stem/stem_weak] - hitTest가 표 셀 컨텍스트(parentParaIndex, controlIndex, cellIndex) 감지 ✓
+- [code] mydocs/plans/archives/task_87_impl.md  channel=doc binding=mention jev=- rows=2
+    :19 [stem/stem_weak] - 문단의 controls 배열에서 해당 표 컨트롤을 제거
+    :21 [stem/stem_weak] - `remove_control(index)` 메서드 추가 (controls 배열에서 해당 인덱스 제거)
+- [code] mydocs/plans/archives/task_91.md  channel=doc binding=mention jev=- rows=3
+    :40 [stem/stem_weak] Section → Paragraph[0] → controls[0] = Control::SectionDef(...)
+    :41 [stem/stem_weak] Section → Paragraph[0] → controls[1] = Control::ColumnDef(...)  ← 초기 다단 정의
+    :44 [stem/stem_weak] Section → Paragraph[N] → controls[0] = Control::ColumnDef(...)  ← 새 다단 정의
+- [code] mydocs/plans/archives/task_91_impl.md  channel=doc binding=mention jev=- rows=1
+    :16 [stem/stem_weak] for ctrl in &para.controls {
+- [code] mydocs/plans/archives/task_93.md  channel=doc binding=mention jev=- rows=3
+    :30 [path/mention] | `src/parser/control.rs` | 6개 도형 파서 함수 수정 |
+    :10 [stem/stem_weak] - hwplib 도형 모델: `/home/edward/vsworks/shwp/hwplib/src/main/java/kr/dogfoot/hwplib/object/bodytext/control/gso/shapecomponenteach/`
+    :11 [stem/stem_weak] - hwplib 도형 리더: `/home/edward/vsworks/shwp/hwplib/src/main/java/kr/dogfoot/hwplib/reader/bodytext/paragraph/control/gso/`
+- [code] mydocs/plans/archives/task_93_impl.md  channel=doc binding=mention jev=- rows=1
+    :15 [path/mention] **파일**: `src/parser/control.rs`
+- [code] mydocs/plans/archives/task_94.md  channel=doc binding=mention jev=- rows=2
+    :39 [path/mention] | `src/parser/control.rs` | attr 비트 5-7(vert_align), 10-12(horz_align) 파싱 |
+    :41 [basename/mention] | `src/serializer/control.rs` | 직렬화 시 새 필드 반영 (attr 비트에 이미 포함되어 있으므로 변경 최소) |
+- [code] mydocs/plans/archives/task_94_impl.md  channel=doc binding=mention jev=- rows=1
+    :7 [path/mention] **파일**: `src/model/shape.rs`, `src/parser/control.rs`
+- [code] mydocs/plans/task_244.md  channel=doc binding=mention jev=- rows=1
+    :10 [stem/stem_weak] ### 1. 도형 생성 API 확장 (create_shape_control_native)
+- [code] mydocs/plans/task_247.md  channel=doc binding=mention jev=- rows=2
+    :21 [stem/stem_weak] - char code 11 = 그리기 개체 (extended control, 16바이트)
+    :32 [stem/stem_weak] - `create_shape_control_native()` 구조 변경 (인라인 삽입)
+- [code] mydocs/plans/task_247_impl.md  channel=doc binding=mention jev=- rows=1
+    :4 [stem/stem_weak] - ✅ `create_shape_control_native` 인라인 삽입으로 변경
+- [code] mydocs/plans/task_252.md  channel=doc binding=mention jev=- rows=1
+    :42 [path/mention] - 파서: src/parser/control.rs (parse_footnote_control)
+- [code] mydocs/plans/task_255.md  channel=doc binding=mention jev=- rows=6
+    :24 [stem/stem_weak] | `find_footnote_control()` | 구역 내 (para_idx, control_idx)로 각주 컨트롤 위치 |
+    :36 [stem/stem_weak] - `getFootnoteInfo(sec, paraIdx, controlIdx)`
+    :37 [stem/stem_weak] - `insertTextInFootnote(sec, paraIdx, controlIdx, fnParaIdx, charOffset, text)`
+- [code] mydocs/plans/task_256.md  channel=doc binding=mention jev=- rows=3
+    :23 [stem/stem_weak] | `hitTestFootnote(pageNum, x, y)` | 각주 영역 클릭 여부 + (paraIdx, controlIdx) 반환 |
+    :24 [stem/stem_weak] | `hitTestInFootnote(pageNum, paraIdx, controlIdx, x, y)` | 각주 내 정확한 (fnParaIdx, charOffset) 반환 |
+    :25 [stem/stem_weak] | `getCursorRectInFootnote(sec, paraIdx, controlIdx, fnParaIdx, charOffset)` | 각주 내 커서 렉트 반환 |
+- [code] mydocs/plans/task_265.md  channel=doc binding=mention jev=- rows=1
+    :16 [stem/stem_weak] - `collect_header_footer_controls`에서 PageHide 수집 (문단 인덱스 포함)
+- [code] mydocs/plans/task_267.md  channel=doc binding=mention jev=- rows=2
+    :29 [path/mention] | src/parser/control.rs | list_attr bit 16 체크 + 패딩 클리어 |
+    :15 [basename/mention] ### 파서 수정 (control.rs)
+- [code] mydocs/plans/task_298.md  channel=doc binding=mention jev=- rows=1
+    :23 [stem/stem_weak] | 컨트롤 위치 복원 | `helpers.rs` → `find_control_text_positions()` | char_offsets 갭 기반 위치 복원 완료 |
+- [code] mydocs/plans/task_303.md  channel=doc binding=mention jev=- rows=1
+    :39 [stem/stem_weak] - pagination 수정 불필요 (Shape도 process_controls에서 높이 미소비, shape_reserved 메커니즘으로 처리)
+- [code] mydocs/plans/task_341.md  channel=doc binding=mention jev=- rows=1
+    :12 [stem/stem_weak] 1. **Composer** (composer.rs:110-135): 수식은 `tac_controls`에 항상 등록됨 ✓
+- [code] mydocs/plans/task_403_impl.md  channel=doc binding=mention jev=- rows=1
+    :113 [stem/stem_weak] - `src/webview/zoom-control.ts` — 줌 컨트롤
+- [code] mydocs/plans/task_e2e_verification.md  channel=doc binding=mention jev=- rows=4
+    :56 [stem/stem_weak] controls: [{ type: 'Table', rows: 2, cols: 2, treatAsChar: true }] },
+    :65 [stem/stem_weak] { rule: 'table-baseline-align', paraIndex: 1, controlIndex: 0,
+    :68 [stem/stem_weak] { rule: 'space-before-table', paraIndex: 1, controlIndex: 0,
+- [code] mydocs/plans/task_m100_101_impl.md  channel=doc binding=mention jev=- rows=3
+    :80 [stem/stem_weak] `paginate_table_control`에서 `caption_extra_for_current` 계산:
+    :120 [stem/stem_weak] - `paginate_table_control`: `caption_extra_for_current` 계산 추가
+    :149 [stem/stem_weak] 1. `paginate_table_control`에서 `caption_extra_for_current` 계산 (비-TAC Top/Bottom 표만)
+- [code] mydocs/plans/task_m100_102_impl.md  channel=doc binding=mention jev=- rows=1
+    :255 [stem/stem_weak] - 표·글상자 배치 로직 변경 없음 (`paginate_table_control` 무변경)
+- [code] mydocs/plans/task_m100_103_impl.md  channel=doc binding=mention jev=- rows=3
+    :41 [stem/stem_weak] control_index: usize,
+    :61 [stem/stem_weak] control_index: ctrl_idx,
+    :95 [stem/stem_weak] PageItem::FloatingTable { para_index, control_index } => {
+- [code] mydocs/plans/task_m100_110.md  channel=doc binding=mention jev=- rows=1
+    :59 [stem/stem_weak] 6. `Control::Form(Box::new(form))`으로 변환하여 `para.controls`에 추가
+- [code] mydocs/plans/task_m100_110_impl.md  channel=doc binding=mention jev=- rows=5
+    :57 [stem/stem_weak] para.controls.push(ctrl);
+    :62 [stem/stem_weak] para.controls.push(ctrl);
+    :67 [stem/stem_weak] para.controls.push(ctrl);
+- [code] mydocs/plans/task_m100_142.md  channel=doc binding=mention jev=- rows=2
+    :15 [stem/stem_weak] `composer.rs` 라인 130-132에서 수식의 `tac_controls` 너비를 `eq.common.width`(HWP 저장값, HWPUNIT)로 설정한다. 이 값은 한컴 편집기가 계산한 원래 수식 크기이다. 그러나 rhwp의 수식 레이아웃 엔진(`EqLayo
+    :28 [stem/stem_weak] - `composer.rs`에서 수식의 `tac_controls` 너비를 레이아웃 엔진 산출값으로 대체
+- [code] mydocs/plans/task_m100_142_impl.md  channel=doc binding=mention jev=- rows=1
+    :22 [stem/stem_weak] - LayoutBox 너비를 px → HWPUNIT 역변환하여 tac_controls에 설정
+- [code] mydocs/plans/task_m100_177_impl.md  channel=doc binding=mention jev=- rows=1
+    :137 [stem/stem_weak] for (ci, ctrl) in para.controls.iter().enumerate() {
+- [code] mydocs/plans/task_m100_182_impl.md  channel=doc binding=mention jev=- rows=1
+    :591 [stem/stem_weak] use crate::model::control::table::Table;
+- [code] mydocs/plans/task_m100_22.md  channel=doc binding=mention jev=- rows=1
+    :42 [stem/stem_weak] - 크기: `--radius-sm/md/lg`, `--control-height-sm/md/lg`
+- [code] mydocs/plans/task_m100_3.md  channel=doc binding=mention jev=- rows=1
+    :23 [stem/stem_weak] `table_layout.rs`의 셀 내 TAC 이미지 배치 루프에서 `composed.tac_controls`의 char position과 `composed.lines`의 `char_start`를 비교하여 이미지가 속한 줄을 판별하고, 줄이 바뀌면 `inline_x`
+- [code] mydocs/plans/task_m100_62r.md  channel=doc binding=mention jev=- rows=2
+    :37 [stem/stem_weak] `paginate_table_control`의 ci=3 처리 시 `effective_table_height` 계산:
+    :79 [stem/stem_weak] - `src/renderer/pagination/engine.rs` — `paginate_table_control` 피트 판단 수정
+- [code] mydocs/plans/task_m100_62r_impl.md  channel=doc binding=mention jev=- rows=6
+    :11 [stem/stem_weak] 수정 대상은 `engine.rs`의 `paginate_table_control` 함수 내 vert_offset 피트 판단 로직 1곳이다.
+    :25 [stem/stem_weak] #### 1-1. `process_controls` 진입 시 문단 시작 height 스냅샷 캡처
+    :27 [stem/stem_weak] `process_controls` 호출 직전 또는 `paginate_table_control` 인자로 `para_start_height`를 전달한다.
+- [code] mydocs/report/table_algorithm_research.md  channel=doc binding=mention jev=- rows=1
+    :115 [stem/stem_weak] **현재**: `calc_cell_controls_height()` → 0 반환. 중첩 표 높이 변경이 부모에 전파 안 됨.
+- [code] mydocs/report/task_133_final.md  channel=doc binding=mention jev=- rows=4
+    :16 [stem/stem_weak] | control_mask 고아 → 파일 손상 | 직렬화 시 controls 배열에서 control_mask 재계산 | `src/serializer/body_text.rs` |
+    :45 [stem/stem_weak] - **근본 원인**: 고아 문단의 `control_mask=0x800`(TABLE 비트)이 실제 `controls=[]`과 불일치 + 빈 문단에 PARA_TEXT 기록
+    :46 [stem/stem_weak] - **수정**: `compute_control_mask()` 함수로 직렬화 시 재계산 + `has_para_text` 보정
+- [code] mydocs/report/task_24_final.md  channel=doc binding=mention jev=- rows=1
+    :21 [stem/stem_weak] [키 입력] → getDocumentPos() → {secIdx, charOffset, parentParaIdx, controlIdx, cellIdx, cellParaIdx}
+- [code] mydocs/report/task_2_final.md  channel=doc binding=mention jev=- rows=1
+    :65 [basename/mention] footnote.rs, control.rs, bin_data.rs
+- [code] mydocs/report/task_36_final.md  channel=doc binding=mention jev=- rows=1
+    :50 [path/mention] | `src/parser/control.rs` | 관련 수정 |
+- [code] mydocs/report/task_3_final.md  channel=doc binding=mention jev=- rows=3
+    :33 [path/mention] | control | `src/parser/control.rs` | 893 | 컨트롤 파싱 (표/도형/그림/머리말) |
+    :50 [stem/stem_weak] ├── BodyText 섹션 파싱 (body_text + control)
+    :123 [stem/stem_weak] | parser/control | 14 |
+- [code] mydocs/report/task_74.md  channel=doc binding=mention jev=- rows=2
+    :52 [path/mention] | `src/parser/control.rs` | PICTURE 파싱, 렌더링 변환 행렬 합성, HorzRelTo 비트 수정, 구형 그룹 감지 수정 |
+    :54 [basename/mention] | `src/serializer/control.rs` | ShapeObject::Picture 분기 추가 |
+- [code] mydocs/report/task_96_final.md  channel=doc binding=mention jev=- rows=4
+    :16 [path/mention] **수정**: `src/parser/control.rs` — rotation 먼저 합성 후 scale 합성으로 순서 교정
+    :34 [path/mention] - `src/parser/control.rs` — 독립 도형 및 그룹 자식의 LIST_HEADER에서 세로 정렬 파싱
+    :59 [path/mention] | `src/parser/control.rs` | 행렬 합성 순서 수정, LIST_HEADER 파싱, 4-tuple 반환 |
+- [code] mydocs/report/task_m100_101_report.md  channel=doc binding=mention jev=- rows=1
+    :45 [stem/stem_weak] 1. `paginate_table_control`: `caption_extra_for_current` 계산 추가 (비-TAC Top/Bottom 캡션)
+- [code] mydocs/report/task_m100_111_report.md  channel=doc binding=mention jev=- rows=7
+    :23 [stem/stem_weak] `parent_para_index`/`control_index`를 0으로 초기화하고, 자식 `TextRun`에서 보완하는 구조였다.
+    :25 [stem/stem_weak] `cell_runs` 필터링(`parent_para_index == cb.parent_para_index && control_index == cb.control_index`)이
+    :31 [stem/stem_weak] `set_form_value_native(sec, para, ci)`는 `sections[sec].paragraphs[para].controls[ci]`로
+- [code] mydocs/report/task_m100_178_report.md  channel=doc binding=mention jev=- rows=1
+    :75 [stem/stem_weak] HWPX 파서는 `Section.section_def` 만 채우고 `Control::SectionDef` 컨트롤을 `paragraph.controls` 에 삽입하지 않음. HWP 직렬화기가 PAGE_DEF 출력 못 함 → 재로드 시 page_def 가 모두 0 → 16
+- [code] mydocs/report/task_m100_62r_report.md  channel=doc binding=mention jev=- rows=2
+    :27 [stem/stem_weak] `process_controls`, `paginate_table_control`, `place_table_fits` 함수에 `para_start_height: f64` 인자 추가.
+    :28 [stem/stem_weak] 호출부에서 `height_before_controls`(문단 처리 시작 시점의 `st.current_height` 스냅샷)를 전달한다.
+- [code] mydocs/tech/hwp_form_object_api.md  channel=doc binding=mention jev=- rows=2
+    :230 [path/mention] | 파서 | `src/parser/control.rs` — parse_form_control, parse_form_properties |
+    :229 [basename/mention] | 모델 | `src/model/control.rs` — FormType, FormObject |
+- [code] mydocs/tech/hwp_hwpx_ir_differences.md  channel=doc binding=mention jev=- rows=1
+    :92 [stem/stem_weak] | 그리기 객체 | control/shape.rs | `<rect>`, `<line>` 등 | HWPX 미구현 |
+- [code] mydocs/tech/hwp_save_guide.md  channel=doc binding=mention jev=- rows=3
+    :85 [stem/stem_weak] | 문단[0] | text='' char_count=17 controls=2 (SectionDef, ColumnDef) |
+    :249 [stem/stem_weak] 4. **control_mask**: 표가 있는 문단은 `0x00000804`
+    :459 [stem/stem_weak] - control_mask에 **반드시** bit 3(FIELD_BEGIN)과 bit 4(FIELD_END) 포함
+- [code] mydocs/tech/hwpers_analysis.md  channel=doc binding=mention jev=- rows=4
+    :52 [basename/mention] control.rs, bin_data.rs, crypto.rs
+    :56 [basename/mention] body_text.rs, record.rs                   control.rs, table.rs, style.rs
+    :69 [basename/mention] control.rs, record_writer.rs
+- [code] mydocs/tech/layout_engine_research.md  channel=doc binding=mention jev=- rows=1
+    :245 [stem/stem_weak] control_index: usize,
+- [code] mydocs/tech/partial_table_flow.md  channel=doc binding=mention jev=- rows=1
+    :14 [stem/stem_weak] │  paginate_table_control()                                           │
+- [code] mydocs/tech/rendering_engine_design.md  channel=doc binding=mention jev=- rows=1
+    :114 [basename/mention] │   ├── control.rs      # Control(18종), Field, Bookmark, Hyperlink, Ruby
+- [code] mydocs/tech/webhwp/05_other_controls.md  channel=doc binding=mention jev=- rows=2
+    :96 [stem/stem_weak] ci: controlId,     // 컨트롤 ID
+    :387 [stem/stem_weak] id: controlId,   // 컨트롤 ID
+- [code] mydocs/tech/한글문서파일형식_5.0_revision1.3.md  channel=doc binding=mention jev=- rows=1
+    :1262 [stem/stem_weak] | UINT32 | 4 | control mask<br>(UINT32)(1<<ctrlch) 조합<br>ctrlch는 HwpCtrlAPI.Hwp 2.1 CtrlCh 참고 |
+- [code] mydocs/troubleshootings/column_def_proportional_widths.md  channel=doc binding=mention jev=- rows=1
+    :69 [basename/mention] ### 파일: `src/serializer/control.rs`
+- [code] mydocs/troubleshootings/multi_tac_table_pagination.md  channel=doc binding=mention jev=- rows=6
+    :13 [stem/stem_weak] `pagination/engine.rs`의 `paginate_table_control()`에서 TAC 표의 높이 판단:
+    :24 [stem/stem_weak] - `process_controls()`에서 ctrl[0], ctrl[1]을 순회하며 각각 `paginate_table_control()`을 호출하지만, 둘 다 동일한 `para_height_for_fit`을 전달받음
+    :30 [stem/stem_weak] let tac_table_count = para.controls.iter()
+- [code] mydocs/troubleshootings/picture_save_hancom_compatibility.md  channel=doc binding=mention jev=- rows=3
+    :118 [path/mention] - `src/parser/control.rs`: parse_common_obj_attr
+    :117 [basename/mention] - `src/serializer/control.rs`: serialize_common_obj_attr, serialize_shape_component, serialize_picture_data, serialize_picture_control
+    :25 [stem/stem_weak] **수정**: `serialize_picture_control()`에서 `tags::SHAPE_PICTURE_ID` (`$pic`) 사용.
+- [code] mydocs/troubleshootings/repeat_header_image_duplication.md  channel=doc binding=mention jev=- rows=3
+    :5 [path/mention] > 수정 파일: `src/renderer/layout.rs`, `src/model/table.rs`, `src/parser/control.rs`, `src/renderer/height_measurer.rs`, `src/renderer/pagination.rs`
+    :103 [path/mention] // src/parser/control.rs - parse_cell()
+    :125 [stem/stem_weak] for ctrl in &para.controls { /* Picture, Shape, Table 배치 */ }
+- [code] mydocs/troubleshootings/shape_fill_transparency.md  channel=doc binding=mention jev=- rows=1
+    :147 [path/mention] | `src/parser/control.rs` | `parse_shape_component_full()`: shadow info 파싱 (글상자 마진 → 그림자 정보) |
+- [code] mydocs/troubleshootings/table_paste_file_corruption.md  channel=doc binding=mention jev=- rows=2
+    :358 [basename/mention] | `src/serializer/control.rs` | 305-332 | serialize_table (레코드 순서) |
+    :359 [basename/mention] | `src/serializer/control.rs` | 377-421 | serialize_cell |
+- [code] mydocs/troubleshootings/task178_second_attempt_hancom_rejection.md  channel=doc binding=mention jev=- rows=1
+    :63 [stem/stem_weak] | `controls.len()` | 2 (SectionDef + ColumnDef) | 4 (SectionDef + ColumnDef + Other + Table) |
+- [code] mydocs/troubleshootings/task_70_page_number_false_completion.md  channel=doc binding=mention jev=- rows=1
+    :20 [path/mention] `src/parser/control.rs`의 `parse_page_num_pos()`:
+- [code] mydocs/troubleshootings/task_96_group_child_matrix_composition_order.md  channel=doc binding=mention jev=- rows=2
+    :62 [path/mention] `src/parser/control.rs`의 `parse_shape_component_full()` 함수에서 렌더링 행렬 합성 시 Scale과 Rotation의 적용 순서가 반대였다.
+    :94 [path/mention] | `src/parser/control.rs` (680-681행) | 행렬 합성 순서를 `R → S`로 변경 |
+- [code] mydocs/troubleshootings/task_96_group_child_textbox_vertical_align.md  channel=doc binding=mention jev=- rows=3
+    :105 [path/mention] | `src/parser/control.rs` | `parse_container_children()`: LIST_HEADER 데이터 캡처 및 파싱 |
+    :106 [path/mention] | `src/parser/control.rs` | `parse_shape_component_full()`: 반환 타입 4-tuple 확장 |
+    :42 [basename/mention] `parse_container_children()` 함수(control.rs)에서 자식 도형의 레코드를 순회할 때:
+- [code] mydocs/working/archives/task_102_step1.md  channel=doc binding=mention jev=- rows=2
+    :26 [path/mention] - `src/parser/control.rs`: HWP 바이너리 파서 — 표 파싱 완료 직전 호출
+    :55 [path/mention] | `src/parser/control.rs` | +1줄 |
+- [code] mydocs/working/archives/task_102_step2.md  channel=doc binding=mention jev=- rows=5
+    :12 [stem/stem_weak] - 기존: `paragraphs, para_index, control_index` → Table을 간접 추출
+    :15 [stem/stem_weak] - `table_meta: Option<(usize, usize)>`: 최상위 표의 (para_index, control_index) 메타데이터
+    :27 [stem/stem_weak] - 본문 (line ~429): `paragraphs.get()` + `para.controls.get()` 로 table 추출
+- [code] mydocs/working/archives/task_102_step3.md  channel=doc binding=mention jev=- rows=5
+    :27 [stem/stem_weak] - `cell_controls_height()`: 셀 내 중첩 표 총 높이 계산 헬퍼 (pub)
+    :33 [stem/stem_weak] ### 4. calc_cell_controls_height 실제 구현 (`src/renderer/layout.rs`)
+    :35 [stem/stem_weak] - 변경: `HeightMeasurer::cell_controls_height()` 호출하여 실제 중첩 표 높이 반환
+- [code] mydocs/working/archives/task_104.md  channel=doc binding=mention jev=- rows=1
+    :14 [stem/stem_weak] → 중첩 표 내 TextRun의 셀 컨텍스트(parent_para_index, control_index 등)가 모두 None.
+- [code] mydocs/working/archives/task_107_final.md  channel=doc binding=mention jev=- rows=2
+    :49 [path/mention] | src/parser/control.rs | 투명도 파싱 |
+    :24 [basename/mention] - parser/control.rs, parser/doc_info.rs: 투명도 파싱
+- [code] mydocs/working/archives/task_109_step1to4.md  channel=doc binding=mention jev=- rows=1
+    :29 [stem/stem_weak] 조사 결과, request.hwp의 인라인 이미지(hancom 로고)는 **테이블 셀** 안이 아닌 **텍스트박스(도형)** 안에 있음이 확인됨. 셀의 `para.controls`에 Picture가 없고, 이미지는 PageItem::Shape으로 처리되는 도형 내 텍스
+- [code] mydocs/working/archives/task_11_complete.md  channel=doc binding=mention jev=- rows=4
+    :16 [path/mention] - `src/parser/control.rs`: `parse_caption()` 함수 구현
+    :53 [path/mention] | `src/parser/control.rs` | parse_caption(), 표/그림 캡션 파싱 |
+    :23 [stem/stem_weak] - `parse_table_control()`: HWPTAG_TABLE 이전의 LIST_HEADER를 캡션으로 처리
+- [code] mydocs/working/archives/task_122_report.md  channel=doc binding=mention jev=- rows=2
+    :37 [basename/mention] - 직렬화: outline_numbering_id 출력 (control.rs)
+    :80 [basename/mention] | src/serializer/control.rs | SectionDef.outline_numbering_id 직렬화 |
+- [code] mydocs/working/archives/task_142_step0.md  channel=doc binding=mention jev=- rows=2
+    :73 [path/mention] | `src/parser/control.rs` | 1,744 | Phase 5 |
+    :74 [basename/mention] | `src/serializer/control.rs` | 1,520 | Phase 5 |
+- [code] mydocs/working/archives/task_146_report.md  channel=doc binding=mention jev=- rows=1
+    :32 [stem/stem_weak] - 13개 메서드 추출 (collect_header_footer_controls, process_multicolumn_break, process_column_break, process_page_break, paginate_text_lines, paginate_multi
+- [code] mydocs/working/archives/task_157_final.md  channel=doc binding=mention jev=- rows=2
+    :23 [stem/stem_weak] | `src/document_core/commands/object_ops.rs` | `create_shape_control_native()`, `get_shape_properties_native()`, `set_shape_properties_native()`, `del
+    :25 [stem/stem_weak] | `src/renderer/render_tree.rs` | `RectangleNode`에 `section_index`, `para_index`, `control_index` 필드 추가 |
+- [code] mydocs/working/archives/task_157_step1_done.md  channel=doc binding=mention jev=- rows=6
+    :12 [stem/stem_weak] | `src/renderer/render_tree.rs` | `RectangleNode`에 `section_index`, `para_index`, `control_index` 필드 추가 |
+    :27 [stem/stem_weak] | `create_shape_control(json)` | `createShapeControl` | 커서 위치에 글상자 삽입 |
+    :30 [stem/stem_weak] | `delete_shape_control(sec, para, ctrl)` | `deleteShapeControl` | 글상자 삭제 |
+- [code] mydocs/working/archives/task_158_report.md  channel=doc binding=mention jev=- rows=1
+    :12 [stem/stem_weak] | `src/parser/control/shape.rs` | +57/-변경 | Shape 파싱 개선 |
+- [code] mydocs/working/archives/task_165_stage1_report.md  channel=doc binding=mention jev=- rows=1
+    :19 [stem/stem_weak] - `RectangleNode::new(corner_radius, style, gradient)` — transform + section/para/control_index 자동 None
+- [code] mydocs/working/archives/task_193_step1.md  channel=doc binding=mention jev=- rows=2
+    :42 [stem/stem_weak] - `find_header_footer_control` — 구역의 문단에서 Header/Footer 컨트롤 위치 탐색
+    :58 [stem/stem_weak] 1. **Header/Footer는 문단 컨트롤**: `section.paragraphs[0].controls`에 `Control::Header(Box<Header>)` 형태로 저장
+- [code] mydocs/working/archives/task_215_step1.md  channel=doc binding=mention jev=- rows=1
+    :21 [stem/stem_weak] - 기존 Phase 1 호환 코드(process_table_controls, split_table_into_pages) 제거
+- [code] mydocs/working/archives/task_215_step4.md  channel=doc binding=mention jev=- rows=1
+    :37 [stem/stem_weak] - Phase 1 스텁 (`process_table_controls`, `split_table_into_pages`): 이미 제거 완료
+- [code] mydocs/working/archives/task_227_step2.md  channel=doc binding=mention jev=- rows=3
+    :21 [stem/stem_weak] para.controls.retain(|ctrl| !matches!(ctrl,
+    :27 [stem/stem_weak] 2. **`clipboard_has_control_native()`** (L563-571): 실제 개체 컨트롤(`Table`, `Picture`, `Shape`)만 검사하도록 수정
+    :29 [stem/stem_weak] p.controls.iter().any(|ctrl| matches!(ctrl,
+- [code] mydocs/working/archives/task_230_final.md  channel=doc binding=mention jev=- rows=2
+    :5 [basename/mention] ### 1. 필드 모델 확장 (`src/model/control.rs`)
+    :50 [basename/mention] | `src/model/control.rs` | field_name(), field_type_str(), extract_wstring_value() 추가 |
+- [code] mydocs/working/archives/task_24_step1.md  channel=doc binding=mention jev=- rows=2
+    :8 [stem/stem_weak] - `control_index: Option<usize>` — 부모 문단 내 컨트롤 인덱스
+    :17 [stem/stem_weak] - 셀 내 문단 레이아웃 호출 시 실제 `CellContext` 전달 (section_index, para_index, control_index, cell_idx, cell_para_idx)
+- [code] mydocs/working/archives/task_24_step2.md  channel=doc binding=mention jev=- rows=3
+    :8 [stem/stem_weak] - `insertTextInCell(section_idx, parent_para_idx, control_idx, cell_idx, cell_para_idx, char_offset, text)` — 셀 내부 문단에 텍스트 삽입
+    :9 [stem/stem_weak] - `deleteTextInCell(section_idx, parent_para_idx, control_idx, cell_idx, cell_para_idx, char_offset, count)` — 셀 내부 문단에서 텍스트 삭제
+    :19 [stem/stem_weak] - TextRun JSON에 셀 식별 정보 추가: `parentParaIdx`, `controlIdx`, `cellIdx`, `cellParaIdx`
+- [code] mydocs/working/archives/task_24_step3.md  channel=doc binding=mention jev=- rows=1
+    :8 [stem/stem_weak] - 표 셀 내부 run에서 캐럿 위치를 가져올 때 `parentParaIdx`, `controlIdx`, `cellIdx`, `cellParaIdx` 포함
+- [code] mydocs/working/archives/task_25_final.md  channel=doc binding=mention jev=- rows=2
+    :14 [stem/stem_weak] | `render_tree.rs` | TableNode, ImageNode에 문서 좌표 필드(section_index, para_index, control_index) 추가 |
+    :23 [stem/stem_weak] | `text_selection.js` | `SelectionController` 확장 — controlLayout, onControlSelect, onControlDeselect 콜백 |
+- [code] mydocs/working/archives/task_25_step1.md  channel=doc binding=mention jev=- rows=7
+    :6 [stem/stem_weak] - `TableNode`에 문서 좌표 필드 3개 추가: `section_index`, `para_index`, `control_index`
+    :7 [stem/stem_weak] - `ImageNode`에 문서 좌표 필드 3개 추가: `section_index`, `para_index`, `control_index`
+    :11 [stem/stem_weak] - `layout_body_picture()`: 파라미터 3개 추가 (`section_index`, `para_index`, `control_index`), ImageNode에 전달
+- [code] mydocs/working/archives/task_2_step_2.md  channel=doc binding=mention jev=- rows=1
+    :21 [basename/mention] | `control.rs` | Control(enum), AutoNumber, Bookmark, Hyperlink, Ruby, Field 등 | 인라인 컨트롤 |
+- [code] mydocs/working/archives/task_32_stage_1.md  channel=doc binding=mention jev=- rows=2
+    :37 [stem/stem_weak] - `getCellCharPropertiesAt(secIdx, parentParaIdx, controlIdx, cellIdx, cellParaIdx, charOffset)` → 셀 내 글자 속성
+    :39 [stem/stem_weak] - `getCellParaPropertiesAt(secIdx, parentParaIdx, controlIdx, cellIdx, cellParaIdx)` → 셀 내 문단 속성
+- [code] mydocs/working/archives/task_37_final.md  channel=doc binding=mention jev=- rows=3
+    :63 [basename/mention] | `src/model/control.rs` | 1 | Clone derive 추가 |
+    :15 [stem/stem_weak] | 네이티브 API 8개 | has/get/clear_clipboard, copy_selection, copy_selection_in_cell, copy_control, paste_internal, paste_internal_in_cell |
+    :36 [stem/stem_weak] | 네이티브 API 3개 | export_selection_html, export_selection_in_cell_html, export_control_html |
+- [code] mydocs/working/archives/task_37_stage1.md  channel=doc binding=mention jev=- rows=5
+    :12 [basename/mention] | `src/model/control.rs` | `Control`, `HiddenComment` |
+    :93 [basename/mention] | `src/model/control.rs` | Clone derive 추가 (Control, HiddenComment) |
+    :39 [stem/stem_weak] | `copy_control_native()` | 컨트롤 객체(표/이미지/도형) 복사 |
+- [code] mydocs/working/archives/task_37_stage3.md  channel=doc binding=mention jev=- rows=2
+    :11 [stem/stem_weak] | `export_control_html_native()` | `exportControlHtml` | 컨트롤 객체(표/이미지) → HTML |
+    :107 [stem/stem_weak] | `test_export_control_html_table` | 표 컨트롤 HTML 생성 (`<table>`, `<tr>`, `<td>` 구조) |
+- [code] mydocs/working/archives/task_38_final.md  channel=doc binding=mention jev=- rows=4
+    :26 [stem/stem_weak] | `paste_html_native` 확장 | 컨트롤 포함 문단 감지 시 직접 삽입 경로 추가 (merge_from은 controls 미전파) |
+    :70 [stem/stem_weak] ↓       └─ Paragraph { text: "\u{0002}", controls: [Table] }
+    :73 [stem/stem_weak] ↓ has_controls == true → 직접 삽입 경로
+- [code] mydocs/working/archives/task_3_step_3.md  channel=doc binding=mention jev=- rows=2
+    :26 [stem/stem_weak] CTRL_HEADER (level 1)     → controls
+    :105 [stem/stem_weak] | test_parse_unknown_control | 미구현 컨트롤 스텁 |
+- [code] mydocs/working/archives/task_3_step_5.md  channel=doc binding=mention jev=- rows=3
+    :154 [path/mention] | control | `src/parser/control.rs` | 컨트롤 파싱 (표/도형/그림/머리말) |
+    :51 [basename/mention] - Table이 control.rs로 위임되나 ctrl_id 불일치로 Unknown 처리
+    :101 [stem/stem_weak] ├── BodyText 섹션 파싱 (body_text + control)
+- [code] mydocs/working/archives/task_40_final.md  channel=doc binding=mention jev=- rows=2
+    :29 [stem/stem_weak] 핵심 발견: 표 문단은 반드시 2개 필요 (표+빈줄), segment_width=0, control_mask=0x00000804
+    :74 [stem/stem_weak] | test_roundtrip_all_controls | 기타 컨트롤 라운드트립 검증 |
+- [code] mydocs/working/archives/task_41_step2.md  channel=doc binding=mention jev=- rows=1
+    :68 [stem/stem_weak] - `test_paste_html_table_as_control`: DIFF-5, DIFF-7 검증 (어설션 업데이트)
+- [code] mydocs/working/archives/task_44_final.md  channel=doc binding=mention jev=- rows=1
+    :118 [basename/mention] | `src/model/control.rs` | ~200 | 컨트롤 열거형, 인라인 제어 |
+- [code] mydocs/working/archives/task_44_step3.md  channel=doc binding=mention jev=- rows=3
+    :27 [stem/stem_weak] | **ControlContext** | 인라인 컨트롤 선택 | controlIndex, controlType, boundingBox |
+    :40 [stem/stem_weak] 현재 WASM의 `identify_inline_controls()`가 모든 컨트롤을 line_index=0에 배치하는 제한을 확인하고, 편집기를 위한 WASM 확장 API 설계:
+    :41 [stem/stem_weak] - `get_paragraph_control_positions()` — 컨트롤의 정확한 char offset 반환
+- [code] mydocs/working/archives/task_47_final.md  channel=doc binding=mention jev=- rows=3
+    :63 [stem/stem_weak] getCellParagraphCount(section_idx: number, parent_para_idx: number, control_idx: number, cell_idx: number): number;
+    :64 [stem/stem_weak] getCellParagraphLength(section_idx: number, parent_para_idx: number, control_idx: number, cell_idx: number, cell_para_idx: number): number;
+    :65 [stem/stem_weak] getTextInCell(section_idx: number, parent_para_idx: number, control_idx: number, cell_idx: number, cell_para_idx: number, char_offset: number, count: 
+- [code] mydocs/working/archives/task_48_step4.md  channel=doc binding=mention jev=- rows=1
+    :43 [stem/stem_weak] - `RunInfo` 구조체에 셀 컨텍스트 4필드 추가 (`parent_para_index`, `control_index`, `cell_index`, `cell_para_index`)
+- [code] mydocs/working/archives/task_4_step_2.md  channel=doc binding=mention jev=- rows=3
+    :25 [stem/stem_weak] | `ComposedParagraph` | 구성된 문단 (lines + para_style_id + inline_controls) |
+    :26 [stem/stem_weak] | `InlineControl` | 인라인 컨트롤 위치 정보 (line_index + control_type) |
+    :75 [stem/stem_weak] | test_identify_inline_controls_table | 표 컨트롤 식별 |
+- [code] mydocs/working/archives/task_4_step_3.md  channel=doc binding=mention jev=- rows=1
+    :69 [stem/stem_weak] 문단 순회 시 `controls` 배열에서 Table/Shape 감지:
+- [code] mydocs/working/archives/task_4_step_4.md  channel=doc binding=mention jev=- rows=3
+    :12 [path/mention] | `src/parser/control.rs` | ~10줄 수정 | find_list_header_paragraphs 레벨 버그 수정 |
+    :47 [basename/mention] **1. find_list_header_paragraphs 레벨 버그 (control.rs)**
+    :27 [stem/stem_weak] - `FootnoteSource` enum: `Body { para_index, control_index }`, `TableCell { ... }`
+- [code] mydocs/working/archives/task_65_final.md  channel=doc binding=mention jev=- rows=2
+    :15 [path/mention] | `src/parser/control.rs` | SHAPE_COMPONENT 채우기 2바이트 오프셋 자동 보정, `parse_fill()` 재사용 |
+    :32 [stem/stem_weak] - 렌더 트리 TextRun에 `parent_para_index`, `control_index`, `cell_index`, `cell_para_index` 포함
+- [code] mydocs/working/archives/task_71_final.md  channel=doc binding=mention jev=- rows=4
+    :14 [path/mention] | `src/parser/control.rs` | AutoNumber 비트 오프셋 수정(format 8비트, superscript bit 12) + 장식문자 파싱, PageNumberPos 장식문자 파싱 | +10줄 |
+    :13 [basename/mention] | `src/model/control.rs` | AutoNumber에 number/user_symbol/prefix_char/suffix_char 필드 추가, PageNumberPos에 user_symbol/prefix_char/suffix_char/dash_char 
+    :15 [basename/mention] | `src/serializer/control.rs` | AutoNumber/PageNumberPos 직렬화 비트 오프셋 수정 + 장식문자 출력 | +15줄 |
+- [code] mydocs/working/archives/task_78_final.md  channel=doc binding=mention jev=- rows=3
+    :19 [path/mention] | `src/parser/control.rs` | 구버전 Group 감지 조건 `r.level > first_level` → `r.level == first_level + 1`로 변경. 직접 자식 레벨만 Group 감지에 사용 |
+    :20 [path/mention] | `src/parser/control.rs` | `parse_container_children()`의 SHAPE_COMPONENT 인덱스 수집에 레벨 필터링 추가. 직접 자식 레벨(child_level)만 경계로 사용 |
+    :10 [stem/stem_weak] 2. `parse_gso_control()`의 구버전 Group 감지 조건 `r.level > first_level`이 TextBox 내 인라인 Picture 컨트롤의 SHAPE_COMPONENT(level 5)를 Group 자식으로 오인식
+- [code] mydocs/working/archives/task_87_final.md  channel=doc binding=mention jev=- rows=4
+    :14 [stem/stem_weak] - `remove_control(index)` — paragraph.rs의 controls 배열에서 컨트롤 제거
+    :15 [stem/stem_weak] - Rust 테스트 2건 추가 (`test_get_table_bbox`, `test_delete_table_control`)
+    :43 [stem/stem_weak] | `src/model/paragraph.rs` | 수정 | remove_control(index) 메서드 추가 |
+- [code] mydocs/working/archives/task_87_step1.md  channel=doc binding=mention jev=- rows=2
+    :15 [stem/stem_weak] - 테스트 2개 추가: `test_get_table_bbox`, `test_delete_table_control`
+    :22 [stem/stem_weak] - `test_delete_table_control_roundtrip` 라운드트립 테스트 추가
+- [code] mydocs/working/archives/task_91_step1.md  channel=doc binding=mention jev=- rows=2
+    :21 [basename/mention] **수정**: `src/serializer/control.rs`
+    :56 [basename/mention] | `src/serializer/control.rs` | ColumnDef 직렬화: 동일 비트필드 형식 |
+- [code] mydocs/working/archives/task_92_report.md  channel=doc binding=mention jev=- rows=4
+    :33 [path/mention] **파일**: `src/parser/control.rs`
+    :67 [path/mention] **파일**: `src/parser/control.rs`, `src/renderer/layout.rs`
+    :96 [path/mention] | `src/parser/control.rs` | 다각형/곡선 파서: (x,y) 인터리브 쌍 읽기 + 고정소수점 16.16 → HWPUNIT 변환 |
+- [code] mydocs/working/archives/task_93_report.md  channel=doc binding=mention jev=- rows=2
+    :46 [path/mention] | `src/parser/control.rs` | 6개 도형 파서 함수 수정 |
+    :47 [basename/mention] | `src/serializer/control.rs` | 6개 도형 직렬화 함수 수정 |
+- [code] mydocs/working/archives/task_94_final.md  channel=doc binding=mention jev=- rows=1
+    :47 [path/mention] | `src/parser/control.rs` | 도형 파서 개선 |
+- [code] mydocs/working/task_232_final.md  channel=doc binding=mention jev=- rows=7
+    :41 [path/mention] | `src/parser/control.rs` | parse_form_control, decode_utf16le, parse_form_properties, apply_form_property |
+    :39 [basename/mention] | `src/model/control.rs` | FormType enum, FormObject 구조체, Control::Form 변형 |
+    :49 [basename/mention] | `src/serializer/control.rs` | Control::Form 직렬화 arm |
+- [code] mydocs/working/task_233_final.md  channel=doc binding=mention jev=- rows=1
+    :34 [stem/stem_weak] | `src/renderer/render_tree.rs` | FormObjectNode에 section_index, para_index, control_index, name 추가 |
+- [code] mydocs/working/task_233_stage1.md  channel=doc binding=mention jev=- rows=1
+    :6 [stem/stem_weak] - `src/renderer/render_tree.rs`: FormObjectNode에 `section_index`, `para_index`, `control_index`, `name` 필드 추가
+- [code] mydocs/working/task_240_stage1.md  channel=doc binding=mention jev=- rows=1
+    :16 [stem/stem_weak] - `classify_control()`에 `Control::Bookmark` → `"bookmark"` 추가
+- [code] mydocs/working/task_240_stage2.md  channel=doc binding=mention jev=- rows=2
+    :6 [stem/stem_weak] - 조판 부호 모드(`show_control_codes`)에서 책갈피 컨트롤 위치에 `[책갈피:이름]` 마커 렌더링
+    :7 [stem/stem_weak] - `find_control_text_positions()`로 컨트롤의 텍스트 위치 계산
+- [code] mydocs/working/task_241_stage1.md  channel=doc binding=mention jev=- rows=1
+    :39 [stem/stem_weak] hwplib의 `ForParagraph.control()`도 CTRL_HEADER 레코드 기반으로 파싱.
+- [code] mydocs/working/task_242_stage1.md  channel=doc binding=mention jev=- rows=3
+    :6 [stem/stem_weak] - **object_ops.rs**: `create_shape_control_native()` — `shape_type` 파라미터 추가
+    :11 [stem/stem_weak] - **render_tree.rs**: LineNode, EllipseNode에 section/para/control 인덱스 필드 추가
+    :13 [stem/stem_weak] - **rendering.rs**: `collect_controls`에서 Line/Ellipse를 선택 가능한 도형으로 수집
+- [code] mydocs/working/task_5_complete.md  channel=doc binding=mention jev=- rows=1
+    :9 [path/mention] - `src/parser/control.rs` — HWP 바이너리 표 레코드에서 zones 파싱
+- [code] mydocs/working/task_m100_101_stage1.md  channel=doc binding=mention jev=- rows=1
+    :29 [stem/stem_weak] `paginate_table_control`에서 `spacing_before_px`를 계산하여 `split_table_rows`에 전달.
+- [code] mydocs/working/task_m100_101_stage2.md  channel=doc binding=mention jev=- rows=1
+    :21 [stem/stem_weak] 1. **`paginate_table_control`**: `caption_extra_for_current` 계산 추가
+- [code] mydocs/working/task_m100_177_stage1.md  channel=doc binding=mention jev=- rows=1
+    :118 [stem/stem_weak] 표 셀은 독립적 문단 계층을 가지므로 본문 문단만 검사하면 놓친다. `validate_linesegs` 가 `controls[Control::Table]` 을 순회하며 셀 내부 문단도 검사하고 `CellPath` 로 경로 기록.
+- [code] mydocs/working/task_m100_178_stage2.md  channel=doc binding=mention jev=- rows=3
+    :107 [basename/mention] - [x] 매핑 명세는 직렬화기 가정 기준 (`serializer/control.rs:349` 인용)
+    :113 [basename/mention] Stage 3 시작 전 `serializer/control.rs:429` 가 작성하는 LIST_HEADER 바이트 레이아웃 검증 (옵션 A vs B 결정) 단위 테스트 우선 작성 예정 (구현계획서 §4 위험 1).
+    :82 [stem/stem_weak] `parse_common_obj_attr` (parser/control/shape.rs:247) 의 필드 읽기 순서·바이트 크기를 1:1 대칭으로 작성. 라운드트립 테스트 4개로 단언:
+- [code] mydocs/working/task_m100_178_stage3.md  channel=doc binding=mention jev=- rows=2
+    :27 [basename/mention] ### 2.1 발견된 모호성 (parser/control.rs:323-371)
+    :35 [basename/mention] ### 2.2 직렬화기 동작 (serializer/control.rs:429)
+- [code] mydocs/working/task_m100_178_stage5.md  channel=doc binding=mention jev=- rows=1
+    :77 [stem/stem_weak] 어댑터가 `paragraph.controls` 에 SectionDef 컨트롤을 삽입하고 `table.raw_ctrl_data` 를
+- [code] mydocs/working/task_m100_182_stage2.md  channel=doc binding=mention jev=- rows=1
+    :128 [stem/stem_weak] 3. **`<hp:ctrl>` 위치의 ColumnDef**: 템플릿의 `<hp:ctrl><hp:colPr .../></hp:ctrl>` 가 고정. IR의 `Paragraph.controls` 에 ColumnDef 가 있어도 반영되지 않음.
+- [code] mydocs/working/task_m100_182_stage3.md  channel=doc binding=mention jev=- rows=1
+    :134 [stem/stem_weak] 1. **Section dispatcher**: `section.rs` 에서 `Paragraph.controls[Control::Table]` 만나면 `table::write_table` 호출. **#186 에서 처리.**
+- [code] mydocs/working/task_m100_182_stage4.md  channel=doc binding=mention jev=- rows=1
+    :154 [stem/stem_weak] 1. **Section dispatcher**: `Paragraph.controls[Control::Picture]` → `picture::write_picture` 호출. **#186 범위 C 에 명시**.
+- [code] mydocs/working/task_m100_182_stage5.md  channel=doc binding=mention jev=- rows=1
+    :153 [stem/stem_weak] 1. **Section dispatcher**: `Paragraph.controls[Control::Shape / Control::Field / Control::Bookmark / Control::Hyperlink]` → 각각 `shape::write_*` / `fie
+- [code] mydocs/working/task_m100_62r_stage1.md  channel=doc binding=mention jev=- rows=2
+    :17 [stem/stem_weak] `process_controls` 및 `paginate_table_control` 함수에 `para_start_height: f64` 인자 추가.
+    :18 [stem/stem_weak] 호출부에서 `height_before_controls`(문단 처리 시작 시점의 `st.current_height` 스냅샷)를 전달한다.
+- [code] rhwp-safari/HWP Viewer/Shared (App)/Resources/Script.js  channel=other binding=mention jev=- rows=1
+    :21 [stem/stem_weak] webkit.messageHandlers.controller.postMessage("open-preferences");
+- [code] rhwp-safari/HWP Viewer/Shared (App)/ViewController.swift  channel=other binding=mention jev=- rows=1
+    :34 [stem/stem_weak] self.webView.configuration.userContentController.add(self, name: "controller")
+- [code] rhwp-studio/e2e/blogform.test.mjs  channel=other binding=mention jev=- rows=1
+    :41 [stem/stem_weak] parentPara: pos?.parentParagraphIndex, ctrlIdx: pos?.controlIndex, cellIdx: pos?.cellIndex, cellPara: pos?.cellParagraphIndex } };
+- [code] rhwp-studio/e2e/debug-table-pos.test.mjs  channel=other binding=mention jev=- rows=1
+    :17 [stem/stem_weak] w.doc.insertTextInCell(0, tr.paraIdx, tr.controlIdx, 0, 0, 0, 'Cell');
+- [code] rhwp-studio/e2e/edit-pipeline.test.mjs  channel=other binding=mention jev=- rows=6
+    :195 [stem/stem_weak] const tblCtrl = tableResult.controlIdx ?? 0;
+    :492 [stem/stem_weak] const tp = tr.paraIdx, tc = tr.controlIdx;
+    :546 [stem/stem_weak] const tp1 = tr1.paraIdx, tc1 = tr1.controlIdx;
+- [code] rhwp-studio/e2e/form-control.test.mjs  channel=other binding=mention jev=- rows=1
+    :78 [stem/stem_weak] assert(hitResult?.controlIndex !== undefined, `controlIndex 존재: ${hitResult?.controlIndex}`);
+- [code] rhwp-studio/e2e/scenario-runner.mjs  channel=other binding=mention jev=- rows=1
+    :114 [stem/stem_weak] w.doc.insertTextInCell(sec, r.paraIdx, r.controlIdx, i, 0, 0, s.cells[i]);
+- [code] rhwp-studio/e2e/tac-inline-create.test.mjs  channel=other binding=mention jev=- rows=1
+    :91 [stem/stem_weak] }, tableResult.controlIdx);
+- [code] rhwp-studio/e2e/tac-verify.test.mjs  channel=other binding=mention jev=- rows=1
+    :36 [stem/stem_weak] { rule: 'table-baseline-align', paraIndex: 1, controlIndex: 0, tolerance: 10.0 },
+- [code] rhwp-studio/package-lock.json  channel=other binding=mention jev=- rows=2
+    :499 [stem/stem_weak] "bare-abort-controller": "*"
+    :502 [stem/stem_weak] "bare-abort-controller": {
+- [code] rhwp-studio/src/command/commands/format.ts  channel=other binding=mention jev=- rows=2
+    :428 [stem/stem_weak] if (pos.parentParaIndex === undefined || pos.controlIndex === undefined || pos.cellIndex === undefined) return;
+    :429 [stem/stem_weak] const tableCtx = { sec: pos.sectionIndex, ppi: pos.parentParaIndex, ci: pos.controlIndex };
+- [code] rhwp-studio/src/command/commands/insert.ts  channel=other binding=mention jev=- rows=2
+    :308 [stem/stem_weak] const targets = refs.map(r => ({ paraIdx: r.ppi, controlIdx: r.ci }));
+    :313 [stem/stem_weak] ih.selectPictureObject(sec, result.paraIdx, result.controlIdx, 'group');
+- [code] rhwp-studio/src/core/types.ts  channel=other binding=mention jev=- rows=6
+    :69 [stem/stem_weak] controlIndex: number;
+    :98 [stem/stem_weak] controlIndex?: number;
+    :167 [stem/stem_weak] controlIndex?: number;
+- [code] rhwp-studio/src/engine/input-handler-connector.ts  channel=other binding=mention jev=- rows=6
+    :34 [stem/stem_weak] for (const ctrl of layout.controls) {
+    :37 [stem/stem_weak] if (ctrl.secIdx === undefined || ctrl.paraIdx === undefined || ctrl.controlIdx === undefined) continue;
+    :39 [stem/stem_weak] if (excludeRef && ctrl.secIdx === excludeRef.sec && ctrl.paraIdx === excludeRef.ppi && ctrl.controlIdx === excludeRef.ci) continue;
+- [code] rhwp-studio/src/engine/input-handler-text.ts  channel=other binding=mention jev=- rows=4
+    :139 [stem/stem_weak] const ci = pos.controlIndex!;
+    :229 [stem/stem_weak] return this.wasm.getTextInCell(pos.sectionIndex, pos.parentParaIndex, pos.controlIndex!, pos.cellIndex!, pos.cellParaIndex!, pos.charOffset, count);
+    :411 [stem/stem_weak] const { sectionIndex: sec, parentParaIndex: ppi, controlIndex: ci, cellIndex: cei, cellParaIndex: cpi, charOffset } = pos;
+- [code] rhwp-studio/src/engine/selection-rects.ts  channel=other binding=mention jev=- rows=3
+    :7 [stem/stem_weak] controlIndex: number;
+    :163 [stem/stem_weak] run.controlIdx !== range.controlIndex ||
+    :200 [stem/stem_weak] return runEntry?.controlIndex === entry.controlIndex &&
+- [code] rhwp-studio/src/hwpctl/index.ts  channel=other binding=mention jev=- rows=7
+    :189 [stem/stem_weak] * @param controlIdx 표 컨트롤 인덱스 (기본 0)
+    :191 [stem/stem_weak] SetCellText(tableParaIdx: number, row: number, col: number, text: string, colCount: number, controlIdx = 0): boolean {
+    :195 [stem/stem_weak] this.cursorSection, tableParaIdx, controlIdx, cellIdx, 0, 0, text,
+- [code] rhwp-studio/src/styles/base.css  channel=other binding=mention jev=- rows=3
+    :74 [stem/stem_weak] --control-height-sm: 22px;
+    :75 [stem/stem_weak] --control-height-md: 26px;
+    :76 [stem/stem_weak] --control-height-lg: 28px;
+- [code] rhwp-studio/src/ui/section-settings-dialog.ts  channel=other binding=mention jev=- rows=2
+    :246 [stem/stem_weak] private labeledRowSimple(labelText: string, control: HTMLElement, unitText?: string): HTMLDivElement {
+    :255 [stem/stem_weak] row.appendChild(control);
+- [code] src/document_core/converters/common_obj_attr_writer.rs  channel=other binding=mention jev=- rows=5
+    :3 [basename/mention] //! HWP 직렬화기 (`serializer/control.rs:349`) 는 `table.raw_ctrl_data` 를 그대로 기록한다.
+    :6 [stem/stem_weak] //! 본 모듈은 [`crate::parser::control::shape::parse_common_obj_attr`] 의 역방향이며,
+    :16 [stem/stem_weak] /// 레이아웃 (parser/control/shape.rs:247 `parse_common_obj_attr` 의 역방향):
+- [code] src/document_core/converters/diagnostics.rs  channel=other binding=mention jev=- rows=2
+    :10 [stem/stem_weak] use crate::model::control::Control;
+    :126 [stem/stem_weak] for (ctrl_idx, ctrl) in para.controls.iter().enumerate() {
+- [code] src/document_core/mod.rs  channel=other binding=mention jev=- rows=5
+    :64 [stem/stem_weak] pub(crate) show_control_codes: bool,
+    :102 [stem/stem_weak] /// (section_idx, para_idx, field_control_idx)
+    :119 [stem/stem_weak] /// field_ranges의 control_idx (controls[] 내 Field 컨트롤 인덱스)
+- [code] src/document_core/queries/search_query.rs  channel=other binding=mention jev=- rows=3
+    :8 [stem/stem_weak] use crate::model::control::Control;
+    :76 [stem/stem_weak] for (ctrl_idx, ctrl) in para.controls.iter().enumerate() {
+    :235 [stem/stem_weak] let cell_para = match para.controls.get_mut(ctrl_idx) {
+- [code] src/document_core/validation.rs  channel=other binding=mention jev=- rows=1
+    :22 [stem/stem_weak] /// 부모 문단의 `controls[]` 내 Table 컨트롤 인덱스
+- [code] src/model/control.rs  channel=other binding=mention jev=- rows=1
+    :418 [stem/stem_weak] fn test_control_variants() {
+- [code] src/model/mod.rs  channel=other binding=mention jev=- rows=1
+    :7 [stem/stem_weak] pub mod control;
+- [code] src/model/paragraph/tests.rs  channel=other binding=mention jev=- rows=1
+    :8 [stem/stem_weak] assert!(para.controls.is_empty());
+- [code] src/model/path.rs  channel=other binding=mention jev=- rows=3
+    :26 [stem/stem_weak] /// 기존 3-tuple (parent_para_idx, control_idx)에서 DocumentPath를 생성한다.
+    :27 [stem/stem_weak] pub fn path_from_flat(parent_para_idx: usize, control_idx: usize) -> DocumentPath {
+    :30 [stem/stem_weak] PathSegment::Control(control_idx),
+- [code] src/model/shape.rs  channel=other binding=mention jev=- rows=1
+    :443 [stem/stem_weak] pub control_points: Vec<ConnectorControlPoint>,
+- [code] src/model/table.rs  channel=other binding=mention jev=- rows=1
+    :700 [stem/stem_weak] control_mask: para.control_mask,
+- [code] src/parser/control/shape.rs  channel=other binding=mention jev=- rows=5
+    :6 [stem/stem_weak] use crate::model::control::Control;
+    :27 [stem/stem_weak] pub(crate) fn parse_gso_control(ctrl_data: &[u8], child_records: &[Record]) -> Control {
+    :850 [stem/stem_weak] let mut control_points = Vec::with_capacity(count);
+- [code] src/renderer/composer/lineseg_compare_tests.rs  channel=other binding=mention jev=- rows=2
+    :116 [stem/stem_weak] use crate::model::control::Control;
+    :123 [stem/stem_weak] for ctrl in &para.controls {
+- [code] src/renderer/composer/tests.rs  channel=other binding=mention jev=- rows=6
+    :160 [stem/stem_weak] assert!(composed.inline_controls.is_empty());
+    :213 [stem/stem_weak] fn test_identify_inline_controls_table() {
+    :218 [stem/stem_weak] controls: vec![Control::Table(Box::new(Table::default()))],
+- [code] src/renderer/html.rs  channel=other binding=mention jev=- rows=5
+    :22 [stem/stem_weak] pub show_control_codes: bool,
+    :32 [stem/stem_weak] show_control_codes: false,
+    :125 [stem/stem_weak] if self.show_paragraph_marks || self.show_control_codes {
+- [code] src/renderer/layout/table_cell_content.rs  channel=other binding=mention jev=- rows=6
+    :17 [stem/stem_weak] use crate::model::control::Control;
+    :283 [stem/stem_weak] control_index: ctrl_ci,
+    :494 [stem/stem_weak] control_index: None,
+- [code] src/renderer/layout/tests.rs  channel=other binding=mention jev=- rows=6
+    :584 [stem/stem_weak] use crate::model::control::Control;
+    :659 [stem/stem_weak] controls: vec![Control::Table(Box::new(table))],
+    :685 [stem/stem_weak] control_index: 0,
+- [code] src/renderer/mod.rs  channel=other binding=mention jev=- rows=1
+    :571 [stem/stem_weak] use crate::model::control::AutoNumberType;
+- [code] src/serializer/cfb_writer/tests.rs  channel=other binding=mention jev=- rows=2
+    :515 [stem/stem_weak] fn test_delete_table_control_roundtrip() {
+    :529 [stem/stem_weak] let result = doc.delete_table_control_native(0, 3, 0);
+- [code] src/serializer/hwpx/field.rs  channel=other binding=mention jev=- rows=2
+    :18 [stem/stem_weak] use crate::model::control::{Bookmark, Field, FieldType, Hyperlink};
+    :147 [stem/stem_weak] use crate::model::control::{Bookmark, Field, FieldType, Hyperlink};
+- [code] src/serializer/hwpx/form.rs  channel=other binding=mention jev=- rows=1
+    :7 [stem/stem_weak] use crate::model::control::{FormObject, FormType};
+- [code] src/serializer/mod.rs  channel=other binding=mention jev=- rows=1
+    :9 [stem/stem_weak] pub mod control;
+- [code] src/wmf/converter/mod.rs  channel=other binding=mention jev=- rows=1
+    :136 [stem/stem_weak] // control record
+- [code] src/wmf/parser/constants/enums/layout.rs  channel=other binding=mention jev=- rows=1
+    :1 [stem/stem_weak] /// The Layout Enumeration defines options for controlling the direction in
+- [code] src/wmf/parser/constants/flags/clip_precision.rs  channel=other binding=mention jev=- rows=1
+    :16 [stem/stem_weak] /// This value is used to control font rotation, as follows:
+- [code] src/wmf/parser/objects/graphics/font.rs  channel=other binding=mention jev=- rows=1
+    :71 [stem/stem_weak] /// OUT_TT_PRECIS, and OUT_PS_ONLY_PRECIS values to control how the font
+- [code] src/wmf/parser/records/control/header.rs  channel=other binding=mention jev=- rows=1
+    :45 [stem/stem_weak] pub(in crate::wmf::parser::records::control) fn parse<R: crate::wmf::Read>(
+- [code] src/wmf/parser/records/control/placeable.rs  channel=other binding=mention jev=- rows=1
+    :51 [stem/stem_weak] pub(in crate::wmf::parser::records::control) fn parse<R: crate::wmf::Read>(
+- [code] src/wmf/parser/records/mod.rs  channel=other binding=mention jev=- rows=2
+    :4 [stem/stem_weak] mod control;
+    :10 [stem/stem_weak] pub use self::{bitmap::*, control::*, drawing::*, escape::*, object::*, state::*};
+- [code] tests/hwpx_roundtrip_integration.rs  channel=other binding=mention jev=- rows=6
+    :26 [stem/stem_weak] for (ctrl_idx, ctrl) in para.controls.iter().enumerate() {
+    :27 [stem/stem_weak] if matches!(ctrl, rhwp::model::control::Control::Table(_)) {
+    :40 [stem/stem_weak] for ctrl in &para.controls {
+- [code] tests/pagination_square_wrap.rs  channel=other binding=mention jev=- rows=4
+    :1 [stem/stem_weak] use rhwp::model::control::Control;
+    :41 [stem/stem_weak] controls: vec![Control::Table(Box::new(Table {
+    :73 [stem/stem_weak] controls: vec![
+- [code] web/editor.css  channel=other binding=mention jev=- rows=1
+    :37 [stem/stem_weak] .header-controls {
+- [code] web/editor.html  channel=other binding=mention jev=- rows=1
+    :175 [stem/stem_weak] <div class="header-controls">
+- [code] web/format_toolbar.js  channel=other binding=mention jev=- rows=4
+    :254 [stem/stem_weak] if (docPos.parentParaIdx !== undefined && docPos.controlIdx !== undefined &&
+    :257 [stem/stem_weak] docPos.secIdx, docPos.parentParaIdx, docPos.controlIdx,
+    :268 [stem/stem_weak] if (docPos.parentParaIdx !== undefined && docPos.controlIdx !== undefined &&
+- [code] web/index.html  channel=other binding=mention jev=- rows=1
+    :29 [stem/stem_weak] <div class="header-controls">
+- [code] web/style.css  channel=other binding=mention jev=- rows=1
+    :35 [stem/stem_weak] .header-controls {

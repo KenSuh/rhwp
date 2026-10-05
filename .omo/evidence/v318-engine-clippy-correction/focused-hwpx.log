@@ -1,0 +1,110 @@
+warning: function `footnote_emits_autoNum` should have a snake case name
+   --> src/serializer/hwpx/field.rs:192:8
+    |
+192 |     fn footnote_emits_autoNum() {
+    |        ^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `footnote_emits_auto_num`
+    |
+    = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: function `test_merge_then_control_layout_has_colSpan` should have a snake case name
+    --> src/wasm_api/tests.rs:1173:4
+     |
+1173 | fn test_merge_then_control_layout_has_colSpan() {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `test_merge_then_control_layout_has_col_span`
+
+warning: unused `Result` that must be used
+     --> src/wasm_api/tests.rs:11958:5
+      |
+11958 |     doc.insert_text_native(0, 0, 0, "가나다라마바사아");
+      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      |
+      = note: this `Result` may be an `Err` variant, which should be handled
+      = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+help: use `let _ = ...` to ignore the resulting value
+      |
+11958 |     let _ = doc.insert_text_native(0, 0, 0, "가나다라마바사아");
+      |     +++++++
+
+warning: unused `Result` that must be used
+     --> src/wasm_api/tests.rs:16440:5
+      |
+16440 |     doc.convert_to_editable_native();
+      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      |
+      = note: this `Result` may be an `Err` variant, which should be handled
+help: use `let _ = ...` to ignore the resulting value
+      |
+16440 |     let _ = doc.convert_to_editable_native();
+      |     +++++++
+
+warning: `rhwp` (lib test) generated 4 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+     Running unittests src/lib.rs (target/debug/deps/rhwp-aaac856d4c847685)
+
+running 63 tests
+test serializer::hwpx::canonical_defaults::tests::snap_to_grid_is_the_only_true_default ... ok
+test serializer::hwpx::canonical_defaults::tests::numbering_start_is_one ... ok
+test serializer::hwpx::canonical_defaults::tests::cell_span_defaults_are_one ... ok
+test serializer::hwpx::canonical_defaults::tests::run_char_pr_id_ref_unset_is_u32_max ... ok
+test serializer::hwpx::canonical_defaults::tests::fontface_lang_names_match_indices ... ok
+test serializer::hwpx::field::tests::field_type_str_covers_main_variants ... ok
+test serializer::hwpx::context::tests::mime_from_ext_covers_common_formats ... ok
+test serializer::hwpx::fixtures::tests::templates_are_not_empty ... ok
+test serializer::hwpx::picture::tests::image_effect_maps_to_string ... ok
+test serializer::hwpx::fixtures::tests::empty_header_contains_hh_head_root ... ok
+test serializer::hwpx::field::tests::field_end_references_begin_id ... ok
+test serializer::hwpx::field::tests::footnote_emits_autoNum ... ok
+test serializer::hwpx::field::tests::bookmark_emits_name ... ok
+test serializer::hwpx::field::tests::field_begin_emits_type_attr ... ok
+test serializer::hwpx::field::tests::hyperlink_begin_uses_url_command ... ok
+test serializer::hwpx::roundtrip::tests::ir_diff_empty_default ... ok
+test serializer::hwpx::context::tests::empty_doc_passes_ref_resolution ... ok
+test serializer::hwpx::context::tests::empty_doc_has_no_registered_ids ... ok
+test serializer::hwpx::roundtrip::tests::diff_documents_empty_is_empty ... ok
+test serializer::hwpx::roundtrip::tests::diff_documents_detects_section_count ... ok
+test serializer::hwpx::context::tests::id_pool_register_reference_roundtrip ... ok
+test serializer::hwpx::context::tests::unresolved_char_pr_fails ... ok
+test serializer::hwpx::picture::tests::unresolved_bin_data_id_errors ... ok
+test serializer::hwpx::picture::tests::img_uses_manifest_id ... ok
+test serializer::hwpx::picture::tests::rendering_info_has_three_matrices ... ok
+test serializer::hwpx::picture::tests::img_rect_has_four_points ... ok
+test serializer::hwpx::picture::tests::pic_root_attrs_in_canonical_order ... ok
+test serializer::hwpx::shape::tests::rect_has_canonical_attrs ... ok
+test serializer::hwpx::shape::tests::line_emits_start_end_attrs ... ok
+test serializer::hwpx::shape::tests::rect_emits_root_tag ... ok
+test serializer::hwpx::header::tests::write_header_runs_on_empty_document ... ok
+test serializer::hwpx::shape::tests::rect_has_sz_pos_out_margin ... ok
+test serializer::hwpx::section::tests::hp_p_attrs_reflect_para_shape_id_and_style_id ... ok
+test serializer::hwpx::section::tests::task177_lineseg_reflects_ir_values ... ok
+test serializer::hwpx::section::tests::page_break_paragraph_emits_attr ... ok
+test serializer::hwpx::section::tests::default_paragraph_keeps_zero_attrs ... ok
+test serializer::hwpx::section::tests::task177_fallback_used_when_ir_empty ... ok
+test serializer::hwpx::section::tests::hp_run_reflects_first_char_shape_id ... ok
+test serializer::hwpx::section::tests::task177_ir_lineseg_takes_precedence_over_text ... ok
+test serializer::hwpx::section::tests::task177_multiple_linesegs_preserved_in_order ... ok
+test serializer::hwpx::section::tests::additional_paragraphs_use_their_own_char_shape ... ok
+test serializer::hwpx::table::tests::cell_paragraph_char_shape_runs_are_preserved ... ok
+test serializer::hwpx::table::tests::cell_span_defaults_to_one ... ok
+test serializer::hwpx::table::tests::cells_have_canonical_child_order ... ok
+test serializer::hwpx::table::tests::border_fill_id_ref_registered_in_ctx ... ok
+test serializer::hwpx::table::tests::cell_paragraph_linesegs_are_preserved ... ok
+test serializer::hwpx::table::tests::cell_addr_reflects_coordinates ... ok
+test serializer::hwpx::table::tests::tbl_root_attrs_in_canonical_order ... ok
+test serializer::hwpx::table::tests::tc_count_matches_cell_count ... ok
+test serializer::hwpx::table::tests::tr_count_matches_row_count ... ok
+test serializer::hwpx::tests::mimetype_is_first_entry ... ok
+test serializer::hwpx::tests::mimetype_stored_not_deflated ... ok
+test serializer::hwpx::tests::serialize_empty_doc_parses_back ... ok
+test serializer::hwpx::tests::xml_escape_applied_to_section_text ... ok
+test serializer::hwpx::tests::linesegs_emitted_per_linebreak ... ok
+test serializer::hwpx::tests::hancom_required_files_present ... ok
+test serializer::hwpx::tests::multi_paragraph_emits_multiple_hp_p ... ok
+test serializer::hwpx::tests::tab_and_linebreak_emitted_inline ... ok
+test serializer::hwpx::tests::serialize_with_one_section_parses_back ... ok
+test serializer::hwpx::tests::serialize_text_paragraph_roundtrip ... ok
+test serializer::hwpx::header::tests::canonical_attr_order_charpr ... ok
+test serializer::hwpx::header::tests::write_header_preserves_char_shape_count ... ok
+test serializer::hwpx::header::tests::write_header_emits_seven_fontfaces_when_populated ... ok
+
+test result: ok. 63 passed; 0 failed; 0 ignored; 0 measured; 859 filtered out; finished in 0.01s
+

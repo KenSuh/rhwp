@@ -1,0 +1,228 @@
+diff --git a/src/document_core/commands/object_ops.rs b/src/document_core/commands/object_ops.rs
+index 675d40b..00d3367 100644
+--- a/src/document_core/commands/object_ops.rs
++++ b/src/document_core/commands/object_ops.rs
+@@ -2169,7 +2169,7 @@ impl DocumentCore {
+         let row_sizes: Vec<i16> = (0..row_count).map(|_| col_count as i16).collect();
+         let outer_margin: i16 = 283;
+         let mut raw_ctrl_data = vec![0u8; 38];
+-        let flags: u32 = (1 << 0) | (0 << 3) | (3 << 8) | (4 << 15) | (2 << 18) | (1 << 21);
++        let flags: u32 = (1 << 0) | (3 << 8) | (4 << 15) | (2 << 18) | (1 << 21);
+         raw_ctrl_data[0..4].copy_from_slice(&flags.to_le_bytes());
+         raw_ctrl_data[12..16].copy_from_slice(&total_width.to_le_bytes());
+         raw_ctrl_data[16..20].copy_from_slice(&total_height.to_le_bytes());
+diff --git a/src/document_core/commands/table_ops.rs b/src/document_core/commands/table_ops.rs
+index 90d7e2c..a5852ab 100644
+--- a/src/document_core/commands/table_ops.rs
++++ b/src/document_core/commands/table_ops.rs
+@@ -773,10 +773,7 @@ impl DocumentCore {
+             );
+         }
+ 
+-        if let Some(table) = self
+-            .get_table_mut_by_cell_path(section_idx, parent_para_idx, &path)
+-            .ok()
+-        {
++        if let Ok(table) = self.get_table_mut_by_cell_path(section_idx, parent_para_idx, &path) {
+             table.dirty = true;
+         }
+         if let Some(section) = self.document.sections.get_mut(section_idx) {
+diff --git a/src/document_core/queries/cursor_nav.rs b/src/document_core/queries/cursor_nav.rs
+index ed9315c..dc0e518 100644
+--- a/src/document_core/queries/cursor_nav.rs
++++ b/src/document_core/queries/cursor_nav.rs
+@@ -239,9 +239,10 @@ impl DocumentCore {
+ 
+         // ═══ PHASE 3: 목표 위치 결정 ═══
+         // 결과: (sec, para, char_offset, cell_ctx)
+-        let new_pos: (usize, usize, usize, Option<(usize, usize, usize, usize)>);
+-
+-        if target_line >= 0 && (target_line as usize) < line_info.line_count {
++        let new_pos: (usize, usize, usize, Option<(usize, usize, usize, usize)>) = if target_line
++            >= 0
++            && (target_line as usize) < line_info.line_count
++        {
+             // CASE A: 같은 문단 내 다른 줄
+             // PartialParagraph로 같은 문단이 두 칼럼에 걸칠 수 있으므로
+             // 현재 줄과 목표 줄의 칼럼이 다르면 preferredX를 변환한다.
+@@ -261,21 +262,14 @@ impl DocumentCore {
+             let target_range = Self::get_line_char_range(current_para, target_line as usize);
+             let new_offset =
+                 self.find_char_at_x_on_line(sec, para, cell_ctx, target_range, px_for_target)?;
+-            new_pos = (sec, para, new_offset, cell_ctx);
++            (sec, para, new_offset, cell_ctx)
+         } else if cell_ctx.is_some() {
+             // CASE C: 셀 내부 경계
+-            new_pos = self.handle_cell_boundary(
+-                sec,
+-                para,
+-                char_offset,
+-                delta,
+-                actual_px,
+-                cell_ctx.unwrap(),
+-            )?;
++            self.handle_cell_boundary(sec, para, char_offset, delta, actual_px, cell_ctx.unwrap())?
+         } else {
+             // CASE B: 본문 문단/구역 경계
+-            new_pos = self.handle_body_boundary(sec, para, delta, actual_px)?;
+-        }
++            self.handle_body_boundary(sec, para, delta, actual_px)?
++        };
+ 
+         // ═══ PHASE 4: 최종 커서 좌표 계산 + 결과 포맷 ═══
+         let (rect_valid, page_idx, fx, fy, fh) =
+diff --git a/src/document_core/queries/form_query.rs b/src/document_core/queries/form_query.rs
+index 12c86ff..b9ac94a 100644
+--- a/src/document_core/queries/form_query.rs
++++ b/src/document_core/queries/form_query.rs
+@@ -347,8 +347,10 @@ fn decode_hwp_script(extra_streams: &[(String, Vec<u8>)]) -> Option<String> {
+         return None;
+     }
+     let u16s: Vec<u16> = decompressed
+-        .chunks_exact(2)
+-        .map(|c| u16::from_le_bytes([c[0], c[1]]))
++        .as_chunks::<2>()
++        .0
++        .iter()
++        .map(|c| u16::from_le_bytes(*c))
+         .collect();
+     Some(String::from_utf16_lossy(&u16s))
+ }
+diff --git a/src/document_core/queries/rendering.rs b/src/document_core/queries/rendering.rs
+index 64b1321..4d650f2 100644
+--- a/src/document_core/queries/rendering.rs
++++ b/src/document_core/queries/rendering.rs
+@@ -884,9 +884,7 @@ impl DocumentCore {
+ 
+     /// 모든 구역을 dirty로 표시한다.
+     pub(crate) fn mark_all_sections_dirty(&mut self) {
+-        for d in &mut self.dirty_sections {
+-            *d = true;
+-        }
++        self.dirty_sections.fill(true);
+     }
+ 
+     /// Batch 모드가 아닐 때만 paginate를 실행한다.
+@@ -1593,9 +1591,7 @@ impl DocumentCore {
+         }
+ 
+         // para_offset 리셋 (수렴 감지 완료)
+-        for off in &mut self.para_offset {
+-            *off = 0;
+-        }
++        self.para_offset.fill(0);
+ 
+         // 표 dirty 플래그 초기화
+         for section in &mut self.document.sections {
+diff --git a/src/model/style.rs b/src/model/style.rs
+index cc46020..5c2d05d 100644
+--- a/src/model/style.rs
++++ b/src/model/style.rs
+@@ -605,9 +605,7 @@ impl CharShapeMods {
+         }
+         if let Some(id) = self.font_id {
+             // 모든 언어에 동일한 글꼴 ID 적용
+-            for fid in &mut cs.font_ids {
+-                *fid = id;
+-            }
++            cs.font_ids.fill(id);
+         }
+         if let Some(v) = self.base_size {
+             cs.base_size = v;
+diff --git a/src/parser/body_text.rs b/src/parser/body_text.rs
+index 5d380e1..19d2199 100644
+--- a/src/parser/body_text.rs
++++ b/src/parser/body_text.rs
+@@ -880,8 +880,10 @@ fn parse_ctrl_data_field_name(data: &[u8]) -> Option<String> {
+         return None;
+     }
+     let wchars: Vec<u16> = name_bytes[..name_len * 2]
+-        .chunks_exact(2)
+-        .map(|c| u16::from_le_bytes([c[0], c[1]]))
++        .as_chunks::<2>()
++        .0
++        .iter()
++        .map(|c| u16::from_le_bytes(*c))
+         .collect();
+     let name = String::from_utf16_lossy(&wchars);
+     if name.is_empty() {
+diff --git a/src/parser/byte_reader.rs b/src/parser/byte_reader.rs
+index cc5e15e..1851bb0 100644
+--- a/src/parser/byte_reader.rs
++++ b/src/parser/byte_reader.rs
+@@ -113,8 +113,10 @@ impl<'a> ByteReader<'a> {
+         let bytes = self.read_bytes(byte_count)?;
+ 
+         let utf16: Vec<u16> = bytes
+-            .chunks_exact(2)
+-            .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
++            .as_chunks::<2>()
++            .0
++            .iter()
++            .map(|chunk| u16::from_le_bytes(*chunk))
+             .collect();
+ 
+         String::from_utf16(&utf16).map_err(|e| {
+diff --git a/src/parser/control.rs b/src/parser/control.rs
+index 6665ef9..bd2be25 100644
+--- a/src/parser/control.rs
++++ b/src/parser/control.rs
+@@ -394,8 +394,10 @@ fn parse_cell_field_name(extra: &[u8]) -> Option<String> {
+         return None;
+     }
+     let wchars: Vec<u16> = extra[17..17 + name_len * 2]
+-        .chunks_exact(2)
+-        .map(|c| u16::from_le_bytes([c[0], c[1]]))
++        .as_chunks::<2>()
++        .0
++        .iter()
++        .map(|c| u16::from_le_bytes(*c))
+         .collect();
+     let name = String::from_utf16_lossy(&wchars);
+     if name.is_empty() {
+@@ -852,8 +854,10 @@ fn parse_form_control(ctrl_data: &[u8], child_records: &[Record]) -> Control {
+ /// UTF-16LE 바이트를 String으로 디코딩
+ fn decode_utf16le(data: &[u8]) -> String {
+     let u16s: Vec<u16> = data
+-        .chunks_exact(2)
+-        .map(|c| u16::from_le_bytes([c[0], c[1]]))
++        .as_chunks::<2>()
++        .0
++        .iter()
++        .map(|c| u16::from_le_bytes(*c))
+         .collect();
+     String::from_utf16_lossy(&u16s)
+ }
+diff --git a/src/serializer/hwpx/section.rs b/src/serializer/hwpx/section.rs
+index a09f24f..1abd691 100644
+--- a/src/serializer/hwpx/section.rs
++++ b/src/serializer/hwpx/section.rs
+@@ -93,9 +93,9 @@ pub fn write_section(
+         // 템플릿에서 TEXT_SLOT 이 있던 자리 바로 앞의 <hp:run charPrIDRef="0"> 패턴.
+         let first_run_cs = first_run_char_shape_id(p);
+         let new_run = format!(r#"<hp:run charPrIDRef="{}">"#, first_run_cs);
+-        let replacement = format!("{}{}", new_run, &first_t);
++        let replacement = format!("{}{}", new_run, first_t);
+         // 이미 first_t 는 out 에 들어갔으므로 그 직전의 <hp:run charPrIDRef="0"> 만 변경
+-        let anchor = format!("{}{}", r#"<hp:run charPrIDRef="0">"#, &first_t);
++        let anchor = format!("{}{}", r#"<hp:run charPrIDRef="0">"#, first_t);
+         if out.contains(&anchor) {
+             out = out.replacen(&anchor, &replacement, 1);
+         }
+diff --git a/src/wmf/parser/objects/structure/mod.rs b/src/wmf/parser/objects/structure/mod.rs
+index c080731..1aadd6a 100644
+--- a/src/wmf/parser/objects/structure/mod.rs
++++ b/src/wmf/parser/objects/structure/mod.rs
+@@ -39,8 +39,10 @@ fn utf16le_bytes_to_string(bytes: &[u8]) -> Result<String, crate::wmf::parser::P
+     }
+ 
+     let u16_vec = bytes
+-        .chunks_exact(2)
+-        .map(|chunk| u16::from_le_bytes(chunk.try_into().expect("should be converted")))
++        .as_chunks::<2>()
++        .0
++        .iter()
++        .map(|chunk| u16::from_le_bytes(*chunk))
+         .collect::<Vec<_>>();
+ 
+     String::from_utf16(&u16_vec).map_err(|err| crate::wmf::parser::ParseError::UnexpectedPattern {

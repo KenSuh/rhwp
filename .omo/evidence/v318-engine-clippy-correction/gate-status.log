@@ -1,0 +1,3 @@
+  UNMET G3 (unchecked): 전체 cargo clippy -- -D warnings GREEN
+gates/V318_ENGINE_CLIPPY_CORRECTION_GATES.md: 9 gates
+UNMET: 1 (met: 7, abandoned: 1)

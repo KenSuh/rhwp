@@ -1,0 +1,110 @@
+.omo/evidence/v318-engine-clippy-correction/baseline-clippy.log:171: trailing whitespace.
++242 ~         
+.omo/evidence/v318-engine-clippy-correction/command-batch.log:48: new blank line at EOF.
+.omo/evidence/v318-engine-clippy-correction/cursor-line-break.log:48: new blank line at EOF.
+.omo/evidence/v318-engine-clippy-correction/focused-hwpx.log:110: new blank line at EOF.
+.omo/evidence/v318-engine-clippy-correction/focused-parser.log:339: new blank line at EOF.
+.omo/evidence/v318-engine-clippy-correction/impact-10.log:322: trailing whitespace.
++    :33 [stem/stem_weak] pub fn insert_text_in_header_footer(doc: &mut Document, section_idx: usize, is_header: bool, apply_to: u8, para_idx: usize, char_offset: usize, text: 
+.omo/evidence/v318-engine-clippy-correction/impact-10.log:352: trailing whitespace.
++    :67 [stem/link] | [src/document_core/converters/hwpx_to_hwp.rs](src/document_core/converters/hwpx_to_hwp.rs) | `insert_section_def_control(section)` 추가 (PAGE_DEF 살리기 
+.omo/evidence/v318-engine-clippy-correction/impact-10.log:391: trailing whitespace.
++    :13 [stem/link] | [#30](https://github.com/edwardkim/rhwp/issues/30) | 문단 삽입/삭제 후 페이지 수 과도 증가 | 완료 | measure_section off-by-one, TAC 표 높이 불일치, PartialTable v_offset, 
+.omo/evidence/v318-engine-clippy-correction/impact-10.log:529: trailing whitespace.
++    :10 [stem/stem_weak] | 162 | Custom tab stops and tab leader (fill symbol) rendering | Done | Tab position /2.0 scale correction, left/right/center/decimal tab alignment, 
+.omo/evidence/v318-engine-clippy-correction/impact-10.log:531: trailing whitespace.
++    :7 [stem/stem_weak] | 194 | Header/footer management features | Done | Delete, previous/next navigation, hide, toolbar enhancement, section inheritance bug fix, internal 
+.omo/evidence/v318-engine-clippy-correction/impact-10.log:533: trailing whitespace.
++    :10 [stem/stem_weak] | 214 | Single-pass layout engine transition -- Phase 1: Paragraph typesetting | Done | TypesetEngine (typeset.rs) new. format -> fits -> place/split 
+.omo/evidence/v318-engine-clippy-correction/impact-10.log:539: trailing whitespace.
++    :21 [stem/stem_weak] | 325 | Cross-section paragraph number continuity fix | Done | Number replay includes previous section pages. exam_social page 2 starts from number 6 
+.omo/evidence/v318-engine-clippy-correction/impact-10.log:542: trailing whitespace.
++    :21 [stem/stem_weak] | 325 | Cross-section paragraph number continuity fix | Done | Number replay includes previous section pages. exam_social page 2 starts from number 6 
+.omo/evidence/v318-engine-clippy-correction/impact-10.log:792: trailing whitespace.
++    :72 [stem/stem_weak] Therefore, MSB=1 was required in the empty document case because the table paragraph was the only (= last) paragraph in the section. MSB=0 was needed 
+.omo/evidence/v318-engine-clippy-correction/impact-10.log:795: trailing whitespace.
++    :102 [stem/stem_weak] However, the cross-reference errors and section title mismatches in the spec document could cause similar mistakes in future parsing work, so caution 
+.omo/evidence/v318-engine-clippy-correction/impact-5.log:217: trailing whitespace.
++    :5 [stem/stem_weak] In Task 89, the HWPX parser was implemented enabling basic parsing and rendering. However, comparison with the python-hwpx reference parser and OWPML 
+.omo/evidence/v318-engine-clippy-correction/impact-5.log:423: trailing whitespace.
++    :24 [stem/stem_weak] | B-006 | Multi-column editing design (pagination + DocumentPosition extension) | 2026-02-18 | Unresolved | Currently multi-column supports rendering 
+.omo/evidence/v318-engine-clippy-correction/impact-5.log:427: trailing whitespace.
++    :15 [stem/stem_weak] | B-006 | Multi-column editing design (pagination + DocumentPosition extension) | 2026-02-18 | Unresolved | Currently multi-column supports rendering 
+.omo/evidence/v318-engine-clippy-correction/impact-5.log:430: trailing whitespace.
++    :10 [stem/stem_weak] | 162 | Custom tab stops and tab leader (fill symbol) rendering | Done | Tab position /2.0 scale correction, left/right/center/decimal tab alignment, 
+.omo/evidence/v318-engine-clippy-correction/impact-5.log:431: trailing whitespace.
++    :16 [stem/stem_weak] | B-006 | Multi-column editing design (pagination + DocumentPosition extension) | 2026-02-18 | Unresolved | Currently multi-column supports rendering 
+.omo/evidence/v318-engine-clippy-correction/impact-5.log:433: trailing whitespace.
++    :5 [stem/stem_weak] Implement field insertion (page number, total pages, filename) in header/footer editing mode, rendering with actual values at display time. Implement 
+.omo/evidence/v318-engine-clippy-correction/impact-5.log:451: trailing whitespace.
++    :15 [stem/stem_weak] | B-006 | Multi-column editing design (pagination + DocumentPosition extension) | 2026-02-18 | Done | Currently multi-column supports rendering only. 
+.omo/evidence/v318-engine-clippy-correction/impact-5.log:537: trailing whitespace.
++    :6 [stem/stem_weak] | 140 | Image movement + HWP save compatibility | Done | Keyboard arrow movement (3mm units), mouse drag movement, MovePictureCommand (Undo support), 
+.omo/evidence/v318-engine-clippy-correction/impact-5.log:538: trailing whitespace.
++    :25 [stem/stem_weak] | B-006 | Multi-column editing design (pagination + DocumentPosition extension) | 2026-02-18 | Unresolved | Currently multi-column supports rendering 
+.omo/evidence/v318-engine-clippy-correction/impact-5.log:647: trailing whitespace.
++    :5 [stem/stem_weak] Since the goal is a web document authoring system, not just simple rendering but data binding through external APIs is the core requirement. Hancom's 
+.omo/evidence/v318-engine-clippy-correction/impact-5.log:696: trailing whitespace.
++    :21 [stem/stem_weak] | Rendering | CSS zoom applied after WASM rendering -- possible mismatch between WASM canvas size and PageInfo size | canvas-view.ts:103-122 | Medium 
+.omo/evidence/v318-engine-clippy-correction/impact-5.log:937: trailing whitespace.
++    :37 [stem/stem_weak] - `src/renderer/layout.rs`: Added `measured_table: Option<&MeasuredTable>` to `layout_table()` signature. Uses MeasuredTable.row_heights directly for 
+.omo/evidence/v318-engine-clippy-correction/impact-5.log:976: trailing whitespace.
++    :5 [stem/stem_weak] Comprehensively enhanced `TableCellPropsDialog` UI referencing Hancom's table/cell properties dialog. Created separate cell border/background dialog. 
+.omo/evidence/v318-engine-clippy-correction/impact-5.log:1032: trailing whitespace.
++    :118 [stem/stem_weak] | Design Doc Section 7 | `mydocs/plans/task_44_architecture.md` S7 | Selection/input system (selection model, input handling, IME Korean composition, 
+.omo/evidence/v318-engine-clippy-correction/impact-5.log:1070: trailing whitespace.
++    :5 [stem/stem_weak] Fixed an issue where table cell heights were rendered larger than actual HWP. Additionally fixed trailing line_spacing handling during cell rendering 
+.omo/evidence/v318-engine-clippy-correction/impact-9.log:94: trailing whitespace.
++    :67 [stem/link] | [src/document_core/converters/hwpx_to_hwp.rs](src/document_core/converters/hwpx_to_hwp.rs) | `insert_section_def_control(section)` 추가 (PAGE_DEF 살리기 
+.omo/evidence/v318-engine-clippy-correction/impact-9.log:220: trailing whitespace.
++    :52 [stem/stem_weak] | `control_mask` recalculation | "Control mask" (Table 60) | Must be dynamically recalculated from controls within the paragraph on save | **Controls 
+.omo/evidence/v318-engine-clippy-correction/impact-9.log:535: trailing whitespace.
++    :10 [stem/stem_weak] | 40 | HWP save basic feature implementation | Done | Spec cross-validation, text/table/image/table+image FROM SCRATCH save HWP open confirmed, other 
+.omo/evidence/v318-engine-clippy-correction/impact-9.log:575: trailing whitespace.
++    :5 [stem/stem_weak] | 241 | HWPTAG_CTRL_DATA full cross-check (vs hwplib) | Done | Nested structure bookmark collection, CTRL_DATA ParameterSet creation/synchronization, 
+.omo/evidence/v318-engine-clippy-correction/impact-9.log:683: trailing whitespace.
++    :5 [stem/stem_weak] Since the goal is a web document authoring system, not just simple rendering but data binding through external APIs is the core requirement. Hancom's 
+.omo/evidence/v318-engine-clippy-correction/impact-9.log:720: trailing whitespace.
++    :5 [stem/stem_weak] Implement the mechanism for selecting control objects such as tables/images/shapes, and the ability to select table cells as units. This feature is a 
+.omo/evidence/v318-engine-clippy-correction/impact-9.log:1131: trailing whitespace.
++    :5 [stem/stem_weak] A task to add controls one by one to an empty HWP document, save, and verify that Hancom word processor opens them correctly, while writing technical 
+.omo/evidence/v318-engine-clippy-correction/impact-9.log:1135: trailing whitespace.
++    :5 [stem/stem_weak] Improve the quality of Table controls generated by the `parse_table_html()` function so that HWP files saved after pasting can be opened correctly in 
+.omo/evidence/v318-engine-clippy-correction/impact-9.log:1163: trailing whitespace.
++    :65 [stem/stem_weak] getTextInCell(section_idx: number, parent_para_idx: number, control_idx: number, cell_idx: number, cell_para_idx: number, char_offset: number, count: 
+.omo/evidence/v318-engine-clippy-correction/impact-9.log:1192: trailing whitespace.
++    :13 [basename/mention] | `src/model/control.rs` | Added number/user_symbol/prefix_char/suffix_char fields to AutoNumber, added user_symbol/prefix_char/suffix_char/dash_char 
+.omo/evidence/v318-engine-clippy-correction/impact-9.log:1777: trailing whitespace.
++    :65 [stem/stem_weak] getTextInCell(section_idx: number, parent_para_idx: number, control_idx: number, cell_idx: number, cell_para_idx: number, char_offset: number, count: 
+.omo/evidence/v318-engine-clippy-correction/impact-9.log:1795: trailing whitespace.
++    :13 [basename/mention] | `src/model/control.rs` | AutoNumber에 number/user_symbol/prefix_char/suffix_char 필드 추가, PageNumberPos에 user_symbol/prefix_char/suffix_char/dash_char 
+.omo/evidence/v318-engine-clippy-correction/inline-table.log:48: new blank line at EOF.
+.omo/evidence/v318-engine-clippy-correction/model-style.log:50: new blank line at EOF.
+.omo/evidence/v318-engine-clippy-correction/nested-table.log:48: new blank line at EOF.
+.omo/evidence/v318-engine-clippy-correction/pagedef13.log:21: new blank line at EOF.
+.omo/evidence/v318-engine-clippy-correction/rustfmt.log:4: trailing whitespace.
++ 
+.omo/evidence/v318-engine-clippy-correction/rustfmt.log:13: trailing whitespace.
++ 
+.omo/evidence/v318-engine-clippy-correction/source-diff.log:21: trailing whitespace.
++ 
+.omo/evidence/v318-engine-clippy-correction/source-diff.log:35: trailing whitespace.
++ 
+.omo/evidence/v318-engine-clippy-correction/source-diff.log:71: trailing whitespace.
++ 
+.omo/evidence/v318-engine-clippy-correction/source-diff.log:96: trailing whitespace.
++ 
+.omo/evidence/v318-engine-clippy-correction/source-diff.log:104: trailing whitespace.
++ 
+.omo/evidence/v318-engine-clippy-correction/source-diff.log:108: trailing whitespace.
++ 
+.omo/evidence/v318-engine-clippy-correction/source-diff.log:114: trailing whitespace.
++ 
+.omo/evidence/v318-engine-clippy-correction/source-diff.log:155: trailing whitespace.
++ 
+.omo/evidence/v318-engine-clippy-correction/source-diff.log:164: trailing whitespace.
++ 
+.omo/evidence/v318-engine-clippy-correction/source-diff.log:218: trailing whitespace.
++ 
+.omo/evidence/v318-engine-clippy-correction/source-diff.log:227: trailing whitespace.
++ 

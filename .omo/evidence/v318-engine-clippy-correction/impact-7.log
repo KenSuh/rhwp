@@ -1,0 +1,270 @@
+IMPACT at=code:3033ae22c9031919757be1357a998471e67f1fab@3033ae22c903 query="src/parser/body_text.rs" mode=path jev=used(cache) jev_threshold=0.45 files=89 rows=338 det_ms=508 total_ms=509 jev_requests=0 jev_http_attempts=0 jev_input_tokens=0
+- [code] mydocs/working/archives/task_3_step_4.md  channel=doc binding=mention jev=0.59★ rows=7
+    :11 [path/mention] | `src/parser/body_text.rs` | 수정 | parse_paragraph/parse_paragraph_list 공개, 컨트롤 위임 |
+    :20 [basename/mention] body_text.rs의 `parse_ctrl_header`에서 secd/cold 이외의 컨트롤을 위임받아 파싱한다.
+    :87 [basename/mention] #### body_text.rs 변경사항
+- [code] src/serializer/control/tests.rs  channel=other binding=mention jev=0.55★ rows=10
+    :5 [stem/stem_weak] use crate::parser::body_text::parse_body_text_section;
+    :6 [stem/stem_weak] use crate::serializer::body_text::serialize_section;
+    :52 [stem/stem_weak] let parsed = parse_body_text_section(&bytes).unwrap();
+- [code] src/serializer/body_text.rs  channel=other binding=mention jev=0.54★ rows=13
+    :3 [stem/stem_weak] //! `parser::body_text`의 역방향으로, Section/Paragraph를 레코드 스트림으로 변환한다.
+    :502 [stem/stem_weak] use crate::parser::body_text::parse_body_text_section;
+    :532 [stem/stem_weak] let parsed = parse_body_text_section(&bytes).unwrap();
+- [code] src/parser/control/shape.rs  channel=other binding=mention jev=0.53★ rows=1
+    :16 [stem/stem_weak] use crate::parser::body_text::parse_paragraph_list;
+- [code] src/serializer/cfb_writer/tests.rs  channel=other binding=mention jev=0.53★ rows=8
+    :227 [stem/stem_weak] let section_data = cfb.read_body_text_section(0, false, false).unwrap();
+    :228 [stem/stem_weak] let parsed_section = crate::parser::body_text::parse_body_text_section(&section_data).unwrap();
+    :295 [stem/stem_weak] let section_data = cfb.read_body_text_section(0, true, false).unwrap();
+- [code] tests/hwpx_roundtrip_integration.rs  channel=other binding=mention jev=0.47★ rows=1
+    :414 [stem/stem_weak] fn phase1_body_text_edit_export_hwpx_reparse_smoke() {
+- [code] src/wasm_api/tests.rs  channel=other binding=mention jev=0.45★ rows=83
+    :1237 [stem/stem_weak] .read_body_text_section(0, doc.header.compressed, false)
+    :1290 [stem/stem_weak] .read_body_text_section(0, new_doc.header.compressed, false)
+    :1434 [stem/stem_weak] .read_body_text_section(0, baseline_parsed.header.compressed, false)
+- [code] mydocs/plans/archives/task_142_impl.md  channel=doc binding=mention jev=0.44 rows=6
+    :28 [path/mention] | `src/parser/body_text.rs` | 1,429 | 5단계 |
+    :295 [basename/mention] ### 5-A. parser/body_text.rs (1,429줄)
+    :299 [basename/mention] ├── body_text.rs         ← parse_body_text_section(), 레코드 트리 처리 (~500줄)
+- [code] mydocs/working/task_240_stage4.md  channel=doc binding=mention jev=0.43 rows=1
+    :32 [basename/mention] ### body_text.rs (버그 수정)
+- [code] src/main.rs  channel=other binding=mention jev=0.41 rows=1
+    :2110 [stem/stem_weak] let section = match cfb.read_body_text_section(0, compressed, false) {
+- [code] mydocs/working/archives/task_23_step3.md  channel=doc binding=mention jev=0.40 rows=3
+    :5 [basename/mention] ### 3-1. `src/serializer/body_text.rs` (약 380줄)
+    :51 [stem/stem_weak] `pub mod body_text;`와 `pub mod control;` 추가.
+    :61 [stem/stem_weak] | body_text | 13개 | 라운드트립: 단순 텍스트, 한글, 탭, 줄바꿈, 빈 문단, 복수 문단, char_shape, line_seg, range_tag, 컨트롤 문자, break_type, 컨트롤 코드 매핑 |
+- [code] src/document_core/converters/hwpx_to_hwp.rs  channel=other binding=mention jev=0.38 rows=1
+    :7 [basename/mention] //! - **HWP 직렬화기 0줄 수정**: `serializer/cfb_writer.rs`, `body_text.rs`,
+- [code] mydocs/eng/plans/archives/task_121.md  channel=doc binding=mention jev=0.37 rows=1
+    :52 [path/mention] | `src/parser/body_text.rs` | Modify | Add horizontal_align field to section definition parser |
+- [code] src/parser/control.rs  channel=other binding=mention jev=0.37 rows=3
+    :4 [stem/stem_weak] //! 셀, 머리말/꼬리말 등의 내부 문단은 body_text::parse_paragraph_list로 재귀 처리.
+    :6 [stem/stem_weak] use super::body_text::parse_paragraph_list;
+    :32 [stem/stem_weak] /// body_text::parse_ctrl_header에서 secd/cold 이외의 컨트롤을 위임받는다.
+- [code] mydocs/working/archives/task_91_step1.md  channel=doc binding=mention jev=0.34 rows=2
+    :15 [path/mention] **수정**: `src/parser/body_text.rs`
+    :55 [path/mention] | `src/parser/body_text.rs` | ColumnDef 파싱: 스펙(표 141) 기준 비트필드 수정 + 테스트 |
+- [code] src/serializer/control.rs  channel=other binding=mention jev=0.34 rows=2
+    :3 [stem/stem_weak] //! `parser::body_text::parse_ctrl_header` + `parser::control::parse_control`의 역방향.
+    :6 [stem/stem_weak] use super::body_text::serialize_paragraph_list;
+- [code] src/serializer/mod.rs  channel=other binding=mention jev=0.31 rows=1
+    :6 [stem/stem_weak] pub mod body_text;
+- [code] mydocs/plans/task_m100_178_impl.md  channel=doc binding=mention jev=0.27 rows=8
+    :29 [basename/mention] | HWP 직렬화기 (`serializer/cfb_writer.rs`, `body_text.rs`, `control.rs`) | HWP→HWP 라운드트립 정상 | 출력 |
+    :34 [basename/mention] 1. **HWP 직렬화기 코드 0줄 수정** — `serializer/cfb_writer.rs`, `body_text.rs`, `control.rs`, `header.rs`, `doc_info.rs` 중 어느 하나라도 수정 PR 이 발생하면 본 타스크 범위 위반. (필
+    :65 [basename/mention] `src/serializer/cfb_writer.rs`, `body_text.rs`, `control.rs` 는 **단 한 줄도 수정하지 않는다**. 안정성 보존.
+- [code] mydocs/eng/orders/20260221.md  channel=doc binding=mention jev=0.25 rows=1
+    :14 [stem/stem_weak] | 134 | CFB error file recovery open | Done | "Malformed FAT (sector 0 pointed to twice)" error file opened normally with LenientCfbReader fallback. p
+- [code] src/parser/body_text/tests.rs  channel=other binding=mention jev=0.25 rows=7
+    :235 [stem/stem_weak] let section = parse_body_text_section(&section_bytes).unwrap();
+    :256 [stem/stem_weak] let section = parse_body_text_section(&section_bytes).unwrap();
+    :300 [stem/stem_weak] let section = parse_body_text_section(&section_bytes).unwrap();
+- [code] src/parser/cfb_reader.rs  channel=other binding=mention jev=0.25 rows=5
+    :100 [stem/stem_weak] pub fn read_body_text_section(
+    :541 [stem/stem_weak] pub fn read_body_text_section(
+    :565 [stem/stem_weak] pub fn read_body_text_section_full(
+- [code] src/serializer/cfb_writer.rs  channel=other binding=mention jev=0.25 rows=1
+    :17 [stem/stem_weak] use super::body_text::serialize_section;
+- [code] mydocs/eng/tech/hwp_spec_errata.md  channel=doc binding=mention jev=0.21 rows=8
+    :58 [path/mention] | Modified file | `src/parser/body_text.rs` |
+    :171 [path/mention] | Modified files | `src/parser/body_text.rs`, `src/model/page.rs`, `src/renderer/page_layout.rs`, `src/serializer/control.rs` |
+    :368 [path/mention] | Modified files | `src/model/paragraph.rs` (`tab_extended`), `src/parser/body_text.rs`, `src/serializer/body_text.rs` |
+- [code] mydocs/tech/hwp_spec_errata.md  channel=doc binding=mention jev=0.21 rows=8
+    :58 [path/mention] | 수정 파일 | `src/parser/body_text.rs` |
+    :171 [path/mention] | 수정 파일 | `src/parser/body_text.rs`, `src/model/page.rs`, `src/renderer/page_layout.rs`, `src/serializer/control.rs` |
+    :368 [path/mention] | 수정 파일 | `src/model/paragraph.rs` (`tab_extended`), `src/parser/body_text.rs`, `src/serializer/body_text.rs` |
+- [code] mydocs/working/archives/task_195_final.md  channel=doc binding=mention jev=0.21 rows=2
+    :52 [stem/stem_weak] - 회귀 테스트 `test_body_text_after_hf_template` 추가
+    :134 [stem/stem_weak] | char_count 갱신 회귀 테스트 (`test_body_text_after_hf_template`) | 통과 |
+- [code] mydocs/working/archives/task_4_step_2.md  channel=doc binding=mention jev=0.20 rows=1
+    :16 [path/mention] | `src/parser/body_text.rs` | ~50줄 수정 | `parse_para_text()` → `(String, Vec<u32>)` 반환, 위치 매핑 생성 |
+- [code] mydocs/eng/plans/archives/task_23.md  channel=doc binding=mention jev=0.19 rows=1
+    :33 [basename/mention] | `src/serializer/body_text.rs` | New: Section/Paragraph serialization |
+- [code] mydocs/eng/working/archives/task_23_step3.md  channel=doc binding=mention jev=0.19 rows=3
+    :5 [basename/mention] ### 3-1. `src/serializer/body_text.rs` (~380 lines)
+    :51 [stem/stem_weak] Added `pub mod body_text;` and `pub mod control;`.
+    :61 [stem/stem_weak] | body_text | 13 | Round-trip: simple text, Korean, tab, line break, empty paragraph, multiple paragraphs, char_shape, line_seg, range_tag, control ch
+- [code] mydocs/working/archives/task_40_final.md  channel=doc binding=mention jev=0.19 rows=1
+    :61 [basename/mention] | `src/serializer/body_text.rs` | raw_break_type 보존 수정 |
+- [code] src/document_core/commands/header_footer_ops.rs  channel=other binding=mention jev=0.19 rows=1
+    :1441 [stem/stem_weak] fn test_body_text_after_hf_template() {
+- [code] src/parser/mod.rs  channel=other binding=mention jev=0.19 rows=9
+    :9 [stem/stem_weak] //! 4. BodyText 파싱 → 섹션/문단 (body_text)
+    :19 [stem/stem_weak] pub mod body_text;
+    :68 [stem/stem_weak] BodyTextError(body_text::BodyTextError),
+- [code] mydocs/eng/working/task_232_final.md  channel=doc binding=mention jev=0.18 rows=1
+    :48 [basename/mention] | `src/serializer/body_text.rs` | Control::Form char code mapping |
+- [code] mydocs/plans/archives/task_121.md  channel=doc binding=mention jev=0.18 rows=3
+    :156 [path/mention] **파일**: `src/parser/body_text.rs` (parse_section_def)
+    :168 [path/mention] **파일**: `src/parser/body_text.rs` (test_parse_section_with_section_def)
+    :191 [path/mention] | `src/parser/body_text.rs` | 수정 | 구역정의 파서 horizontal_align 필드 추가 |
+- [code] mydocs/report/task_133_final.md  channel=doc binding=mention jev=0.18 rows=3
+    :15 [basename/mention] | 빈 문단 has_para_text 불일치 → 파일 손상 | cc ≤ 1이고 콘텐츠 없으면 PARA_TEXT 생략 | `src/serializer/body_text.rs` |
+    :16 [basename/mention] | control_mask 고아 → 파일 손상 | 직렬화 시 controls 배열에서 control_mask 재계산 | `src/serializer/body_text.rs` |
+    :55 [basename/mention] | `src/serializer/body_text.rs` | compute_control_mask() + has_para_text 보정 |
+- [code] mydocs/working/archives/task_122_report.md  channel=doc binding=mention jev=0.18 rows=2
+    :78 [path/mention] | src/parser/body_text.rs | SectionDef.outline_numbering_id 저장 |
+    :36 [basename/mention] - 파서: 바이트 14-15에서 outline_numbering_id 저장 (body_text.rs)
+- [code] mydocs/eng/troubleshootings/cell_split_save_corruption.md  channel=doc binding=mention jev=0.17 rows=3
+    :72 [basename/mention] **File**: `src/serializer/body_text.rs`
+    :98 [basename/mention] **File**: `src/serializer/body_text.rs`
+    :119 [basename/mention] | `src/serializer/body_text.rs` | Added `compute_control_mask()`, modified `serialize_paragraph_with_msb()` |
+- [code] mydocs/plans/archives/task_95_impl.md  channel=doc binding=mention jev=0.17 rows=1
+    :10 [path/mention] - `src/parser/body_text.rs`: `parse_section_def()` 수정
+- [code] mydocs/working/archives/task_4_step_4.md  channel=doc binding=mention jev=0.17 rows=2
+    :13 [path/mention] | `src/parser/body_text.rs` | ~5줄 수정 | FootnoteShape 28바이트 파싱 수정 |
+    :53 [basename/mention] **2. FootnoteShape 바이트 정렬 (body_text.rs)**
+- [code] mydocs/working/task_232_final.md  channel=doc binding=mention jev=0.17 rows=1
+    :48 [basename/mention] | `src/serializer/body_text.rs` | Control::Form char code 매핑 |
+- [code] mydocs/eng/report/task_3_final.md  channel=doc binding=mention jev=0.16 rows=3
+    :31 [path/mention] | body_text | `src/parser/body_text.rs` | 920 | BodyText section/paragraph parsing |
+    :49 [stem/stem_weak] +-- Parse BodyText sections (body_text + control)
+    :121 [stem/stem_weak] | parser/body_text | 20 |
+- [code] mydocs/eng/working/archives/task_40_final.md  channel=doc binding=mention jev=0.16 rows=1
+    :61 [basename/mention] | `src/serializer/body_text.rs` | raw_break_type preservation fix |
+- [code] mydocs/plans/archives/task_122_impl.md  channel=doc binding=mention jev=0.16 rows=4
+    :82 [path/mention] **src/parser/body_text.rs** (라인 429)
+    :129 [path/mention] | src/parser/body_text.rs | 6 | SectionDef numbering_id 저장 |
+    :91 [basename/mention] **src/serializer/body_text.rs**
+- [code] mydocs/troubleshootings/cell_split_save_corruption.md  channel=doc binding=mention jev=0.16 rows=3
+    :72 [basename/mention] **파일**: `src/serializer/body_text.rs`
+    :98 [basename/mention] **파일**: `src/serializer/body_text.rs`
+    :119 [basename/mention] | `src/serializer/body_text.rs` | `compute_control_mask()` 추가, `serialize_paragraph_with_msb()` 수정 |
+- [code] mydocs/working/archives/task_142_step0.md  channel=doc binding=mention jev=0.16 rows=1
+    :76 [path/mention] | `src/parser/body_text.rs` | 1,429 | Phase 5 |
+- [code] mydocs/eng/plans/archives/task_122_impl.md  channel=doc binding=mention jev=0.15 rows=1
+    :81 [path/mention] **src/parser/body_text.rs** (line 429) — Change `_numbering_id` to `sd.outline_numbering_id`
+- [code] mydocs/eng/plans/archives/task_142_impl.md  channel=doc binding=mention jev=0.15 rows=6
+    :28 [path/mention] | `src/parser/body_text.rs` | 1,429 | Step 5 |
+    :295 [basename/mention] ### 5-A. parser/body_text.rs (1,429 lines)
+    :299 [basename/mention] ├── body_text.rs         ← parse_body_text_section(), record tree processing (~500 lines)
+- [code] mydocs/eng/plans/archives/task_95_impl.md  channel=doc binding=mention jev=0.15 rows=1
+    :10 [path/mention] - `src/parser/body_text.rs`: Modify `parse_section_def()`
+- [code] mydocs/eng/report/task_133_final.md  channel=doc binding=mention jev=0.15 rows=3
+    :15 [basename/mention] | Empty paragraph has_para_text mismatch -> file corruption | Skip PARA_TEXT when cc <= 1 and no content | `src/serializer/body_text.rs` |
+    :16 [basename/mention] | Orphaned control_mask -> file corruption | Recompute control_mask from controls array during serialization | `src/serializer/body_text.rs` |
+    :55 [basename/mention] | `src/serializer/body_text.rs` | compute_control_mask() + has_para_text correction |
+- [code] mydocs/eng/troubleshootings/column_def_proportional_widths.md  channel=doc binding=mention jev=0.15 rows=1
+    :58 [path/mention] ### File: `src/parser/body_text.rs`
+- [code] mydocs/eng/working/archives/task_142_step0.md  channel=doc binding=mention jev=0.15 rows=1
+    :76 [path/mention] | `src/parser/body_text.rs` | 1,429 | Phase 5 |
+- [code] mydocs/eng/working/archives/task_142_step5.md  channel=doc binding=mention jev=0.15 rows=4
+    :5 [basename/mention] Test extraction from parser/body_text.rs, model/paragraph.rs, serializer/doc_info.rs to achieve under 1,200 lines.
+    :9 [basename/mention] ### parser/body_text.rs (1,430 lines → 733 lines)
+    :13 [basename/mention] | `body_text.rs` | 733 | All body text parsing functions |
+- [code] mydocs/eng/working/archives/task_229_final.md  channel=doc binding=mention jev=0.15 rows=4
+    :18 [path/mention] - **`src/parser/body_text.rs`**: Tracked 0x03 (FIELD_BEGIN) / 0x04 (FIELD_END) positions in `parse_para_text()` to generate `FieldRange`, used extende
+    :47 [path/mention] | `src/parser/body_text.rs` | Field range tracking (char_count based), `is_extended_only_ctrl_char()` |
+    :24 [basename/mention] - **`src/serializer/body_text.rs`**: Recorded field ctrl_id accurately during PARA_TEXT serialization
+- [code] mydocs/eng/working/archives/task_3_step_3.md  channel=doc binding=mention jev=0.15 rows=7
+    :9 [path/mention] | `src/parser/body_text.rs` | 866 | BodyText section/paragraph parsing (record tree -> Section/Paragraph) |
+    :15 [basename/mention] #### body_text.rs - Section/Paragraph Parsing
+    :10 [stem/stem_weak] | `src/parser/mod.rs` | +2 | body_text module registration |
+- [code] mydocs/eng/working/archives/task_3_step_4.md  channel=doc binding=mention jev=0.15 rows=7
+    :11 [path/mention] | `src/parser/body_text.rs` | Modified | parse_paragraph/parse_paragraph_list made public, control delegation |
+    :20 [basename/mention] Receives delegation from body_text.rs `parse_ctrl_header` for controls other than secd/cold.
+    :87 [basename/mention] #### body_text.rs Changes
+- [code] mydocs/plans/archives/task_199.md  channel=doc binding=mention jev=0.15 rows=2
+    :11 [basename/mention] - 파일 파싱: 0x000A → `\n` 변환 (body_text.rs)
+    :12 [basename/mention] - 직렬화: `\n` → 0x000A 역변환 (serializer/body_text.rs)
+- [code] mydocs/plans/archives/task_229.md  channel=doc binding=mention jev=0.15 rows=2
+    :54 [path/mention] - `src/parser/body_text.rs`: 0x03/0x04 위치를 기반으로 필드 텍스트 범위 추적
+    :65 [basename/mention] - `src/serializer/body_text.rs`: 필드 문자 코드(0x03/0x04) + ctrl_id 정확한 직렬화
+- [code] mydocs/plans/archives/task_23.md  channel=doc binding=mention jev=0.15 rows=2
+    :110 [basename/mention] **파일**: `src/serializer/body_text.rs`, `src/serializer/control.rs`
+    :162 [basename/mention] | `src/serializer/body_text.rs` | 신규: Section/Paragraph 직렬화 |
+- [code] mydocs/troubleshootings/table_paste_file_corruption.md  channel=doc binding=mention jev=0.15 rows=1
+    :360 [basename/mention] | `src/serializer/body_text.rs` | 50-111 | serialize_paragraph (PARA_TEXT 생성 조건) |
+- [code] mydocs/working/archives/task_181_stage1.md  channel=doc binding=mention jev=0.15 rows=2
+    :25 [basename/mention] - `src/serializer/body_text.rs`: Equation char code 매핑 (`0x000B`, `CTRL_EQUATION`)
+    :61 [basename/mention] | `src/serializer/body_text.rs` | char code 매핑 |
+- [code] mydocs/working/archives/task_3_step_3.md  channel=doc binding=mention jev=0.15 rows=7
+    :9 [path/mention] | `src/parser/body_text.rs` | 866 | BodyText 섹션/문단 파싱 (레코드 트리 → Section/Paragraph) |
+    :15 [basename/mention] #### body_text.rs - 섹션/문단 파싱
+    :10 [stem/stem_weak] | `src/parser/mod.rs` | +2 | body_text 모듈 등록 |
+- [code] mydocs/working/archives/task_95_final.md  channel=doc binding=mention jev=0.15 rows=1
+    :54 [path/mention] | `src/parser/body_text.rs` | parse_master_pages_from_raw() 바탕쪽 파서 + 레벨 필터링 |
+- [code] mydocs/eng/feedback/r-code-review-report.md  channel=doc binding=mention jev=0.14 rows=2
+    :175 [basename/mention] | 10 | `parser/body_text.rs` | 1,429 | Good |
+    :57 [stem/stem_weak] - Sub-module separation in `parser/` is also good (cfb_reader, doc_info, body_text, header, etc.)
+- [code] mydocs/eng/plans/archives/task_3_impl.md  channel=doc binding=mention jev=0.14 rows=2
+    :63 [path/mention] - `src/parser/body_text.rs` creation — BodyText section parsing
+    :135 [path/mention] | `src/parser/body_text.rs` | 3 | Section/paragraph parsing |
+- [code] mydocs/eng/working/archives/task_122_report.md  channel=doc binding=mention jev=0.14 rows=2
+    :78 [path/mention] | src/parser/body_text.rs | SectionDef.outline_numbering_id storage |
+    :36 [basename/mention] - Parser: Stored outline_numbering_id from bytes 14-15 (body_text.rs)
+- [code] mydocs/eng/working/archives/task_23_step4.md  channel=doc binding=mention jev=0.14 rows=1
+    :67 [stem/stem_weak] 6. `parse_body_text_section()` → text "안녕하세요" match verification
+- [code] mydocs/eng/working/archives/task_3_step_5.md  channel=doc binding=mention jev=0.14 rows=4
+    :152 [path/mention] | body_text | `src/parser/body_text.rs` | BodyText section/paragraph parsing |
+    :29 [stem/stem_weak] - Normal documents: `read_body_text_section()` -> `parse_body_text_section()`
+    :30 [stem/stem_weak] - Distribution documents: `read_body_text_section()` -> `decrypt_viewtext_section()` -> `parse_body_text_section()`
+- [code] mydocs/eng/working/archives/task_4_step_2.md  channel=doc binding=mention jev=0.14 rows=1
+    :16 [path/mention] | `src/parser/body_text.rs` | ~50 lines modified | `parse_para_text()` -> `(String, Vec<u32>)` return, position mapping generation |
+- [code] mydocs/eng/working/archives/task_4_step_4.md  channel=doc binding=mention jev=0.14 rows=2
+    :13 [path/mention] | `src/parser/body_text.rs` | ~5 lines modified | FootnoteShape 28-byte parsing fix |
+    :53 [basename/mention] **2. FootnoteShape byte alignment (body_text.rs)**
+- [code] mydocs/orders/20260221.md  channel=doc binding=mention jev=0.14 rows=1
+    :14 [stem/stem_weak] | 134 | CFB 오류 파일 복구 열기 | 완료 | "Malformed FAT (sector 0 pointed to twice)" 오류 파일을 LenientCfbReader 폴백으로 정상 열기. parse_hwp() strict→lenient 2단계 전략. Leni
+- [code] mydocs/plans/archives/task_40_impl.md  channel=doc binding=mention jev=0.14 rows=1
+    :124 [basename/mention] | `src/serializer/body_text.rs` | 발견 버그 수정 |
+- [code] mydocs/troubleshootings/column_def_proportional_widths.md  channel=doc binding=mention jev=0.14 rows=1
+    :58 [path/mention] ### 파일: `src/parser/body_text.rs`
+- [code] mydocs/eng/plans/archives/task_142.md  channel=doc binding=mention jev=0.13 rows=2
+    :23 [basename/mention] | 9 | parser/body_text.rs | 1,429 | Body text parser |
+    :136 [basename/mention] | parser/body_text.rs | 1,429 | body_text.rs + char_shape_reader.rs |
+- [code] mydocs/eng/plans/archives/task_199.md  channel=doc binding=mention jev=0.13 rows=2
+    :11 [basename/mention] - File parsing: 0x000A → `\n` conversion (body_text.rs)
+    :12 [basename/mention] - Serialization: `\n` → 0x000A reverse conversion (serializer/body_text.rs)
+- [code] mydocs/eng/plans/archives/task_29.md  channel=doc binding=mention jev=0.13 rows=2
+    :27 [basename/mention] 3. `src/serializer/body_text.rs`: Section data serialization
+    :47 [stem/stem_weak] - Since existing `serialize_body_text` already has decrypted data, no additional encryption needed
+- [code] mydocs/eng/tech/hwpers_analysis.md  channel=doc binding=mention jev=0.13 rows=3
+    :52 [basename/mention] header.rs, doc_info.rs, body_text.rs
+    :57 [basename/mention] body_text.rs, record.rs                  control.rs, table.rs, style.rs
+    :69 [basename/mention] renderer.rs (310 lines)                   header.rs, doc_info.rs, body_text.rs
+- [code] mydocs/eng/working/archives/task_95_final.md  channel=doc binding=mention jev=0.13 rows=1
+    :54 [path/mention] | `src/parser/body_text.rs` | parse_master_pages_from_raw() master page parser + level filtering |
+- [code] mydocs/feedback/r-code-review-report.md  channel=doc binding=mention jev=0.13 rows=2
+    :175 [basename/mention] | 10 | `parser/body_text.rs` | 1,429 | 양호 |
+    :57 [stem/stem_weak] - `parser/` 모듈의 서브 모듈 분리도 양호 (cfb_reader, doc_info, body_text, header 등)
+- [code] mydocs/plans/archives/task_142.md  channel=doc binding=mention jev=0.13 rows=2
+    :23 [basename/mention] | 9 | parser/body_text.rs | 1,429 | 본문 파서 |
+    :136 [basename/mention] | parser/body_text.rs | 1,429 | body_text.rs + char_shape_reader.rs |
+- [code] mydocs/report/task_3_final.md  channel=doc binding=mention jev=0.13 rows=3
+    :32 [path/mention] | body_text | `src/parser/body_text.rs` | 920 | BodyText 섹션/문단 파싱 |
+    :50 [stem/stem_weak] ├── BodyText 섹션 파싱 (body_text + control)
+    :122 [stem/stem_weak] | parser/body_text | 20 |
+- [code] mydocs/working/archives/task_229_final.md  channel=doc binding=mention jev=0.13 rows=4
+    :18 [path/mention] - **`src/parser/body_text.rs`**: `parse_para_text()`에서 0x03(FIELD_BEGIN)/0x04(FIELD_END) 위치를 추적하여 `FieldRange` 생성, extended 컨트롤 인덱스 카운터로 controls[] 대응
+    :47 [path/mention] | `src/parser/body_text.rs` | 필드 범위 추적 (char_count 기반), `is_extended_only_ctrl_char()` |
+    :24 [basename/mention] - **`src/serializer/body_text.rs`**: PARA_TEXT 직렬화 시 필드 ctrl_id 정확 기록
+- [code] mydocs/working/archives/task_3_step_5.md  channel=doc binding=mention jev=0.13 rows=4
+    :153 [path/mention] | body_text | `src/parser/body_text.rs` | BodyText 섹션/문단 파싱 |
+    :29 [stem/stem_weak] - 일반 문서: `read_body_text_section()` → `parse_body_text_section()`
+    :30 [stem/stem_weak] - 배포용 문서: `read_body_text_section()` → `decrypt_viewtext_section()` → `parse_body_text_section()`
+- [code] mydocs/eng/troubleshootings/table_paste_file_corruption.md  channel=doc binding=mention jev=0.12 rows=1
+    :360 [basename/mention] | `src/serializer/body_text.rs` | 50-111 | serialize_paragraph (PARA_TEXT generation conditions) |
+- [code] mydocs/eng/working/archives/task_91_step1.md  channel=doc binding=mention jev=0.12 rows=2
+    :15 [path/mention] **Fix**: `src/parser/body_text.rs`
+    :55 [path/mention] | `src/parser/body_text.rs` | ColumnDef parsing: bitfield fix per spec (Table 141) + tests |
+- [code] mydocs/plans/archives/task_29.md  channel=doc binding=mention jev=0.12 rows=2
+    :27 [basename/mention] 3. `src/serializer/body_text.rs`: 섹션 데이터 직렬화
+    :47 [stem/stem_weak] - 기존 `serialize_body_text`가 복호화된 데이터를 이미 갖고 있으므로 추가 암호화 불필요
+- [code] mydocs/plans/archives/task_3_impl.md  channel=doc binding=mention jev=0.12 rows=2
+    :63 [path/mention] - `src/parser/body_text.rs` 생성 - BodyText 섹션 파싱
+    :135 [path/mention] | `src/parser/body_text.rs` | 3 | 섹션/문단 파싱 |
+- [code] mydocs/tech/hwpers_analysis.md  channel=doc binding=mention jev=0.12 rows=3
+    :51 [basename/mention] header.rs, doc_info.rs, body_text.rs
+    :56 [basename/mention] body_text.rs, record.rs                   control.rs, table.rs, style.rs
+    :68 [basename/mention] renderer.rs (310줄)                        header.rs, doc_info.rs, body_text.rs
+- [code] mydocs/working/archives/task_142_step5.md  channel=doc binding=mention jev=0.12 rows=4
+    :5 [basename/mention] parser/body_text.rs, model/paragraph.rs, serializer/doc_info.rs 테스트 추출로 1,200줄 이하 달성.
+    :9 [basename/mention] ### parser/body_text.rs (1,430줄 → 733줄)
+    :13 [basename/mention] | `body_text.rs` | 733 | 본문 파싱 함수 전체 |
+- [code] mydocs/working/archives/task_23_step4.md  channel=doc binding=mention jev=0.12 rows=1
+    :67 [stem/stem_weak] 6. `parse_body_text_section()` → 텍스트 "안녕하세요" 일치 확인
+- [code] mydocs/eng/working/task_240_stage4.md  channel=doc binding=mention jev=0.11 rows=1
+    :32 [basename/mention] ### body_text.rs (bug fix)
