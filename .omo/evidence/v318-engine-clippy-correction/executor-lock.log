@@ -1,0 +1,38 @@
+active locks:
+  codex task=v318-report-delivery-html repo=/Users/ken/Downloads scope=/Users/ken/Downloads/GearUp_전체_프로세스_현황_20261004.html role=executor expires=2026-10-05T04:13:55Z
+  codex task=v318-report-delivery repo=/Users/ken/Downloads scope=/Users/ken/Downloads/GearUp_전체_프로세스_현황_20261004.md role=executor expires=2026-10-05T04:13:55Z
+  codex task=v318-i4aai-landing repo=/Users/ken/Projects/hwpx-editor/_wt/hwpx-editor/v304-i4aai scope=repo role=vault expires=2026-10-05T00:55:12Z
+  codex task=v318-pagedef-engine-publication repo=/Users/ken/Projects/hwpx-editor/_wt/hwpx-editor/v316-page-def-initial/third_party/rhwp scope=repo role=vault expires=2026-10-05T03:21:14Z
+  codex task=v318-d0-pagedef-composition repo=/Users/ken/Projects/hwpx-editor/_wt/hwpx-editor/v318-d0-pagedef-composition scope=repo role=executor expires=2026-10-05T04:17:29Z
+  codex task=v318-d0-narrow-composition repo=/Users/ken/ken wiki scope=/Users/ken/ken wiki/.omo/evidence/v318-d0-narrow-composition role=executor expires=2026-10-05T03:25:18Z
+  codex task=v318-i4aai-landed-audit repo=/Users/ken/ken wiki scope=/Users/ken/ken wiki/.omo/evidence/v318-i4aai-landed-audit role=executor expires=2026-10-05T03:18:08Z
+  codex task=v318-i4aai-landed-audit-fallback repo=/Users/ken/ken wiki scope=/Users/ken/ken wiki/.omo/evidence/v318-i4aai-landed-audit-gate-review.md role=executor expires=2026-10-05T03:35:53Z
+  codex task=v318-report-landed-delta repo=/Users/ken/ken wiki scope=/Users/ken/ken wiki/.omo/evidence/v318-report-landed-delta role=executor expires=2026-10-05T03:25:18Z
+  codex task=v318-report-visual-a repo=/Users/ken/ken wiki scope=/Users/ken/ken wiki/.omo/evidence/v318-report-visual-a role=executor expires=2026-10-05T04:17:28Z
+  codex task=v318-report-visual-b repo=/Users/ken/ken wiki scope=/Users/ken/ken wiki/.omo/evidence/v318-report-visual-b role=executor expires=2026-10-05T04:17:29Z
+  codex task=v318-wiki-state repo=/Users/ken/ken wiki scope=/Users/ken/ken wiki/knowledge/wiki role=executor expires=2026-10-05T02:54:18Z
+  codex task=v318-report-delta repo=/Users/ken/ken wiki scope=/Users/ken/ken wiki/outputs/v316-process-order-update role=executor expires=2026-10-05T04:13:54Z
+  codex task=v318-parallel-coordinator repo=/Users/ken/ken wiki scope=/Users/ken/ken wiki/outputs/v318-parallel role=executor expires=2026-10-05T04:13:55Z
+  codex task=v318-engine-clippy-correction repo=/Users/ken/orca/workspaces/rhwp/v318-engine-clippy-correction scope=repo role=executor expires=2026-10-05T03:51:44Z
+active task notes:
+  codex task=v318-i4aai-landing repo=/Users/ken/Projects/hwpx-editor/_wt/hwpx-editor/v304-i4aai scope=repo role=vault
+    note: Vault final I4AAI F1 R2-approved candidate: source clean bae099f1; CI correction landing before single current-main merge, focused final browser/secret and exact-head CI. No paid LIVE/deploy; user deferred to manual postdeploy. Same-engine critical-direct.
+    recommendation: agent=codex profile=max model=gpt-6.1-sol effort=max reasoning_depth=max pick=quality-gap workload=deep timeout=1800s sandbox=read-only catalog=2026-10-04T20:54:37Z
+  codex task=v318-pagedef-engine-publication repo=/Users/ken/Projects/hwpx-editor/_wt/hwpx-editor/v316-page-def-initial/third_party/rhwp scope=repo role=vault
+    note: Publish only approved3033 three-file PageDef engine after independently LANDED I4 PR983815. Frozen sourceR2/final5 retained; exactcanonicalremote reobserve, one candidate push/PR CI and direct audit. No unrelatedsuper, WASM/API/deploy claims.
+    recommendation: agent=codex profile=max model=gpt-6.1-sol effort=max reasoning_depth=max pick=quality-gap workload=deep timeout=1800s sandbox=read-only catalog=2026-10-04T20:54:37Z
+  codex task=v318-d0-pagedef-composition repo=/Users/ken/Projects/hwpx-editor/_wt/hwpx-editor/v318-d0-pagedef-composition scope=repo role=executor
+    note: Narrow correction composition of reviewed D0 seven source/QA files onto actual I4 landed e62 main. No FPAPP1/image ancestry. Explicit named-only real browser QA governance + one census row. Prepare cheap source now, hold engine pin/build/host final acceptance for canonical-landed E. User permits actual xhigh if auto max blocked; no max misstatement, no push/merge/deploy/DB.
+    recommendation: agent=codex profile=high model=gpt-6.1-sol effort=max reasoning_depth=max pick=quality-gap workload=large timeout=1200s sandbox=read-only catalog=2026-10-04T20:54:37Z
+  codex task=v318-wiki-state repo=/Users/ken/ken wiki scope=/Users/ken/ken wiki/knowledge/wiki role=executor
+    note: Current v318 R2/source-five evidence, PR982 independently LANDED, final I4 PR983 CI pending, D0 known-margin attribution and PageDef publication readiness; preserve foreign edits and historical seals.
+    recommendation: agent=codex profile=medium model=gpt-6.1-sol effort=medium reasoning_depth=medium pick=cost-parity workload=standard timeout=600s sandbox=read-only catalog=2026-10-04T20:54:37Z
+  codex task=v318-report-delta repo=/Users/ken/ken wiki scope=/Users/ken/ken wiki/outputs/v316-process-order-update role=executor
+    note: Renew original source report scope; frozen c7a/3eff source preserved while changed22 browser QA and latest status disposition complete.
+    recommendation: agent=codex profile=medium model=gpt-6.1-sol effort=medium reasoning_depth=medium pick=cost-parity workload=standard timeout=600s sandbox=read-only catalog=2026-10-04T20:54:37Z
+  codex task=v318-parallel-coordinator repo=/Users/ken/ken wiki scope=/Users/ken/ken wiki/outputs/v318-parallel role=executor
+    note: I4 PR983 independently LANDED/posthoc APPROVE; PageDef engine PR6 Clippy14 correction actual Sol6.1 xhigh; D0 narrow composition/source and report fresh QA in parallel.
+    recommendation: agent=codex profile=medium model=gpt-6.1-sol effort=medium reasoning_depth=medium pick=cost-parity workload=standard timeout=600s sandbox=read-only catalog=2026-10-04T20:54:37Z
+  codex task=v318-engine-clippy-correction repo=/Users/ken/orca/workspaces/rhwp/v318-engine-clippy-correction scope=repo role=executor
+    note: Dedicated correction of actual engine CI Clippy14; preserve PageDef source/semantics and strictCI. RecommendationSolmax; user approved actualxhigh fallback ifmax automaticallyblocked, no manual wait. Source11exactdiagnostic files, no publish/DB/deploy; parent R2/final5 afterwards.
+    recommendation: agent=codex profile=high model=gpt-6.1-sol effort=max reasoning_depth=max pick=quality-gap workload=large timeout=1200s sandbox=read-only catalog=2026-10-04T20:54:37Z

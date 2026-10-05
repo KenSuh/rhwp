@@ -1,0 +1,1234 @@
+IMPACT at=code:3033ae22c9031919757be1357a998471e67f1fab@3033ae22c903 query="src/document_core/queries/rendering.rs" mode=path jev=used(cache) jev_threshold=0.45 files=419 rows=1127 det_ms=513 total_ms=515 jev_requests=0 jev_http_attempts=0 jev_input_tokens=0
+  ! Jev 에 보내지 않은 파일 299 (상한 --max-files=120 또는 비밀 성격 경로)
+- [code] mydocs/eng/report/table_architecture_review.md  channel=doc binding=mention jev=0.49★ rows=10
+    :285 [stem/stem_weak] | Pre-calculate actual rendering heights for all paragraphs + tables |
+    :385 [stem/stem_weak] Automatically repeats row 0 (header row) rendering on continuation pages.
+    :389 [stem/stem_weak] Currently row heights are **duplicated in Stage 2 (measurement) and Stage 4 (rendering) with identical logic**:
+- [code] mydocs/eng/tech/incremental_relayout_design.md  channel=doc binding=mention jev=0.48★ rows=10
+    :17 [basename/mention] | `mark_section_dirty()` | rendering.rs:566 | Mark only a section as dirty (when composed is unchanged) |
+    :18 [basename/mention] | `mark_paragraph_dirty()` | rendering.rs:573 | Mark a specific paragraph as dirty |
+    :19 [basename/mention] | `mark_all_sections_dirty()` | rendering.rs:634 | Mark everything dirty (initialization, etc.) |
+- [code] mydocs/tech/incremental_relayout_design.md  channel=doc binding=mention jev=0.47★ rows=9
+    :17 [basename/mention] | `mark_section_dirty()` | rendering.rs:566 | 섹션만 dirty 마킹 (composed 불변 시) |
+    :18 [basename/mention] | `mark_paragraph_dirty()` | rendering.rs:573 | 특정 문단만 dirty 마킹 |
+    :19 [basename/mention] | `mark_all_sections_dirty()` | rendering.rs:634 | 전체 dirty (초기화 등) |
+- [code] mydocs/feedback/post-refactoring-remaining-tasks.md  channel=doc binding=mention jev=0.39 rows=4
+    :40 [basename/mention] | `rendering.rs` | 2 | 1 |
+    :61 [basename/mention] | `rendering.rs` | 13 | 4 |
+    :125 [basename/mention] ├── rendering.rs                │   ├── cursor_nav.rs      (Q)
+- [code] mydocs/eng/working/archives/task_122_report.md  channel=doc binding=mention jev=0.35 rows=7
+    :5 [stem/stem_weak] 1. **Outline paragraph rendering**: Section-level number reference via SectionDef's outline_numbering_id → rendering
+    :6 [stem/stem_weak] 2. **Bullet rendering**: HWPTAG_BULLET parsing → Bullet struct → rendering pipeline completion
+    :44 [stem/stem_weak] - **Problem**: WASM per-page independent rendering accumulated NumberingState showing "2." on page 2, "4." on page 3 (normal: 1., 2.)
+- [code] mydocs/eng/working/archives/task_95_final.md  channel=doc binding=mention jev=0.34 rows=4
+    :15 [stem/stem_weak] - Added `master_pages: Vec<MasterPage>` field to `SectionDef` (rendering-only)
+    :57 [stem/stem_weak] | `src/renderer/layout.rs` | Master page shape rendering, Page-based body-clip outside placement |
+    :69 [stem/stem_weak] - Web Canvas: BookReview.hwp rendering confirmed normal
+- [code] mydocs/eng/plans/archives/task_92_impl.md  channel=doc binding=mention jev=0.33 rows=5
+    :10 [stem/stem_weak] - Line rendering: Apply `common.width/original_width`, `common.height/original_height` scale to `start/end` coordinates
+    :11 [stem/stem_weak] - Polygon rendering: Apply same scale to `points[]` coordinates
+    :12 [stem/stem_weak] - Curve rendering: Pass scale parameters to `curve_to_path_commands()`
+- [code] mydocs/eng/plans/archives/task_122_impl.md  channel=doc binding=mention jev=0.32 rows=6
+    :5 [stem/stem_weak] **Steps 1~3**: Complete (Bullet parsing/rendering, Outline match branching)
+    :13 [stem/stem_weak] Note: numbering_id=0 cases cause early return, actual rendering completed in Step 6
+    :25 [stem/stem_weak] Bullet branch in layout.rs → bullet_char insertion rendering.
+- [code] src/document_core/commands/object_ops.rs  channel=other binding=mention jev=0.32 rows=7
+    :2897 [stem/stem_weak] // raw_rendering 초기화 → 직렬화 시 스케일 행렬 재생성
+    :2898 [stem/stem_weak] group.shape_attr.raw_rendering = Vec::new();
+    :3916 [stem/stem_weak] line.drawing.shape_attr.raw_rendering = Vec::new();
+- [code] mydocs/eng/plans/archives/task_123_impl.md  channel=doc binding=mention jev=0.30 rows=6
+    :10 [stem/stem_weak] Add a scale parameter to the WASM rendering API to render the canvas at zoom magnification.
+    :33 [stem/stem_weak] ## Phase 2: Change JS applyZoom to Vector Re-rendering
+    :36 [stem/stem_weak] Replace CSS transform raster zoom with vector re-rendering zoom.
+- [code] src/wasm_api/tests.rs  channel=other binding=mention jev=0.30 rows=7
+    :13618 [stem/stem_weak] "        raw_rendering({} bytes): {:02x?}",
+    :13619 [stem/stem_weak] pic.shape_attr.raw_rendering.len(),
+    :13620 [stem/stem_weak] &pic.shape_attr.raw_rendering
+- [code] mydocs/eng/plans/archives/task_4.md  channel=doc binding=mention jev=0.29 rows=7
+    :66 [stem/stem_weak] 1. **Style list not constructed**: DocInfo reference table not resolved → style lookup impossible during rendering
+    :68 [stem/stem_weak] 3. **Inline controls not identified**: Table/shape insertion positions within paragraphs not recognized → table rendering impossible
+    :69 [stem/stem_weak] 4. **Rendering pipeline disconnected**: DocInfo not passed to layout/rendering stages
+- [code] mydocs/eng/tech/rendering_engine_design.md  channel=doc binding=exec jev=0.25 rows=8
+    :12 [stem/stem_weak] | Text rendering | Built-in support | Separate crate | **Browser native** |
+    :19 [stem/stem_weak] A **Renderer Trait (rendering abstraction layer)** is introduced so that users can select the rendering backend as an option.
+    :28 [stem/stem_weak] | **Vector (tiny-skia)** | Pixel buffer rasterization | Native/server-side rendering | Future |
+- [code] mydocs/eng/working/archives/task_36_stage2.md  channel=doc binding=exec jev=0.23 rows=3
+    :5 [stem/stem_weak] Eliminate duplicate adjacent cell borders: convert from the approach where each cell independently draws 4-directional borders to an edge-based collec
+    :47 [stem/stem_weak] Merges consecutive edge segments with the same style on the same row/column boundary into a single Line for rendering.
+    :59 [stem/exec] | `layout_table()` | Per-cell borders → edge grid collection + batch rendering on table node |
+- [code] mydocs/eng/working/archives/task_107_final.md  channel=doc binding=mention jev=0.23 rows=7
+    :13 [stem/stem_weak] - svg.rs: Gradient/border line SVG rendering
+    :14 [stem/stem_weak] - web_canvas.rs: Canvas background color/gradient rendering
+    :20 [stem/stem_weak] - svg.rs: Image background SVG rendering
+- [code] mydocs/eng/working/archives/task_123_report.md  channel=doc binding=mention jev=0.23 rows=9
+    :5 [stem/stem_weak] Replace CSS `transform: scale()` raster zoom with Canvas 2D `ctx.scale()` vector re-rendering, so text/lines/images are re-rasterized at the target re
+    :15 [stem/stem_weak] ### Step 2: Changed JS applyZoom to Vector Re-rendering
+    :19 [stem/stem_weak] - New `_renderAtZoom(zoom)` function: Vector re-rendering + overlay sync
+- [code] mydocs/eng/orders/20260305.md  channel=doc binding=exec jev=0.22 rows=3
+    :6 [stem/stem_weak] | 186 | Line control rendering and table placement bug fix | Done | Line object rendering, table coordinate placement fix |
+    :7 [stem/exec] | 187 | GroupShape rendering and hittest implementation | Done | Group shape selection support, Group container node added |
+    :8 [stem/stem_weak] | 188 | WMF viewBox and text vertical position rendering fix | Done | extend_window prevents SetWindowExt overwrite, VTA_TOP ascent correction applied
+- [code] mydocs/eng/orders/backlog-befor50.md  channel=doc binding=mention jev=0.22 rows=6
+    :13 [stem/stem_weak] | B-103 | Multi-column layout | Support 2-column/3-column document rendering | Medium |
+    :14 [stem/stem_weak] | B-104 | Header/footer rendering | Render header/footer areas per page | Medium |
+    :15 [stem/stem_weak] | B-105 | Footnote rendering completion | Footnote number linking, footnote area separation display | Medium |
+- [code] mydocs/eng/report/midterm_review_day21.md  channel=doc binding=mention jev=0.22 rows=10
+    :501 [stem/stem_weak] | 7 | DrawRotate | Rotation rendering + UI (task 165) | **Partial** | |
+    :502 [stem/stem_weak] | 8 | DrawShadow | Shadow rendering | **Partial** | Read-only |
+    :508 [stem/stem_weak] | 14 | DrawFillAttr | Fill rendering (task 158) | **Partial** | 6 pattern fill types |
+- [code] mydocs/eng/plans/archives/task_166.md  channel=doc binding=exec jev=0.21 rows=5
+    :14 [stem/stem_weak] Currently multi-column layout only supports **rendering**.
+    :15 [stem/stem_weak] - `ColumnDef` model, `PageLayoutInfo.column_areas`, `PaginationState.current_column`, `ColumnContent` etc. rendering infrastructure complete
+    :16 [stem/exec] - `Column(u16)` node exists in render tree, column separator rendering works
+- [code] mydocs/eng/plans/archives/task_126.md  channel=doc binding=mention jev=0.21 rows=6
+    :7 [stem/stem_weak] rhwp-studio does not apply `devicePixelRatio (DPR)` during Canvas rendering. Text and lines appear blurry on high-resolution displays (Retina, 4K).
+    :19 [stem/stem_weak] Commercial product canvas rendering analysis (`mydocs/tech/canvas_rendering_analysis.md`) shows Hancom web viewer, Google Docs, and a commercial web o
+    :87 [stem/stem_weak] - Explicitly set since ctx transform state is uncertain after WASM rendering
+- [code] src/serializer/control.rs  channel=other binding=mention jev=0.21 rows=4
+    :1347 [stem/stem_weak] /// 구조: ctrl_id(×1 or ×2) + ShapeComponentAttr + rendering_info
+    :1360 [stem/stem_weak] /// 구조: ctrl_id(×1 or ×2) + ShapeComponentAttr + rendering_info + border_line + fill + shadow
+    :1446 [stem/stem_weak] if !attr.raw_rendering.is_empty() {
+- [code] src/serializer/hwpx/picture.rs  channel=other binding=mention jev=0.21 rows=8
+    :14 [stem/stem_weak] //! renderingInfo, lineShape, imgRect
+    :18 [stem/stem_weak] //! renderingInfo → imgRect → imgClip → inMargin → imgDim → img → effects → sz → pos → outMargin
+    :72 [stem/stem_weak] // offset, orgSz, curSz, flip, rotationInfo, renderingInfo, imgRect, imgClip,
+- [code] mydocs/eng/plans/archives/task_95_impl.md  channel=doc binding=exec jev=0.20 rows=3
+    :30 [stem/exec] - `src/renderer/svg.rs`: MasterPage node rendering branch
+    :31 [stem/exec] - `src/renderer/web_canvas.rs`: MasterPage node rendering branch
+    :39 [stem/stem_weak] - Confirm SVG/Canvas rendering of HWP file containing master page
+- [code] mydocs/eng/tech/webgian_replacement_strategy.md  channel=doc binding=exec jev=0.20 rows=10
+    :45 [stem/stem_weak] - Only **Hancom and a small number of commercial web offices** have fully implemented HWP 5.0 binary "read+edit+save+rendering (typesetting)"
+    :47 [stem/exec] - Open source is limited to structure parsing/text extraction; **no implementations exist for editing+re-typesetting+rendering**
+    :68 [stem/stem_weak] | Stage 1 | Rust HWP Core Engine (parsing/rendering/editing/saving) | In progress |
+- [code] mydocs/eng/working/archives/task_2_step_5.md  channel=doc binding=exec jev=0.20 rows=3
+    :25 [stem/stem_weak] Modified file: `mydocs/tech/rendering_engine_design.md`
+    :36 [stem/exec] | 6. Page Rendering Model | Page physical structure, rendering pipeline, 18 render node types |
+    :77 [stem/stem_weak] | **Design Doc** | mydocs/tech/rendering_engine_design.md | Architecture design document |
+- [code] mydocs/eng/plans/archives/table_refactoring_plan.md  channel=doc binding=mention jev=0.20 rows=5
+    :93 [stem/stem_weak] - Eliminate nested table rendering code duplication
+    :131 [stem/stem_weak] // Cell rendering (common)
+    :133 [stem/stem_weak] // ... common cell rendering logic ...
+- [code] mydocs/eng/plans/archives/task_122.md  channel=doc binding=mention jev=0.20 rows=7
+    :8 [stem/stem_weak] - **Numbered Paragraphs (Number)**: NumberingState counter, expand_numbering_format(), 14 format conversions, rendering complete
+    :21 [stem/stem_weak] | Outline paragraph rendering | layout.rs:4957 | HeadType::Outline → early return (no number display) |
+    :22 [stem/stem_weak] | Bullet rendering | layout.rs:4957 | HeadType::Bullet → early return (no symbol display) |
+- [code] mydocs/eng/plans/task_291.md  channel=doc binding=mention jev=0.20 rows=5
+    :181 [path/mention] | `src/document_core/queries/rendering.rs` | Cache build after paginate(), cache reference in build_page_tree |
+    :164 [stem/stem_weak] - Verify recursive rendering of RenderNodes in `rhwp-studio/src/view/canvas-renderer.ts`
+    :173 [stem/stem_weak] - **Proceed with this step after completing "Both" master page rendering for the current file**
+- [code] mydocs/eng/working/task_397_step2.md  channel=doc binding=mention jev=0.20 rows=6
+    :16 [stem/stem_weak] -> layout_runs()             // Iterator for rendering
+    :67 [stem/stem_weak] | `underline/strikethrough` | N/A | None: Text decoration outside cosmic-text scope, external rendering |
+    :68 [stem/stem_weak] | `shadow` | N/A | None: External rendering |
+- [code] mydocs/eng/plans/archives/task_124_impl.md  channel=doc binding=mention jev=0.19 rows=7
+    :76 [stem/stem_weak] - Verify Korean text glyph path rendering after loading HamChoRom Batang TTF in web
+    :93 [stem/stem_weak] - Ensure font loading -> rendering order in `openFile()` flow
+    :117 [stem/stem_weak] | Korean text rendering | Verify glyph path quality at zoom 100%/200%/300% |
+- [code] mydocs/eng/report/issue2_context.md  channel=doc binding=mention jev=0.19 rows=7
+    :71 [basename/mention] | `mark_section_dirty()` | rendering.rs | Mark only a section as dirty |
+    :72 [basename/mention] | `mark_paragraph_dirty()` | rendering.rs | Mark only a specific paragraph as dirty |
+    :12 [stem/stem_weak] Through v0.5.0, the following was achieved with the goal of matching Hancom's rendering:
+- [code] mydocs/eng/orders/20260220.md  channel=doc binding=mention jev=0.18 rows=5
+    :6 [stem/stem_weak] | 120 | Character border/background rendering + vertical position correction | Done | border_fill_id pipeline connection (ResolvedCharStyle -> TextRun
+    :8 [stem/stem_weak] | 122 | Paragraph outline number/bullet rendering completion | Done | Bullet parsing (HWPTAG_BULLET)/rendering, SectionDef.outline_numbering_id parsin
+    :9 [stem/stem_weak] | 123 | Vector quality zoom implementation | Done | CSS transform raster zoom -> Canvas ctx.scale() vector re-rendering. WASM scale parameter, applyZo
+- [code] mydocs/eng/plans/archives/task_11.md  channel=doc binding=mention jev=0.18 rows=7
+    :5 [stem/stem_weak] Implement parsing and rendering of captions for HWP Table and Picture controls.
+    :16 [stem/stem_weak] | Caption rendering | Not implemented | Needs implementation in layout.rs |
+    :23 [stem/stem_weak] | Caption rendering | Not implemented | Needs implementation in layout.rs |
+- [code] mydocs/eng/tech/dev_roadmap_v1_backup.md  channel=doc binding=mention jev=0.18 rows=5
+    :121 [stem/stem_weak] PDF conversion leveraging the existing SVG rendering engine.
+    :139 [stem/stem_weak] | C. External Tool Integration | `resvg` + `cairo` | Guaranteed rendering quality | Increased external dependencies, WASM incompatible |
+    :142 [stem/stem_weak] - Directly convert already-verified SVG rendering output to PDF
+- [code] mydocs/eng/tech/hwpers_analysis.md  channel=doc binding=mention jev=0.18 rows=11
+    :28 [stem/stem_weak] | v0.2.0 | 2025-01-28 | Parser complete, SVG rendering, layout engine |
+    :60 [stem/stem_weak] model/  (document model)                  renderer/  (rendering engine)
+    :67 [stem/stem_weak] render/  (rendering)                      serializer/  (HWP serialization)
+- [code] mydocs/eng/tech/thorvg_decision.md  channel=doc binding=mention jev=0.18 rows=13
+    :9 [stem/stem_weak] | Decision | ThorVG **not adopted** as rhwp rendering backend |
+    :15 [stem/stem_weak] as an alternative rendering backend for the HWP web editor (rhwp-studio) to replace Canvas 2D.
+    :22 [stem/stem_weak] | 112 | Rust FFI bindings + native PNG rendering | ThorVG C API -> Rust FFI 30 functions, HWP->PNG output successful |
+- [code] mydocs/eng/working/archives/task_70_final.md  channel=doc binding=mention jev=0.18 rows=5
+    :7 [stem/stem_weak] Implemented rendering of actual content in HWP document Header and Footer areas, and implemented PageNumberPos control processing.
+    :14 [stem/stem_weak] | `src/renderer/layout.rs` | Header/Footer content rendering, Footer with Table handling, page number text rendering | +200 lines |
+    :32 [stem/stem_weak] - `layout_header_footer_paragraphs()` function for rendering paragraphs inside Header/Footer
+- [code] src/parser/control/shape.rs  channel=other binding=mention jev=0.18 rows=5
+    :419 [stem/stem_weak] let rendering_start = id_offset + r.position();
+    :467 [stem/stem_weak] // raw_rendering: 렌더링 행렬만 보존 (border/fill/shadow 제외)
+    :469 [stem/stem_weak] let rendering_end = id_offset + r.position();
+- [code] src/parser/hwpx/section.rs  channel=other binding=mention jev=0.18 rows=12
+    :1329 [stem/stem_weak] b"renderingInfo" => {
+    :1331 [stem/stem_weak] parse_rendering_info(reader, &mut shape_attr)?;
+    :1544 [stem/stem_weak] /// `<hp:renderingInfo>` 파싱: 아핀 변환 행렬 합성 → shape_attr.render_*
+- [code] mydocs/eng/orders/20260214.md  channel=doc binding=exec jev=0.17 rows=8
+    :6 [stem/stem_weak] | 65 | TextBox (GSO TextBox) cursor support | Done | CellContext reuse (cell_index=0) for TextBox cursor enter/move/exit. Arrow key TextBox entry (Han
+    :7 [stem/stem_weak] | 66 | Text+Table simultaneous paragraph rendering fix | Done | pagination.rs places PartialParagraph (start_line=1) after Table. Table renders first,
+    :11 [stem/stem_weak] | 70 | Header/footer rendering and page number handling | Done | pagination.rs HeaderFooterRef struct, per-page Header/Footer assignment (Both/Even/Od
+- [code] mydocs/eng/working/archives/task_181_stage3.md  channel=doc binding=exec jev=0.17 rows=2
+    :19 [stem/stem_weak] - Recursive rendering per LayoutKind (text, fraction lines, brackets as bezier paths, sqrt symbols, decorations)
+    :29 [stem/exec] - SVG renderer: Equation node rendering
+- [code] mydocs/eng/feedback/font-metrics.md  channel=doc binding=mention jev=0.17 rows=13
+    :1 [stem/stem_weak] When Google Docs transitioned from its traditional HTML/DOM-based rendering to **Canvas-based rendering** around 2021, it introduced a very sophistica
+    :9 [stem/stem_weak] Google Docs' core strategy is to **implement the text layout engine in-house (Wasm) while leveraging the browser's capabilities for actual character r
+    :12 [stem/stem_weak] * **Browser Painting:** Drawing the shape (Glyph) of each individual character is expensive and can cause font hinting issues. So Google Docs calls th
+- [code] mydocs/eng/plans/archives/task_142_impl.md  channel=doc binding=mention jev=0.17 rows=6
+    :60 [basename/mention] │   ├── rendering.rs         ← Rendering/page info/page tree native methods
+    :85 [basename/mention] #### `wasm_api/rendering.rs` (~800 lines)
+    :176 [basename/mention] ├── border_rendering.rs  ← Cell border collection/rendering, transparent borders
+- [code] mydocs/eng/working/archives/task_45_final.md  channel=doc binding=mention jev=0.17 rows=4
+    :15 [stem/stem_weak] | **3** | Page rendering + coordinate system | PageRenderer, CoordinateSystem, CanvasView |
+    :33 [stem/stem_weak] |       +-- page-renderer.ts <- Page rendering
+    :93 [stem/stem_weak] | Step 3 Report | `mydocs/working/task_45_step3.md` | Page rendering implementation results |
+- [code] mydocs/plans/archives/task_142_impl.md  channel=doc binding=mention jev=0.17 rows=6
+    :60 [basename/mention] │   ├── rendering.rs         ← 렌더링/페이지 정보/페이지트리 native 메서드
+    :85 [basename/mention] #### `wasm_api/rendering.rs` (~800줄)
+    :176 [basename/mention] ├── border_rendering.rs  ← 셀 테두리 수집/렌더링, 투명 테두리
+- [code] mydocs/eng/orders/20260331.md  channel=doc binding=link jev=0.16 rows=1
+    :12 [stem/link] | [#16](https://github.com/edwardkim/rhwp/issues/16) | Implement 13 types of character underline rendering | Done | underline/strikeout shape parsing,
+- [code] mydocs/eng/plans/archives/task_11_impl.md  channel=doc binding=mention jev=0.16 rows=5
+    :5 [stem/stem_weak] Implement parsing and rendering of captions for HWP Table and Picture controls.
+    :97 [stem/stem_weak] **Goal**: Implement caption rendering
+    :113 [stem/stem_weak] - Call caption rendering before/after table rendering
+- [code] mydocs/eng/plans/archives/task_36.md  channel=doc binding=mention jev=0.16 rows=4
+    :4 [stem/stem_weak] - BorderFill parsing, gradient fill parsing, cell border SVG rendering, border width mapping, dash patterns all completed
+    :11 [stem/stem_weak] | 1 | Gradient fill rendering | High | Medium |
+    :15 [stem/stem_weak] | 5 | Diagonal border rendering | Low | Low |
+- [code] mydocs/eng/report/task_36_final.md  channel=doc binding=mention jev=0.16 rows=8
+    :5 [stem/stem_weak] Resolved two key issues in table rendering:
+    :6 [stem/stem_weak] 1. Gradient backgrounds rendering as transparent
+    :7 [stem/stem_weak] 2. Adjacent cell borders rendering as doubled lines
+- [code] mydocs/eng/working/archives/task_48_final.md  channel=doc binding=mention jev=0.16 rows=5
+    :7 [stem/stem_weak] Implemented basic cursor placement (click), text input, Backspace/Delete deletion, Enter paragraph splitting, and left/right arrow movement in rhwp-st
+    :30 [stem/stem_weak] | `input-handler.ts` | InputHandler -- click cursor placement, keyboard input, cell editing routing, Korean IME composition rendering |
+    :46 [stem/stem_weak] | Post-edit re-rendering | document-changed event -> refreshPages() | `renderPageToCanvas` |
+- [code] README_EN.md  channel=doc binding=link jev=0.15 rows=8
+    :42 [stem/stem_weak] <img src="assets/screenshots/render-example-1.png" alt="rhwp rendering example — KTX route map" width="700" />
+    :68 [stem/stem_weak] - HWP 5.0 / HWPX parser, rendering for paragraphs, tables, equations, images, charts
+    :70 [stem/stem_weak] - SVG export (CLI) + Canvas rendering (WASM/Web)
+- [code] mydocs/eng/orders/20260322.md  channel=doc binding=mention jev=0.15 rows=4
+    :14 [stem/stem_weak] | 318 | Exam paper 2-column rendering bug fix | Done | TAC table horizontal layout + HorzRelTo::Page separation + body_wide shape_reserved + Paper-abo
+    :16 [stem/stem_weak] | 320 | Master page detailed rendering improvement | Done | Hide propagation fix (para_starts_in_page) |
+    :19 [stem/stem_weak] | 323 | Header/footer Shape rendering + even/odd page selection | Done | Shape rendering added + even/odd header selection (section inheritance -> pag
+- [code] mydocs/eng/plans/archives/task_44_architecture.md  channel=doc binding=mention jev=0.15 rows=6
+    :52 [stem/stem_weak] **Role**: Pre-measures rendering heights of all content before pagination.
+    :95 [stem/stem_weak] | RenderScheduler | scheduler.rs | Implemented | Viewport-based priority rendering |
+    :96 [stem/stem_weak] | RenderObserver trait | scheduler.rs | Implemented | Event-based rendering trigger |
+- [code] mydocs/eng/plans/archives/task_90.md  channel=doc binding=mention jev=0.15 rows=4
+    :5 [stem/stem_weak] In Task 89, the HWPX parser was implemented enabling basic parsing and rendering. However, comparison with the python-hwpx reference parser and OWPML 
+    :43 [stem/stem_weak] 1. **Prioritize rendering-critical items**: charPr spacing/relative size, paraPr heading/breakSetting, table cell size/address, image size, special ch
+    :56 [stem/stem_weak] - Shape rendering (inline object parsing only, rendering as separate task)
+- [code] mydocs/eng/tech/thorvg_poc_insights.md  channel=doc binding=mention jev=0.15 rows=29
+    :5 [stem/stem_weak] A POC spanning Tasks 112-115 was conducted to validate ThorVG as an alternative rendering backend
+    :12 [stem/stem_weak] | 112 | Rust FFI bindings + native rendering | ThorVG C API -> Rust FFI 30 functions, HWP->PNG output successful |
+    :13 [stem/stem_weak] | 113 | Emscripten WASM build + WebGL rendering | Docker build pipeline, JS bridge, WebGL 2.0 GPU direct rendering |
+- [code] mydocs/eng/working/archives/task_11_complete.md  channel=doc binding=mention jev=0.15 rows=5
+    :5 [stem/stem_weak] Implemented caption parsing and rendering for HWP Table and Picture controls.
+    :29 [stem/stem_weak] - `layout_caption()`: Caption paragraph rendering
+    :30 [stem/stem_weak] - `layout_table()`: Table caption rendering (Top/Bottom direction support)
+- [code] mydocs/eng/working/archives/task_2_step_4.md  channel=doc binding=mention jev=0.15 rows=6
+    :25 [stem/stem_weak] | `render_page_svg(n)` | `renderPageSvg` | `String` | SVG rendering |
+    :26 [stem/stem_weak] | `render_page_html(n)` | `renderPageHtml` | `String` | HTML rendering |
+    :45 [stem/stem_weak] | `render_page_svg(n)` | `renderPageSvg` | SVG rendering |
+- [code] mydocs/eng/orders/20260330.md  channel=doc binding=link jev=0.14 rows=1
+    :9 [stem/link] | [#5](https://github.com/edwardkim/rhwp/issues/5) | cellzoneList cell area background not supported | Done | HWPX+HWP parser, image background render
+- [code] mydocs/eng/orders/20260403.md  channel=doc binding=link jev=0.14 rows=6
+    :11 [stem/link] | [#38](https://github.com/edwardkim/rhwp/issues/38) | Character overlap when switching Bold to Normal font | Done | Removed Bold fallback correction,
+    :12 [stem/link] | [#39](https://github.com/edwardkim/rhwp/issues/39) | Currency symbol rendering | Done | Canvas Malgun Gothic fallback switch, SVG font chain additio
+    :15 [stem/link] | [#42](https://github.com/edwardkim/rhwp/issues/42) | Picture rendering in header/footer | Done | Added has_picture branch, footer TAC inline layout,
+- [code] mydocs/report/table_algorithm_research.md  channel=doc binding=link jev=0.14 rows=2
+    :361 [stem/link] - [Flutter markNeedsLayout](https://api.flutter.dev/flutter/rendering/RenderObject/markNeedsLayout.html)
+    :362 [stem/link] - [Flutter Relayout Boundary](https://flutter.megathink.com/rendering/layout)
+- [code] mydocs/eng/feedback/post-refactoring-remaining-tasks.md  channel=doc binding=mention jev=0.14 rows=6
+    :40 [basename/mention] | `rendering.rs` | 2 | 1 |
+    :61 [basename/mention] | `rendering.rs` | 13 | 4 |
+    :125 [basename/mention] +-- rendering.rs                |   +-- cursor_nav.rs      (Q)
+- [code] mydocs/eng/feedback/r-code-review-4th.md  channel=doc binding=mention jev=0.14 rows=5
+    :128 [basename/mention] - border_rendering.rs: dedicated 591-line border module (SRP compliant)
+    :151 [stem/stem_weak] A Puppeteer-based E2E test system was built in-house, **automating the full pipeline** from WASM build -> Vite -> browser loading -> document renderin
+    :177 [stem/stem_weak] | `kps-ai.test.mjs` | Large document (70+ pages) split table rendering |
+- [code] mydocs/eng/orders/20260323.md  channel=doc binding=mention jev=0.14 rows=8
+    :14 [stem/stem_weak] | 318 | Exam paper 2-column rendering bug fix | Done | TAC table horizontal layout + HorzRelTo::Page separation + body_wide shape_reserved + Paper-abo
+    :16 [stem/stem_weak] | 320 | Master page detailed rendering improvement | Done | Hide propagation fix (para_starts_in_page) |
+    :19 [stem/stem_weak] | 323 | Header/footer Shape rendering + even/odd page selection | Done | Shape rendering added + even/odd header selection (section inheritance -> pag
+- [code] mydocs/eng/plans/archives/task_107.md  channel=doc binding=mention jev=0.14 rows=4
+    :7 [stem/stem_weak] 1. Page border/background (PAGE_BORDER_FILL) rendering
+    :22 [stem/stem_weak] - svg.rs: Gradient/border line SVG rendering
+    :23 [stem/stem_weak] - web_canvas.rs: Canvas rendering extension
+- [code] mydocs/eng/plans/archives/task_158.md  channel=doc binding=mention jev=0.14 rows=7
+    :16 [stem/stem_weak] | Pattern fill | Unverified | Complete | Hatching pattern rendering needs verification |
+    :29 [stem/stem_weak] 3. **Object properties dialog integration**: Ensure vertical writing/text direction settings actually affect rendering
+    :32 [stem/stem_weak] 4. **Rotation property UI integration**: Dialog rotation angle setting → save → rendering reflection
+- [code] mydocs/eng/plans/archives/task_181.md  channel=doc binding=mention jev=0.14 rows=4
+    :31 [stem/stem_weak] 4. Integrate equation controls into existing rendering pipeline
+    :35 [stem/stem_weak] Adopt **HWP equation script → AST → direct SVG rendering** instead of LaTeX conversion.
+    :38 [stem/stem_weak] - Embedding a LaTeX rendering engine (MathJax, etc.) adds excessive dependencies
+- [code] mydocs/eng/plans/archives/task_90_impl.md  channel=doc binding=mention jev=0.14 rows=4
+    :69 [stem/stem_weak] **Goal**: Fix rendering-critical items: table cell size, special character handling, image size
+    :142 [stem/stem_weak] **Goal**: WASM/Vite build confirmation, SVG rendering comparison verification for 5 HWPX samples
+    :151 [stem/stem_weak] 4. `export-svg` for 5 HWPX samples → rendering quality confirmation:
+- [code] mydocs/eng/report/task_2_final.md  channel=doc binding=mention jev=0.14 rows=6
+    :5 [stem/stem_weak] - Task: Viewer rendering engine design
+    :45 [stem/stem_weak] - **Observer**: Selective re-rendering of changed nodes via RenderNode dirty flags
+    :46 [stem/stem_weak] - **Worker**: RenderScheduler schedules rendering tasks with 3-tier priority: Immediate/Prefetch/Background
+- [code] mydocs/eng/tech/canvas_rendering_analysis.md  channel=doc binding=mention jev=0.14 rows=20
+    :7 [stem/stem_weak] After attempting Task 124 (glyph path rendering), we concluded that converting glyph outlines to Canvas Path2D in WASM cannot match the rendering qual
+    :50 [stem/stem_weak] - All rendering (text, shapes, images) is handled inside WASM
+    :58 [stem/stem_weak] **Architecture**: HWP -> Server "HWP Filter" -> JSON rendering commands (LZ-String compressed) -> Client Canvas 2D
+- [code] mydocs/eng/tech/hwp_table_rendering.md  channel=doc binding=mention jev=0.14 rows=6
+    :5 [stem/stem_weak] This document provides technical guidelines for rendering Table objects in HWP files.
+    :134 [stem/stem_weak] Key rendering attributes for each tab in Hancom's table properties dialog:
+    :149 [stem/stem_weak] | Caption position/size | Caption placement | Caption rendering position |
+- [code] mydocs/eng/working/archives/task_2_step_3.md  channel=doc binding=mention jev=0.14 rows=6
+    :38 [stem/stem_weak] - Abstracted into 8 core rendering methods
+    :45 [stem/stem_weak] - `mark_clean()` / `mark_clean_recursive()`: Resets after rendering complete
+    :46 [stem/stem_weak] - `has_dirty_nodes()`: Determines re-rendering necessity
+- [code] mydocs/eng/feedback/cqrs-analysis.md  channel=doc binding=mention jev=0.13 rows=3
+    :151 [basename/mention] // queries/rendering.rs
+    :173 [basename/mention] | `queries/rendering.rs` | Query | ~10 |
+    :117 [stem/stem_weak] // proceed with rendering...
+- [code] mydocs/eng/manual/onboarding_guide.md  channel=doc binding=mention jev=0.13 rows=5
+    :156 [stem/stem_weak] 1. **Changing text colors**: Applying different colors to header/body/background text to identify rendering sources
+    :158 [stem/stem_weak] 3. **Screenshot comparison**: Side-by-side comparison of Hancom rendering and rhwp rendering
+    :204 [stem/stem_weak] | Hancom rendering comparison | Task director | Establish the ground truth |
+- [code] mydocs/eng/orders/20260319.md  channel=doc binding=mention jev=0.13 rows=4
+    :6 [stem/stem_weak] | 265 | Page number hide feature implementation | Done | pghd tag modification + PageHide paragraph-based page matching + page number rendering hide |
+    :9 [stem/stem_weak] | 268 | TYPESET_VERIFY page count mismatch investigation | Done (existing) | Pre-existing mismatch before Task 267. Table height measurement differenc
+    :13 [stem/stem_weak] | 272 | Cell inner margin rendering bug fix | Done | apply_inner_margin bit 16 padding clear removed + Cell apply_inner_margin field added + cell padd
+- [code] mydocs/eng/orders/20260325.md  channel=doc binding=mention jev=0.13 rows=3
+    :12 [stem/stem_weak] | 377 | Equation double rendering in table cell | Done | Equation in paragraph with text rendered only in paragraph_layout. Double rendering preventio
+    :15 [stem/stem_weak] | 380 | TAC image double rendering fix | Done | Trailing TAC filter < -> <= fix. Prevents re-rendering of already-rendered Picture at tac_pos==run_cha
+    :31 [stem/stem_weak] | B-014 | TAC image double rendering | 2026-03-25 | Resolved | Task 380. Trailing TAC filter < -> <= fix. tac_pos==run_char_end boundary condition |
+- [code] mydocs/eng/plans/archives/task_12.md  channel=doc binding=mention jev=0.13 rows=4
+    :5 [stem/stem_weak] Implement rendering of HWP document auto numbering controls (`atno`) so that numbers are displayed in captions, footnotes, endnotes, etc.
+    :39 [stem/stem_weak] - Initialize counters at document rendering start
+    :44 [stem/stem_weak] - Insert number string at the corresponding position during text rendering
+- [code] mydocs/eng/plans/archives/task_15.md  channel=doc binding=mention jev=0.13 rows=3
+    :14 [stem/stem_weak] | SVG rendering | Not implemented | ratio not used in `draw_text()` |
+    :15 [stem/stem_weak] | Canvas rendering | Not implemented | ratio not used in `draw_text()` |
+    :68 [stem/stem_weak] 2. Compare 80% ratio document rendering (SVG vs Canvas)
+- [code] mydocs/eng/plans/archives/task_185.md  channel=doc binding=mention jev=0.13 rows=4
+    :9 [stem/stem_weak] **Mismatch between HeightMeasurer's `total_height` and layout's actual rendering height**
+    :15 [stem/stem_weak] | Layout (rendering) | `spacing_before`(conditional) + actual line rendering + `spacing_after` | sp_before skipped at column top |
+    :32 [stem/stem_weak] Align HeightMeasurer's height measurement with layout's actual rendering height. Specifically:
+- [code] mydocs/eng/plans/archives/task_2.md  channel=doc binding=mention jev=0.13 rows=5
+    :34 [stem/stem_weak] | Suitability | Medium - strong at low-level rendering, but layout engine must be separately implemented |
+    :40 [stem/stem_weak] | Cons | May have limited features compared to ThorVG, text rendering requires separate crate |
+    :47 [stem/stem_weak] | Pros | No external library needed, browser-native rendering, lightest WASM output |
+- [code] mydocs/eng/plans/archives/task_210.md  channel=doc binding=mention jev=0.13 rows=3
+    :14 [stem/stem_weak] When rendering controls (nested table) within a cell paragraph, `layout_table()` call has `Alignment::Left` hardcoded.
+    :22 [stem/stem_weak] - Same `Alignment::Left` hardcoded in split table cell content rendering
+    :42 [stem/stem_weak] 3. E2E test (host Chrome CDP) for web rendering confirmation
+- [code] mydocs/eng/plans/archives/task_74_impl.md  channel=doc binding=mention jev=0.13 rows=4
+    :13 [stem/stem_weak] | `renderer/layout.rs:3741-3749` | Group child rendering only matches ShapeObject types, no Picture |
+    :77 [stem/stem_weak] - Reuse existing `layout_picture()` function for image rendering
+    :91 [stem/stem_weak] 3. Existing `samples/hwp-img-001.hwp` SVG export → confirm existing image rendering normal (no regression)
+- [code] mydocs/eng/plans/archives/task_91_impl.md  channel=doc binding=mention jev=0.13 rows=4
+    :67 [stem/stem_weak] **A. Column separator rendering** (`src/renderer/layout.rs`):
+    :82 [stem/stem_weak] 3. SVG export — `treatise sample.hwp` 2-column rendering confirmed
+    :83 [stem/stem_weak] 4. Web viewer — 2-column rendering confirmed
+- [code] mydocs/eng/report/task_3_final.md  channel=doc binding=mention jev=0.13 rows=5
+    :60 [stem/stem_weak] |     +-- render_page_svg() -> SVG rendering
+    :173 [stem/stem_weak] | Table rendering | Table handling not implemented in pagination/layout |
+    :174 [stem/stem_weak] | Shape rendering | Shape handling not implemented in pagination/layout |
+- [code] mydocs/eng/report/web_hwp_editor_comparison.md  channel=doc binding=mention jev=0.13 rows=4
+    :30 [stem/stem_weak] | Filter Server | HWP parsing, rendering, format conversion (core engine) | RHEL 7+, Hancom Office 2018+ required |
+    :37 [stem/stem_weak] 3. Filter server uses the Hancom Office desktop engine for HWP parsing/rendering
+    :93 [stem/stem_weak] 4. Canvas API rendering (text, tables, images, shapes)
+- [code] mydocs/eng/tech/webhwp_text_measurement.md  channel=doc binding=mention jev=0.13 rows=6
+    :322 [stem/stem_weak] - **Per-character rendering**: Each character is drawn with an individual `fillText()` call (not run-based)
+    :324 [stem/stem_weak] - **Pixel conversion right before rendering**: Convert HWP -> px with `Pjt()` then draw on Canvas
+    :343 [stem/stem_weak] 1. **Run-based vs per-character rendering**: We render an entire run with `fillText(text, x, y)` at once, while charX is measured using prefix-based `
+- [code] mydocs/eng/working/task_232_final.md  channel=doc binding=mention jev=0.13 rows=6
+    :5 [stem/stem_weak] Implemented HWPTAG_FORM_OBJECT parsing and visual rendering of 5 form object types (push button, check box, combo box, radio button, edit box) in SVG/
+    :30 [stem/stem_weak] - Implemented identical 5 form object types rendering via Canvas 2D API
+    :33 [stem/stem_weak] - WASM build and browser rendering verification completed
+- [code] mydocs/eng/report/table_algorithm_research.md  channel=doc binding=link jev=0.12 rows=2
+    :364 [stem/link] - [Flutter markNeedsLayout](https://api.flutter.dev/flutter/rendering/RenderObject/markNeedsLayout.html)
+    :365 [stem/link] - [Flutter Relayout Boundary](https://flutter.megathink.com/rendering/layout)
+- [code] mydocs/eng/feedback/r-code-review-report.md  channel=doc binding=mention jev=0.12 rows=4
+    :30 [stem/stem_weak] - SVG/HTML/Canvas rendering
+    :83 [stem/stem_weak] Well-designed abstractions for async rendering scheduling.
+    :119 [stem/stem_weak] The `#[wasm_bindgen] impl HwpDocument` block has **100+ public methods**. From the JS client's perspective, a "viewer that only needs document renderi
+- [code] mydocs/eng/orders/20260320.md  channel=doc binding=mention jev=0.12 rows=8
+    :5 [stem/stem_weak] | 281 | Inline TextBox text baseline alignment bug fix | Done | table_layout direct rendering of Shape between/after text + paragraph_layout skip + ba
+    :10 [stem/stem_weak] | 286 | HWPX table rendering modernization | Done | table.attr -> table.common transition (40 sites) + HWPX pos/sz/outMargin/textWrap parsing + wrap f
+    :11 [stem/stem_weak] | 287 | HWPX [Table][Table] inline placement + LINE_SEG correction | Done | TAC inline table rendering + LINE_SEG lh expansion restoration + vpos reca
+- [code] mydocs/eng/plans/archives/task_124.md  channel=doc binding=mention jev=0.12 rows=4
+    :33 [stem/stem_weak] 4. Glyph path cache ensures repeated rendering performance
+    :43 [stem/stem_weak] | `src/renderer/web_canvas.rs` | Modify `draw_text()`: fillText -> glyph path rendering |
+    :61 [stem/stem_weak] - Fonts with glyph path rendering available -> path rendering
+- [code] mydocs/eng/plans/archives/task_131.md  channel=doc binding=mention jev=0.12 rows=4
+    :12 [stem/stem_weak] 4. **Canvas rendering**: Only calls `fillText` — strokeText, shadow, 3D effects are unimplemented
+    :53 [stem/stem_weak] → only calls fillText, no transformation rendering
+    :152 [stem/stem_weak] Apply each effect within the cluster rendering loop:
+- [code] mydocs/eng/plans/archives/task_16.md  channel=doc binding=mention jev=0.12 rows=3
+    :15 [stem/stem_weak] | layout_shape | Partial | Only text layout for shapes with TextBox, no visual element rendering |
+    :57 [stem/stem_weak] 2. Confirm rendering of diagram on pages 19~20 of `samples/hwp-3.0-HWPML.hwp`
+    :58 [stem/stem_weak] 3. Confirm existing TextBox rendering still works correctly
+- [code] mydocs/eng/plans/archives/task_170.md  channel=doc binding=mention jev=0.12 rows=3
+    :5 [stem/stem_weak] Connect emphasis dots, underline shape, strikethrough shape, and kerning attributes from the character shape dialog (Alt+L) extended tab to the HWP ba
+    :45 [stem/stem_weak] | `src/renderer/svg.rs` | Emphasis dot rendering + draw_line_shape (11 types) |
+    :46 [stem/stem_weak] | `src/renderer/web_canvas.rs` | Emphasis dot rendering + draw_line_shape_canvas |
+- [code] mydocs/eng/plans/archives/task_79.md  channel=doc binding=mention jev=0.12 rows=4
+    :9 [stem/stem_weak] - `BorderLineType::None` borders are completely omitted from rendering
+    :36 [stem/stem_weak] 1. Implement transparent border toggle feature (View menu → global toggle → rendering)
+    :64 [stem/stem_weak] [Canvas/SVG renderer] Normal rendering of red dotted Line nodes
+- [code] mydocs/eng/working/archives/task_46_final.md  channel=doc binding=mention jev=0.12 rows=6
+    :21 [stem/stem_weak] | 1 | `wasm-bridge.ts` | `globalThis.measureTextWidth` not registered -> WASM rendering total failure | **Critical** | Browser test |
+    :22 [stem/stem_weak] | 2 | `viewport-manager.ts` | `setScrollTop()` internal scrollY not updated -> wrong page rendering on zoom change | High | Code review |
+    :24 [stem/stem_weak] | 4 | `canvas-view.ts` | `renderPage()` WASM rendering exception leaves empty canvas in DOM | Medium | Code review |
+- [code] mydocs/eng/orders/20260404.md  channel=doc binding=link jev=0.11 rows=3
+    :8 [stem/link] | [#42](https://github.com/edwardkim/rhwp/issues/42) | Picture rendering in header/footer | Done | has_picture branch, footer TAC inline, bin_data_con
+    :9 [stem/link] | [#43](https://github.com/edwardkim/rhwp/issues/43) | Image crop + image border lines | Done | crop SVG viewBox/Canvas drawImage, border rendering, h
+    :22 [stem/link] | [#51](https://github.com/edwardkim/rhwp/issues/51) | E2E rendering screenshots | Done | CDP-based KTX.hwp capture, README insertion |
+- [code] mydocs/eng/feedback/rhwp-studio-code-review.md  channel=doc binding=mention jev=0.11 rows=7
+    :51 [stem/stem_weak] |     +-- caret-renderer.ts           Caret rendering
+    :52 [stem/stem_weak] |     +-- selection-renderer.ts       Selection area rendering
+    :53 [stem/stem_weak] |     +-- cell-selection-renderer.ts  Cell selection rendering
+- [code] mydocs/eng/orders/20260216.md  channel=doc binding=mention jev=0.11 rows=4
+    :5 [stem/stem_weak] | 92 | Shape rendering transform (scale/offset/rotation) application | Done | Parser fixed-point 16.16 conversion + renderer Line/Polygon/Curve intern
+    :7 [stem/stem_weak] | 94 | Object position alignment attribute parsing and rendering fix | Done | fill_mode 16 types rendering, background color + image simultaneous appl
+    :8 [stem/stem_weak] | 95 | Master Page implementation | Done | Parsing + pagination + rendering. 532 tests passed, WASM/Vite build success |
+- [code] mydocs/eng/orders/20260315.md  channel=doc binding=mention jev=0.11 rows=4
+    :6 [stem/stem_weak] | 223 | synam-001.hwp p1 TAC table leading space margin not applied in cell fix | Done | treat_as_char table leading text (space) width applied as x o
+    :7 [stem/stem_weak] | 224 | synam-001.hwp p2->p3 pagination error + split table cell text missing fix | Done | TAC table height-based pagination + nested table height ref
+    :11 [stem/stem_weak] | 228 | Highlighter feature implementation | Done | RangeTag-based highlighter rendering + CharShape.shade_color editor highlighter + style toolbar co
+- [code] mydocs/eng/orders/20260316.md  channel=doc binding=mention jev=0.11 rows=3
+    :5 [stem/stem_weak] | 232 | Form object parsing and rendering | Done | HWPTAG_FORM_OBJECT parsing + 5 form object types visual rendering (SVG/Canvas) |
+    :9 [stem/stem_weak] | 236 | Nested table continuation rendering and Korean font alias fix | Done | PartialTable nested table visible height calculation + Dotum/Batang/Mal
+    :10 [stem/stem_weak] | 237 | Multi-digit CharOverlap rendering and cursor movement | Done | PUA 2-3 digit number decoding, condensed width compression rendering, leading s
+- [code] mydocs/eng/plans/archives/task_129.md  channel=doc binding=mention jev=0.11 rows=3
+    :27 [stem/stem_weak] Browser cannot find the font and falls back to system default font for rendering.
+    :99 [stem/stem_weak] | Gulimche rendering | System default font | Gulimche (hamchod-r.woff2) |
+    :100 [stem/stem_weak] | Ansangsu rendering | System default font | HamChoRom Dotum (hamchod-r.woff2) |
+- [code] mydocs/eng/plans/archives/task_154.md  channel=doc binding=mention jev=0.11 rows=4
+    :103 [stem/stem_weak] - `2024 Q1 foreign direct investment press release ff.hwpx` → SVG: existing normal rendering maintained
+    :104 [stem/stem_weak] - `Integrated fiscal statistics(2011.10).hwp` → SVG: no impact on HWP file rendering
+    :109 [stem/stem_weak] **Goal**: Fix image position/size rendering, enhance detail attribute parsing
+- [code] mydocs/eng/report/task_96_final.md  channel=doc binding=mention jev=0.11 rows=5
+    :8 [stem/stem_weak] Implemented correct positioning of child shapes within HWP document container/group objects. Includes affine transform matrix composition order fix, t
+    :14 [stem/stem_weak] **Problem**: Group child shape rendering positions did not match the original HWP
+    :61 [stem/stem_weak] | `src/renderer/web_canvas.rs` | Arrow rendering (9 types, start/end) |
+- [code] mydocs/eng/orders/20260213.md  channel=doc binding=mention jev=0.10 rows=4
+    :7 [stem/stem_weak] | 51 | Copy/Paste (clipboard) | Done | B-305. Selection model (anchor/focus) + Shift+Arrow selection, WASM getSelectionRects/deleteRange 4 APIs, selec
+    :10 [stem/stem_weak] | 54 | Page paper margin display | Done | WASM getPageInfo margin 6-field extension, canvas 4-corner L-shaped corner marks rendering, Hancom coreEngin
+    :15 [stem/stem_weak] | 59 | Table cell internal line-level page splitting | Done | Intra-row splitting applied to all tables. MeasuredCell struct (per-cell line height mea
+- [code] mydocs/eng/orders/20260215.md  channel=doc binding=mention jev=0.10 rows=4
+    :7 [stem/stem_weak] | 78 | 20250130-hongbo.hwp page 2 two images rendering missing | Done | Parser old-version Group detection condition error fixed. Rectangle+TextBox mi
+    :9 [stem/stem_weak] | 80 | Table cell height matching HWP behavior | Done | Last line line_spacing excluded for cell height accuracy improvement (3 locations). Cell rende
+    :10 [stem/stem_weak] | 81 | Table cell vertical writing implementation | Done | Vertical writing layout for cells with text_direction != 0. Parenthesis CW 90deg rotation (
+- [code] mydocs/eng/orders/20260221.md  channel=doc binding=mention jev=0.10 rows=3
+    :11 [stem/stem_weak] | 131 | Text effect rendering (outline/shadow/emboss/engrave) | Done | outline_type bit parsing fix (hwplib reference, bits 8-10/11-12) + emboss/engra
+    :15 [stem/stem_weak] | 135 | Table cell border resize marker display | Done | Cell border hover shows row-resize/col-resize cursor + blue marker. TableResizeRenderer new (
+    :24 [stem/stem_weak] | B-006 | Multi-column editing design (pagination + DocumentPosition extension) | 2026-02-18 | Unresolved | Currently multi-column supports rendering 
+- [code] mydocs/eng/orders/20260223.md  channel=doc binding=mention jev=0.10 rows=3
+    :7 [stem/stem_weak] | 154 | HWPX rendering enhancement | Done | P1. 3 stages completed: HWPX ctrl/paragraph control complete parsing, renderingInfo affine transform (grou
+    :9 [stem/stem_weak] | 156 | Edit mode left/right margin clipping removal | Done | P1. Resolved with alignment-based spacing compression. Justify negative word spacing, Ja
+    :15 [stem/stem_weak] | B-006 | Multi-column editing design (pagination + DocumentPosition extension) | 2026-02-18 | Unresolved | Currently multi-column supports rendering 
+- [code] mydocs/eng/orders/20260224.md  channel=doc binding=mention jev=0.10 rows=3
+    :7 [stem/stem_weak] | 161 | TextBox Z-Order Hancom compatibility verification | Waiting | P0. Test whether Hancom uses z_order field vs document order for rendering. Rein
+    :10 [stem/stem_weak] | 162 | Custom tab stops and tab leader (fill symbol) rendering | Done | Tab position /2.0 scale correction, left/right/center/decimal tab alignment, 
+    :16 [stem/stem_weak] | B-006 | Multi-column editing design (pagination + DocumentPosition extension) | 2026-02-18 | Unresolved | Currently multi-column supports rendering 
+- [code] mydocs/eng/plans/archives/task_195.md  channel=doc binding=mention jev=0.10 rows=5
+    :5 [stem/stem_weak] Implement field insertion (page number, total pages, filename) in header/footer editing mode, rendering with actual values at display time. Implement 
+    :12 [stem/stem_weak] | PageNumberPos rendering | Complete (`build_page_number`) |
+    :15 [stem/stem_weak] | Field rendering | **Not implemented** |
+- [code] mydocs/eng/plans/archives/task_92.md  channel=doc binding=mention jev=0.10 rows=4
+    :5 [stem/stem_weak] Shape rendering error discovered during KTX.hwp (multi-column route map document) testing.
+    :12 [stem/stem_weak] Shape internal coordinates (Line's start/end, Polygon's points, Curve's points) are defined in the **original coordinate system**. However, during ren
+    :39 [stem/stem_weak] Apply original → display coordinate system scaling when rendering shape internal coordinates:
+- [code] mydocs/eng/tech/incremental_layout_research.md  channel=doc binding=mention jev=0.10 rows=6
+    :65 [stem/stem_weak] - Collabora Online adds APIs to coordinate tile rendering with asynchronous layout
+    :171 [stem/stem_weak] - Transitioned to Canvas-based rendering with a custom layout engine
+    :173 [stem/stem_weak] **Incremental rendering approach:**
+- [code] mydocs/eng/orders/20260218.md  channel=doc binding=mention jev=0.09 rows=3
+    :7 [stem/stem_weak] | 109 | Table > image position rendering bug fix | Done | treat_as_char table rendering, inline image placement, line_seg-based line spacing correctio
+    :18 [stem/stem_weak] | B-005 | KTX.hwp 2-column layout right column rendering | 2026-02-18 | Attempted segment_width filter in 130b1df but caused k-water-rfp regression. M
+    :19 [stem/stem_weak] | B-006 | Multi-column editing design (pagination + DocumentPosition extension) | 2026-02-18 | Currently multi-column supports rendering only. For edi
+- [code] mydocs/eng/orders/20260225.md  channel=doc binding=mention jev=0.09 rows=3
+    :5 [stem/stem_weak] | 158 | TextBox border/fill/vertical writing | Phase 1 Done | P1. TextBox/table cell vertical writing rendering implemented. Unresolved: symbol substi
+    :7 [stem/stem_weak] | 161 | TextBox Z-Order Hancom compatibility verification | Done | P0. Tested whether Hancom uses z_order field vs document order for rendering. Reint
+    :15 [stem/stem_weak] | B-006 | Multi-column editing design (pagination + DocumentPosition extension) | 2026-02-18 | Done | Currently multi-column supports rendering only. 
+- [code] mydocs/eng/orders/20260302.md  channel=doc binding=mention jev=0.09 rows=3
+    :5 [stem/stem_weak] | 181 | Hancom equation rendering implementation | Done | HWP equation script parsing and SVG rendering |
+    :6 [stem/stem_weak] | 182 | WMF image rendering implementation | Done | wmf-core vendoring, WMF -> SVG conversion |
+    :7 [stem/stem_weak] | 183 | Table background feature implementation | Done | Cell pattern fill + table-level fill color background rendering |
+- [code] mydocs/eng/plans/archives/task_105.md  channel=doc binding=mention jev=0.09 rows=3
+    :52 [stem/stem_weak] - Border line rendering (can leverage existing code by treating as Line nodes)
+    :66 [stem/stem_weak] | `src/renderer/svg.rs` | Extend PageBackground rendering |
+    :67 [stem/stem_weak] | `src/renderer/web_canvas.rs` | Extend PageBackground rendering |
+- [code] mydocs/eng/manual/hyper_waterfall.md  channel=doc binding=mention jev=0.08 rows=3
+    :214 [stem/stem_weak] 3. **Visual verification** — Visually inspect SVG rendering output
+    :215 [stem/stem_weak] 4. **E2E verification** — Confirm rendering in the browser
+    :316 [stem/stem_weak] - Complex domains (reverse engineering, rendering, parsing, etc.)
+- [code] mydocs/eng/manual/ir_diff_command.md  channel=doc binding=mention jev=0.08 rows=3
+    :72 [stem/stem_weak] | `tab_def` (tab_def_id) | Tab definition reference | Index mismatch causes tab rendering errors |
+    :109 [stem/stem_weak] The following items may always differ due to structural differences between HWPX and HWP, with no impact on rendering:
+    :117 [stem/stem_weak] When an HWPX rendering bug is found, follow this sequence:
+- [code] mydocs/eng/orders/20260226.md  channel=doc binding=mention jev=0.08 rows=3
+    :5 [stem/stem_weak] | 158 | TextBox border/fill/vertical writing | Done | P1. Pattern fill 6 types SVG/Canvas/WebCanvas rendering, vertical writing symbol substitution. W
+    :7 [stem/stem_weak] | 161 | TextBox Z-Order Hancom compatibility verification | Done | P0. Tested whether Hancom uses z_order field vs document order for rendering. Reint
+    :8 [stem/stem_weak] | 165 | Shape rotation/mirror rendering + Studio UI | Done | Render tree ShapeTransform extension, SVG/Canvas/WebCanvas rotation/mirror rendering, Stu
+- [code] src/wmf/parser/constants/enums/font_quality.rs  channel=other binding=mention jev=0.08 rows=4
+    :2 [stem/stem_weak] /// logical font match those of the physical font when rendering text.
+    :17 [stem/stem_weak] /// Specifies that anti-aliasing SHOULD NOT be used when rendering text.
+    :21 [stem/stem_weak] /// Specifies that anti-aliasing SHOULD be used when rendering text, if the
+- [code] .github/CODE_OF_CONDUCT.md  channel=doc binding=mention jev=- rows=1
+    :37 [stem/stem_weak] - No function or file should mix parsing, rendering, and serialization concerns
+- [code] README.md  channel=doc binding=mention jev=- rows=2
+    :155 [stem/stem_weak] - Canvas rendering (WASM/Web)
+    :292 [stem/stem_weak] │   ├── queries/               # Queries (rendering data, pagination)
+- [code] mydocs/eng/feedback/carret_tech.md  channel=doc binding=mention jev=- rows=1
+    :42 [stem/stem_weak] | **Draw** | Final rendering | ThorVG + SDL2/WASM |
+- [code] mydocs/eng/feedback/code-complexity-recommendations.md  channel=doc binding=mention jev=- rows=2
+    :112 [stem/stem_weak] `wasm_api.rs`'s `HwpDocument` includes 9 roles (text editing, table editing, rendering, serialization...), so **cohesion is extremely low**. This prov
+    :177 [stem/stem_weak] | **Core** | Document model operations, editing logic, layout, rendering | `#[wasm_bindgen]`, JSON conversion, JsValue |
+- [code] mydocs/eng/feedback/code-refactoring-strategy.md  channel=doc binding=mention jev=- rows=1
+    :69 [stem/stem_weak] |   +-- viewer.rs            <- Viewing: rendering, page info, DPI
+- [code] mydocs/eng/feedback/fixed_para.md  channel=doc binding=mention jev=- rows=1
+    :2 [stem/stem_weak] 1. When a table appears, rendering the table adds the table height. At this point, temporarily save the paragraph starting point of the table.
+- [code] mydocs/eng/feedback/hwpx2ir.md  channel=doc binding=mention jev=- rows=2
+    :3 [stem/stem_weak] When rendering HWPX files, layout placement issues occur with tables, images, and paragraphs.
+    :10 [stem/stem_weak] The fact that there are no issues with rendering the controls themselves, but problems occur in height calculation and placement, leads to the logical
+- [code] mydocs/eng/feedback/layout-quality-report.md  channel=doc binding=mention jev=- rows=2
+    :106 [stem/stem_weak] | Cell background rendering | 2,920~2,950 | 6,559~6,579 |
+    :144 [stem/stem_weak] 6. Page numbers/page borders rendering
+- [code] mydocs/eng/feedback/r-code-review-2nd.md  channel=doc binding=mention jev=- rows=1
+    :42 [stem/stem_weak] A single `HwpDocument` struct handles **9 roles** (loading, rendering, text editing, table editing, formatting, clipboard, HTML conversion, serializat
+- [code] mydocs/eng/feedback/r-code-review-3rd-response.md  channel=doc binding=mention jev=- rows=2
+    :75 [basename/mention] |   |   +-- rendering.rs
+    :17 [stem/stem_weak] > "Giant functions like paginate_with_measured() (1,456 lines) or build_render_tree() (921 lines) are bottlenecks in the rendering pipeline"
+- [code] mydocs/eng/feedback/r-code-review-3rd.md  channel=doc binding=mention jev=- rows=2
+    :34 [basename/mention] - "Data requests for drawing something to the UI" are separated through `rendering.rs`, `cursor_nav.rs`, etc.
+    :59 [stem/stem_weak] Dismantling a tens-of-thousands-line God Object alone would have been challenging enough, yet safely fragmenting the giant layout algorithms at the he
+- [code] mydocs/eng/feedback/table_render.md  channel=doc binding=mention jev=- rows=2
+    :3 [stem/stem_weak] In other words, we must also handle table processing in our rendering engine through our own reverse engineering.
+    :7 [stem/stem_weak] In other words, we must also handle table processing in our rendering engine through our own reverse engineering.
+- [code] mydocs/eng/feedback/task_191_caption_lr.md  channel=doc binding=mention jev=- rows=1
+    :16 [stem/stem_weak] - Right caption set to 30mm: Table rendering position unchanged, caption placed to the right of the table
+- [code] mydocs/eng/manual/ai_pair_programming_guide.md  channel=doc binding=mention jev=- rows=1
+    :100 [stem/stem_weak] | "The rendering is incorrect" | [Hancom screenshot + our screenshot] "The cell text and host text baselines differ" |
+- [code] mydocs/eng/manual/branding_strategy.md  channel=doc binding=mention jev=- rows=1
+    :45 [stem/stem_weak] - **rhwp's meaning**: No flashy packaging — focused on the essence of the typesetting engine: accurate rendering.
+- [code] mydocs/eng/manual/dump_command.md  channel=doc binding=mention jev=- rows=2
+    :110 [stem/stem_weak] | scale | render_sx, render_sy (rendering scale) |
+    :111 [stem/stem_weak] | offset | render_tx, render_ty (rendering offset) |
+- [code] mydocs/eng/manual/e2e-cdp.md  channel=doc binding=mention jev=- rows=1
+    :417 [stem/stem_weak] | Check SVG rendering | `w.doc.renderPageSvg(pageNum)` |
+- [code] mydocs/eng/manual/e2e_verification_guide.md  channel=doc binding=mention jev=- rows=1
+    :5 [stem/stem_weak] A system that programmatically creates documents from a blank document and **automatically verifies** that the rendering results match expected values
+- [code] mydocs/eng/manual/logo_prompts_en.md  channel=doc binding=mention jev=- rows=1
+    :96 [stem/stem_weak] 2. Export as SVG for crisp rendering at all sizes
+- [code] mydocs/eng/orders/20260205.md  channel=doc binding=mention jev=- rows=1
+    :6 [stem/stem_weak] | 2 | Viewer rendering engine design | Done | All 5 stages completed, 88 tests passed, final report approved |
+- [code] mydocs/eng/orders/20260207.md  channel=doc binding=mention jev=- rows=2
+    :7 [stem/stem_weak] | 15 | Condensed width (character width ratio) rendering | Done | 233 tests passed, includes Canvas image/position bug fix |
+    :8 [stem/stem_weak] | 16 | Shape rendering implementation | Done | Individual shape/Group rendering, paragraph margin 2x correction, 233 tests passed |
+- [code] mydocs/eng/orders/20260210.md  channel=doc binding=mention jev=- rows=1
+    :7 [stem/stem_weak] | 36 | Table border rendering enhancement | Done | Phase 1: Gradient fill rendering (SVG/Canvas), Phase 2: Edge-based border deduplication, header row
+- [code] mydocs/eng/orders/20260212.md  channel=doc binding=mention jev=- rows=1
+    :13 [stem/stem_weak] | 51 | Copy/Paste (clipboard) | Done | Selection model + selection rendering + Ctrl+C/X/V. HTML table paste, multi-paragraph selection copy |
+- [code] mydocs/eng/orders/20260217.md  channel=doc binding=mention jev=- rows=1
+    :12 [stem/stem_weak] | 105 | Page border/background feature | In Progress | Sample: Worldcup_FIFA2010_32.hwp. Parsing complete, rendering implementation needed |
+- [code] mydocs/eng/orders/20260219.md  channel=doc binding=mention jev=- rows=2
+    :5 [stem/stem_weak] | 111 | CharOverlap parsing and rendering | Done | Model extension (border_type/inner_char_size/char_shape_ids), parser (table 152), serialization, co
+    :17 [stem/stem_weak] | B-006 | Multi-column editing design (pagination + DocumentPosition extension) | 2026-02-18 | Currently multi-column supports rendering only. For edi
+- [code] mydocs/eng/orders/20260222.md  channel=doc binding=mention jev=- rows=2
+    :6 [stem/stem_weak] | 140 | Image movement + HWP save compatibility | Done | Keyboard arrow movement (3mm units), mouse drag movement, MovePictureCommand (Undo support), 
+    :25 [stem/stem_weak] | B-006 | Multi-column editing design (pagination + DocumentPosition extension) | 2026-02-18 | Unresolved | Currently multi-column supports rendering 
+- [code] mydocs/eng/orders/20260227.md  channel=doc binding=mention jev=- rows=1
+    :7 [stem/stem_weak] | 170 | Character shape advanced attributes | Done | P1. Emphasis mark 6 types parsing+rendering, kerning, underline/strikethrough shape editing + und
+- [code] mydocs/eng/orders/20260303.md  channel=doc binding=mention jev=- rows=1
+    :5 [stem/stem_weak] | 184-2 | Box-processed number (PUA) rendering bug fix | Done | samples/box-char.hwp, box-char-in-tb.hwp, kps-ai.hwp 6p |
+- [code] mydocs/eng/orders/20260311.md  channel=doc binding=mention jev=- rows=2
+    :11 [stem/stem_weak] | 205 | Image rendering bug improvement | Done | Image cache (FNV-1a hash) + progressive re-render (200ms/600ms) |
+    :13 [stem/stem_weak] | 207 | tab-tb.hwp SVG/Canvas rendering difference fix | Done | Canvas tab character skip, HCR Dotum font metric alias mapping for HCR Dotum, space ha
+- [code] mydocs/eng/orders/20260312.md  channel=doc binding=mention jev=- rows=2
+    :7 [stem/stem_weak] | 211 | kps-ai.hwp p61 non-inline image rendering outside cell (B-012) | Done | height_measurer non-inline image height aggregation, total_content_hei
+    :21 [stem/stem_weak] | B-012 | kps-ai.hwp p61 non-inline image rendering outside cell | 2026-03-12 | Resolved | Table > cell (vertical center) > multiple tables + image st
+- [code] mydocs/eng/orders/20260313.md  channel=doc binding=mention jev=- rows=1
+    :6 [stem/stem_weak] | 217 | k-water-rfp.hwp p24 nested table height calculation bug in split table fix | Done | Wrap-around placement table pagination and host text rende
+- [code] mydocs/eng/orders/20260318.md  channel=doc binding=mention jev=- rows=2
+    :5 [stem/stem_weak] | 246 | Hancom-level shape completion | Done | Arrow rendering + shape shadow + rounded rectangle + double line/triple line |
+    :8 [stem/stem_weak] | 252 | Footnote editing feature | Done | Inline FootnoteMarker rendering + footnote area display in TextBox + WASM build confirmed |
+- [code] mydocs/eng/orders/20260324.md  channel=doc binding=mention jev=- rows=1
+    :5 [stem/stem_weak] | 340 | Bullet paragraph tab alignment error | Unresolved | hwpspec-w.hwp p63 pi=409. Bullet width included in tab grid criterion causing tab boundary
+- [code] mydocs/eng/orders/20260327.md  channel=doc binding=mention jev=- rows=2
+    :5 [stem/stem_weak] | 385 | Reapply Task 377+378 | Done | Cherry-pick selective reapply of 377 (equation double rendering) + 378 (equation editor cell context) |
+    :25 [stem/stem_weak] | B-014 | TAC image double rendering | 2026-03-25 | Resolved | Naturally resolved after Task 374~384 revert |
+- [code] mydocs/eng/plans/archives/task_109.md  channel=doc binding=mention jev=- rows=2
+    :5 [stem/stem_weak] Fix two rendering issues in `samples/basic/request.hwp`:
+    :42 [stem/stem_weak] - When rendering first line (line_idx == start_line):
+- [code] mydocs/eng/plans/archives/task_110.md  channel=doc binding=mention jev=- rows=1
+    :52 [stem/stem_weak] - For mismatched lines, advance `char_offset` only and skip rendering
+- [code] mydocs/eng/plans/archives/task_117.md  channel=doc binding=mention jev=- rows=1
+    :18 [stem/stem_weak] - pagination.rs comments (lines 304-305) already acknowledge: "measured height is measured larger than rendering, causing page count to increase"
+- [code] mydocs/eng/plans/archives/task_121.md  channel=doc binding=mention jev=- rows=1
+    :65 [stem/stem_weak] | Border CSS preview vs actual rendering differences | Approximate CSS border styles to HWP line types |
+- [code] mydocs/eng/plans/archives/task_127.md  channel=doc binding=mention jev=- rows=1
+    :93 [stem/stem_weak] | Cache integrity | Verify rendering results identical with/without cache |
+- [code] mydocs/eng/plans/archives/task_128.md  channel=doc binding=mention jev=- rows=1
+    :33 [stem/stem_weak] - Faux Bold widens glyphs due to stroke thickness increase -> **layout width != rendering width**
+- [code] mydocs/eng/plans/archives/task_13.md  channel=doc binding=mention jev=- rows=2
+    :5 [stem/stem_weak] Implement parsing and rendering of paragraph numbering (Numbering) corresponding to HWP document's "Format > Paragraph > Numbering".
+    :19 [stem/stem_weak] - Paragraph number rendering (number string generation and insertion before text)
+- [code] mydocs/eng/plans/archives/task_130.md  channel=doc binding=mention jev=- rows=1
+    :167 [stem/stem_weak] | Initial rendering speed | Background load 86 fonts | Immediate load only needed fonts |
+- [code] mydocs/eng/plans/archives/task_132.md  channel=doc binding=mention jev=- rows=1
+    :124 [stem/stem_weak] **Purpose**: Call dialog from `table:create` command → call WASM API → refresh rendering
+- [code] mydocs/eng/plans/archives/task_133.md  channel=doc binding=mention jev=- rows=1
+    :136 [stem/stem_weak] 4. Enter text in blank document → Confirm normal rendering
+- [code] mydocs/eng/plans/archives/task_13_impl.md  channel=doc binding=mention jev=- rows=2
+    :69 [stem/stem_weak] 3. Insert number text during paragraph rendering
+    :88 [stem/stem_weak] - Visual verification of correct number rendering
+- [code] mydocs/eng/plans/archives/task_144.md  channel=doc binding=mention jev=- rows=1
+    :26 [basename/mention] | rendering.rs | Delete 2 parse_* functions, replace escapes |
+- [code] mydocs/eng/plans/archives/task_144_impl.md  channel=doc binding=mention jev=- rows=2
+    :32 [basename/mention] | rendering.rs | parse_u32, parse_bool | json_u32, json_bool |
+    :52 [basename/mention] | rendering.rs | 2 locations (L193-196, L223-224) |
+- [code] mydocs/eng/plans/archives/task_146_impl.md  channel=doc binding=mention jev=- rows=1
+    :5 [stem/stem_weak] Extract 8 independent rendering blocks as private methods: build_page_background, build_page_borders, build_master_page, build_header, build_footer, b
+- [code] mydocs/eng/plans/archives/task_147.md  channel=doc binding=mention jev=- rows=1
+    :10 [stem/stem_weak] - **queries/**: rendering, cursor_nav, cursor_rect
+- [code] mydocs/eng/plans/archives/task_157.md  channel=doc binding=mention jev=- rows=2
+    :9 [stem/stem_weak] Currently rhwp supports parsing, rendering, and text editing of existing text boxes in HWP files, but lacks the ability to create new text boxes or se
+    :102 [stem/stem_weak] - Existing text box HWP file rendering has no regression
+- [code] mydocs/eng/plans/archives/task_157_impl.md  channel=doc binding=mention jev=- rows=2
+    :32 [basename/mention] #### 1-3. `src/wasm_api/queries/rendering.rs` — Extend getPageControlLayout
+    :82 [stem/stem_weak] | Share TableObjectRenderer | Handle rendering is object-type agnostic |
+- [code] mydocs/eng/plans/archives/task_15_impl.md  channel=doc binding=mention jev=- rows=1
+    :29 [stem/stem_weak] - Verify rendering with sample documents
+- [code] mydocs/eng/plans/archives/task_16_impl.md  channel=doc binding=mention jev=- rows=2
+    :45 [stem/stem_weak] 3. Confirm existing TextBox document rendering is normal
+    :48 [stem/stem_weak] **Completion criteria:** All tests pass, WASM build succeeds, sample diagram rendering is normal
+- [code] mydocs/eng/plans/archives/task_17.md  channel=doc binding=mention jev=- rows=1
+    :13 [stem/stem_weak] | Step 3 | Overlay canvas and selection highlight rendering | `web/index.html`, `web/style.css`, `web/text_selection.js` |
+- [code] mydocs/eng/plans/archives/task_170_impl.md  channel=doc binding=mention jev=- rows=1
+    :72 [stem/stem_weak] | Set emphasis dot in char shape dialog | emphasisDot value saved, rendering reflected |
+- [code] mydocs/eng/plans/archives/task_172.md  channel=doc binding=mention jev=- rows=1
+    :5 [stem/stem_weak] Implement paragraph numbering and bullet editing features. Currently model/parser/rendering are complete, but editing UI and WASM API are missing so u
+- [code] mydocs/eng/plans/archives/task_17_impl.md  channel=doc binding=mention jev=- rows=1
+    :59 [stem/stem_weak] 3. `app.js` integration: Load text layout after page rendering and initialize controller
+- [code] mydocs/eng/plans/archives/task_181_impl.md  channel=doc binding=mention jev=- rows=2
+    :92 [stem/stem_weak] Verify rendering quality with real equation-containing HWP files, confirm WASM build
+    :96 [stem/stem_weak] - HWPX file equation rendering verification
+- [code] mydocs/eng/plans/archives/task_183.md  channel=doc binding=mention jev=- rows=2
+    :5 [stem/stem_weak] Table cell background rendering is incomplete. Solid color backgrounds work, but pattern fill and image fill are not applied to table cells.
+    :14 [stem/stem_weak] | Image fill | Not connected | Exists in ResolvedBorderStyle but rendering not implemented |
+- [code] mydocs/eng/plans/archives/task_185_impl.md  channel=doc binding=mention jev=- rows=2
+    :5 [stem/stem_weak] Pagination's `current_height` accumulation and Layout's `y_offset` accumulation are mismatched, causing paragraphs that pagination judged as "can fit"
+    :35 [stem/stem_weak] **Goal**: Make HM's total_height match layout's actual rendering height
+- [code] mydocs/eng/plans/archives/task_196_impl.md  channel=doc binding=mention jev=- rows=2
+    :13 [stem/stem_weak] - `e2e/text-flow.test.ts`: Basic test cases (load blank document, click editor, input text, verify rendering)
+    :24 [stem/stem_weak] - Verify two-line rendering after break (check line count via WASM API)
+- [code] mydocs/eng/plans/archives/task_198.md  channel=doc binding=mention jev=- rows=1
+    :19 [stem/stem_weak] 4. **SVG output comparison**: Confirm rendering accuracy of split tables
+- [code] mydocs/eng/plans/archives/task_198_impl.md  channel=doc binding=mention jev=- rows=2
+    :23 [stem/stem_weak] - **Fix**: Apply `NestedTableSplit` when splitting rows containing nested tables, rendering only the visible portion
+    :36 [stem/stem_weak] - Pass available rendering space (`visible_space`) within cells to nested tables
+- [code] mydocs/eng/plans/archives/task_199_impl.md  channel=doc binding=mention jev=- rows=2
+    :36 [stem/stem_weak] - Confirm rendering of paragraphs containing line breaks in existing HWP files
+    :43 [stem/stem_weak] - Add paragraph mark symbol rendering tests
+- [code] mydocs/eng/plans/archives/task_200_impl.md  channel=doc binding=mention jev=- rows=1
+    :8 [stem/stem_weak] - When rendering TextRun with `show_paragraph_marks` true:
+- [code] mydocs/eng/plans/archives/task_201.md  channel=doc binding=mention jev=- rows=1
+    :29 [stem/stem_weak] Overlay red label at top-left of each object RenderNodeType during rendering:
+- [code] mydocs/eng/plans/archives/task_210_impl.md  channel=doc binding=mention jev=- rows=1
+    :13 [stem/stem_weak] - E2E test for web rendering confirmation
+- [code] mydocs/eng/plans/archives/task_211.md  channel=doc binding=mention jev=- rows=1
+    :59 [stem/stem_weak] 3. E2E test for web rendering confirmation
+- [code] mydocs/eng/plans/archives/task_211_impl.md  channel=doc binding=mention jev=- rows=1
+    :68 [stem/stem_weak] - E2E test for web rendering confirmation
+- [code] mydocs/eng/plans/archives/task_213.md  channel=doc binding=mention jev=- rows=1
+    :10 [stem/stem_weak] - **Problem 3 (Current)**: p67~p68 composed only of empty paragraphs (para 675~751, text="", controls=0) rendering as empty pages. These empty paragra
+- [code] mydocs/eng/plans/archives/task_22.md  channel=doc binding=mention jev=- rows=1
+    :24 [stem/stem_weak] → renderCurrentPage() [rendering]
+- [code] mydocs/eng/plans/archives/task_229_field_roadmap.md  channel=doc binding=mention jev=- rows=3
+    :5 [stem/stem_weak] Since the goal is a web document authoring system, not just simple rendering but data binding through external APIs is the core requirement. Hancom's 
+    :31 [stem/stem_weak] | 1 | **229** (Field parsing/rendering) | Highest | Foundation for all field features |
+    :34 [stem/stem_weak] | 4 | **232** (Form object parsing/rendering) | Medium | Advanced form support |
+- [code] mydocs/eng/plans/archives/task_232.md  channel=doc binding=mention jev=- rows=2
+    :35 [stem/stem_weak] | `src/renderer/svg.rs` | Form object SVG rendering |
+    :36 [stem/stem_weak] | `src/renderer/web_canvas.rs` | Form object Canvas rendering |
+- [code] mydocs/eng/plans/archives/task_232_impl.md  channel=doc binding=mention jev=- rows=1
+    :15 [stem/stem_weak] **Goal**: Add identical form object rendering to Canvas renderer + overall cleanup
+- [code] mydocs/eng/plans/archives/task_233.md  channel=doc binding=mention jev=- rows=1
+    :5 [stem/stem_weak] Task 232 completed parsing and visual rendering of 5 form object types. Currently form objects are display-only and do not respond to clicks or input.
+- [code] mydocs/eng/plans/archives/task_24.md  channel=doc binding=mention jev=- rows=1
+    :12 [stem/stem_weak] - Table rendering (cell backgrounds, borders, text display within cells)
+- [code] mydocs/eng/plans/archives/task_241.md  channel=doc binding=mention jev=- rows=1
+    :10 [stem/stem_weak] 2. Prioritize parsing items that affect rendering/editing
+- [code] mydocs/eng/plans/archives/task_24_impl.md  channel=doc binding=mention jev=- rows=2
+    :6 [stem/stem_weak] 2. **layout_table()**: Hardcodes `section_index=0, para_index=0` when rendering cell paragraphs (layout.rs:1131)
+    :30 [stem/stem_weak] - Pass actual indices when rendering cell paragraphs in `layout_table()`
+- [code] mydocs/eng/plans/archives/task_27.md  channel=doc binding=mention jev=- rows=3
+    :5 [stem/stem_weak] Implement rendering of large tables that exceed the page body area height by **splitting at row boundaries** across multiple pages.
+    :22 [stem/stem_weak] | `layout_table()` | Full rendering | Cannot specify row range |
+    :60 [stem/stem_weak] - Unit tests (pagination splitting, partial rendering)
+- [code] mydocs/eng/plans/archives/task_27_impl.md  channel=doc binding=mention jev=- rows=3
+    :74 [stem/stem_weak] - Cell rendering: render only cells in `start_row..end_row` range
+    :76 [stem/stem_weak] - row_y coordinates: recalculate for rendering range (starting from 0)
+    :90 [stem/stem_weak] - Layout: verify only correct row range output when rendering PartialTable
+- [code] mydocs/eng/plans/archives/task_2_impl.md  channel=doc binding=mention jev=- rows=3
+    :9 [stem/stem_weak] - Overall rendering pipeline architecture design
+    :10 [stem/stem_weak] - Write design document: `mydocs/tech/rendering_engine_design.md`
+    :42 [stem/stem_weak] - Define rendering output format (render commands or pixel data)
+- [code] mydocs/eng/plans/archives/task_36_impl.md  channel=doc binding=mention jev=- rows=1
+    :11 [stem/stem_weak] - Switch to edge-based rendering
+- [code] mydocs/eng/plans/archives/task_3_impl.md  channel=doc binding=mention jev=- rows=2
+    :116 [stem/stem_weak] - `export-svg` command: connect actual rendering pipeline
+    :119 [stem/stem_weak] - Parse → pagination → SVG rendering end-to-end verification
+- [code] mydocs/eng/plans/archives/task_43.md  channel=doc binding=mention jev=- rows=1
+    :22 [stem/stem_weak] Categories: document loading, rendering, document info, display settings, text editing, table structure editing, cell text editing, format query, form
+- [code] mydocs/eng/plans/archives/task_43_feature_def.md  channel=doc binding=mention jev=- rows=2
+    :39 [stem/stem_weak] │  Document parsing, rendering, editing, serialization        │
+    :79 [stem/stem_weak] Grade A (Direct Mapping): ~15 APIs including document loading, page count, rendering, text insertion
+- [code] mydocs/eng/plans/archives/task_44.md  channel=doc binding=mention jev=- rows=1
+    :31 [stem/stem_weak] 5. Continuous scroll canvas view design (virtual scroll, viewport-based rendering)
+- [code] mydocs/eng/plans/archives/task_44_impl.md  channel=doc binding=mention jev=- rows=1
+    :43 [stem/stem_weak] - Continuous scroll canvas view design: virtual scroll, viewport-based rendering
+- [code] mydocs/eng/plans/archives/task_45.md  channel=doc binding=mention jev=- rows=3
+    :17 [stem/stem_weak] - File upload -> rendering basic UI
+    :31 [stem/stem_weak] - `WasmBridge` class: WASM initialization, document loading, rendering wrapping
+    :64 [stem/stem_weak] | Page rendering | < 50ms/page |
+- [code] mydocs/eng/plans/archives/task_46.md  channel=doc binding=mention jev=- rows=2
+    :20 [stem/stem_weak] | State sync | `setScrollTop()` doesn't update internal scrollY -> wrong page rendering on zoom change | viewport-manager.ts:75-78 | High |
+    :21 [stem/stem_weak] | Rendering | CSS zoom applied after WASM rendering -- possible mismatch between WASM canvas size and PageInfo size | canvas-view.ts:103-122 | Medium 
+- [code] mydocs/eng/plans/archives/task_48.md  channel=doc binding=mention jev=- rows=2
+    :17 [stem/stem_weak] - `renderPageToCanvas(pageNum, canvas)` -- Page rendering
+    :20 [stem/stem_weak] - `getCursorRect(sec, para, charOffset)` -- Caret pixel coordinates (for caret rendering)
+- [code] mydocs/eng/plans/archives/task_4_impl.md  channel=doc binding=mention jev=- rows=3
+    :13 [stem/stem_weak] Convert the DocInfo reference table into a resolved style list directly usable for rendering.
+    :175 [stem/stem_weak] - Modify `src/renderer/svg.rs` — Table SVG rendering
+    :206 [stem/stem_weak] | `src/renderer/svg.rs` | 4 | Table rendering + text decoration |
+- [code] mydocs/eng/plans/archives/task_51.md  channel=doc binding=mention jev=- rows=1
+    :46 [stem/stem_weak] | Phase 2 | Selection rendering (WASM getSelectionRects + DOM overlay) | wasm_api.rs, selection-renderer.ts, wasm-bridge.ts |
+- [code] mydocs/eng/plans/archives/task_51_impl.md  channel=doc binding=mention jev=- rows=1
+    :14 [stem/stem_weak] **Not yet implemented**: TypeScript-side Selection model, Selection rendering, Shift+Arrow handling, clipboard event binding, selection range deletion
+- [code] mydocs/eng/plans/archives/task_52_impl.md  channel=doc binding=mention jev=- rows=1
+    :299 [stem/stem_weak] - Select text → Ctrl+B → bold applied → re-rendering confirmed
+- [code] mydocs/eng/plans/archives/task_57.md  channel=doc binding=mention jev=- rows=1
+    :14 [stem/stem_weak] | **IME handling** | Hidden textarea + compositionstart/end events | WASM direct calls for composition text insert/delete. Real-time rendering impleme
+- [code] mydocs/eng/plans/archives/task_59.md  channel=doc binding=mention jev=- rows=3
+    :11 [stem/stem_weak] - **Existing infrastructure**: `layout_composed_paragraph(start_line, end_line)` already supports line range rendering (for PartialParagraph)
+    :26 [stem/stem_weak] | `src/renderer/layout.rs` | layout_partial_table split row rendering |
+    :31 [stem/stem_weak] - k-water-rfp.hwp SVG: page 5 bottom filled with table content, page 6 continues rendering
+- [code] mydocs/eng/plans/archives/task_59_impl.md  channel=doc binding=mention jev=- rows=1
+    :36 [stem/stem_weak] 5. Apply line range in cell rendering loop
+- [code] mydocs/eng/plans/archives/task_61.md  channel=doc binding=mention jev=- rows=3
+    :5 [stem/stem_weak] SVG export (`svg.rs`) `draw_text()` outputs text as a single `<text>` element. In contrast, canvas (`web_canvas.rs`) uses `compute_char_positions()` f
+    :13 [stem/stem_weak] | Character placement | Per-character individual rendering | Entire text as one output |
+    :28 [stem/stem_weak] Convert SVG `draw_text()` to per-character individual rendering identical to canvas:
+- [code] mydocs/eng/plans/archives/task_61_impl.md  channel=doc binding=mention jev=- rows=1
+    :31 [stem/stem_weak] 4. k-water-rfp.hwp SVG export -- verify text rendering with width ratio/letter spacing applied
+- [code] mydocs/eng/plans/archives/task_65.md  channel=doc binding=mention jev=- rows=1
+    :13 [stem/stem_weak] | TextBox rendering | Working normally (layout_textbox_content → layout_composed_paragraph) |
+- [code] mydocs/eng/plans/archives/task_66.md  channel=doc binding=mention jev=- rows=2
+    :10 [stem/stem_weak] - In `layout.rs:241-252`, when `has_table=true`, the paragraph text rendering is skipped with `continue`
+    :28 [stem/stem_weak] 2. Confirm text rendering via SVG export
+- [code] mydocs/eng/plans/archives/task_68.md  channel=doc binding=mention jev=- rows=3
+    :1 [stem/stem_weak] # Task 68: Auto Re-rendering Trigger After Async Web Font Phase 2 Loading
+    :14 [stem/stem_weak] 3. Even after fonts load, **there is no auto re-rendering**, so the incorrect layout persists
+    :31 [stem/stem_weak] - Confirm auto re-rendering log on phase 2 font loading completion immediately after document load
+- [code] mydocs/eng/plans/archives/task_68_impl.md  channel=doc binding=mention jev=- rows=2
+    :1 [stem/stem_weak] # Task 68 Implementation Plan: Auto Re-rendering After Async Web Font Loading
+    :47 [stem/stem_weak] - Console log message confirms re-rendering trigger behavior
+- [code] mydocs/eng/plans/archives/task_69.md  channel=doc binding=mention jev=- rows=1
+    :49 [stem/stem_weak] 3. Confirm rendering regression-free across multiple sample documents
+- [code] mydocs/eng/plans/archives/task_69_impl.md  channel=doc binding=mention jev=- rows=1
+    :49 [stem/stem_weak] - Confirm no rendering regression for existing sample documents
+- [code] mydocs/eng/plans/archives/task_7.md  channel=doc binding=mention jev=- rows=3
+    :4 [stem/stem_weak] Resolve the content overlap issue caused by the difference between pre-calculated heights (LineSeg.line_height, Cell.height) and actual rendering heig
+    :11 [stem/stem_weak] - Cause: pre-calculated height ≠ actual rendering height
+    :24 [stem/stem_weak] - Use LayoutEngine to measure actual rendering height of each content
+- [code] mydocs/eng/plans/archives/task_70.md  channel=doc binding=mention jev=- rows=2
+    :38 [stem/stem_weak] 2. Confirm header/footer text rendering via SVG export
+    :40 [stem/stem_weak] 4. No regression in existing document rendering
+- [code] mydocs/eng/plans/archives/task_70_impl.md  channel=doc binding=mention jev=- rows=2
+    :84 [stem/stem_weak] - `hwp-multi-001.hwp` SVG export — confirm footer/page number rendering
+    :86 [stem/stem_weak] - No regression in existing document rendering
+- [code] mydocs/eng/plans/archives/task_73.md  channel=doc binding=mention jev=- rows=1
+    :10 [stem/stem_weak] - Backend (Rust): `show_paragraph_marks` flag and pilcrow rendering already implemented, but inconsistent with HWP standard symbol (arrow)
+- [code] mydocs/eng/plans/archives/task_73_impl.md  channel=doc binding=mention jev=- rows=1
+    :40 [stem/stem_weak] 4. SVG export: confirm arrow symbol rendering
+- [code] mydocs/eng/plans/archives/task_79_impl.md  channel=doc binding=mention jev=- rows=1
+    :35 [stem/stem_weak] In `render_page_to_canvas()` (around line 177) and other rendering paths:
+- [code] mydocs/eng/plans/archives/task_8.md  channel=doc binding=mention jev=- rows=2
+    :25 [stem/stem_weak] - **Implemented**: `calculate_effective_line_height()` function added, applied to all paragraph rendering
+    :90 [stem/stem_weak] - Comparison with Hancom editor rendering results needed
+- [code] mydocs/eng/plans/archives/task_80.md  channel=doc binding=mention jev=- rows=1
+    :54 [stem/stem_weak] 2. Confirm no regression in existing table rendering
+- [code] mydocs/eng/plans/archives/task_81.md  channel=doc binding=mention jev=- rows=1
+    :36 [stem/stem_weak] 3. No regression in existing horizontal text cell rendering
+- [code] mydocs/eng/plans/archives/task_83_impl.md  channel=doc binding=mention jev=- rows=1
+    :47 [stem/stem_weak] - Cell selection mode + arrow keys → `expandCellSelection(dr, dc)` + rendering
+- [code] mydocs/eng/plans/archives/task_89.md  channel=doc binding=mention jev=- rows=2
+    :50 [stem/stem_weak] **Key**: The HWPX parser outputs the existing `Document` model. The subsequent composition/pagination/rendering/editing pipeline is reused without cha
+    :111 [stem/stem_weak] 2. HWPX file rendering in web viewer confirmed (same layout as existing HWP)
+- [code] mydocs/eng/plans/archives/task_89_impl.md  channel=doc binding=mention jev=- rows=1
+    :139 [stem/stem_weak] 4. Load sample HWPX file in web viewer → rendering confirmed
+- [code] mydocs/eng/plans/archives/task_91.md  channel=doc binding=mention jev=- rows=3
+    :54 [stem/stem_weak] 5. Column separator rendering (separator_type, separator_width, separator_color)
+    :68 [stem/stem_weak] | `src/renderer/layout.rs` | Column separator rendering |
+    :76 [stem/stem_weak] - 2-column rendering confirmed in web viewer
+- [code] mydocs/eng/plans/archives/task_93.md  channel=doc binding=mention jev=- rows=1
+    :36 [stem/stem_weak] - `docker compose run --rm dev cargo run -- export-svg samples/basic/KTX.hwp` — shape rendering normal
+- [code] mydocs/eng/plans/archives/task_93_impl.md  channel=doc binding=mention jev=- rows=1
+    :37 [stem/stem_weak] - `docker compose run --rm dev cargo run -- export-svg samples/basic/KTX.hwp` — shape rendering
+- [code] mydocs/eng/plans/archives/task_95.md  channel=doc binding=mention jev=- rows=1
+    :11 [stem/stem_weak] - Current: preserved as RawRecords in `SectionDef.extra_child_records` (round-trip possible, rendering not possible)
+- [code] mydocs/eng/plans/archives/task_96.md  channel=doc binding=mention jev=- rows=2
+    :60 [stem/stem_weak] 4. Fix group rendering logic in `layout.rs`
+    :68 [stem/stem_weak] 4. Confirm web Canvas rendering
+- [code] mydocs/eng/plans/nonfunctional_todo.md  channel=doc binding=mention jev=- rows=3
+    :19 [stem/stem_weak] | Screenshots | None | Hancom vs rhwp rendering comparison (3~4 images) |
+    :26 [stem/stem_weak] - Document open → rendering process (3-second GIF)
+    :53 [stem/stem_weak] - Current: 783 unit tests (parsing/rendering focused)
+- [code] mydocs/eng/plans/task_244.md  channel=doc binding=mention jev=- rows=1
+    :5 [stem/stem_weak] Polygon/Curve/Arc/Group all have model+parser+serialization+rendering complete.
+- [code] mydocs/eng/plans/task_246.md  channel=doc binding=mention jev=- rows=3
+    :12 [stem/stem_weak] 1. **Arrow rendering** — ArrowStyle exists in model but not reflected in SVG
+    :14 [stem/stem_weak] 3. **Rounded rectangle** — round_rate field exists but not applied in rendering
+    :32 [stem/stem_weak] - Double/triple line rendering (LineRenderType)
+- [code] mydocs/eng/plans/task_248.md  channel=doc binding=mention jev=- rows=1
+    :21 [stem/stem_weak] 4. No mapping between inline control char_pos and rendering coordinates
+- [code] mydocs/eng/plans/task_255.md  channel=doc binding=mention jev=- rows=1
+    :6 [stem/stem_weak] - Footnote number inline rendering implemented
+- [code] mydocs/eng/plans/task_265.md  channel=doc binding=mention jev=- rows=1
+    :21 [stem/stem_weak] - Skip page number rendering if true
+- [code] mydocs/eng/plans/task_267.md  channel=doc binding=mention jev=- rows=1
+    :11 [stem/stem_weak] 0 for cells where padding field values are stored but should be ignored during rendering.
+- [code] mydocs/eng/plans/task_269.md  channel=doc binding=mention jev=- rows=1
+    :32 [stem/stem_weak] - Highlight rendering for all cells
+- [code] mydocs/eng/plans/task_283.md  channel=doc binding=mention jev=- rows=1
+    :24 [path/mention] - `src/document_core/queries/rendering.rs`: Return nested control paths within cells
+- [code] mydocs/eng/plans/task_298.md  channel=doc binding=mention jev=- rows=1
+    :32 [stem/stem_weak] 3. **Cursor rendering**: Show caret at left/right of Shape when cursor is at Shape position
+- [code] mydocs/eng/plans/task_304.md  channel=doc binding=mention jev=- rows=1
+    :27 [stem/stem_weak] - Confirm SVG/WASM rendering with example files containing page numbers
+- [code] mydocs/eng/plans/task_309.md  channel=doc binding=mention jev=- rows=1
+    :5 [stem/stem_weak] Task 308 found 10px rendering difference due to table caption skip.
+- [code] mydocs/eng/plans/task_321.md  channel=doc binding=mention jev=- rows=2
+    :10 [basename/mention] ### Current Selection Logic (rendering.rs:831~864)
+    :114 [basename/mention] 3. Improve master page selection logic (rendering.rs)
+- [code] mydocs/eng/plans/task_337.md  channel=doc binding=mention jev=- rows=1
+    :35 [stem/stem_weak] 3. Shape pi=134 is also processed separately, rendering the image
+- [code] mydocs/eng/plans/task_341.md  channel=doc binding=mention jev=- rows=1
+    :31 [stem/stem_weak] - Query `get_inline_shape_position()` during equation rendering
+- [code] mydocs/eng/plans/task_384.md  channel=doc binding=mention jev=- rows=2
+    :55 [stem/stem_weak] - layout: Actual rendering height based on `compute_table_y_position`
+    :77 [stem/stem_weak] 2. **Table `effective_height` difference**: Cause of MeasuredTable.total_height vs actual rendering height difference unconfirmed
+- [code] mydocs/eng/plans/task_392.md  channel=doc binding=mention jev=- rows=2
+    :108 [stem/stem_weak] - `mydocs/tech/hwp_table_rendering.md` — Table rendering guide (self-authored)
+    :111 [stem/stem_weak] - `mydocs/tech/rendering_engine_design.md` ��� Rendering engine design (self-authored)
+- [code] mydocs/eng/plans/task_403.md  channel=doc binding=mention jev=- rows=1
+    :15 [stem/stem_weak] 2. Project lead opens in Hancom to verify rendering matches intent
+- [code] mydocs/eng/plans/task_403_impl.md  channel=doc binding=mention jev=- rows=2
+    :21 [stem/stem_weak] │    ├─ Page rendering (Canvas 2D)                     │
+    :97 [stem/stem_weak] - `src/webview/page-canvas.ts` — Single page Canvas rendering
+- [code] mydocs/eng/plans/task_B009.md  channel=doc binding=mention jev=- rows=3
+    :358 [stem/stem_weak] | 2-6 | Sample HWP → PS → GhostScript rendering comparison | Layout consistency check |
+    :555 [stem/stem_weak] | PDF layout accuracy | Pixel comparison with SVG rendering, error < 1px |
+    :556 [stem/stem_weak] | PS layout accuracy | GhostScript rendering result, error < 1px |
+- [code] mydocs/eng/plans/task_e2e_verification.md  channel=doc binding=mention jev=- rows=1
+    :5 [stem/stem_weak] Implement a complete cycle that programmatically creates documents from scratch and **automatically verifies** that rendering results match expected v
+- [code] mydocs/eng/plans/task_m100_3.md  channel=doc binding=mention jev=- rows=2
+    :38 [stem/stem_weak] - Verify no regression in TAC image rendering for existing samples
+    :53 [stem/stem_weak] - No TAC rendering regression in existing samples
+- [code] mydocs/eng/plans/task_m100_30.md  channel=doc binding=mention jev=- rows=1
+    :45 [path/mention] | `src/document_core/queries/rendering.rs` | dirty_paragraphs handling in insert/remove_composed_paragraph |
+- [code] mydocs/eng/plans/task_m100_4.md  channel=doc binding=mention jev=- rows=1
+    :10 [stem/stem_weak] - Non-TAC picture (172.1x88.2mm) and subsequent table (pi=334) overlap in rendering
+- [code] mydocs/eng/plans/task_m100_5.md  channel=doc binding=mention jev=- rows=3
+    :37 [stem/stem_weak] - In `table_layout.rs`, check if cell belongs to a cellzone during cell rendering
+    :39 [stem/stem_weak] - Verify image fill (image_fill) rendering support
+    :51 [stem/stem_weak] - `src/renderer/layout/table_layout.rs` — cellzone background rendering
+- [code] mydocs/eng/report/documentation_review_20260323.md  channel=doc binding=mention jev=- rows=3
+    :19 [stem/stem_weak] - **`README.md`**: Key features supported by the project (parsing, rendering, equations, etc.) are specifically listed, with very clear build tools an
+    :24 [stem/stem_weak] - An enormous volume of HWP binary and XML offset specs, layout formulas, and equation rendering methods — typically inaccessible to general developer
+    :41 [stem/stem_weak] While HWP is a Korean-based word processor, there may be many international developers interested in the Rust-based rendering engine or WASM/Canvas ar
+- [code] mydocs/eng/report/rhwp-milestone.md  channel=doc binding=mention jev=- rows=2
+    :43 [stem/stem_weak] - Table rendering (cell merge, borders, cell formulas)
+    :49 [stem/stem_weak] - SVG export (CLI) + Canvas rendering (WASM/Web)
+- [code] mydocs/eng/report/task_43_final.md  channel=doc binding=mention jev=- rows=1
+    :63 [stem/stem_weak] - rhwp's unique strengths: server independence, open source, AI integration optimization, multi-rendering
+- [code] mydocs/eng/report/task_73_final.md  channel=doc binding=mention jev=- rows=3
+    :36 [stem/stem_weak] 1. **Forced line break detection**: In `composer.rs`, checks if line text ends with `\n` to set the `ComposedLine.has_line_break` flag. The `\n` chara
+    :40 [stem/stem_weak] 3. **Symbol rendering**: All three renderers (SVG/Canvas/HTML) render the ↵ (U+21B5) symbol in blue (#4A90D9) after TextRuns where `is_para_end` or `i
+    :44 [stem/stem_weak] 1. **Toggle logic**: IIFE closure encapsulates `showParaMarks` state. On toggle, calls `wasm.setShowParagraphMarks()` then triggers re-rendering via `
+- [code] mydocs/eng/report/task_73_postfix.md  channel=doc binding=mention jev=- rows=2
+    :5 [stem/stem_weak] Fixed 3 rendering bugs discovered during verification after completion of Task 73 (paragraph mark display feature).
+    :39 [stem/stem_weak] - Confirmed rectangle border non-rendering via SVG export
+- [code] mydocs/eng/report/task_74.md  channel=doc binding=mention jev=- rows=3
+    :23 [stem/stem_weak] Discovered that `current_width/height` in group child images represents the original image dimensions, and the actual display size is determined by th
+    :52 [stem/stem_weak] | `src/parser/control.rs` | PICTURE parsing, rendering transform matrix composition, HorzRelTo bit fix, legacy group detection fix |
+    :53 [stem/stem_weak] | `src/renderer/layout.rs` | Group child rendering transform application, HorzRelTo::Page body reference, body_area parameter addition |
+- [code] mydocs/eng/tech/dev_roadmap.md  channel=doc binding=mention jev=- rows=3
+    :250 [stem/stem_weak] | Chart rendering | Not implemented | Basic charts (bar/pie/line) |
+    :251 [stem/stem_weak] | Footnote/Endnote rendering | Partial | Complete |
+    :272 [stem/stem_weak] Leveraging existing SVG rendering -> `svg2pdf` or direct PDF generation.
+- [code] mydocs/eng/tech/equation_support_status.md  channel=doc binding=mention jev=- rows=2
+    :7 [stem/stem_weak] Support status for the HWP equation script parsing -> layout -> SVG/Canvas rendering pipeline.
+    :194 [stem/stem_weak] 1. **Implement EQALIGN** -- Directly impacts exam_math.hwp rendering. Column alignment by & marker, similar structure to PILE
+- [code] mydocs/eng/tech/font_metrics_size_comparison.md  channel=doc binding=mention jev=- rows=1
+    :13 [stem/stem_weak] | **Total WASM** | **1.83 MB** | N/A (server-side rendering) | **~19 MB** |
+- [code] mydocs/eng/tech/hancom_font_system_analysis.md  channel=doc binding=mention jev=- rows=1
+    :417 [stem/stem_weak] | Horizontal scaling correction | Applied to both measurement and rendering | Applied to rendering only |
+- [code] mydocs/eng/tech/hexagonal_architecture_review.md  channel=doc binding=mention jev=- rows=2
+    :65 [basename/mention] | Rendering queries | `queries/rendering.rs` | 25 | High |
+    :222 [basename/mention] | rendering.rs -> LayoutEngine | Render tree generation is renderer's responsibility |
+- [code] mydocs/eng/tech/hwp_errata_public_comparison.md  channel=doc binding=mention jev=- rows=1
+    :328 [stem/stem_weak] rhwp is the **only open-source HWP viewer/editor** that supports both precise rendering (pagination, table splitting, headers/footers) and editor feat
+- [code] mydocs/eng/tech/hwp_save_guide.md  channel=doc binding=mention jev=- rows=1
+    :298 [stem/stem_weak] - raw_rendering: 146 bytes (identity matrix + additional data)
+- [code] mydocs/eng/tech/hwp_spec_errata.md  channel=doc binding=mention jev=- rows=1
+    :456 [stem/stem_weak] - **Layout**: `layout_table` is called during the shapes pass, rendering at absolute paper-relative coordinates
+- [code] mydocs/eng/tech/layout_engine_research.md  channel=doc binding=mention jev=- rows=2
+    :74 [stem/stem_weak] **Reference**: https://developer.chrome.com/docs/chromium/renderingng-fragmentation
+    :294 [stem/stem_weak] | Chromium LayoutNG Block Fragmentation | https://developer.chrome.com/docs/chromium/renderingng-fragmentation |
+- [code] mydocs/eng/tech/project_vision.md  channel=doc binding=mention jev=- rows=3
+    :565 [stem/stem_weak] | 2 | HWP -> PDF conversion (hwp2pdf) | Existing SVG rendering -> PDF conversion pipeline |
+    :572 [stem/stem_weak] HWP file -> rhwp parsing -> page layout -> SVG rendering -> PDF conversion
+    :575 [stem/stem_weak] Since the existing SVG rendering engine is complete, only the SVG -> PDF conversion step needs to be added.
+- [code] mydocs/eng/tech/return_cat.md  channel=doc binding=mention jev=- rows=1
+    :14 [stem/stem_weak] | Paragraph symbol rendering (SVG/Canvas/HTML) | Implemented | `svg.rs:75-81`, `web_canvas.rs:107-114`, `html.rs:119-125` |
+- [code] mydocs/eng/tech/table_layout_rules.md  channel=doc binding=mention jev=- rows=1
+    :136 [stem/stem_weak] | `layout/paragraph_layout.rs` | Paragraph rendering, paragraph borders/backgrounds |
+- [code] mydocs/eng/tech/text_layout_review.md  channel=doc binding=mention jev=- rows=2
+    :29 [stem/stem_weak] → SVG/Canvas rendering
+    :118 [stem/stem_weak] - The reviewed technologies aim at shaping + line breaking + rendering for a single text block
+- [code] mydocs/eng/tech/vscode_extension_design.md  channel=doc binding=mention jev=- rows=2
+    :6 [stem/stem_weak] Reuses the existing rhwp WASM rendering pipeline to deliver the same rendering quality as rhwp-studio.
+    :105 [stem/stem_weak] |       +- viewer.ts         # Webview viewer (WASM init + rendering)
+- [code] mydocs/eng/tech/webhwp_table_functions.md  channel=doc binding=mention jev=- rows=3
+    :12 [stem/stem_weak] | `Cbr()` | Corner border rendering. Clipping region for intersection handling | `clip`, `stroke` |
+    :309 [stem/stem_weak] | Cell border rendering | 6+ types (solid/dashed/double/triple, etc.) | Solid only | Reference `bbr`/`Cbr`/`gbr`/`xbr` |
+    :311 [stem/stem_weak] | Cell merge/split | Full `MergeCell`/`SplitCell` support | Merge rendering only | Editing not implemented |
+- [code] mydocs/eng/tech/webhwp_vs_rhwp_parsing.md  channel=doc binding=mention jev=- rows=2
+    :10 [stem/stem_weak] The server parses the HWP file and converts it to a JSON document model, which is then delivered to the client. The client receives this JSON and only
+    :153 [stem/stem_weak] | **Client Role** | Rendering + editing UI | Parsing + rendering + editing + saving |
+- [code] mydocs/eng/troubleshootings/column_def_proportional_widths.md  channel=doc binding=mention jev=- rows=2
+    :5 [stem/stem_weak] When rendering 2-column layout (same_width=false) in KTX.hwp, the right column's content was pushed to the right as if padded from the left edge. In t
+    :76 [stem/stem_weak] - The hwplib Java code has correct byte reading order, but proportional-to-absolute conversion is presumably handled at the rendering stage
+- [code] mydocs/eng/troubleshootings/ios_safari_ime.md  channel=doc binding=mention jev=- rows=3
+    :122 [stem/stem_weak] iOS fires `deleteBackward + insertText` within 10ms, so any rendering in between breaks the div state.
+    :131 [stem/stem_weak] input("ㄱ") -> update document only (no rendering)
+    :132 [stem/stem_weak] input("가") -> update document only (no rendering)
+- [code] mydocs/eng/troubleshootings/line_spacing_lineseg_sync.md  channel=doc binding=mention jev=- rows=3
+    :6 [stem/stem_weak] After saving as HWP and opening in Hancom, the style bar shows 300% but actual rendering remains at 160%.
+    :98 [stem/stem_weak] - In HWP, **changing ParaShape alone does not affect rendering**.
+    :99 [stem/stem_weak] LineSeg holds the physical values for actual rendering, and compose/layout reference LineSeg directly.
+- [code] mydocs/eng/troubleshootings/picture_save_hancom_compatibility.md  channel=doc binding=mention jev=- rows=2
+    :30 [stem/stem_weak] The rendering matrix was serialized as `cnt=0 + 48 bytes zeros` (100 bytes).
+    :33 [stem/stem_weak] **Fix**: When `raw_rendering` is empty, generate identity translation + scale(cur/orig) +
+- [code] mydocs/eng/troubleshootings/table_paste_file_corruption.md  channel=doc binding=mention jev=- rows=1
+    :251 [stem/stem_weak] - **Severity**: **Low** -- Layout information lost (affects rendering)
+- [code] mydocs/eng/troubleshootings/task_56_hwp_control_char_bytes.md  channel=doc binding=mention jev=- rows=1
+    :145 [stem/stem_weak] **Related task**: Task 56 - Implement rendering-order-based document tree
+- [code] mydocs/eng/troubleshootings/task_75_table_text_vertical_offset.md  channel=doc binding=mention jev=- rows=3
+    :117 [stem/stem_weak] - Web browser rendering confirmed
+    :121 [stem/stem_weak] 1. **Character stream position != physical rendering position**: The logical order of char_offsets alone cannot determine an object's actual placement
+    :123 [stem/stem_weak] 3. **Reference HWP help documentation**: Beyond the spec document, Hancom's help feature descriptions provide important clues for rendering logic desi
+- [code] mydocs/eng/troubleshootings/task_96_group_child_matrix_composition_order.md  channel=doc binding=mention jev=- rows=1
+    :62 [stem/stem_weak] In `src/parser/control.rs`'s `parse_shape_component_full()` function, the Scale and Rotation application order was reversed during rendering matrix co
+- [code] mydocs/eng/working/archives/task20_step3_complete.md  channel=doc binding=mention jev=- rows=1
+    :8 [stem/stem_weak] - Restores caret with `setCaretByDocPos()` after re-rendering
+- [code] mydocs/eng/working/archives/task_102_step1.md  channel=doc binding=mention jev=- rows=1
+    :37 [stem/stem_weak] - `src/renderer/layout.rs`: Added `measured_table: Option<&MeasuredTable>` to `layout_table()` signature. Uses MeasuredTable.row_heights directly for 
+- [code] mydocs/eng/working/archives/task_102_step2.md  channel=doc binding=mention jev=- rows=1
+    :20 [stem/stem_weak] - Caption calculation/rendering: Only performed at depth==0
+- [code] mydocs/eng/working/archives/task_105_step1.md  channel=doc binding=mention jev=- rows=3
+    :13 [stem/stem_weak] | `src/renderer/layout.rs` | Added `page_border_fill` parameter to `build_render_tree()`. BorderFill lookup → background color/gradient applied + 4-di
+    :15 [stem/stem_weak] | `src/renderer/svg.rs` | Added gradient support to `PageBackground` rendering |
+    :16 [stem/stem_weak] | `src/renderer/web_canvas.rs` | Added gradient support to `PageBackground` rendering |
+- [code] mydocs/eng/working/archives/task_109_step1to4.md  channel=doc binding=mention jev=- rows=1
+    :20 [stem/stem_weak] - During first line rendering:
+- [code] mydocs/eng/working/archives/task_136_report.md  channel=doc binding=mention jev=- rows=1
+    :83 [stem/stem_weak] | saved/111.hwp (per-cell independent sizes) | Normal rendering confirmed |
+- [code] mydocs/eng/working/archives/task_142_step1.md  channel=doc binding=mention jev=- rows=1
+    :16 [basename/mention] | `wasm_api/rendering.rs` | 766 | Rendering/pagination/page tree |
+- [code] mydocs/eng/working/archives/task_142_step2.md  channel=doc binding=mention jev=- rows=2
+    :21 [basename/mention] | `layout/border_rendering.rs` | 486 | Table border collection/rendering + line generation |
+    :33 [stem/stem_weak] - **Independent functions**: text_measurement, border_rendering, utils are standalone function modules
+- [code] mydocs/eng/working/archives/task_154_stage1.md  channel=doc binding=mention jev=- rows=1
+    :40 [stem/stem_weak] | `2024 Q1 FDI press release.hwpx` | 16 pages normal export, existing rendering maintained |
+- [code] mydocs/eng/working/archives/task_154_stage3.md  channel=doc binding=mention jev=- rows=1
+    :68 [stem/stem_weak] | **`<equation>`** | `Control::Shape(Rectangle)` | Layout properties only (equation rendering not supported) |
+- [code] mydocs/eng/working/archives/task_157_step1_done.md  channel=doc binding=mention jev=- rows=1
+    :17 [basename/mention] | `src/wasm_api/queries/rendering.rs` | Added shape type collection to `getPageControlLayout()` |
+- [code] mydocs/eng/working/archives/task_158_report.md  channel=doc binding=mention jev=- rows=1
+    :5 [stem/stem_weak] Implemented text box vertical writing rendering. Adapted from table cell vertical writing logic for text boxes, and improved table cell vertical writi
+- [code] mydocs/eng/working/archives/task_158_stage2_report.md  channel=doc binding=mention jev=- rows=2
+    :5 [stem/stem_weak] Completed text box pattern fill rendering and vertical writing symbol substitution.
+    :41 [stem/stem_weak] - Pattern rendering and vertical writing symbol substitution confirmed normal
+- [code] mydocs/eng/working/archives/task_15_report.md  channel=doc binding=mention jev=- rows=1
+    :25 [stem/stem_weak] - Sample document rendering normal
+- [code] mydocs/eng/working/archives/task_164_report.md  channel=doc binding=mention jev=- rows=2
+    :5 [stem/stem_weak] Improved text box/table cell vertical writing column width calculation, text box overflow handling, and font metric (advance/char_width) calculation t
+    :29 [stem/stem_weak] - Added `col_bottom` overflow rendering stop logic for text box vertical writing
+- [code] mydocs/eng/working/archives/task_165_stage1_report.md  channel=doc binding=mention jev=- rows=1
+    :5 [stem/stem_weak] Completed render tree extension and SVG/Canvas renderer modifications for shape rotation/flip rendering.
+- [code] mydocs/eng/working/archives/task_181_stage2.md  channel=doc binding=mention jev=- rows=1
+    :15 [stem/stem_weak] - Direct Unicode mapping (for SVG rendering instead of LaTeX)
+- [code] mydocs/eng/working/archives/task_185_step3.md  channel=doc binding=mention jev=- rows=1
+    :15 [stem/stem_weak] - hwpp-001.hwp rendering confirmed in web browser — page 11 issue resolved
+- [code] mydocs/eng/working/archives/task_191_final.md  channel=doc binding=mention jev=- rows=2
+    :5 [stem/stem_weak] Comprehensively enhanced `TableCellPropsDialog` UI referencing Hancom's table/cell properties dialog. Created separate cell border/background dialog. 
+    :28 [stem/stem_weak] - Full-direction caption rendering (Top/Bottom/Left/Right)
+- [code] mydocs/eng/working/archives/task_195_final.md  channel=doc binding=mention jev=- rows=1
+    :19 [stem/stem_weak] - HWP controls occupy 8 UTF-16 code units; char_count was not updated when adding/removing header/footer controls, causing rendering omissions in `com
+- [code] mydocs/eng/working/archives/task_198_final.md  channel=doc binding=mention jev=- rows=1
+    :17 [stem/stem_weak] - Non-split rows passed `split_ref=None` for nested tables, rendering full height
+- [code] mydocs/eng/working/archives/task_198_step2.md  channel=doc binding=mention jev=- rows=1
+    :5 [stem/stem_weak] **Cause**: In `layout_partial_table` non-split row handling, nested tables passed to `layout_table()` with `split_ref=None`, rendering full height. Wh
+- [code] mydocs/eng/working/archives/task_215_step3.md  channel=doc binding=mention jev=- rows=1
+    :87 [stem/stem_weak] The 14.2px overflow on page 17 (para 195) of k-water-rfp is a **Paginator result**, and will be resolved when TypesetEngine is used for actual renderi
+- [code] mydocs/eng/working/archives/task_215_step4.md  channel=doc binding=mention jev=- rows=1
+    :75 [stem/stem_weak] 6 overflow occurrences in k-water-rfp still remain, but these are due to **Paginator's pagination results** and will be resolved when switching to Typ
+- [code] mydocs/eng/working/archives/task_228_final.md  channel=doc binding=mention jev=- rows=2
+    :5 [stem/stem_weak] Implemented HWP document highlight rendering and web editor highlight application functionality.
+    :68 [stem/stem_weak] - Web editor: Existing document highlight rendering + highlight application after block selection confirmed working
+- [code] mydocs/eng/working/archives/task_229_final.md  channel=doc binding=mention jev=- rows=2
+    :5 [stem/stem_weak] Implemented parsing of field controls (`%clk`, `%hlk`, etc.) from HWP binary files, and rendering ClickHere guide text in red italic style.
+    :28 [stem/stem_weak] - `test_task229_field_svg_guide_text`: Verified SVG guide text rendering (red, italic)
+- [code] mydocs/eng/working/archives/task_230_final.md  channel=doc binding=mention jev=- rows=1
+    :44 [stem/stem_weak] - `test_task230_set_field_value` — Set value on empty field → re-rendering verification
+- [code] mydocs/eng/working/archives/task_24_step2.md  channel=doc binding=mention jev=- rows=1
+    :24 [stem/stem_weak] - Uses default table padding when cell padding is 0 (same as existing rendering logic)
+- [code] mydocs/eng/working/archives/task_24_step4.md  channel=doc binding=mention jev=- rows=1
+    :12 [stem/stem_weak] | `test_svg_render_with_table_after_cell_edit` | Verify changed text reflected in SVG rendering after cell D edit |
+- [code] mydocs/eng/working/archives/task_25_step2.md  channel=doc binding=mention jev=- rows=2
+    :38 [stem/stem_weak] | Page rendering | Added `controlLayout.loadPage(currentPage, doc)` |
+    :47 [stem/stem_weak] | `web/editor.js` | Import extension, controlLayout global instance, rendering flow integration, callback setup |
+- [code] mydocs/eng/working/archives/task_27_complete.md  channel=doc binding=mention jev=- rows=2
+    :5 [stem/stem_weak] Implemented row-level splitting of tables exceeding the page body area, rendering them across multiple pages.
+    :20 [stem/stem_weak] | `src/renderer/layout.rs` | Added `layout_partial_table()` function, PartialTable rendering branch |
+- [code] mydocs/eng/working/archives/task_2_step_1.md  channel=doc binding=mention jev=- rows=3
+    :15 [stem/stem_weak] - `mydocs/tech/rendering_engine_design.md` completed
+    :16 [stem/stem_weak] - Defined overall architecture, module structure, Renderer Trait, WASM API, rendering flow, primary support scope
+    :20 [stem/stem_weak] 2. Backend branching only at the final rendering stage
+- [code] mydocs/eng/working/archives/task_30_final.md  channel=doc binding=mention jev=- rows=1
+    :38 [stem/stem_weak] | Caret position | Misaligned with rendered characters | Matches browser rendering position |
+- [code] mydocs/eng/working/archives/task_31_step2.md  channel=doc binding=mention jev=- rows=2
+    :28 [stem/stem_weak] **Conclusion**: Page margins correctly reflected in rendering positions
+    :52 [stem/stem_weak] | `src/renderer/layout.rs:592` | TextLine BBox | Margin reflection in rendering positions |
+- [code] mydocs/eng/working/archives/task_36_stage1.md  channel=doc binding=mention jev=- rows=2
+    :25 [stem/stem_weak] - Passed gradient to `RectangleNode` at 4 cell background rendering locations
+    :64 [stem/stem_weak] | `src/renderer/svg.rs` | Implemented SVG gradient rendering |
+- [code] mydocs/eng/working/archives/task_3_step_5.md  channel=doc binding=mention jev=- rows=1
+    :109 [stem/stem_weak] |     |-- renderPageSvg() -> SVG rendering
+- [code] mydocs/eng/working/archives/task_41_step1.md  channel=doc binding=mention jev=- rows=1
+    :30 [stem/stem_weak] `save_test_table_removed.hwp` (insert table -> save -> re-parse -> remove table -> re-save): Opens correctly, full content rendering confirmed. Sectio
+- [code] mydocs/eng/working/archives/task_43_step3.md  channel=doc binding=mention jev=- rows=1
+    :44 [stem/stem_weak] - **Multi-rendering**: Simultaneous SVG/HTML/Canvas support
+- [code] mydocs/eng/working/archives/task_44_final.md  channel=doc binding=mention jev=- rows=3
+    :7 [stem/stem_weak] Wrote a **10-section architecture design document** for extending the rhwp viewer into a web-based editor (rhwp-studio). Established a complete bluepr
+    :52 [stem/stem_weak] |     |-- Caret rendering (DOM overlay, blink)
+    :66 [stem/stem_weak] |-- EditState incremental rendering context
+- [code] mydocs/eng/working/archives/task_44_step2.md  channel=doc binding=mention jev=- rows=1
+    :55 [stem/stem_weak] **Additional Design**: Zoom handling, caret auto-scroll, page shadow/border rendering
+- [code] mydocs/eng/working/archives/task_44_step3.md  channel=doc binding=mention jev=- rows=3
+    :17 [stem/stem_weak] | **pixel coordinate** | px | Caret rendering, hit testing |
+    :118 [stem/stem_weak] | Design Doc Section 7 | `mydocs/plans/task_44_architecture.md` S7 | Selection/input system (selection model, input handling, IME Korean composition, 
+    :125 [stem/stem_weak] 4. **DOM overlay caret**: Enables blinking without Canvas re-rendering, optimal performance
+- [code] mydocs/eng/working/archives/task_45_step1.md  channel=doc binding=mention jev=- rows=1
+    :33 [stem/stem_weak] - `renderPageToCanvas(pageNum, canvas)`: Canvas rendering delegation
+- [code] mydocs/eng/working/archives/task_45_step2.md  channel=doc binding=mention jev=- rows=2
+    :23 [stem/stem_weak] - `has(pageIdx)`: Checks allocation status (prevents duplicate rendering)
+    :25 [stem/stem_weak] - `activePages`: Query currently rendering page list
+- [code] mydocs/eng/working/archives/task_45_step3.md  channel=doc binding=mention jev=- rows=3
+    :11 [stem/stem_weak] - `cancelReRender()` / `cancelAll()`: Prevents unnecessary re-rendering when Canvas is released
+    :32 [stem/stem_weak] +-- PageRenderer      <- WASM rendering
+    :68 [stem/stem_weak] | `rhwp-studio/src/view/page-renderer.ts` | Page rendering + delayed re-render |
+- [code] mydocs/eng/working/archives/task_45_step4.md  channel=doc binding=mention jev=- rows=1
+    :62 [stem/stem_weak] |       +-- page-renderer.ts <- Page rendering (WASM + delayed re-render)
+- [code] mydocs/eng/working/archives/task_46_step2.md  channel=doc binding=mention jev=- rows=2
+    :38 [stem/stem_weak] **Problem:** When `pageRenderer.renderPage()` fails (WASM rendering exception), the canvas remains in DOM in an empty state and is not reclaimed by th
+    :41 [stem/stem_weak] - Catch WASM rendering exceptions with try-catch
+- [code] mydocs/eng/working/archives/task_48_step4.md  channel=doc binding=mention jev=- rows=2
+    :35 [stem/stem_weak] | 7 | Korean IME input malfunction | compositionstart/end events not handled, `textarea.value` immediate clear destroys IME state | Added IME composit
+    :86 [stem/stem_weak] | `rhwp-studio/src/engine/input-handler.ts` | Modified | Cell editing routing, IME composition rendering |
+- [code] mydocs/eng/working/archives/task_4_step_4.md  channel=doc binding=mention jev=- rows=2
+    :9 [stem/stem_weak] | `src/renderer/layout.rs` | ~200 lines added | Footnote area rendering, superscript reference numbers, indent clamping |
+    :40 [stem/stem_weak] - `add_footnote_superscripts()`: Footnote control in paragraph -> superscript rendering
+- [code] mydocs/eng/working/archives/task_51_step_report.md  channel=doc binding=mention jev=- rows=1
+    :113 [stem/stem_weak] - Table control copied from HWP program -> paste: Confirmed normal table rendering
+- [code] mydocs/eng/working/archives/task_65_final.md  channel=doc binding=mention jev=- rows=2
+    :7 [stem/stem_weak] Also fixed TextBox border and fill (gradient) rendering.
+    :68 [stem/stem_weak] | B1 | Missing text rendering for paragraphs containing both text and Table controls | layout.rs skips paragraph text when has_table=true. To be resol
+- [code] mydocs/eng/working/archives/task_66_final.md  channel=doc binding=mention jev=- rows=3
+    :8 [stem/stem_weak] In `img-start-001.hwp` page 1, para[1] contains both text (80 characters: "[Main Department] Digital Transformation Promotion Team...") and a Table co
+    :22 [stem/stem_weak] The rendering order of text+table mixed paragraphs was the core issue:
+    :70 [stem/stem_weak] `test_task66_table_text_mixed_paragraph_rendering` test:
+- [code] mydocs/eng/working/archives/task_75_final.md  channel=doc binding=mention jev=- rows=1
+    :34 [stem/stem_weak] - Web browser rendering confirmed normal
+- [code] mydocs/eng/working/archives/task_76_final.md  channel=doc binding=mention jev=- rows=1
+    :28 [stem/stem_weak] - Web browser rendering confirmed normal
+- [code] mydocs/eng/working/archives/task_77_final.md  channel=doc binding=mention jev=- rows=1
+    :36 [stem/stem_weak] - Web browser rendering confirmed normal
+- [code] mydocs/eng/working/archives/task_80_final.md  channel=doc binding=mention jev=- rows=3
+    :5 [stem/stem_weak] Fixed an issue where table cell heights were rendered larger than actual HWP. Additionally fixed trailing line_spacing handling during cell rendering 
+    :54 [stem/stem_weak] Also excluded trailing line_spacing when rendering the last line in cells for consistency with row height calculation:
+    :85 [stem/stem_weak] | `src/renderer/layout.rs` | Fixed lines_total at 3 locations + conditional trailing spacing exclusion in cell rendering |
+- [code] mydocs/eng/working/archives/task_91_step3.md  channel=doc binding=mention jev=- rows=2
+    :4 [stem/stem_weak] - Column separator rendering
+    :57 [stem/stem_weak] | `src/renderer/layout.rs` | Column separator rendering code added |
+- [code] mydocs/eng/working/archives/task_92_report.md  channel=doc binding=mention jev=- rows=3
+    :12 [stem/stem_weak] - During rendering, `hwpunit_to_px()` converted these huge values as-is, resulting in coordinates rendering at millions of pixels
+    :79 [stem/stem_weak] - `build_render_tree()` second pass: sorts shapes by z-order before rendering
+    :97 [stem/stem_weak] | `src/renderer/layout.rs` | Line/Polygon/Curve internal coordinate scaling, solid fill condition fix, group flattening, z-order sorted rendering |
+- [code] mydocs/eng/working/archives/task_94_final.md  channel=doc binding=mention jev=- rows=3
+    :50 [stem/stem_weak] | `src/renderer/layout.rs` | fill_mode propagation, background color + image simultaneous application, Paper-based rendering |
+    :51 [stem/stem_weak] | `src/renderer/svg.rs` | Per fill_mode image rendering (placement/tiling/fit-to-size) |
+    :52 [stem/stem_weak] | `src/renderer/web_canvas.rs` | Canvas per fill_mode image rendering |
+- [code] mydocs/eng/working/task30_complete.md  channel=doc binding=mention jev=- rows=1
+    :7 [path/mention] **File**: `src/document_core/queries/rendering.rs` (L601-L631)
+- [code] mydocs/eng/working/task_233_final.md  channel=doc binding=mention jev=- rows=1
+    :20 [stem/stem_weak] - **PushButton**: Disabled for web security (gray rendering, click ignored)
+- [code] mydocs/eng/working/task_233_stage1.md  channel=doc binding=mention jev=- rows=1
+    :7 [stem/stem_weak] - `src/renderer/layout/paragraph_layout.rs`: Pass position info when creating FormObjectNode (2 inline rendering locations)
+- [code] mydocs/eng/working/task_235_final.md  channel=doc binding=mention jev=- rows=1
+    :11 [stem/stem_weak] - **Problem**: Authors adjust TAC table horizontal position using `·[table]··` pattern, but leading spaces were ignored during block TAC table renderi
+- [code] mydocs/eng/working/task_236_final.md  channel=doc binding=mention jev=- rows=2
+    :11 [stem/stem_weak] - **Before**: `cell.height - padding - offset` → cell.height was smaller than actual rendering height, resulting in remaining ≈ 0
+    :34 [stem/stem_weak] - kps-ai.hwp pages 67-68: Nested table continuation rendering confirmed working
+- [code] mydocs/eng/working/task_242_stage1.md  channel=doc binding=mention jev=- rows=1
+    :13 [basename/mention] - **rendering.rs**: Collects Line/Ellipse as selectable shapes in `collect_controls`
+- [code] mydocs/eng/working/task_397_step1.md  channel=doc binding=mention jev=- rows=2
+    :56 [stem/stem_weak] | `emboss` / `engrave` | N/A | None: Custom rendering needed |
+    :57 [stem/stem_weak] | `emphasis_dot` | N/A | None: Custom rendering needed |
+- [code] mydocs/eng/working/task_397_step3.md  channel=doc binding=mention jev=- rows=3
+    :30 [stem/stem_weak] | **Text decoration** | Excellent | None (external) | Unknown | Excellent (custom rendering) |
+    :54 [stem/stem_weak] | **Impact scope** | Entire rendering pipeline |
+    :56 [stem/stem_weak] | **Pros** | Highest quality text rendering |
+- [code] mydocs/eng/working/task_403_report.md  channel=doc binding=mention jev=- rows=3
+    :13 [stem/stem_weak] | Webview viewer | `rhwp-vscode/src/webview/viewer.ts` | WASM initialization + virtual scroll + Canvas rendering |
+    :23 [stem/stem_weak] | 4 | Virtual scroll | Placeholder-based on-demand rendering, Ctrl+Wheel zoom (0.25x~3.0x) |
+    :30 [stem/stem_weak] 3. **Virtual scroll**: Placeholder divs + viewport-based on-demand Canvas rendering/disposal
+- [code] mydocs/eng/working/task_403_result.md  channel=doc binding=mention jev=- rows=1
+    :17 [stem/stem_weak] | `re-*.hwp` | Version with rhwp-filled LINE_SEG (for rhwp rendering verification) |
+- [code] mydocs/eng/working/task_5_complete.md  channel=doc binding=mention jev=- rows=2
+    :10 [stem/stem_weak] - `src/renderer/layout/table_layout.rs` -- cellzone background (image/solid/gradient) rendering
+    :18 [stem/stem_weak] 4. **Renderer**: After table background rendering, before cell layout, renders cellzone full-area background once
+- [code] mydocs/feedback/cert_notes_0.2.1.md  channel=doc binding=mention jev=- rows=1
+    :3 [stem/stem_weak] rhwp is an open-source viewer/editor for HWP/HWPX documents (Korea's dominant document format). All parsing/rendering happens locally via WebAssembly.
+- [code] mydocs/feedback/cqrs-analysis.md  channel=doc binding=mention jev=- rows=2
+    :151 [basename/mention] // queries/rendering.rs
+    :173 [basename/mention] | `queries/rendering.rs` | Query | ~10 |
+- [code] mydocs/feedback/r-code-review-3rd-response.md  channel=doc binding=mention jev=- rows=1
+    :75 [basename/mention] │   │   ├── rendering.rs
+- [code] mydocs/feedback/r-code-review-3rd.md  channel=doc binding=mention jev=- rows=1
+    :34 [basename/mention] - `rendering.rs`, `cursor_nav.rs` 등을 통해 "UI에 무언가를 그리기 위한 데이터 요청"이 분리되었습니다.
+- [code] mydocs/feedback/r-code-review-4th.md  channel=doc binding=mention jev=- rows=1
+    :128 [basename/mention] - border_rendering.rs: 테두리 전담 591줄 (SRP 준수)
+- [code] mydocs/manual/OWPML SCHEMA/ParaList XML schema.xml  channel=other binding=mention jev=- rows=1
+    :2249 [stem/stem_weak] <xs:element name="renderingInfo">
+- [code] mydocs/manual/logo_prompts_en.md  channel=doc binding=mention jev=- rows=1
+    :96 [stem/stem_weak] 2. Export as SVG for crisp rendering at all sizes
+- [code] mydocs/orders/20260223.md  channel=doc binding=mention jev=- rows=1
+    :7 [stem/stem_weak] | 154 | HWPX 렌더링 고도화 | 완료 | P1. 3단계 완료: HWPX ctrl/문단 컨트롤 완전 파싱, renderingInfo 어파인 변환(개체묶기), Canvas/HTML 제어문자 필터링, 표 셀 baseline 보정(ensure_min_baseline)
+- [code] mydocs/plans/archives/task_126.md  channel=doc binding=mention jev=- rows=1
+    :19 [stem/stem_weak] 일부 상용 제품 캔버스 렌더링 분석(`mydocs/tech/canvas_rendering_analysis.md`)에서 한컴 웹기안기, 구글 독스, 일부 상용 웹오피스 모두 동일한 DPR 패턴을 사용한다:
+- [code] mydocs/plans/archives/task_144.md  channel=doc binding=mention jev=- rows=1
+    :26 [basename/mention] | rendering.rs | parse_* 2개 삭제, 이스케이프 교체 |
+- [code] mydocs/plans/archives/task_144_impl.md  channel=doc binding=mention jev=- rows=2
+    :32 [basename/mention] | rendering.rs | parse_u32, parse_bool | json_u32, json_bool |
+    :52 [basename/mention] | rendering.rs | 2곳 (L193-196, L223-224) |
+- [code] mydocs/plans/archives/task_147.md  channel=doc binding=mention jev=- rows=1
+    :10 [stem/stem_weak] - **queries/**: rendering, cursor_nav, cursor_rect
+- [code] mydocs/plans/archives/task_157_impl.md  channel=doc binding=mention jev=- rows=1
+    :108 [basename/mention] #### 1-3. `src/wasm_api/queries/rendering.rs` — getPageControlLayout 확장
+- [code] mydocs/plans/archives/task_2.md  channel=doc binding=mention jev=- rows=1
+    :64 [stem/stem_weak] - 렌더링 엔진 아키텍처 설계 문서 (`mydocs/tech/rendering_engine_design.md`)
+- [code] mydocs/plans/archives/task_2_impl.md  channel=doc binding=mention jev=- rows=1
+    :10 [stem/stem_weak] - 설계 문서 작성: `mydocs/tech/rendering_engine_design.md`
+- [code] mydocs/plans/task_283.md  channel=doc binding=mention jev=- rows=1
+    :24 [path/mention] - `src/document_core/queries/rendering.rs`: 셀 내 중첩 컨트롤 경로 반환
+- [code] mydocs/plans/task_291.md  channel=doc binding=mention jev=- rows=1
+    :181 [path/mention] | `src/document_core/queries/rendering.rs` | paginate() 후 캐시 빌드, build_page_tree에서 캐시 참조 |
+- [code] mydocs/plans/task_321.md  channel=doc binding=mention jev=- rows=2
+    :10 [basename/mention] ### 현재 선택 로직 (rendering.rs:831~864)
+    :114 [basename/mention] 3. 바탕쪽 선택 로직 개선 (rendering.rs)
+- [code] mydocs/plans/task_392.md  channel=doc binding=mention jev=- rows=2
+    :108 [stem/stem_weak] - `mydocs/tech/hwp_table_rendering.md` — 표 렌더링 가이드 (자체 작성)
+    :111 [stem/stem_weak] - `mydocs/tech/rendering_engine_design.md` — 렌더링 엔진 설계 (자체 작성)
+- [code] mydocs/plans/task_m100_182_impl.md  channel=doc binding=mention jev=- rows=2
+    :693 [stem/stem_weak] // offset, orgSz, curSz, flip, rotationInfo, renderingInfo, lineShape,
+    :860 [stem/stem_weak] - 자식: sz, pos, outMargin, caption, shapeComment, parameterset, metaTag, offset, orgSz, curSz, flip, rotationInfo, renderingInfo, lineShape, imgRect, i
+- [code] mydocs/plans/task_m100_30.md  channel=doc binding=mention jev=- rows=1
+    :45 [path/mention] | `src/document_core/queries/rendering.rs` | insert/remove_composed_paragraph의 dirty_paragraphs 처리 |
+- [code] mydocs/report/issue2_context.md  channel=doc binding=mention jev=- rows=2
+    :73 [basename/mention] | `mark_section_dirty()` | rendering.rs | 섹션만 dirty 마킹 |
+    :74 [basename/mention] | `mark_paragraph_dirty()` | rendering.rs | 특정 문단만 dirty 마킹 |
+- [code] mydocs/report/task_2_final.md  channel=doc binding=mention jev=- rows=1
+    :84 [stem/stem_weak] mydocs/tech/rendering_engine_design.md   아키텍처 설계서 (11개 섹션)
+- [code] mydocs/report/task_68_report.md  channel=doc binding=mention jev=- rows=1
+    :21 [path/mention] | `src/document_core/queries/rendering.rs` | render_page_svg_with_fonts() |
+- [code] mydocs/report/task_m100_182_report.md  channel=doc binding=mention jev=- rows=1
+    :164 [stem/stem_weak] | pic | id/zOrder/numberingType/textWrap/textFlow/.../href/groupLevel/instid/reverse | offset/orgSz/curSz/flip/rotationInfo/renderingInfo/imgRect/imgC
+- [code] mydocs/tech/hexagonal_architecture_review.md  channel=doc binding=mention jev=- rows=2
+    :66 [basename/mention] | rendering 쿼리 | `queries/rendering.rs` | 25 | 높음 |
+    :228 [basename/mention] | rendering.rs → LayoutEngine | 렌더 트리 생성은 renderer의 책임 |
+- [code] mydocs/tech/hwp_save_guide.md  channel=doc binding=mention jev=- rows=1
+    :298 [stem/stem_weak] - raw_rendering: 146바이트 (단위 행렬 + 추가 데이터)
+- [code] mydocs/tech/layout_engine_research.md  channel=doc binding=mention jev=- rows=2
+    :74 [stem/stem_weak] **참고**: https://developer.chrome.com/docs/chromium/renderingng-fragmentation
+    :294 [stem/stem_weak] | Chromium LayoutNG Block Fragmentation | https://developer.chrome.com/docs/chromium/renderingng-fragmentation |
+- [code] mydocs/troubleshootings/picture_save_hancom_compatibility.md  channel=doc binding=mention jev=- rows=1
+    :33 [stem/stem_weak] **수정**: `raw_rendering`이 비어있을 때 identity translation + scale(cur/orig) +
+- [code] mydocs/working/archives/task_142_step1.md  channel=doc binding=mention jev=- rows=1
+    :16 [basename/mention] | `wasm_api/rendering.rs` | 766 | 렌더링/페이지네이션/페이지 트리 |
+- [code] mydocs/working/archives/task_142_step2.md  channel=doc binding=mention jev=- rows=2
+    :21 [basename/mention] | `layout/border_rendering.rs` | 486 | 표 테두리 수집/렌더링 + 라인 생성 |
+    :33 [stem/stem_weak] - **독립 함수**: text_measurement, border_rendering, utils는 standalone 함수 모듈
+- [code] mydocs/working/archives/task_157_final.md  channel=doc binding=mention jev=- rows=1
+    :30 [path/mention] | `src/document_core/queries/rendering.rs` | `getPageControlLayout`에 shape 타입 수집 추가 |
+- [code] mydocs/working/archives/task_157_step1_done.md  channel=doc binding=mention jev=- rows=1
+    :17 [basename/mention] | `src/wasm_api/queries/rendering.rs` | `getPageControlLayout()`에 shape 타입 컬렉션 추가 |
+- [code] mydocs/working/archives/task_165_stage1_report.md  channel=doc binding=mention jev=- rows=1
+    :69 [basename/mention] | `src/renderer/layout/border_rendering.rs` | LineNode 생성자 전환 (2곳) |
+- [code] mydocs/working/archives/task_194_final.md  channel=doc binding=mention jev=- rows=1
+    :68 [path/mention] - `src/document_core/queries/rendering.rs` — 렌더링 시 감추기 세트 전달
+- [code] mydocs/working/archives/task_195_final.md  channel=doc binding=mention jev=- rows=1
+    :115 [path/mention] - `src/document_core/queries/rendering.rs` — build_page_tree에서 total_pages/file_name 전달
+- [code] mydocs/working/archives/task_2_step_1.md  channel=doc binding=mention jev=- rows=1
+    :15 [stem/stem_weak] - `mydocs/tech/rendering_engine_design.md` 완료
+- [code] mydocs/working/archives/task_2_step_5.md  channel=doc binding=mention jev=- rows=2
+    :25 [stem/stem_weak] 수정된 파일: `mydocs/tech/rendering_engine_design.md`
+    :77 [stem/stem_weak] | **설계 문서** | mydocs/tech/rendering_engine_design.md | 아키텍처 설계서 |
+- [code] mydocs/working/archives/task_66_final.md  channel=doc binding=mention jev=- rows=1
+    :70 [stem/stem_weak] `test_task66_table_text_mixed_paragraph_rendering` 테스트:
+- [code] mydocs/working/task30_complete.md  channel=doc binding=mention jev=- rows=1
+    :7 [path/mention] **파일**: `src/document_core/queries/rendering.rs` (L601-L631)
+- [code] mydocs/working/task_242_stage1.md  channel=doc binding=mention jev=- rows=1
+    :13 [basename/mention] - **rendering.rs**: `collect_controls`에서 Line/Ellipse를 선택 가능한 도형으로 수집
+- [code] mydocs/working/task_68_step1_complete.md  channel=doc binding=mention jev=- rows=1
+    :8 [path/mention] - `src/document_core/queries/rendering.rs` — render_page_svg_with_fonts()
+- [code] mydocs/working/task_m100_182_stage4.md  channel=doc binding=mention jev=- rows=3
+    :39 [stem/stem_weak] - `write_rendering_info` (transMatrix + scaMatrix + rotMatrix)
+    :61 [stem/stem_weak] - `rendering_info_has_three_matrices` — transMatrix/scaMatrix/rotMatrix 3개 존재
+    :142 [stem/stem_weak] - `<hp:renderingInfo>` identity 행렬 출력
+- [code] src/document_core/queries/mod.rs  channel=other binding=mention jev=- rows=1
+    :7 [stem/stem_weak] mod rendering;
+- [code] src/model/shape.rs  channel=other binding=mention jev=- rows=2
+    :155 [stem/stem_weak] pub raw_rendering: Vec<u8>,
+    :187 [stem/stem_weak] raw_rendering: Vec::new(),
+- [code] src/renderer/layout.rs  channel=other binding=mention jev=- rows=3
+    :247 [stem/stem_weak] mod border_rendering;
+    :257 [stem/stem_weak] pub(crate) use border_rendering::{border_width_to_px, create_border_line_nodes};
+    :1795 [stem/stem_weak] super::layout::border_rendering::border_width_to_px(top.width),
+- [code] src/renderer/layout/paragraph_layout.rs  channel=other binding=mention jev=- rows=1
+    :11 [stem/stem_weak] use super::border_rendering::create_border_line_nodes;
+- [code] src/renderer/layout/picture_footnote.rs  channel=other binding=mention jev=- rows=1
+    :12 [stem/stem_weak] use super::border_rendering::border_width_to_px;
+- [code] src/renderer/layout/table_cell_content.rs  channel=other binding=mention jev=- rows=1
+    :8 [stem/stem_weak] use super::border_rendering::{
+- [code] src/renderer/layout/table_layout.rs  channel=other binding=mention jev=- rows=1
+    :9 [stem/stem_weak] use super::border_rendering::{
+- [code] src/renderer/layout/table_partial.rs  channel=other binding=mention jev=- rows=1
+    :9 [stem/stem_weak] use super::border_rendering::{
+- [code] src/wmf/parser/objects/structure/bitmap_info_header/v5.rs  channel=other binding=mention jev=- rows=1
+    :139 [stem/stem_weak] /// rendering intent for the DIB. This MUST be a value defined in the
+- [code] tests/hwpx_page_def_roundtrip.rs  channel=other binding=mention jev=- rows=2
+    :261 [stem/stem_weak] // When: native rendering consumes the imported PageDef.
+    :288 [stem/stem_weak] // When: native rendering applies only the explicit orientation flag.

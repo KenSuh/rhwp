@@ -1,0 +1,28 @@
+IMPACT at=code:3033ae22c9031919757be1357a998471e67f1fab@3033ae22c903 query="src/document_core/queries/form_query.rs" mode=path jev=used(cache) jev_threshold=0.45 files=11 rows=16 det_ms=499 total_ms=500 jev_requests=0 jev_http_attempts=0 jev_input_tokens=0
+- [code] src/document_core/queries/mod.rs  channel=other binding=mention jev=0.28 rows=1
+    :6 [stem/stem_weak] mod form_query;
+- [code] mydocs/plans/task_m100_111_impl.md  channel=doc binding=mention jev=0.25 rows=2
+    :130 [basename/mention] // 대신 form_query.rs의 find_form_node_at()와 동일한 방식으로
+    :187 [basename/mention] `getFormObjectAt()`은 `form_query.rs`의 `find_form_node_at()` (recursive, children-first)을 사용하며,
+- [code] mydocs/working/task_m100_111_stage1.md  channel=doc binding=mention jev=0.23 rows=3
+    :101 [path/mention] | `src/document_core/queries/form_query.rs` | #112: `cell_location` 반환 + `set_form_value_in_cell_native` 추가 |
+    :52 [basename/mention] 3. **`get_form_object_at_native()` 수정** (`form_query.rs`)
+    :56 [basename/mention] 4. **`set_form_value_in_cell_native()` 신규 추가** (`form_query.rs`)
+- [code] mydocs/eng/tech/hwp_form_object_api.md  channel=doc binding=mention jev=0.21 rows=1
+    :232 [path/mention] | Native Implementation | `src/document_core/queries/form_query.rs` |
+- [code] mydocs/plans/task_m100_111.md  channel=doc binding=mention jev=0.20 rows=1
+    :35 [path/mention] - `src/document_core/queries/form_query.rs` — `get_form_object_at_native()` 동작 확인
+- [code] mydocs/eng/working/task_233_final.md  channel=doc binding=mention jev=0.19 rows=2
+    :36 [path/mention] | `src/document_core/queries/form_query.rs` | New: 4 native APIs + script parsing |
+    :37 [stem/stem_weak] | `src/document_core/queries/mod.rs` | Registered form_query module |
+- [code] mydocs/eng/working/task_233_stage1.md  channel=doc binding=mention jev=0.19 rows=1
+    :10 [path/mention] - `src/document_core/queries/form_query.rs` (new): 4 native methods
+- [code] mydocs/report/task_m100_111_report.md  channel=doc binding=mention jev=0.18 rows=1
+    :55 [path/mention] ### `src/document_core/queries/form_query.rs` (#112)
+- [code] mydocs/working/task_233_final.md  channel=doc binding=mention jev=0.18 rows=2
+    :36 [path/mention] | `src/document_core/queries/form_query.rs` | 신규: 4개 네이티브 API + 스크립트 파싱 |
+    :37 [stem/stem_weak] | `src/document_core/queries/mod.rs` | form_query 모듈 등록 |
+- [code] mydocs/tech/hwp_form_object_api.md  channel=doc binding=mention jev=0.17 rows=1
+    :232 [path/mention] | 네이티브 구현 | `src/document_core/queries/form_query.rs` |
+- [code] mydocs/working/task_233_stage1.md  channel=doc binding=mention jev=0.17 rows=1
+    :10 [path/mention] - `src/document_core/queries/form_query.rs` (신규): 4개 네이티브 메서드

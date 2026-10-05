@@ -1,0 +1,493 @@
+IMPACT at=code:3033ae22c9031919757be1357a998471e67f1fab@3033ae22c903 query="src/wmf/parser/objects/structure/mod.rs" mode=path jev=used(cache) jev_threshold=0.45 files=195 rows=338 det_ms=421 total_ms=423 jev_requests=0 jev_http_attempts=0 jev_input_tokens=0
+  ! Jev 에 보내지 않은 파일 75 (상한 --max-files=120 또는 비밀 성격 경로)
+- [code] mydocs/plans/task_m100_178_impl.md  channel=doc binding=mention jev=0.39 rows=4
+    :45 [basename/mention] `src/document_core/converters/mod.rs` (신규 디렉터리)
+    :59 [basename/mention] | `src/document_core/mod.rs` | `pub mod converters;` 추가 | 모듈 노출 |
+    :97 [basename/mention] - `src/document_core/converters/mod.rs` — `pub mod hwpx_to_hwp;` (어댑터 자체는 Stage 2 에서 본격 구현, Stage 1 은 빈 진입점만)
+- [code] mydocs/plans/archives/task_142_impl.md  channel=doc binding=mention jev=0.34 rows=6
+    :58 [basename/mention] │   ├── mod.rs               ← pub mod 선언
+    :170 [basename/mention] ├── mod.rs               ← LayoutEngine struct + 핵심 진입점 (render_tree_for_page 등)
+    :185 [basename/mention] | `mod.rs` | ~800 | LayoutEngine struct, 페이지/문단 레이아웃 진입점 |
+- [code] mydocs/plans/task_m100_182_impl.md  channel=doc binding=mention jev=0.26 rows=4
+    :27 [basename/mention] #### (1) `src/serializer/hwpx/mod.rs`
+    :107 [basename/mention] // bin_data: 3-way (ref ↔ manifest ↔ zip entry) 는 mod.rs에서 최종 단언
+    :323 [basename/mention] - [ ] 분기 `mod.rs:61-66` 제거 확인 (`rg "bin_data_content.is_empty" src/serializer/`)
+- [code] mydocs/plans/task_m100_164_impl.md  channel=doc binding=mention jev=0.23 rows=5
+    :15 [basename/mention] | `src/serializer/hwpx/mod.rs` | 1 | 신규 — `serialize_hwpx` 엔트리 |
+    :22 [basename/mention] | `src/serializer/mod.rs` | 1 | 수정 — `HwpxSerializer` 구현체 + `serialize_document` 경로 |
+    :33 [basename/mention] `src/serializer/hwpx/mod.rs`:
+- [code] mydocs/plans/task_m100_164.md  channel=doc binding=mention jev=0.21 rows=4
+    :17 [basename/mention] | `DocumentSerializer` trait | 존재 (`src/serializer/mod.rs:24`) |
+    :26 [basename/mention] | `src/parser/hwpx/mod.rs` | 완료 | `parse_hwpx()` 엔트리 — 역방향 레퍼런스 |
+    :58 [basename/mention] - `src/serializer/hwpx/mod.rs` — 엔트리 `pub fn serialize_hwpx(doc: &Document) -> Result<Vec<u8>, SerializeError>`
+- [code] mydocs/working/task_m100_178_stage1.md  channel=doc binding=link jev=0.20 rows=2
+    :21 [basename/link] | [src/document_core/converters/mod.rs](src/document_core/converters/mod.rs) | 어댑터 모듈 노출 |
+    :32 [basename/link] | [src/document_core/mod.rs](src/document_core/mod.rs) | `pub mod converters;` 1줄 추가 |
+- [code] mydocs/plans/task_m100_182.md  channel=doc binding=mention jev=0.20 rows=6
+    :19 [basename/mention] 그리고 **구조적 함정**: `mod.rs:61-66`에 `sections.len() == 1 && bin_data_content.is_empty()` 분기가 있어 빈 문서 테스트는 템플릿 경로로 통과하지만 실문서는 동적 경로에서 실패한다 — "단편적 성공의 거짓-양성
+    :26 [basename/mention] 2. **빈 문서 특수 분기 제거**: `mod.rs:61-66` 삭제. 빈 Document도 동적 경로. `EMPTY_CONTENT_HPF`/`empty_header.xml`/`empty_section0.xml`는 테스트 fixture로만 보존.
+    :49 [basename/mention] - `src/serializer/hwpx/mod.rs`: `sections.len() == 1 && bin_data_content.is_empty()` 분기 제거
+- [code] mydocs/eng/working/archives/task_36_stage1.md  channel=doc binding=mention jev=0.17 rows=2
+    :11 [basename/mention] - Defined `GradientFillInfo` struct in `src/renderer/mod.rs`
+    :60 [basename/mention] | `src/renderer/mod.rs` | Defined `GradientFillInfo` struct |
+- [code] mydocs/plans/archives/task_29_impl.md  channel=doc binding=mention jev=0.17 rows=2
+    :9 [basename/mention] 2. `parser/mod.rs`: distribution이면 ViewText 경로로 분기, 복호화 후 일반 모델로 변환
+    :11 [basename/mention] 4. `parser/mod.rs:collect_extra_streams()`: ViewText 스트림은 이미 제외됨
+- [code] mydocs/working/archives/task_36_stage1.md  channel=doc binding=mention jev=0.17 rows=2
+    :11 [basename/mention] - `GradientFillInfo` 구조체를 `src/renderer/mod.rs`에 정의
+    :60 [basename/mention] | `src/renderer/mod.rs` | `GradientFillInfo` 구조체 정의 |
+- [code] mydocs/eng/report/task_36_final.md  channel=doc binding=mention jev=0.16 rows=1
+    :51 [basename/mention] | `src/renderer/mod.rs` | `GradientFillInfo` struct definition |
+- [code] mydocs/plans/archives/task_36_impl.md  channel=doc binding=mention jev=0.16 rows=2
+    :29 [basename/mention] **`src/renderer/mod.rs`** — `ShapeStyle` 구조체 확장
+    :110 [basename/mention] | `src/renderer/mod.rs` | `GradientFillInfo` 구조체 추가, `ShapeStyle` 확장 |
+- [code] mydocs/plans/archives/task_89.md  channel=doc binding=mention jev=0.16 rows=2
+    :99 [basename/mention] ├── mod.rs                 # 수정: parse_hwpx() 노출, 포맷 감지
+    :101 [basename/mention] ├── mod.rs             # HWPX 파서 진입점
+- [code] mydocs/working/archives/task_71_final.md  channel=doc binding=mention jev=0.16 rows=2
+    :16 [basename/mention] | `src/parser/mod.rs` | assign_auto_numbers()에 NewNumber 카운터 리셋 + DocProperties 시작번호 초기화 | +12줄 |
+    :54 [basename/mention] - `format_page_number()`: 중복 함수(to_roman_upper/lower, to_circle_number) 제거 → `mod.rs`의 `format_number()` 재사용
+- [code] mydocs/working/task_m100_177_stage1.md  channel=doc binding=mention jev=0.16 rows=2
+    :28 [basename/mention] **`src/document_core/mod.rs`**:
+    :84 [basename/mention] | `DocumentCore::validation_report` 필드 추가, `from_bytes` 에서 채움 | ✅ | mod.rs + commands/document.rs |
+- [code] mydocs/eng/plans/archives/task_15_impl.md  channel=doc binding=mention jev=0.15 rows=1
+    :6 [basename/mention] - `src/renderer/mod.rs` — Add `pub ratio: f64` to `TextStyle`
+- [code] mydocs/eng/plans/archives/task_71_impl.md  channel=doc binding=mention jev=0.15 rows=4
+    :50 [basename/mention] **Modified files**: `src/parser/mod.rs`, `src/renderer/pagination.rs`
+    :54 [basename/mention] #### parser/mod.rs — assign_auto_numbers() Modification
+    :75 [basename/mention] 2. `format_page_number()`: Remove duplicate function, reuse `mod.rs`'s `format_number()`
+- [code] mydocs/eng/working/archives/task_228_step1.md  channel=doc binding=mention jev=0.15 rows=1
+    :7 [basename/mention] 1. **TextStyle** (`src/renderer/mod.rs`): Added `shade_color: ColorRef` field (default `0xFFFFFF`)
+- [code] mydocs/plans/archives/task_90_impl.md  channel=doc binding=mention jev=0.15 rows=2
+    :13 [basename/mention] - `src/parser/hwpx/mod.rs` — utils 서브모듈 선언
+    :165 [basename/mention] | `src/parser/hwpx/mod.rs` | 1 | utils 서브모듈 선언 |
+- [code] mydocs/plans/task_B009.md  channel=doc binding=mention jev=0.15 rows=4
+    :85 [basename/mention] // src/renderer/mod.rs — 7개 메서드
+    :465 [basename/mention] ├── mod.rs              ← Renderer trait (기존, 변경 없음)
+    :471 [basename/mention] │   ├── mod.rs          ← PdfRenderer 구조체 + Renderer impl
+- [code] mydocs/working/archives/task_181_stage2.md  channel=doc binding=mention jev=0.15 rows=3
+    :54 [basename/mention] ### 5. 모듈 등록 (`src/renderer/equation/mod.rs`, `src/renderer/mod.rs`)
+    :74 [basename/mention] | `src/renderer/equation/mod.rs` | 모듈 선언 (신규) |
+    :79 [basename/mention] | `src/renderer/mod.rs` | `pub mod equation;` 추가 |
+- [code] mydocs/eng/feedback/r-code-review-3rd-response.md  channel=doc binding=mention jev=0.14 rows=1
+    :65 [basename/mention] |   +-- mod.rs              <- DocumentCore struct
+- [code] mydocs/eng/plans/archives/task_15.md  channel=doc binding=mention jev=0.14 rows=1
+    :22 [basename/mention] | `src/renderer/mod.rs` | Add `ratio` field to `TextStyle` |
+- [code] mydocs/eng/plans/archives/task_170_impl.md  channel=doc binding=mention jev=0.14 rows=1
+    :47 [basename/mention] **TextStyle** (`mod.rs`): Add 5 fields (emphasis_dot, underline_shape, strike_shape, underline_color, strike_color)
+- [code] mydocs/eng/plans/archives/task_29.md  channel=doc binding=mention jev=0.14 rows=2
+    :20 [basename/mention] 2. `src/parser/mod.rs`: Branch to ViewText path when distribution
+    :68 [basename/mention] | `src/serializer/mod.rs` | Header flag adjustment during conversion |
+- [code] mydocs/eng/report/task_3_final.md  channel=doc binding=mention jev=0.14 rows=1
+    :23 [basename/mention] | mod.rs | `src/parser/mod.rs` | 156 | Integrated parsing pipeline `parse_hwp()` |
+- [code] mydocs/eng/troubleshootings/bin_data_id_index_mapping.md  channel=doc binding=mention jev=0.14 rows=1
+    :36 [basename/mention] // parser/mod.rs -- BinDataContent creation
+- [code] mydocs/eng/working/archives/task_23_step2.md  channel=doc binding=mention jev=0.14 rows=1
+    :11 [basename/mention] | `src/serializer/mod.rs` | Added `pub mod header;`, `pub mod doc_info;` |
+- [code] mydocs/eng/working/archives/task_3_step_4.md  channel=doc binding=mention jev=0.14 rows=1
+    :12 [basename/mention] | `src/parser/mod.rs` | +2 | control, bin_data module registration |
+- [code] mydocs/eng/working/archives/task_3_step_5.md  channel=doc binding=mention jev=0.14 rows=4
+    :9 [basename/mention] | `src/parser/mod.rs` | +110 | `parse_hwp()` unified parsing function + `ParseError` error type |
+    :18 [basename/mention] Top-level parsing function added to `src/parser/mod.rs`:
+    :129 [basename/mention] | parser (mod.rs) | - | 2 | +2 |
+- [code] mydocs/feedback/code-refactoring-strategy.md  channel=doc binding=mention jev=0.14 rows=9
+    :68 [basename/mention] │   ├── mod.rs               ← HwpDocument 구조체 정의 + 공통 유틸리티
+    :82 [basename/mention] **핵심 원칙**: Rust의 `impl` 블록은 여러 파일에서 분산 정의할 수 있다. `HwpDocument` 구조체를 `wasm_api/mod.rs`에 정의하고, 각 역할별 모듈에서 `impl HwpDocument` 블록으로 메서드를 구현한다.
+    :85 [basename/mention] // src/wasm_api/mod.rs
+- [code] mydocs/plans/archives/task_131.md  channel=doc binding=mention jev=0.14 rows=3
+    :49 [basename/mention] TextStyle (renderer/mod.rs:48)
+    :128 [basename/mention] **파일 2**: `src/renderer/mod.rs`
+    :205 [basename/mention] | `src/renderer/mod.rs` | TextStyle 확장 + Default 업데이트 | ~15줄 |
+- [code] mydocs/plans/archives/task_142.md  channel=doc binding=mention jev=0.14 rows=4
+    :83 [basename/mention] │   ├── mod.rs               ← HwpDocument 구조체 + 공통 헬퍼
+    :95 [basename/mention] │   ├── mod.rs
+    :174 [basename/mention] | 순환 의존성 | 중간 | 공통 헬퍼를 mod.rs에 배치 |
+- [code] mydocs/plans/archives/task_29.md  channel=doc binding=mention jev=0.14 rows=2
+    :20 [basename/mention] 2. `src/parser/mod.rs`: distribution이면 ViewText 경로로 분기
+    :68 [basename/mention] | `src/serializer/mod.rs` | 변환 시 헤더 플래그 조정 |
+- [code] mydocs/plans/archives/task_3_impl.md  channel=doc binding=mention jev=0.14 rows=2
+    :19 [basename/mention] - `src/parser/mod.rs` 확장 - 파서 모듈 구조 재설계
+    :128 [basename/mention] | `src/parser/mod.rs` | 1 | 파서 모듈 재구성 |
+- [code] mydocs/plans/archives/task_4_impl.md  channel=doc binding=mention jev=0.14 rows=2
+    :144 [basename/mention] - `src/renderer/mod.rs` 수정 - 새 모듈 등록
+    :203 [basename/mention] | `src/renderer/mod.rs` | 3 | 새 모듈 등록 |
+- [code] mydocs/plans/archives/task_71_impl.md  channel=doc binding=mention jev=0.14 rows=4
+    :50 [basename/mention] **수정 파일**: `src/parser/mod.rs`, `src/renderer/pagination.rs`
+    :54 [basename/mention] #### parser/mod.rs — assign_auto_numbers() 수정
+    :75 [basename/mention] 2. `format_page_number()`: 중복 함수 제거, `mod.rs`의 `format_number()` 재사용
+- [code] mydocs/plans/archives/task_89_impl.md  channel=doc binding=mention jev=0.14 rows=4
+    :13 [basename/mention] - `src/parser/mod.rs` — `hwpx` 서브모듈 선언, `detect_format()`, `parse_auto()` 추가
+    :14 [basename/mention] - `src/parser/hwpx/mod.rs` — HWPX 파서 진입점 (`parse_hwpx()`)
+    :148 [basename/mention] | `src/parser/mod.rs` | 1 | `hwpx` 모듈 선언, `detect_format()`, `FileFormat` |
+- [code] mydocs/plans/task_m100_177_impl.md  channel=doc binding=mention jev=0.14 rows=3
+    :110 [basename/mention] **`DocumentCore` 필드 추가**: `src/document_core/mod.rs`
+    :279 [basename/mention] 현재 `src/serializer/hwpx/mod.rs` 의 `linesegs_emitted_per_linebreak` 테스트는 **정적 하드코딩값 기반**:
+    :559 [basename/mention] | 1 | `src/document_core/mod.rs` (필드), `src/document_core/commands/document.rs` (from_bytes) | `src/document_core/validation.rs` |
+- [code] mydocs/plans/task_m100_67_impl.md  channel=doc binding=mention jev=0.14 rows=2
+    :22 [basename/mention] - `mod.rs`: `generic_fallback()` — Serif/Sans-serif 판별
+    :54 [basename/mention] - `src/renderer/mod.rs` — generic_fallback() 개선
+- [code] mydocs/report/task_2_final.md  channel=doc binding=mention jev=0.14 rows=2
+    :63 [basename/mention] mod.rs, document.rs, paragraph.rs, table.rs, shape.rs,
+    :68 [basename/mention] mod.rs, render_tree.rs, page_layout.rs, pagination.rs,
+- [code] mydocs/working/archives/task_2_step_5.md  channel=doc binding=mention jev=0.14 rows=2
+    :71 [basename/mention] | **소스** | src/model/mod.rs ~ bin_data.rs (12) | IR 데이터 모델 |
+    :72 [basename/mention] | | src/renderer/mod.rs ~ html.rs (8) | 렌더링 엔진 |
+- [code] mydocs/eng/feedback/code-refactoring-strategy.md  channel=doc binding=mention jev=0.13 rows=9
+    :68 [basename/mention] |   +-- mod.rs               <- HwpDocument struct definition + shared utilities
+    :82 [basename/mention] **Core principle**: Rust `impl` blocks can be defined across multiple files. Define the `HwpDocument` struct in `wasm_api/mod.rs`, and implement metho
+    :85 [basename/mention] // src/wasm_api/mod.rs
+- [code] mydocs/eng/plans/archives/task_142_impl.md  channel=doc binding=mention jev=0.13 rows=6
+    :58 [basename/mention] │   ├── mod.rs               ← pub mod declarations
+    :170 [basename/mention] ├── mod.rs               ← LayoutEngine struct + core entry points (render_tree_for_page, etc.)
+    :185 [basename/mention] | `mod.rs` | ~800 | LayoutEngine struct, page/paragraph layout entry points |
+- [code] mydocs/eng/plans/archives/task_147.md  channel=doc binding=mention jev=0.13 rows=2
+    :18 [basename/mention] | src/wasm_api/commands/mod.rs (new) | 7 mod declarations |
+    :20 [basename/mention] | src/wasm_api/queries/mod.rs (new) | 3 mod declarations |
+- [code] mydocs/eng/plans/archives/task_166_impl.md  channel=doc binding=mention jev=0.13 rows=1
+    :65 [basename/mention] - mod.rs (or cursor_rect.rs): ~15 lines helper added
+- [code] mydocs/eng/plans/archives/task_238_impl.md  channel=doc binding=mention jev=0.13 rows=1
+    :22 [basename/mention] - `src/document_core/queries/mod.rs` — Module registration
+- [code] mydocs/eng/plans/archives/task_29_impl.md  channel=doc binding=mention jev=0.13 rows=2
+    :9 [basename/mention] 2. `parser/mod.rs`: Branches to ViewText path when distribution, converts to regular model after decryption
+    :11 [basename/mention] 4. `parser/mod.rs:collect_extra_streams()`: ViewText streams already excluded
+- [code] mydocs/eng/plans/archives/task_2_impl.md  channel=doc binding=mention jev=0.13 rows=1
+    :34 [basename/mention] - `mod.rs` - Renderer trait definitions
+- [code] mydocs/eng/plans/archives/task_4_impl.md  channel=doc binding=mention jev=0.13 rows=2
+    :144 [basename/mention] - Modify `src/renderer/mod.rs` — Register new modules
+    :203 [basename/mention] | `src/renderer/mod.rs` | 3 | Register new modules |
+- [code] mydocs/eng/plans/archives/task_89_impl.md  channel=doc binding=mention jev=0.13 rows=4
+    :13 [basename/mention] - `src/parser/mod.rs` — declare `hwpx` submodule, add `detect_format()`, `parse_auto()`
+    :14 [basename/mention] - `src/parser/hwpx/mod.rs` — HWPX parser entry point (`parse_hwpx()`)
+    :148 [basename/mention] | `src/parser/mod.rs` | 1 | `hwpx` module declaration, `detect_format()`, `FileFormat` |
+- [code] mydocs/eng/tech/hwpers_analysis.md  channel=doc binding=mention jev=0.13 rows=1
+    :73 [basename/mention] mod.rs (1,995 lines)                    web/  (editor UI)
+- [code] mydocs/eng/tech/rendering_engine_design.md  channel=doc binding=mention jev=0.13 rows=4
+    :79 [basename/mention] │  Renderer Trait  │  src/renderer/mod.rs
+    :105 [basename/mention] │   ├── mod.rs          # Parser module
+    :108 [basename/mention] │   ├── mod.rs          # HwpUnit, ColorRef, Point, Rect, Padding
+- [code] mydocs/eng/working/archives/task_125_step1234_done.md  channel=doc binding=mention jev=0.13 rows=1
+    :44 [basename/mention] | `src/renderer/mod.rs` | font_metrics_data module registration | Modified |
+- [code] mydocs/eng/working/archives/task_158_stage2_report.md  channel=doc binding=mention jev=0.13 rows=1
+    :11 [basename/mention] - `src/renderer/mod.rs`: Added `PatternFillInfo` struct, extended `ShapeStyle` with `pattern` field
+- [code] mydocs/eng/working/archives/task_214_step1_2.md  channel=doc binding=mention jev=0.13 rows=1
+    :16 [basename/mention] - Registered `pub mod typeset` in `src/renderer/mod.rs`
+- [code] mydocs/eng/working/archives/task_23_step3.md  channel=doc binding=mention jev=0.13 rows=1
+    :50 [basename/mention] ### 3-3. `src/serializer/mod.rs` Update
+- [code] mydocs/eng/working/archives/task_23_step4.md  channel=doc binding=mention jev=0.13 rows=1
+    :23 [basename/mention] ### 4-2. `src/serializer/mod.rs` Update
+- [code] mydocs/eng/working/archives/task_3_step_1.md  channel=doc binding=mention jev=0.13 rows=1
+    :13 [basename/mention] | `src/parser/mod.rs` | Parser module structure redesign |
+- [code] mydocs/eng/working/archives/task_3_step_2.md  channel=doc binding=mention jev=0.13 rows=1
+    :12 [basename/mention] | `src/parser/mod.rs` | +3 | New module registration (byte_reader, crypto, doc_info) |
+- [code] mydocs/eng/working/archives/task_3_step_3.md  channel=doc binding=mention jev=0.13 rows=1
+    :10 [basename/mention] | `src/parser/mod.rs` | +2 | body_text module registration |
+- [code] mydocs/eng/working/archives/task_4_step_2.md  channel=doc binding=mention jev=0.13 rows=1
+    :17 [basename/mention] | `src/renderer/mod.rs` | +1 line | `pub mod composer;` registration |
+- [code] mydocs/eng/working/archives/task_89_report.md  channel=doc binding=mention jev=0.13 rows=4
+    :16 [basename/mention] | `src/parser/mod.rs` | `FileFormat` enum, `detect_format()` (magic byte based) |
+    :17 [basename/mention] | `src/parser/hwpx/mod.rs` | `parse_hwpx()` entry point, `HwpxError` error type |
+    :84 [basename/mention] - `src/parser/hwpx/mod.rs` — HWPX parser entry point
+- [code] mydocs/eng/working/task_233_final.md  channel=doc binding=mention jev=0.13 rows=1
+    :37 [basename/mention] | `src/document_core/queries/mod.rs` | Registered form_query module |
+- [code] mydocs/eng/working/task_238_final.md  channel=doc binding=mention jev=0.13 rows=1
+    :42 [basename/mention] | `src/document_core/queries/mod.rs` | Registered search_query module |
+- [code] mydocs/eng/working/task_238_stage1.md  channel=doc binding=mention jev=0.13 rows=1
+    :27 [basename/mention] | `src/document_core/queries/mod.rs` | Registered search_query module |
+- [code] mydocs/eng/working/task_240_stage1.md  channel=doc binding=mention jev=0.13 rows=1
+    :19 [basename/mention] ### queries/mod.rs
+- [code] mydocs/plans/archives/task_181_impl.md  channel=doc binding=mention jev=0.13 rows=2
+    :64 [basename/mention] | `src/renderer/equation/mod.rs` | 모듈 선언 |
+    :69 [basename/mention] | `src/renderer/mod.rs` | `pub mod equation;` 추가 |
+- [code] mydocs/plans/archives/task_23.md  channel=doc binding=mention jev=0.13 rows=2
+    :66 [basename/mention] **파일**: `src/serializer/mod.rs`, `src/serializer/byte_writer.rs`, `src/serializer/record_writer.rs`
+    :157 [basename/mention] | `src/serializer/mod.rs` | 신규: 모듈 루트, serialize_hwp() |
+- [code] mydocs/tech/hexagonal_architecture_review.md  channel=doc binding=mention jev=0.13 rows=3
+    :65 [basename/mention] | 구조체 필드 | `document_core/mod.rs` | 9 | 매우 높음 |
+    :72 [basename/mention] **A. DocumentCore 필드 (mod.rs)**
+    :114 [basename/mention] | StyleResolverPort | resolve_styles, ResolvedStyleSet | mod.rs 9건 |
+- [code] mydocs/working/archives/task_107_final.md  channel=doc binding=mention jev=0.13 rows=2
+    :26 [basename/mention] - renderer/mod.rs, style_resolver.rs: 투명도 적용
+    :45 [basename/mention] | src/renderer/mod.rs | 투명도 지원 |
+- [code] mydocs/working/archives/task_89_report.md  channel=doc binding=mention jev=0.13 rows=4
+    :17 [basename/mention] | `src/parser/mod.rs` | `FileFormat` 열거형, `detect_format()` (매직바이트 기반) |
+    :18 [basename/mention] | `src/parser/hwpx/mod.rs` | `parse_hwpx()` 진입점, `HwpxError` 에러 타입 |
+    :85 [basename/mention] - `src/parser/hwpx/mod.rs` — HWPX 파서 진입점
+- [code] mydocs/working/task_m100_182_stage3.md  channel=doc binding=mention jev=0.13 rows=2
+    :47 [basename/mention] **`src/serializer/hwpx/mod.rs`** (1줄): `pub mod table;` 추가
+    :145 [basename/mention] - `SerializeContext::bin_data_map` 활용 + `mod.rs` 에 `BinData/*.png` ZIP 엔트리 쓰기
+- [code] mydocs/working/task_m100_182_stage4.md  channel=doc binding=mention jev=0.13 rows=5
+    :15 [basename/mention] - `mod.rs`: Picture 존재 시 `BinData/*.png` ZIP 엔트리 추가
+    :23 [basename/mention] - ✅ `mod.rs`: BinData 바이너리를 ZIP에 `BinData/imageN.ext` 로 쓰기
+    :49 [basename/mention] **`src/serializer/hwpx/mod.rs`** (+60줄):
+- [code] mydocs/eng/plans/archives/task_107.md  channel=doc binding=mention jev=0.12 rows=1
+    :35 [basename/mention] - renderer/mod.rs, style_resolver.rs: Transparency application
+- [code] mydocs/eng/plans/archives/task_12.md  channel=doc binding=mention jev=0.12 rows=1
+    :58 [basename/mention] | `src/renderer/mod.rs` | Add AutoNumberCounter struct |
+- [code] mydocs/eng/plans/archives/task_131.md  channel=doc binding=mention jev=0.12 rows=3
+    :49 [basename/mention] TextStyle (renderer/mod.rs:48)
+    :128 [basename/mention] **File 2**: `src/renderer/mod.rs`
+    :205 [basename/mention] | `src/renderer/mod.rs` | Extend TextStyle + Default update | ~15 lines |
+- [code] mydocs/eng/plans/archives/task_142.md  channel=doc binding=mention jev=0.12 rows=4
+    :83 [basename/mention] │   ├── mod.rs               ← HwpDocument struct + common helpers
+    :95 [basename/mention] │   ├── mod.rs
+    :174 [basename/mention] | Circular dependencies | Medium | Place common helpers in mod.rs |
+- [code] mydocs/eng/plans/archives/task_170.md  channel=doc binding=mention jev=0.12 rows=1
+    :43 [basename/mention] | `src/renderer/mod.rs` | TextStyle 5 fields |
+- [code] mydocs/eng/plans/archives/task_3_impl.md  channel=doc binding=mention jev=0.12 rows=2
+    :19 [basename/mention] - `src/parser/mod.rs` extension — Parser module restructuring
+    :128 [basename/mention] | `src/parser/mod.rs` | 1 | Parser module reorganization |
+- [code] mydocs/eng/plans/archives/task_89.md  channel=doc binding=mention jev=0.12 rows=2
+    :99 [basename/mention] +-- mod.rs                 # Modify: expose parse_hwpx(), format detection
+    :101 [basename/mention] +-- mod.rs             # HWPX parser entry point
+- [code] mydocs/eng/plans/archives/task_90_impl.md  channel=doc binding=mention jev=0.12 rows=2
+    :13 [basename/mention] - `src/parser/hwpx/mod.rs` — utils submodule declaration
+    :165 [basename/mention] | `src/parser/hwpx/mod.rs` | 1 | utils submodule declaration |
+- [code] mydocs/eng/plans/task_291.md  channel=doc binding=mention jev=0.12 rows=1
+    :180 [basename/mention] | `src/document_core/mod.rs` | Add master_page_cache field |
+- [code] mydocs/eng/plans/task_304.md  channel=doc binding=mention jev=0.12 rows=1
+    :33 [basename/mention] - `src/renderer/mod.rs` — NumberFormat::from_hwp_format mapping fix
+- [code] mydocs/eng/plans/task_B009.md  channel=doc binding=mention jev=0.12 rows=4
+    :85 [basename/mention] // src/renderer/mod.rs — 7 methods
+    :465 [basename/mention] ├── mod.rs              ← Renderer trait (existing, no changes)
+    :471 [basename/mention] │   ├── mod.rs          ← PdfRenderer struct + Renderer impl
+- [code] mydocs/eng/working/archives/task_1_step_3.md  channel=doc binding=mention jev=0.12 rows=1
+    :18 [basename/mention] ├── mod.rs      # Parser module definition
+- [code] mydocs/eng/working/archives/task_214_final.md  channel=doc binding=mention jev=0.12 rows=1
+    :14 [basename/mention] - Registered module in `src/renderer/mod.rs`
+- [code] mydocs/eng/working/archives/task_228_final.md  channel=doc binding=mention jev=0.12 rows=1
+    :52 [basename/mention] | src/renderer/mod.rs | Added shade_color field to TextStyle |
+- [code] mydocs/eng/working/archives/task_23_step1.md  channel=doc binding=mention jev=0.12 rows=1
+    :9 [basename/mention] | `src/serializer/mod.rs` | New: serializer module root |
+- [code] mydocs/eng/working/archives/task_2_step_2.md  channel=doc binding=mention jev=0.12 rows=1
+    :11 [basename/mention] | `mod.rs` | HwpUnit, ColorRef, Point, Rect, Padding | Common type definitions |
+- [code] mydocs/eng/working/archives/task_2_step_3.md  channel=doc binding=mention jev=0.12 rows=1
+    :11 [basename/mention] | `mod.rs` | Renderer(trait), RenderBackend, TextStyle, ShapeStyle, LineStyle, PathCommand | Common renderer traits and types |
+- [code] mydocs/eng/working/archives/task_90_step1.md  channel=doc binding=mention jev=0.12 rows=1
+    :40 [basename/mention] | `src/parser/hwpx/mod.rs` | Added `pub mod utils;` |
+- [code] mydocs/plans/archives/task_166_impl.md  channel=doc binding=mention jev=0.12 rows=2
+    :151 [basename/mention] **파일:** `src/document_core/queries/cursor_rect.rs` (또는 `mod.rs`)
+    :169 [basename/mention] - mod.rs (또는 cursor_rect.rs): ~15줄 헬퍼 추가
+- [code] mydocs/tech/rendering_engine_design.md  channel=doc binding=mention jev=0.12 rows=4
+    :76 [basename/mention] │  Renderer Trait  │  src/renderer/mod.rs
+    :101 [basename/mention] │   ├── mod.rs          # 파서 모듈
+    :104 [basename/mention] │   ├── mod.rs          # HwpUnit, ColorRef, Point, Rect, Padding
+- [code] mydocs/working/archives/task_3_step_5.md  channel=doc binding=mention jev=0.12 rows=4
+    :9 [basename/mention] | `src/parser/mod.rs` | +110 | `parse_hwp()` 통합 파싱 함수 + `ParseError` 에러 타입 |
+    :18 [basename/mention] `src/parser/mod.rs`에 추가된 최상위 파싱 함수:
+    :130 [basename/mention] | parser (mod.rs) | - | 2 | +2 |
+- [code] mydocs/working/task_m100_164_stage1.md  channel=doc binding=mention jev=0.12 rows=2
+    :20 [basename/mention] | `src/serializer/hwpx/mod.rs` | 엔트리 `serialize_hwpx()` + `HwpxSerializer` |
+    :35 [basename/mention] | `src/serializer/mod.rs` | `SerializeError`를 루트로 이동 (HWP+HWPX 공용), `HwpxSerializer` 등록, `pub mod hwpx` 추가 |
+- [code] mydocs/working/task_m100_182_stage0.md  channel=doc binding=mention jev=0.12 rows=3
+    :13 [basename/mention] 1. 빈 문서 특수 분기(`mod.rs:61-66`) 제거 — 거짓-양성 테스트 경로 차단
+    :32 [basename/mention] - `src/serializer/hwpx/mod.rs`:
+    :88 [basename/mention] | 분기 `mod.rs:61-66` 제거 확인 | ✅ | `rg` 검색 무매칭 |
+- [code] mydocs/eng/plans/archives/task_125.md  channel=doc binding=mention jev=0.11 rows=1
+    :187 [basename/mention] | `src/renderer/mod.rs` | font_metrics module registration | Modified |
+- [code] mydocs/eng/plans/archives/task_12_impl.md  channel=doc binding=mention jev=0.11 rows=3
+    :6 [basename/mention] **File**: `src/renderer/mod.rs`
+    :28 [basename/mention] **File**: `src/renderer/mod.rs`
+    :80 [basename/mention] | `src/renderer/mod.rs` | AutoNumberCounter struct, format_number function |
+- [code] mydocs/eng/plans/archives/task_181_impl.md  channel=doc binding=mention jev=0.11 rows=1
+    :42 [basename/mention] | `src/renderer/equation/mod.rs` | Module declarations |
+- [code] mydocs/eng/plans/archives/task_238.md  channel=doc binding=mention jev=0.11 rows=1
+    :54 [basename/mention] | `src/document_core/queries/mod.rs` | Module registration |
+- [code] mydocs/eng/plans/archives/task_7.md  channel=doc binding=mention jev=0.11 rows=1
+    :53 [basename/mention] | src/renderer/mod.rs | New module export |
+- [code] mydocs/eng/report/task_1_final.md  channel=doc binding=mention jev=0.11 rows=1
+    :23 [basename/mention] | `src/parser/mod.rs` | Parser module definition |
+- [code] mydocs/eng/report/task_2_final.md  channel=doc binding=mention jev=0.11 rows=2
+    :63 [basename/mention] mod.rs, document.rs, paragraph.rs, table.rs, shape.rs,
+    :68 [basename/mention] mod.rs, render_tree.rs, page_layout.rs, pagination.rs,
+- [code] mydocs/eng/tech/hexagonal_architecture_review.md  channel=doc binding=mention jev=0.11 rows=3
+    :64 [basename/mention] | Struct fields | `document_core/mod.rs` | 9 | Very high |
+    :71 [basename/mention] **A. DocumentCore Fields (mod.rs)**
+    :113 [basename/mention] | StyleResolverPort | resolve_styles, ResolvedStyleSet | 9 items in mod.rs |
+- [code] mydocs/eng/working/archives/task_102_step3.md  channel=doc binding=mention jev=0.11 rows=1
+    :47 [basename/mention] | `src/model/mod.rs` | +1 line: `pub mod path;` |
+- [code] mydocs/eng/working/archives/task_15_report.md  channel=doc binding=mention jev=0.11 rows=1
+    :15 [basename/mention] | `src/renderer/mod.rs` | Added `ratio: f64` field to `TextStyle`, manual Default impl (default 1.0) |
+- [code] mydocs/eng/working/archives/task_230_final.md  channel=doc binding=mention jev=0.11 rows=1
+    :52 [basename/mention] | `src/document_core/queries/mod.rs` | Registered field_query module |
+- [code] mydocs/eng/working/archives/task_2_step_5.md  channel=doc binding=mention jev=0.11 rows=2
+    :71 [basename/mention] | **Source** | src/model/mod.rs ~ bin_data.rs (12) | IR data model |
+    :72 [basename/mention] | | src/renderer/mod.rs ~ html.rs (8) | Rendering engine |
+- [code] mydocs/eng/working/archives/task_71_final.md  channel=doc binding=mention jev=0.11 rows=2
+    :16 [basename/mention] | `src/parser/mod.rs` | Added NewNumber counter reset + DocProperties start number initialization to assign_auto_numbers() | +12 lines |
+    :54 [basename/mention] - `format_page_number()`: Removed duplicate functions (to_roman_upper/lower, to_circle_number) -> reused `format_number()` from `mod.rs`
+- [code] mydocs/plans/archives/task_12_impl.md  channel=doc binding=mention jev=0.11 rows=3
+    :6 [basename/mention] **파일**: `src/renderer/mod.rs`
+    :28 [basename/mention] **파일**: `src/renderer/mod.rs`
+    :80 [basename/mention] | `src/renderer/mod.rs` | AutoNumberCounter 구조체, format_number 함수 |
+- [code] mydocs/eng/plans/archives/task_124_impl.md  channel=doc binding=mention jev=0.10 rows=2
+    :28 [basename/mention] **src/renderer/mod.rs**
+    :133 [basename/mention] | src/renderer/mod.rs | 1 | glyph_cache module declaration |
+- [code] mydocs/eng/plans/archives/task_166.md  channel=doc binding=mention jev=0.10 rows=1
+    :38 [basename/mention] | `src/document_core/mod.rs` | Pagination data access helpers |
+- [code] mydocs/eng/plans/archives/task_23.md  channel=doc binding=mention jev=0.10 rows=1
+    :28 [basename/mention] | `src/serializer/mod.rs` | New: module root, serialize_hwp() |
+- [code] mydocs/eng/report/task_90_final.md  channel=doc binding=mention jev=0.10 rows=1
+    :50 [basename/mention] | `src/parser/hwpx/mod.rs` | Modified | Added `pub mod utils;` |
+- [code] mydocs/eng/troubleshootings/shape_fill_transparency.md  channel=doc binding=mention jev=0.10 rows=1
+    :148 [basename/mention] | `src/renderer/mod.rs` | Manual `ShapeStyle::Default` implementation, opacity default 1.0 |
+- [code] mydocs/eng/working/archives/task_107_final.md  channel=doc binding=mention jev=0.10 rows=2
+    :26 [basename/mention] - renderer/mod.rs, style_resolver.rs: Opacity application
+    :45 [basename/mention] | src/renderer/mod.rs | Opacity support |
+- [code] mydocs/plans/archives/task_124_impl.md  channel=doc binding=mention jev=0.10 rows=2
+    :28 [basename/mention] **src/renderer/mod.rs**
+    :133 [basename/mention] | src/renderer/mod.rs | 1 | glyph_cache 모듈 선언 |
+- [code] mydocs/eng/feedback/r-code-review-report.md  channel=doc binding=mention jev=0.09 rows=1
+    :64 [basename/mention] ### 2.1 Positive Example: `Renderer` trait (renderer/mod.rs:239-257)
+- [code] mydocs/plans/archives/task_147.md  channel=doc binding=mention jev=0.09 rows=2
+    :18 [basename/mention] | src/wasm_api/commands/mod.rs (신규) | 7개 mod 선언 |
+    :20 [basename/mention] | src/wasm_api/queries/mod.rs (신규) | 3개 mod 선언 |
+- [code] mydocs/feedback/r-code-review-3rd-response.md  channel=doc binding=mention jev=- rows=1
+    :65 [basename/mention] │   ├── mod.rs              ← DocumentCore 구조체
+- [code] mydocs/feedback/r-code-review-report.md  channel=doc binding=mention jev=- rows=1
+    :64 [basename/mention] ### 2.1 긍정적 사례: `Renderer` trait (renderer/mod.rs:239-257)
+- [code] mydocs/plans/archives/task_107.md  channel=doc binding=mention jev=- rows=1
+    :35 [basename/mention] - renderer/mod.rs, style_resolver.rs: 투명도 적용
+- [code] mydocs/plans/archives/task_12.md  channel=doc binding=mention jev=- rows=1
+    :58 [basename/mention] | `src/renderer/mod.rs` | AutoNumberCounter 구조체 추가 |
+- [code] mydocs/plans/archives/task_125.md  channel=doc binding=mention jev=- rows=1
+    :187 [basename/mention] | `src/renderer/mod.rs` | font_metrics 모듈 등록 | 수정 |
+- [code] mydocs/plans/archives/task_15.md  channel=doc binding=mention jev=- rows=1
+    :22 [basename/mention] | `src/renderer/mod.rs` | `TextStyle`에 `ratio` 필드 추가 |
+- [code] mydocs/plans/archives/task_15_impl.md  channel=doc binding=mention jev=- rows=1
+    :6 [basename/mention] - `src/renderer/mod.rs` — `TextStyle`에 `pub ratio: f64` 추가
+- [code] mydocs/plans/archives/task_166.md  channel=doc binding=mention jev=- rows=1
+    :38 [basename/mention] | `src/document_core/mod.rs` | 페이지네이션 데이터 접근 헬퍼 |
+- [code] mydocs/plans/archives/task_170.md  channel=doc binding=mention jev=- rows=1
+    :43 [basename/mention] | `src/renderer/mod.rs` | TextStyle 5개 필드 |
+- [code] mydocs/plans/archives/task_170_impl.md  channel=doc binding=mention jev=- rows=1
+    :47 [basename/mention] **TextStyle** (`mod.rs`): 5개 필드 추가 (emphasis_dot, underline_shape, strike_shape, underline_color, strike_color)
+- [code] mydocs/plans/archives/task_181.md  channel=doc binding=mention jev=- rows=1
+    :101 [basename/mention] - `src/renderer/equation/mod.rs`: 모듈 구조
+- [code] mydocs/plans/archives/task_193_impl.md  channel=doc binding=mention jev=- rows=1
+    :275 [basename/mention] | `src/document_core/mod.rs` | header_footer_ops 모듈 등록 |
+- [code] mydocs/plans/archives/task_238.md  channel=doc binding=mention jev=- rows=1
+    :54 [basename/mention] | `src/document_core/queries/mod.rs` | 모듈 등록 |
+- [code] mydocs/plans/archives/task_238_impl.md  channel=doc binding=mention jev=- rows=1
+    :22 [basename/mention] - `src/document_core/queries/mod.rs` — 모듈 등록
+- [code] mydocs/plans/archives/task_2_impl.md  channel=doc binding=mention jev=- rows=1
+    :34 [basename/mention] - `mod.rs` - 렌더러 트레이트 정의
+- [code] mydocs/plans/archives/task_7.md  channel=doc binding=mention jev=- rows=1
+    :53 [basename/mention] | src/renderer/mod.rs | 새 모듈 export |
+- [code] mydocs/plans/task_291.md  channel=doc binding=mention jev=- rows=1
+    :180 [basename/mention] | `src/document_core/mod.rs` | master_page_cache 필드 추가 |
+- [code] mydocs/plans/task_304.md  channel=doc binding=mention jev=- rows=1
+    :33 [basename/mention] - `src/renderer/mod.rs` — NumberFormat::from_hwp_format 매핑 수정
+- [code] mydocs/plans/task_m100_176_impl.md  channel=doc binding=mention jev=- rows=1
+    :40 [basename/mention] - `src/document_core/mod.rs` 또는 `src/wasm_api.rs` — 원본 파일 형식 추적 필드 추가
+- [code] mydocs/plans/task_m100_86.md  channel=doc binding=mention jev=- rows=1
+    :23 [basename/mention] - `src/parser/mod.rs`: `extract_preview()` 함수
+- [code] mydocs/plans/task_m100_86_impl.md  channel=doc binding=mention jev=- rows=1
+    :11 [basename/mention] **`src/parser/mod.rs`** — 썸네일 전용 경량 추출 함수 추가:
+- [code] mydocs/report/task_1_final.md  channel=doc binding=mention jev=- rows=1
+    :24 [basename/mention] | `src/parser/mod.rs` | 파서 모듈 정의 |
+- [code] mydocs/report/task_36_final.md  channel=doc binding=mention jev=- rows=1
+    :51 [basename/mention] | `src/renderer/mod.rs` | `GradientFillInfo` 구조체 정의 |
+- [code] mydocs/report/task_3_final.md  channel=doc binding=mention jev=- rows=1
+    :24 [basename/mention] | mod.rs | `src/parser/mod.rs` | 156 | 통합 파싱 파이프라인 `parse_hwp()` |
+- [code] mydocs/report/task_67_report.md  channel=doc binding=mention jev=- rows=1
+    :11 [basename/mention] | `src/renderer/mod.rs` | `generic_fallback()` 전 플랫폼 CSS 체인 |
+- [code] mydocs/report/task_90_final.md  channel=doc binding=mention jev=- rows=1
+    :54 [basename/mention] | `src/parser/hwpx/mod.rs` | 수정 | `pub mod utils;` 추가 |
+- [code] mydocs/report/task_m100_182_report.md  channel=doc binding=mention jev=- rows=1
+    :44 [basename/mention] | 4 | Picture + BinData + 3-way 단언 | `picture.rs` (420줄) + `mod.rs` 확장 | 2026-04-18 |
+- [code] mydocs/tech/equation_latex_comparison.md  channel=doc binding=mention jev=- rows=1
+    :605 [basename/mention] 3. **모드 전환 로직** (`src/renderer/equation/mod.rs`)
+- [code] mydocs/tech/font_fallback_strategy.md  channel=doc binding=mention jev=- rows=1
+    :533 [basename/mention] 4. `src/renderer/mod.rs`의 `generic_fallback()` 업데이트
+- [code] mydocs/tech/hwp_spec_errata.md  channel=doc binding=mention jev=- rows=1
+    :483 [basename/mention] | 수정 파일 | `src/parser/mod.rs`, `src/model/document.rs` |
+- [code] mydocs/tech/hwpers_analysis.md  channel=doc binding=mention jev=- rows=1
+    :72 [basename/mention] mod.rs (1,995줄)                         web/  (에디터 UI)
+- [code] mydocs/troubleshootings/bin_data_id_index_mapping.md  channel=doc binding=mention jev=- rows=1
+    :36 [basename/mention] // parser/mod.rs — BinDataContent 생성
+- [code] mydocs/troubleshootings/shape_fill_transparency.md  channel=doc binding=mention jev=- rows=1
+    :148 [basename/mention] | `src/renderer/mod.rs` | `ShapeStyle::Default` 수동 구현, opacity 기본값 1.0 |
+- [code] mydocs/working/archives/task_102_step3.md  channel=doc binding=mention jev=- rows=1
+    :47 [basename/mention] | `src/model/mod.rs` | +1줄: `pub mod path;` |
+- [code] mydocs/working/archives/task_125_step1234_done.md  channel=doc binding=mention jev=- rows=1
+    :44 [basename/mention] | `src/renderer/mod.rs` | font_metrics_data 모듈 등록 | 수정 |
+- [code] mydocs/working/archives/task_158_report.md  channel=doc binding=mention jev=- rows=1
+    :13 [basename/mention] | `src/parser/mod.rs` | +16 | 파서 추가 |
+- [code] mydocs/working/archives/task_158_stage2_report.md  channel=doc binding=mention jev=- rows=1
+    :13 [basename/mention] | `src/renderer/mod.rs` | `PatternFillInfo` 구조체 추가, `ShapeStyle`에 `pattern` 필드 확장 |
+- [code] mydocs/working/archives/task_15_report.md  channel=doc binding=mention jev=- rows=1
+    :15 [basename/mention] | `src/renderer/mod.rs` | `TextStyle`에 `ratio: f64` 필드 추가, 수동 Default 구현 (기본값 1.0) |
+- [code] mydocs/working/archives/task_181_stage3.md  channel=doc binding=mention jev=- rows=1
+    :86 [basename/mention] | `src/renderer/equation/mod.rs` | `layout`, `svg_render` 모듈 추가 |
+- [code] mydocs/working/archives/task_193_final.md  channel=doc binding=mention jev=- rows=1
+    :49 [basename/mention] - `src/document_core/commands/mod.rs`
+- [code] mydocs/working/archives/task_193_step1.md  channel=doc binding=mention jev=- rows=1
+    :9 [basename/mention] - **`src/document_core/commands/mod.rs`** — header_footer_ops 모듈 등록
+- [code] mydocs/working/archives/task_194_final.md  channel=doc binding=mention jev=- rows=1
+    :66 [basename/mention] - `src/document_core/mod.rs` — `hidden_header_footer` 필드 추가
+- [code] mydocs/working/archives/task_195_final.md  channel=doc binding=mention jev=- rows=1
+    :113 [basename/mention] - `src/document_core/mod.rs` — `file_name` 필드 추가
+- [code] mydocs/working/archives/task_1_step_3.md  channel=doc binding=mention jev=- rows=1
+    :18 [basename/mention] ├── mod.rs      # 파서 모듈 정의
+- [code] mydocs/working/archives/task_214_final.md  channel=doc binding=mention jev=- rows=1
+    :14 [basename/mention] - `src/renderer/mod.rs`에 모듈 등록
+- [code] mydocs/working/archives/task_214_step1_2.md  channel=doc binding=mention jev=- rows=1
+    :16 [basename/mention] - `src/renderer/mod.rs`에 `pub mod typeset` 등록
+- [code] mydocs/working/archives/task_228_final.md  channel=doc binding=mention jev=- rows=1
+    :52 [basename/mention] | src/renderer/mod.rs | TextStyle에 shade_color 필드 추가 |
+- [code] mydocs/working/archives/task_228_step1.md  channel=doc binding=mention jev=- rows=1
+    :7 [basename/mention] 1. **TextStyle** (`src/renderer/mod.rs`): `shade_color: ColorRef` 필드 추가 (기본값 `0xFFFFFF`)
+- [code] mydocs/working/archives/task_230_final.md  channel=doc binding=mention jev=- rows=1
+    :52 [basename/mention] | `src/document_core/queries/mod.rs` | field_query 모듈 등록 |
+- [code] mydocs/working/archives/task_23_step1.md  channel=doc binding=mention jev=- rows=1
+    :9 [basename/mention] | `src/serializer/mod.rs` | 신규: serializer 모듈 루트 |
+- [code] mydocs/working/archives/task_23_step2.md  channel=doc binding=mention jev=- rows=1
+    :11 [basename/mention] | `src/serializer/mod.rs` | `pub mod header;`, `pub mod doc_info;` 추가 |
+- [code] mydocs/working/archives/task_23_step3.md  channel=doc binding=mention jev=- rows=1
+    :50 [basename/mention] ### 3-3. `src/serializer/mod.rs` 갱신
+- [code] mydocs/working/archives/task_23_step4.md  channel=doc binding=mention jev=- rows=1
+    :23 [basename/mention] ### 4-2. `src/serializer/mod.rs` 갱신
+- [code] mydocs/working/archives/task_2_step_2.md  channel=doc binding=mention jev=- rows=1
+    :11 [basename/mention] | `mod.rs` | HwpUnit, ColorRef, Point, Rect, Padding | 공통 타입 정의 |
+- [code] mydocs/working/archives/task_2_step_3.md  channel=doc binding=mention jev=- rows=1
+    :11 [basename/mention] | `mod.rs` | Renderer(trait), RenderBackend, TextStyle, ShapeStyle, LineStyle, PathCommand | 렌더러 공통 트레이트 및 타입 |
+- [code] mydocs/working/archives/task_3_step_1.md  channel=doc binding=mention jev=- rows=1
+    :13 [basename/mention] | `src/parser/mod.rs` | 파서 모듈 구조 재설계 |
+- [code] mydocs/working/archives/task_3_step_2.md  channel=doc binding=mention jev=- rows=1
+    :12 [basename/mention] | `src/parser/mod.rs` | +3 | 신규 모듈 등록 (byte_reader, crypto, doc_info) |
+- [code] mydocs/working/archives/task_3_step_3.md  channel=doc binding=mention jev=- rows=1
+    :10 [basename/mention] | `src/parser/mod.rs` | +2 | body_text 모듈 등록 |
+- [code] mydocs/working/archives/task_3_step_4.md  channel=doc binding=mention jev=- rows=1
+    :12 [basename/mention] | `src/parser/mod.rs` | +2 | control, bin_data 모듈 등록 |
+- [code] mydocs/working/archives/task_4_step_2.md  channel=doc binding=mention jev=- rows=1
+    :17 [basename/mention] | `src/renderer/mod.rs` | +1줄 | `pub mod composer;` 등록 |
+- [code] mydocs/working/archives/task_90_step1.md  channel=doc binding=mention jev=- rows=1
+    :40 [basename/mention] | `src/parser/hwpx/mod.rs` | `pub mod utils;` 추가 |
+- [code] mydocs/working/task_233_final.md  channel=doc binding=mention jev=- rows=1
+    :37 [basename/mention] | `src/document_core/queries/mod.rs` | form_query 모듈 등록 |
+- [code] mydocs/working/task_238_final.md  channel=doc binding=mention jev=- rows=1
+    :42 [basename/mention] | `src/document_core/queries/mod.rs` | search_query 모듈 등록 |
+- [code] mydocs/working/task_238_stage1.md  channel=doc binding=mention jev=- rows=1
+    :27 [basename/mention] | `src/document_core/queries/mod.rs` | search_query 모듈 등록 |
+- [code] mydocs/working/task_240_stage1.md  channel=doc binding=mention jev=- rows=1
+    :19 [basename/mention] ### queries/mod.rs
+- [code] mydocs/working/task_67_step2_complete.md  channel=doc binding=mention jev=- rows=1
+    :7 [basename/mention] - `src/renderer/mod.rs` — `generic_fallback()` 전 플랫폼 CSS 체인 구성
+- [code] mydocs/working/task_m100_164_report.md  channel=doc binding=mention jev=- rows=1
+    :21 [basename/mention] | `mod.rs` | `HwpxSerializer` + `serialize_hwpx()` 진입점 |
+- [code] mydocs/working/task_m100_164_stage2_1.md  channel=doc binding=mention jev=- rows=1
+    :20 [basename/mention] - `src/serializer/hwpx/mod.rs` — 테스트 2종 추가
+- [code] mydocs/working/task_m100_164_stage2_2.md  channel=doc binding=mention jev=- rows=1
+    :19 [basename/mention] - `src/serializer/hwpx/mod.rs` — 탭/줄바꿈 테스트 추가
+- [code] mydocs/working/task_m100_164_stage2_3.md  channel=doc binding=mention jev=- rows=1
+    :40 [basename/mention] - `src/serializer/hwpx/mod.rs` — `multi_paragraph_emits_multiple_hp_p` 테스트 추가
+- [code] mydocs/working/task_m100_182_stage1.md  channel=doc binding=mention jev=- rows=1
+    :37 [basename/mention] **`src/serializer/hwpx/mod.rs`**: `header::write_header(doc)` → `header::write_header(doc, &ctx)`
+- [code] mydocs/working/task_m100_182_stage2.md  channel=doc binding=mention jev=- rows=1
+    :50 [basename/mention] **`src/serializer/hwpx/mod.rs`**: `section::write_section(sec, doc, i)` → `section::write_section(sec, doc, i, &ctx)`
+- [code] mydocs/working/task_m100_182_stage5.md  channel=doc binding=mention jev=- rows=1
+    :51 [basename/mention] **`src/serializer/hwpx/mod.rs`** — `pub mod shape; pub mod field;` 추가
+- [code] mydocs/working/task_m100_86_stage1.md  channel=doc binding=mention jev=- rows=1
+    :11 [basename/mention] | `src/parser/mod.rs` | `extract_thumbnail_only()` 함수 + `ThumbnailResult` 구조체 |
+- [code] src/renderer/layout/utils.rs  channel=other binding=mention jev=- rows=1
+    :94 [basename/mention] /// 쪽 번호를 형식에 맞게 문자열로 변환 (mod.rs의 format_number 재사용)

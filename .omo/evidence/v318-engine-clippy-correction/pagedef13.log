@@ -1,0 +1,21 @@
+   Compiling rhwp v0.7.3 (/Users/ken/orca/workspaces/rhwp/v318-engine-clippy-correction)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.73s
+     Running tests/hwpx_page_def_roundtrip.rs (target/debug/deps/hwpx_page_def_roundtrip-909dd54e1867307e)
+
+running 13 tests
+test default_page_def_keeps_template_page_pr ... ok
+test every_page_def_field_is_written_to_its_own_attribute ... ok
+test out_of_schema_page_def_values_are_written_verbatim ... ok
+test landscape_and_binding_use_owpml_values ... ok
+test native_render_interprets_landscape_once_without_rewriting_stored_dimensions ... ok
+test form_002_noedit_export_keeps_original_page_pr ... ok
+test landscape_does_not_infer_or_normalize_dimension_order ... ok
+test missing_orientation_and_binding_keep_legacy_defaults_and_explicit_zero_margins ... ok
+test form_002_noedit_reload_keeps_page_def_ir ... ok
+test one_char_body_edit_keeps_original_page_def ... ok
+test input_mutations_are_detected_without_changing_engine_source ... ok
+test hwpx_h_01_each_section_keeps_its_own_page_pr ... ok
+test file_roundtrip_preserves_orientation_and_all_binding_modes ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.74s
+

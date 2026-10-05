@@ -1,0 +1,129 @@
+IMPACT at=code:3033ae22c9031919757be1357a998471e67f1fab@3033ae22c903 query="src/model/style.rs" mode=path jev=used(cache) jev_threshold=0.45 files=51 rows=85 det_ms=362 total_ms=365 jev_requests=0 jev_http_attempts=0 jev_input_tokens=0
+- [code] mydocs/eng/plans/archives/task_121.md  channel=doc binding=mention jev=0.35 rows=3
+    :12 [path/mention] - **ParaShape Model** (`src/model/style.rs:128-167`): All attribute fields exist (alignment, margin, indent, spacing, line_spacing, tab_def_id, border
+    :13 [path/mention] - **ParaShapeMods** (`src/model/style.rs:579-604`): Only 8 attributes supported (alignment, line_spacing, line_spacing_type, indent, margin_left/right
+    :49 [path/mention] | `src/model/style.rs` | Modify | ParaShapeMods 22-field extension, TabItem/TabDef PartialEq |
+- [code] mydocs/eng/plans/archives/task_131.md  channel=doc binding=mention jev=0.32 rows=3
+    :86 [path/mention] **File 2**: `src/model/style.rs` — Add fields to CharShape struct
+    :201 [path/mention] | `src/model/style.rs` | Add emboss/engrave fields to CharShape | ~5 lines |
+    :42 [basename/mention] CharShape (model/style.rs:22)
+- [code] mydocs/plans/archives/task_121.md  channel=doc binding=mention jev=0.31 rows=7
+    :12 [path/mention] - **ParaShape 모델** (`src/model/style.rs:128-167`): 모든 속성 필드 존재 (alignment, margin, indent, spacing, line_spacing, tab_def_id, border_fill_id, border_s
+    :13 [path/mention] - **ParaShapeMods** (`src/model/style.rs:579-604`): 8개 속성만 지원 (alignment, line_spacing, line_spacing_type, indent, margin_left/right, spacing_before/a
+    :50 [path/mention] **파일**: `src/model/style.rs`
+- [code] mydocs/eng/plans/archives/task_171_impl.md  channel=doc binding=mention jev=0.29 rows=1
+    :29 [path/mention] **`src/model/style.rs`** — Add 2 fields to ParaShapeMods:
+- [code] mydocs/plans/archives/task_131.md  channel=doc binding=mention jev=0.28 rows=3
+    :86 [path/mention] **파일 2**: `src/model/style.rs` — CharShape 구조체에 필드 추가
+    :201 [path/mention] | `src/model/style.rs` | CharShape에 emboss/engrave 필드 추가 | ~5줄 |
+    :42 [basename/mention] CharShape (model/style.rs:22)
+- [code] mydocs/eng/plans/archives/task_170_impl.md  channel=doc binding=mention jev=0.27 rows=1
+    :7 [path/mention] **`src/model/style.rs`** — Add 4 fields to CharShape:
+- [code] mydocs/eng/plans/archives/task_119.md  channel=doc binding=mention jev=0.26 rows=5
+    :12 [path/mention] - **CharShape Model** (`src/model/style.rs`): All attribute fields already exist (except shadow_offset_x/y)
+    :13 [path/mention] - **CharShapeMods** (`src/model/style.rs:472-507`): Only 8 attributes supported (bold, italic, underline, strikethrough, font_id, base_size, text_colo
+    :24 [path/mention] **File**: `src/model/style.rs` (after line 48)
+- [code] mydocs/eng/plans/archives/task_170.md  channel=doc binding=mention jev=0.25 rows=1
+    :37 [path/mention] | `src/model/style.rs` | 4 fields for CharShape + CharShapeMods |
+- [code] mydocs/eng/plans/archives/task_171.md  channel=doc binding=mention jev=0.25 rows=1
+    :32 [path/mention] | `src/model/style.rs` | break_unit fields for ParaShapeMods |
+- [code] mydocs/plans/archives/task_119.md  channel=doc binding=mention jev=0.25 rows=5
+    :12 [path/mention] - **CharShape 모델** (`src/model/style.rs`): 모든 속성 필드가 이미 존재 (shadow_offset_x/y 제외)
+    :13 [path/mention] - **CharShapeMods** (`src/model/style.rs:472-507`): 8개 속성만 지원 (bold, italic, underline, strikethrough, font_id, base_size, text_color, shade_color)
+    :25 [path/mention] **파일**: `src/model/style.rs` (line 48 이후)
+- [code] mydocs/plans/archives/task_122.md  channel=doc binding=mention jev=0.25 rows=3
+    :69 [path/mention] | src/model/style.rs | Bullet struct 추가 |
+    :49 [basename/mention] - Bullet struct 정의 (model/style.rs): 글머리 문자, char_shape_id 등
+    :77 [basename/mention] ※ UI(para-shape-dialog.ts), WASM API(wasm_api.rs), ParaShapeMods(style.rs)는 **변경 불필요** (이미 동작)
+- [code] mydocs/eng/working/archives/task_122_report.md  channel=doc binding=mention jev=0.22 rows=2
+    :75 [path/mention] | src/model/style.rs | Bullet struct added |
+    :18 [basename/mention] - Added `Bullet` struct (style.rs)
+- [code] mydocs/plans/archives/task_32_impl.md  channel=doc binding=mention jev=0.22 rows=3
+    :137 [path/mention] **`src/model/style.rs`** — 수정 사항 구조체
+    :161 [path/mention] **`src/model/style.rs`** — CharShape/ParaShape에 `PartialEq` derive 추가
+    :431 [path/mention] | 2 | `src/model/style.rs` | CharShapeMods, ParaShapeMods, PartialEq |
+- [code] mydocs/eng/plans/archives/task_142.md  channel=doc binding=mention jev=0.21 rows=1
+    :139 [basename/mention] | serializer/doc_info.rs | 1,248 | doc_info.rs + doc_info_style.rs |
+- [code] mydocs/working/archives/task_32_stage_2.md  channel=doc binding=mention jev=0.21 rows=2
+    :9 [path/mention] | `src/model/style.rs` | CharShape/ParaShape에 `PartialEq` derive 추가; `CharShapeMods`, `ParaShapeMods` 구조체 + `apply_to()` 메서드 |
+    :15 [basename/mention] ### 1. CharShapeMods / ParaShapeMods (style.rs)
+- [code] mydocs/working/task169_stage_report.md  channel=doc binding=mention jev=0.21 rows=1
+    :9 [path/mention] | `src/model/style.rs` | CharShapeMods에 `emboss`, `engrave`, `font_ids` 필드 추가 + `apply_to()` 로직 |
+- [code] mydocs/eng/working/archives/task_32_stage_2.md  channel=doc binding=mention jev=0.20 rows=2
+    :9 [path/mention] | `src/model/style.rs` | Added `PartialEq` derive to CharShape/ParaShape; `CharShapeMods`, `ParaShapeMods` structs + `apply_to()` methods |
+    :15 [basename/mention] ### 1. CharShapeMods / ParaShapeMods (style.rs)
+- [code] mydocs/plans/archives/task_170.md  channel=doc binding=mention jev=0.19 rows=1
+    :37 [path/mention] | `src/model/style.rs` | CharShape + CharShapeMods에 4개 필드 |
+- [code] mydocs/working/archives/task_122_report.md  channel=doc binding=mention jev=0.19 rows=2
+    :75 [path/mention] | src/model/style.rs | Bullet struct 추가 |
+    :18 [basename/mention] - `Bullet` struct 추가 (style.rs)
+- [code] mydocs/eng/tech/rendering_engine_design.md  channel=doc binding=mention jev=0.18 rows=1
+    :114 [basename/mention] │   ├── style.rs        # CharShape, ParaShape, Style, Font, BorderFill, Fill
+- [code] mydocs/eng/troubleshootings/shape_fill_transparency.md  channel=doc binding=mention jev=0.18 rows=1
+    :145 [path/mention] | `src/model/style.rs` | Added `alpha: u8` field to `Fill` struct |
+- [code] mydocs/tech/hwpers_analysis.md  channel=doc binding=mention jev=0.18 rows=2
+    :56 [basename/mention] body_text.rs, record.rs                   control.rs, table.rs, style.rs
+    :74 [basename/mention] style.rs (980줄)                           format_toolbar.js
+- [code] mydocs/eng/working/archives/task_107_final.md  channel=doc binding=mention jev=0.17 rows=2
+    :48 [path/mention] | src/model/style.rs | opacity field added |
+    :25 [basename/mention] - model/style.rs: Opacity field added
+- [code] mydocs/plans/archives/task_170_impl.md  channel=doc binding=mention jev=0.17 rows=1
+    :7 [path/mention] **`src/model/style.rs`** — CharShape에 4개 필드 추가:
+- [code] mydocs/working/archives/task_107_final.md  channel=doc binding=mention jev=0.17 rows=2
+    :48 [path/mention] | src/model/style.rs | opacity 필드 추가 |
+    :25 [basename/mention] - model/style.rs: 투명도 필드 추가
+- [code] mydocs/eng/plans/archives/task_107.md  channel=doc binding=mention jev=0.16 rows=1
+    :34 [basename/mention] - model/style.rs: Transparency field addition
+- [code] mydocs/eng/working/archives/task_2_step_2.md  channel=doc binding=mention jev=0.16 rows=1
+    :17 [basename/mention] | `style.rs` | CharShape, ParaShape, Style, Font, BorderFill, Fill, GradientFill, TabDef | Style information |
+- [code] mydocs/eng/working/archives/task_32_final.md  channel=doc binding=mention jev=0.16 rows=1
+    :14 [path/mention] | `src/model/style.rs` | `PartialEq` derive, `CharShapeMods`/`ParaShapeMods` structs | 2 |
+- [code] mydocs/eng/working/task169_stage_report.md  channel=doc binding=mention jev=0.16 rows=1
+    :9 [path/mention] | `src/model/style.rs` | Added `emboss`, `engrave`, `font_ids` fields to CharShapeMods + `apply_to()` logic |
+- [code] mydocs/plans/archives/task_142.md  channel=doc binding=mention jev=0.16 rows=1
+    :139 [basename/mention] | serializer/doc_info.rs | 1,248 | doc_info.rs + doc_info_style.rs |
+- [code] mydocs/plans/archives/task_171.md  channel=doc binding=mention jev=0.16 rows=1
+    :32 [path/mention] | `src/model/style.rs` | ParaShapeMods에 break_unit 필드 |
+- [code] mydocs/plans/archives/task_2_impl.md  channel=doc binding=mention jev=0.15 rows=1
+    :21 [basename/mention] - `style.rs` - 스타일 정보 (Font, Color, Border, Fill, Gradient)
+- [code] mydocs/tech/hwp_spec_errata.md  channel=doc binding=mention jev=0.15 rows=1
+    :31 [path/mention] | 수정 파일 | `src/parser/doc_info.rs`, `src/model/style.rs` |
+- [code] mydocs/tech/rendering_engine_design.md  channel=doc binding=mention jev=0.15 rows=1
+    :110 [basename/mention] │   ├── style.rs        # CharShape, ParaShape, Style, Font, BorderFill, Fill
+- [code] mydocs/eng/tech/hwp_spec_errata.md  channel=doc binding=mention jev=0.14 rows=1
+    :31 [path/mention] | Modified files | `src/parser/doc_info.rs`, `src/model/style.rs` |
+- [code] mydocs/plans/archives/task_107.md  channel=doc binding=mention jev=0.14 rows=1
+    :34 [basename/mention] - model/style.rs: 투명도 필드 추가
+- [code] mydocs/plans/archives/task_122_impl.md  channel=doc binding=mention jev=0.14 rows=1
+    :126 [path/mention] | src/model/style.rs | 2 | Bullet struct 추가 |
+- [code] mydocs/plans/archives/task_171_impl.md  channel=doc binding=mention jev=0.14 rows=1
+    :29 [path/mention] **`src/model/style.rs`** — ParaShapeMods에 2개 필드 추가:
+- [code] mydocs/troubleshootings/shape_fill_transparency.md  channel=doc binding=mention jev=0.14 rows=1
+    :145 [path/mention] | `src/model/style.rs` | `Fill` 구조체에 `alpha: u8` 필드 추가 |
+- [code] mydocs/working/archives/task_2_step_2.md  channel=doc binding=mention jev=0.14 rows=1
+    :17 [basename/mention] | `style.rs` | CharShape, ParaShape, Style, Font, BorderFill, Fill, GradientFill, TabDef | 스타일 정보 |
+- [code] mydocs/eng/plans/archives/task_122.md  channel=doc binding=mention jev=0.13 rows=2
+    :56 [path/mention] | src/model/style.rs | Add Bullet struct |
+    :39 [basename/mention] - Define Bullet struct (model/style.rs): bullet character, char_shape_id, etc.
+- [code] mydocs/eng/plans/task_262.md  channel=doc binding=mention jev=0.13 rows=1
+    :49 [path/mention] | `src/model/style.rs` | Numbering, Bullet, HeadType, ParaShape |
+- [code] mydocs/plans/archives/task_13_impl.md  channel=doc binding=mention jev=0.13 rows=1
+    :9 [path/mention] **대상 파일**: `src/model/style.rs`, `src/model/document.rs`
+- [code] mydocs/plans/archives/task_38_impl.md  channel=doc binding=mention jev=0.13 rows=2
+    :134 [path/mention] - `src/model/style.rs`: BorderFill 비교/생성 헬퍼 (필요시)
+    :191 [path/mention] | `src/model/style.rs` | 2 | BorderFill 비교 헬퍼 (필요시) |
+- [code] mydocs/working/archives/task_32_final.md  channel=doc binding=mention jev=0.13 rows=1
+    :14 [path/mention] | `src/model/style.rs` | `PartialEq` derive, `CharShapeMods`/`ParaShapeMods` 구조체 | 2 |
+- [code] mydocs/eng/report/task_2_final.md  channel=doc binding=mention jev=0.12 rows=1
+    :64 [basename/mention] image.rs, style.rs, page.rs, header_footer.rs,
+- [code] mydocs/report/task_2_final.md  channel=doc binding=mention jev=0.12 rows=1
+    :64 [basename/mention] image.rs, style.rs, page.rs, header_footer.rs,
+- [code] mydocs/eng/plans/archives/task_13_impl.md  channel=doc binding=mention jev=0.11 rows=1
+    :9 [path/mention] **Target Files**: `src/model/style.rs`, `src/model/document.rs`
+- [code] mydocs/eng/plans/archives/task_2_impl.md  channel=doc binding=mention jev=0.11 rows=1
+    :21 [basename/mention] - `style.rs` - Style information (Font, Color, Border, Fill, Gradient)
+- [code] mydocs/plans/task_262.md  channel=doc binding=mention jev=0.11 rows=1
+    :49 [path/mention] | `src/model/style.rs` | Numbering, Bullet, HeadType, ParaShape |
+- [code] mydocs/eng/tech/hwpers_analysis.md  channel=doc binding=mention jev=0.08 rows=2
+    :57 [basename/mention] body_text.rs, record.rs                  control.rs, table.rs, style.rs
+    :75 [basename/mention] style.rs (980 lines)                       format_toolbar.js

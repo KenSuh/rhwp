@@ -1,0 +1,2 @@
+결정적 결과만 · Jev 미사용(후보 0) · IMPACT at=code:HEAD@3033ae22c903 query="gates/V318_ENGINE_CLIPPY_CORRECTION_GATES.md" mode=path jev=unused(후보 0) jev_threshold=0.45 files=0 rows=0 det_ms=217 total_ms=217 jev_requests=0 jev_http_attempts=0 jev_input_tokens=0
+  (후보 0)

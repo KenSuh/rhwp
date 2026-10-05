@@ -1,0 +1,74 @@
+IMPACT at=code:3033ae22c9031919757be1357a998471e67f1fab@3033ae22c903 query="src/document_core/queries/cursor_nav.rs" mode=path jev=used(cache) jev_threshold=0.45 files=28 rows=57 det_ms=485 total_ms=486 jev_requests=0 jev_http_attempts=0 jev_input_tokens=0
+- [code] mydocs/plans/archives/task_166_impl.md  channel=doc binding=mention jev=0.30 rows=9
+    :177 [path/mention] **파일:** `src/document_core/queries/cursor_nav.rs:610-645`
+    :204 [path/mention] **위치:** `src/document_core/queries/cursor_nav.rs`
+    :228 [path/mention] **위치:** `src/document_core/queries/cursor_nav.rs`
+- [code] mydocs/plans/archives/task_167.md  channel=doc binding=mention jev=0.26 rows=5
+    :40 [path/mention] | `src/document_core/queries/cursor_nav.rs` | `move_vertical_native()`, `move_vertical_by_path_native()` rectValid 플래그 |
+    :10 [basename/mention] 1. `move_vertical_native()` (cursor_nav.rs:224)에서 `get_cursor_rect_values()` 실패 시 `.unwrap_or((0, 0.0, 0.0, 16.0))` → 페이지 0 원점 좌표 반환
+    :11 [basename/mention] 2. `get_cursor_rect_values()` (cursor_nav.rs:507-510)에서 JSON 파싱 실패 시 `unwrap_or(0.0)` → 역시 원점
+- [code] mydocs/eng/plans/archives/task_166_impl.md  channel=doc binding=mention jev=0.23 rows=4
+    :109 [path/mention] | `src/document_core/queries/cursor_nav.rs` | 2, 3 | handle_body_boundary, find_adjacent_column_paragraph, find_page_and_column_for_paragraph, collect
+    :69 [basename/mention] ## Step 2: cursor_nav.rs Column-Boundary-Aware Vertical Movement
+    :84 [basename/mention] - cursor_nav.rs: ~80 lines modified/added
+- [code] mydocs/working/archives/task_166_stage3.md  channel=doc binding=mention jev=0.23 rows=4
+    :11 [path/mention] | `src/document_core/queries/cursor_nav.rs` | `get_selection_rects_native()` tree_cache 로딩 조건 버그 수정 |
+    :71 [basename/mention] | 2단계 | `cursor_nav.rs` | `get_column_area_for_paragraph()`, `transform_preferred_x_across_columns()`, `find_column_for_line()`, CASE A/B preferredX 변
+    :72 [basename/mention] | 3단계 | `cursor_nav.rs` | tree_cache 로딩 버그 수정, 기존 `find_column_area` 검증 |
+- [code] mydocs/eng/plans/archives/task_167.md  channel=doc binding=mention jev=0.20 rows=5
+    :40 [path/mention] | `src/document_core/queries/cursor_nav.rs` | rectValid flag for `move_vertical_native()`, `move_vertical_by_path_native()` |
+    :10 [basename/mention] 1. `move_vertical_native()` (cursor_nav.rs:224) returns page 0 origin coordinates with `.unwrap_or((0, 0.0, 0.0, 16.0))` when `get_cursor_rect_values(
+    :11 [basename/mention] 2. `get_cursor_rect_values()` (cursor_nav.rs:507-510) returns origin with `unwrap_or(0.0)` on JSON parse failure
+- [code] src/document_core/queries/mod.rs  channel=other binding=mention jev=0.20 rows=1
+    :2 [stem/stem_weak] mod cursor_nav;
+- [code] mydocs/working/archives/task_142_step1.md  channel=doc binding=mention jev=0.19 rows=1
+    :20 [basename/mention] | `wasm_api/cursor_nav.rs` | 999 | 커서 이동/줄 정보/선택 영역 |
+- [code] mydocs/eng/working/archives/task_166_stage3.md  channel=doc binding=mention jev=0.18 rows=3
+    :17 [basename/mention] | 2 | `cursor_nav.rs` | `get_column_area_for_paragraph()`, `transform_preferred_x_across_columns()`, `find_column_for_line()`, CASE A/B preferredX con
+    :18 [basename/mention] | 3 | `cursor_nav.rs` | tree_cache loading bug fix, existing `find_column_area` verification |
+    :20 [basename/mention] Total changes: cursor_rect.rs +51 lines, cursor_nav.rs +114 lines
+- [code] mydocs/eng/plans/archives/task_144.md  channel=doc binding=mention jev=0.16 rows=1
+    :28 [basename/mention] | cursor_nav.rs | Remove extract_num/extract_json_int |
+- [code] mydocs/eng/plans/archives/task_166.md  channel=doc binding=mention jev=0.16 rows=2
+    :37 [path/mention] | `src/document_core/queries/cursor_nav.rs` | Vertical movement + selection area |
+    :45 [basename/mention] ### Step 2: Column-Boundary-Aware Vertical Movement (cursor_nav.rs)
+- [code] mydocs/plans/archives/task_166.md  channel=doc binding=mention jev=0.16 rows=2
+    :37 [path/mention] | `src/document_core/queries/cursor_nav.rs` | 수직 이동 + 셀렉션 영역 |
+    :50 [basename/mention] ### 2단계: 칼럼 경계 인식 수직 이동 (cursor_nav.rs)
+- [code] mydocs/eng/feedback/r-code-review-3rd.md  channel=doc binding=mention jev=0.15 rows=1
+    :34 [basename/mention] - "Data requests for drawing something to the UI" are separated through `rendering.rs`, `cursor_nav.rs`, etc.
+- [code] mydocs/eng/tech/hexagonal_architecture_review.md  channel=doc binding=mention jev=0.15 rows=1
+    :66 [basename/mention] | Cursor calculations | `queries/cursor_rect.rs`, `cursor_nav.rs` | 31 | Very high |
+- [code] mydocs/feedback/r-code-review-3rd.md  channel=doc binding=mention jev=0.15 rows=1
+    :34 [basename/mention] - `rendering.rs`, `cursor_nav.rs` 등을 통해 "UI에 무언가를 그리기 위한 데이터 요청"이 분리되었습니다.
+- [code] mydocs/plans/archives/task_144.md  channel=doc binding=mention jev=0.15 rows=1
+    :28 [basename/mention] | cursor_nav.rs | extract_num/extract_json_int 제거 |
+- [code] mydocs/eng/feedback/post-refactoring-remaining-tasks.md  channel=doc binding=mention jev=0.14 rows=2
+    :123 [basename/mention] +-- cursor_nav.rs               |   +-- html_table_import.rs(C)
+    :125 [basename/mention] +-- rendering.rs                |   +-- cursor_nav.rs      (Q)
+- [code] mydocs/eng/working/archives/task_142_step1.md  channel=doc binding=mention jev=0.14 rows=1
+    :20 [basename/mention] | `wasm_api/cursor_nav.rs` | 999 | Cursor movement/line info/selection range |
+- [code] mydocs/feedback/post-refactoring-remaining-tasks.md  channel=doc binding=mention jev=0.14 rows=2
+    :123 [basename/mention] ├── cursor_nav.rs               │   └── html_table_import.rs(C)
+    :125 [basename/mention] ├── rendering.rs                │   ├── cursor_nav.rs      (Q)
+- [code] mydocs/tech/hexagonal_architecture_review.md  channel=doc binding=mention jev=0.14 rows=1
+    :67 [basename/mention] | cursor 계산 | `queries/cursor_rect.rs`, `cursor_nav.rs` | 31 | 매우 높음 |
+- [code] mydocs/plans/archives/task_144_impl.md  channel=doc binding=mention jev=0.13 rows=1
+    :34 [basename/mention] | cursor_nav.rs | extract_num, extract_json_int | json_f64 + unwrap_or, json_usize |
+- [code] mydocs/plans/archives/task_147.md  channel=doc binding=mention jev=0.13 rows=1
+    :10 [stem/stem_weak] - **queries/**: rendering, cursor_nav, cursor_rect
+- [code] mydocs/plans/archives/task_232_impl.md  channel=doc binding=mention jev=0.13 rows=1
+    :81 [stem/stem_weak] 3. `Control::Form` 관련 match exhaustiveness 경고 해소 (cursor_nav, doc_tree_nav 등)
+- [code] mydocs/eng/feedback/r-code-review-3rd-response.md  channel=doc binding=mention jev=0.12 rows=1
+    :77 [basename/mention] |   |   +-- cursor_nav.rs
+- [code] mydocs/eng/working/archives/task_166_stage2.md  channel=doc binding=mention jev=0.12 rows=1
+    :1 [basename/mention] # Task 166 - Step 2 Completion Report: cursor_nav.rs Column-Aware Vertical Movement
+- [code] mydocs/feedback/r-code-review-3rd-response.md  channel=doc binding=mention jev=0.12 rows=1
+    :77 [basename/mention] │   │   └── cursor_nav.rs
+- [code] mydocs/working/archives/task_166_stage2.md  channel=doc binding=mention jev=0.12 rows=2
+    :11 [path/mention] | `src/document_core/queries/cursor_nav.rs` | 칼럼 경계 헬퍼 3개 추가, CASE A/B 칼럼 전환 시 preferredX 변환 |
+    :1 [basename/mention] # 타스크 166 - 2단계 완료 보고서: cursor_nav.rs 칼럼 경계 인식 수직 이동
+- [code] mydocs/eng/plans/archives/task_147.md  channel=doc binding=mention jev=0.11 rows=1
+    :10 [stem/stem_weak] - **queries/**: rendering, cursor_nav, cursor_rect
+- [code] mydocs/eng/plans/archives/task_144_impl.md  channel=doc binding=mention jev=0.10 rows=1
+    :34 [basename/mention] | cursor_nav.rs | extract_num, extract_json_int | json_f64 + unwrap_or, json_usize |

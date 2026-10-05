@@ -884,9 +884,7 @@ impl DocumentCore {
 
     /// 모든 구역을 dirty로 표시한다.
     pub(crate) fn mark_all_sections_dirty(&mut self) {
-        for d in &mut self.dirty_sections {
-            *d = true;
-        }
+        self.dirty_sections.fill(true);
     }
 
     /// Batch 모드가 아닐 때만 paginate를 실행한다.
@@ -1593,9 +1591,7 @@ impl DocumentCore {
         }
 
         // para_offset 리셋 (수렴 감지 완료)
-        for off in &mut self.para_offset {
-            *off = 0;
-        }
+        self.para_offset.fill(0);
 
         // 표 dirty 플래그 초기화
         for section in &mut self.document.sections {

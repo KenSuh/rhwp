@@ -1,0 +1,12 @@
+    Checking rhwp v0.7.3 (/Users/ken/orca/workspaces/rhwp/v318-engine-clippy-correction)
+error: redundant reference in `println!` argument
+    --> src/main.rs:1331:25
+     |
+1331 |                         &para.raw_header_extra);
+     |                         ^^^^^^^^^^^^^^^^^^^^^^ help: remove the redundant `&`: `para.raw_header_extra`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#useless_borrows_in_formatting
+     = note: `-D clippy::useless-borrows-in-formatting` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::useless_borrows_in_formatting)]`
+
+error: could not compile `rhwp` (bin "rhwp") due to 1 previous error

@@ -773,10 +773,7 @@ impl DocumentCore {
             );
         }
 
-        if let Some(table) = self
-            .get_table_mut_by_cell_path(section_idx, parent_para_idx, &path)
-            .ok()
-        {
+        if let Ok(table) = self.get_table_mut_by_cell_path(section_idx, parent_para_idx, &path) {
             table.dirty = true;
         }
         if let Some(section) = self.document.sections.get_mut(section_idx) {

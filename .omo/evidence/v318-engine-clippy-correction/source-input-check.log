@@ -1,0 +1,1 @@
+PASS: exactly 11 owned Rust paths changed; PageDef parser/test and serializer seam unchanged; manifest/workflow unchanged

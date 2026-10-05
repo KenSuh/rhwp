@@ -239,9 +239,10 @@ impl DocumentCore {
 
         // ═══ PHASE 3: 목표 위치 결정 ═══
         // 결과: (sec, para, char_offset, cell_ctx)
-        let new_pos: (usize, usize, usize, Option<(usize, usize, usize, usize)>);
-
-        if target_line >= 0 && (target_line as usize) < line_info.line_count {
+        let new_pos: (usize, usize, usize, Option<(usize, usize, usize, usize)>) = if target_line
+            >= 0
+            && (target_line as usize) < line_info.line_count
+        {
             // CASE A: 같은 문단 내 다른 줄
             // PartialParagraph로 같은 문단이 두 칼럼에 걸칠 수 있으므로
             // 현재 줄과 목표 줄의 칼럼이 다르면 preferredX를 변환한다.
@@ -261,21 +262,14 @@ impl DocumentCore {
             let target_range = Self::get_line_char_range(current_para, target_line as usize);
             let new_offset =
                 self.find_char_at_x_on_line(sec, para, cell_ctx, target_range, px_for_target)?;
-            new_pos = (sec, para, new_offset, cell_ctx);
+            (sec, para, new_offset, cell_ctx)
         } else if cell_ctx.is_some() {
             // CASE C: 셀 내부 경계
-            new_pos = self.handle_cell_boundary(
-                sec,
-                para,
-                char_offset,
-                delta,
-                actual_px,
-                cell_ctx.unwrap(),
-            )?;
+            self.handle_cell_boundary(sec, para, char_offset, delta, actual_px, cell_ctx.unwrap())?
         } else {
             // CASE B: 본문 문단/구역 경계
-            new_pos = self.handle_body_boundary(sec, para, delta, actual_px)?;
-        }
+            self.handle_body_boundary(sec, para, delta, actual_px)?
+        };
 
         // ═══ PHASE 4: 최종 커서 좌표 계산 + 결과 포맷 ═══
         let (rect_valid, page_idx, fx, fy, fh) =

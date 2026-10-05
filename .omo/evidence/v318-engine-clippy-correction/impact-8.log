@@ -1,0 +1,49 @@
+IMPACT at=code:3033ae22c9031919757be1357a998471e67f1fab@3033ae22c903 query="src/parser/byte_reader.rs" mode=path jev=used(cache) jev_threshold=0.45 files=19 rows=38 det_ms=492 total_ms=493 jev_requests=0 jev_http_attempts=0 jev_input_tokens=0
+- [code] src/serializer/doc_info/tests.rs  channel=other binding=mention jev=0.49★ rows=10
+    :27 [stem/stem_weak] let mut r = crate::parser::byte_reader::ByteReader::new(&data);
+    :48 [stem/stem_weak] let mut r = crate::parser::byte_reader::ByteReader::new(&data);
+    :66 [stem/stem_weak] let mut r = crate::parser::byte_reader::ByteReader::new(&data);
+- [code] src/serializer/byte_writer.rs  channel=other binding=mention jev=0.48★ rows=1
+    :104 [stem/stem_weak] use crate::parser::byte_reader::ByteReader;
+- [code] src/parser/body_text.rs  channel=other binding=mention jev=0.41 rows=1
+    :18 [stem/stem_weak] use super::byte_reader::ByteReader;
+- [code] src/parser/control/shape.rs  channel=other binding=mention jev=0.40 rows=1
+    :17 [stem/stem_weak] use crate::parser::byte_reader::ByteReader;
+- [code] src/parser/mod.rs  channel=other binding=mention jev=0.38 rows=1
+    :20 [stem/stem_weak] pub mod byte_reader;
+- [code] src/parser/control.rs  channel=other binding=mention jev=0.37 rows=1
+    :7 [stem/stem_weak] use super::byte_reader::ByteReader;
+- [code] src/parser/doc_info.rs  channel=other binding=mention jev=0.24 rows=1
+    :10 [stem/stem_weak] use super::byte_reader::ByteReader;
+- [code] mydocs/eng/working/archives/task_3_step_5.md  channel=doc binding=mention jev=0.16 rows=1
+    :149 [path/mention] | byte_reader | `src/parser/byte_reader.rs` | Binary reading utility |
+- [code] mydocs/working/archives/task_65_final.md  channel=doc binding=mention jev=0.16 rows=1
+    :17 [path/mention] | `src/parser/byte_reader.rs` | `set_position()` 메서드 추가 |
+- [code] mydocs/eng/report/task_3_final.md  channel=doc binding=mention jev=0.15 rows=2
+    :28 [path/mention] | byte_reader | `src/parser/byte_reader.rs` | 250 | Binary reading utilities |
+    :118 [stem/stem_weak] | parser/byte_reader | 11 |
+- [code] mydocs/report/task_3_final.md  channel=doc binding=mention jev=0.15 rows=2
+    :29 [path/mention] | byte_reader | `src/parser/byte_reader.rs` | 250 | 바이너리 읽기 유틸리티 |
+    :119 [stem/stem_weak] | parser/byte_reader | 11 |
+- [code] mydocs/tech/hwpers_analysis.md  channel=doc binding=mention jev=0.15 rows=1
+    :50 [basename/mention] stream.rs                                 record.rs, byte_reader.rs
+- [code] mydocs/working/archives/task_3_step_2.md  channel=doc binding=mention jev=0.14 rows=4
+    :9 [path/mention] | `src/parser/byte_reader.rs` | 250 | 바이너리 데이터 읽기 유틸리티 (LE 정수, UTF-16LE 문자열, 색상) |
+    :18 [basename/mention] #### byte_reader.rs - 바이너리 읽기 유틸리티
+    :12 [stem/stem_weak] | `src/parser/mod.rs` | +3 | 신규 모듈 등록 (byte_reader, crypto, doc_info) |
+- [code] mydocs/working/archives/task_3_step_5.md  channel=doc binding=mention jev=0.14 rows=1
+    :150 [path/mention] | byte_reader | `src/parser/byte_reader.rs` | 바이너리 읽기 유틸리티 |
+- [code] mydocs/eng/tech/hwpers_analysis.md  channel=doc binding=mention jev=0.13 rows=1
+    :51 [basename/mention] stream.rs                                record.rs, byte_reader.rs
+- [code] mydocs/eng/working/archives/task_65_final.md  channel=doc binding=mention jev=0.13 rows=1
+    :17 [path/mention] | `src/parser/byte_reader.rs` | Added `set_position()` method |
+- [code] mydocs/plans/archives/task_3_impl.md  channel=doc binding=mention jev=0.13 rows=2
+    :52 [path/mention] - `src/parser/byte_reader.rs` 생성 - 바이트 읽기 유틸리티
+    :133 [path/mention] | `src/parser/byte_reader.rs` | 2 | 바이트 읽기 유틸리티 |
+- [code] mydocs/eng/plans/archives/task_3_impl.md  channel=doc binding=mention jev=0.12 rows=2
+    :52 [path/mention] - `src/parser/byte_reader.rs` creation — Byte reading utilities
+    :133 [path/mention] | `src/parser/byte_reader.rs` | 2 | Byte reading utilities |
+- [code] mydocs/eng/working/archives/task_3_step_2.md  channel=doc binding=mention jev=0.12 rows=4
+    :9 [path/mention] | `src/parser/byte_reader.rs` | 250 | Binary data reading utility (LE integers, UTF-16LE strings, colors) |
+    :18 [basename/mention] #### byte_reader.rs - Binary Reading Utility
+    :12 [stem/stem_weak] | `src/parser/mod.rs` | +3 | New module registration (byte_reader, crypto, doc_info) |

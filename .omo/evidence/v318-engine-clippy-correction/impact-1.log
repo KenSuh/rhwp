@@ -1,0 +1,79 @@
+IMPACT at=code:3033ae22c9031919757be1357a998471e67f1fab@3033ae22c903 query="src/document_core/commands/object_ops.rs" mode=path jev=used(cache) jev_threshold=0.45 files=33 rows=47 det_ms=513 total_ms=514 jev_requests=0 jev_http_attempts=0 jev_input_tokens=0
+- [code] mydocs/eng/plans/archives/task_144_impl.md  channel=doc binding=mention jev=0.25 rows=3
+    :31 [basename/mention] | object_ops.rs | extract_u32, extract_i32, extract_bool, extract_str | json_u32, json_i32, json_bool, json_str |
+    :51 [basename/mention] | object_ops.rs | 1 location (L69-73) |
+    :71 [basename/mention] | `{"ok":true,"paraIdx":N,"controlIdx":0}` | object_ops.rs | 2 |
+- [code] mydocs/eng/feedback/r-code-review-4th.md  channel=doc binding=mention jev=0.23 rows=2
+    :51 [basename/mention] | document_core -> parser | `document_core/commands/object_ops.rs:797` | `use crate::parser::tags` |
+    :91 [basename/mention] | `document_core/commands/object_ops.rs` | 3,365 | 31 | 108 lines/fn | Some large |
+- [code] mydocs/plans/archives/task_242_impl.md  channel=doc binding=mention jev=0.22 rows=1
+    :7 [path/mention] - `src/document_core/commands/object_ops.rs` — `create_shape_control_native()` 수정
+- [code] mydocs/eng/orders/20260323.md  channel=doc binding=mention jev=0.21 rows=1
+    :42 [basename/mention] | 347 | document_core parser::tags dependency removal | Not started | object_ops.rs parser::tags references to shared module or model constants |
+- [code] mydocs/working/archives/task_157_final.md  channel=doc binding=mention jev=0.21 rows=1
+    :23 [path/mention] | `src/document_core/commands/object_ops.rs` | `create_shape_control_native()`, `get_shape_properties_native()`, `set_shape_properties_native()`, `del
+- [code] mydocs/working/task_242_stage1.md  channel=doc binding=mention jev=0.21 rows=1
+    :6 [basename/mention] - **object_ops.rs**: `create_shape_control_native()` — `shape_type` 파라미터 추가
+- [code] mydocs/eng/feedback/post-refactoring-remaining-tasks.md  channel=doc binding=mention jev=0.19 rows=4
+    :38 [basename/mention] | `object_ops.rs` | 4 | 6 |
+    :66 [basename/mention] | `object_ops.rs` | -- | 2 |
+    :120 [basename/mention] +-- object_ops.rs               |   +-- clipboard.rs       (C)
+- [code] mydocs/eng/feedback/r-code-review-3rd-response.md  channel=doc binding=mention jev=0.19 rows=1
+    :71 [basename/mention] |   |   +-- object_ops.rs
+- [code] mydocs/eng/plans/archives/task_157_impl.md  channel=doc binding=mention jev=0.19 rows=1
+    :14 [basename/mention] #### 1-1. `src/wasm_api/commands/object_ops.rs` — Core CRUD Functions
+- [code] mydocs/eng/working/archives/task_189_step1-4.md  channel=doc binding=mention jev=0.19 rows=1
+    :16 [path/mention] - Modified file: `src/document_core/commands/object_ops.rs`
+- [code] mydocs/plans/archives/task_144_impl.md  channel=doc binding=mention jev=0.19 rows=3
+    :31 [basename/mention] | object_ops.rs | extract_u32, extract_i32, extract_bool, extract_str | json_u32, json_i32, json_bool, json_str |
+    :51 [basename/mention] | object_ops.rs | 1곳 (L69-73) |
+    :71 [basename/mention] | `{"ok":true,"paraIdx":N,"controlIdx":0}` | object_ops.rs | 2 |
+- [code] src/document_core/commands/mod.rs  channel=other binding=mention jev=0.19 rows=1
+    :7 [stem/stem_weak] mod object_ops;
+- [code] mydocs/eng/plans/archives/task_189_impl.md  channel=doc binding=mention jev=0.18 rows=1
+    :28 [path/mention] | `src/document_core/commands/object_ops.rs` | Extend get/set_picture_properties (+19 fields) |
+- [code] mydocs/eng/plans/archives/task_242_impl.md  channel=doc binding=mention jev=0.18 rows=1
+    :7 [path/mention] - `src/document_core/commands/object_ops.rs` — Modify `create_shape_control_native()`
+- [code] mydocs/orders/20260323.md  channel=doc binding=mention jev=0.18 rows=1
+    :42 [basename/mention] | 347 | document_core parser::tags 의존성 제거 | 미착수 | object_ops.rs의 parser::tags 참조를 공유 모듈 또는 model 상수로 전환 |
+- [code] mydocs/plans/archives/task_189_impl.md  channel=doc binding=mention jev=0.18 rows=1
+    :288 [path/mention] | `src/document_core/commands/object_ops.rs` | get/set_picture_properties 확장 (+19 필드) |
+- [code] mydocs/eng/working/archives/task_142_step1.md  channel=doc binding=mention jev=0.17 rows=1
+    :19 [basename/mention] | `wasm_api/object_ops.rs` | 900 | Picture properties/insert/delete + table creation |
+- [code] mydocs/feedback/post-refactoring-remaining-tasks.md  channel=doc binding=mention jev=0.17 rows=4
+    :38 [basename/mention] | `object_ops.rs` | 4 | 6 |
+    :66 [basename/mention] | `object_ops.rs` | — | 2 |
+    :120 [basename/mention] ├── object_ops.rs               │   ├── clipboard.rs       (C)
+- [code] mydocs/feedback/r-code-review-3rd-response.md  channel=doc binding=mention jev=0.17 rows=1
+    :71 [basename/mention] │   │   ├── object_ops.rs
+- [code] mydocs/feedback/r-code-review-4th.md  channel=doc binding=mention jev=0.17 rows=2
+    :51 [basename/mention] | document_core → parser | `document_core/commands/object_ops.rs:797` | `use crate::parser::tags` |
+    :91 [basename/mention] | `document_core/commands/object_ops.rs` | 3,365 | 31 | 108줄/함수 | 일부 대형 |
+- [code] mydocs/working/archives/task_157_step1_done.md  channel=doc binding=mention jev=0.17 rows=2
+    :18 [basename/mention] | `src/wasm_api/commands/object_ops.rs` | 6개 네이티브 함수 추가 |
+    :32 [basename/mention] ### 네이티브 함수 (object_ops.rs)
+- [code] mydocs/plans/task_255.md  channel=doc binding=mention jev=0.16 rows=1
+    :51 [path/mention] - 각주 삽입: `src/document_core/commands/object_ops.rs` (insert_footnote_native)
+- [code] mydocs/working/archives/task_142_step1.md  channel=doc binding=mention jev=0.16 rows=1
+    :19 [basename/mention] | `wasm_api/object_ops.rs` | 900 | 그림 속성/삽입/삭제 + 표 생성 |
+- [code] mydocs/eng/plans/task_255.md  channel=doc binding=mention jev=0.15 rows=1
+    :51 [path/mention] - Footnote insertion: `src/document_core/commands/object_ops.rs` (insert_footnote_native)
+- [code] mydocs/eng/working/archives/task_157_step1_done.md  channel=doc binding=mention jev=0.15 rows=1
+    :18 [basename/mention] | `src/wasm_api/commands/object_ops.rs` | Added 6 native functions |
+- [code] mydocs/plans/archives/task_144.md  channel=doc binding=mention jev=0.14 rows=1
+    :25 [basename/mention] | object_ops.rs | extract_* 4개 삭제, 이스케이프 교체 |
+- [code] mydocs/working/archives/task_189_step1-4.md  channel=doc binding=mention jev=0.14 rows=2
+    :19 [path/mention] - `src/document_core/commands/object_ops.rs`
+    :85 [path/mention] | `src/document_core/commands/object_ops.rs` | get/set API 확장 |
+- [code] mydocs/eng/working/task_242_stage1.md  channel=doc binding=mention jev=0.13 rows=1
+    :6 [basename/mention] - **object_ops.rs**: `create_shape_control_native()` — Added `shape_type` parameter
+- [code] mydocs/plans/archives/task_189.md  channel=doc binding=mention jev=0.13 rows=1
+    :35 [path/mention] | Rust 구현 | `src/document_core/commands/object_ops.rs` | 속성 조회/수정 로직 |
+- [code] mydocs/eng/plans/archives/task_144.md  channel=doc binding=mention jev=0.12 rows=1
+    :25 [basename/mention] | object_ops.rs | Delete 4 extract_* functions, replace escapes |
+- [code] mydocs/plans/archives/task_147.md  channel=doc binding=mention jev=0.12 rows=1
+    :9 [stem/stem_weak] - **commands/**: document, text_editing, table_ops, object_ops, formatting, clipboard, html_import
+- [code] mydocs/plans/archives/task_157_impl.md  channel=doc binding=mention jev=0.12 rows=1
+    :14 [basename/mention] #### 1-1. `src/wasm_api/commands/object_ops.rs` — 핵심 CRUD 함수
+- [code] mydocs/eng/plans/archives/task_147.md  channel=doc binding=mention jev=0.11 rows=1
+    :9 [stem/stem_weak] - **commands/**: document, text_editing, table_ops, object_ops, formatting, clipboard, html_import

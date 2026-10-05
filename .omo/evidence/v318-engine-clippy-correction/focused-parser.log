@@ -1,0 +1,339 @@
+    Blocking waiting for file lock on artifact directory
+   Compiling unicode-ident v1.0.26
+   Compiling cfg-if v1.0.5
+   Compiling simd-adler32 v0.3.10
+   Compiling adler2 v2.0.1
+   Compiling log v0.4.34
+   Compiling arrayvec v0.7.8
+   Compiling bumpalo v3.20.3
+   Compiling smallvec v1.16.2
+   Compiling zlib-rs v0.6.8
+   Compiling bitflags v2.13.2
+   Compiling libm v0.2.16
+   Compiling num-traits v0.2.19
+   Compiling once_cell v1.21.4
+   Compiling float-cmp v0.9.0
+   Compiling memchr v2.8.3
+   Compiling libc v0.2.190
+   Compiling crc32fast v1.5.2
+   Compiling proc-macro2 v1.0.107
+   Compiling miniz_oxide v0.9.1
+   Compiling wasm-bindgen-shared v0.2.129
+   Compiling miniz_oxide v0.8.9
+   Compiling fdeflate v0.3.7
+   Compiling strict-num v0.1.1
+   Compiling arrayref v0.3.9
+   Compiling color_quant v1.1.0
+   Compiling hashbrown v0.17.1
+   Compiling weezl v0.1.12
+   Compiling serde_core v1.0.229
+   Compiling equivalent v1.0.2
+   Compiling slotmap v1.1.1
+   Compiling kurbo v0.11.3
+   Compiling polycool v0.4.0
+   Compiling quote v1.0.47
+   Compiling siphasher v1.0.4
+   Compiling syn v3.0.6
+   Compiling syn v2.0.119
+   Compiling itoa v1.0.18
+   Compiling pin-project-lite v0.2.17
+   Compiling memmap2 v0.9.11
+   Compiling futures-core v0.3.34
+   Compiling core_maths v0.1.1
+   Compiling unicode-script v0.5.8
+   Compiling indexmap v2.14.2
+   Compiling ttf-parser v0.25.1
+   Compiling unicode-ccc v0.4.0
+   Compiling bitflags v1.3.2
+   Compiling zmij v1.0.23
+   Compiling byteorder-lite v0.1.0
+   Compiling slab v0.4.12
+   Compiling futures-task v0.3.34
+   Compiling tinyvec v1.13.3
+   Compiling unicode-properties v0.1.4
+   Compiling unicode-bidi-mirroring v0.4.0
+   Compiling futures-util v0.3.34
+   Compiling kurbo v0.13.1
+   Compiling simplecss v0.2.2
+   Compiling zune-core v0.5.3
+   Compiling serde_json v1.0.151
+   Compiling svgtypes v0.15.3
+   Compiling serde v1.0.229
+   Compiling unicode-vo v0.1.0
+   Compiling roxmltree v0.20.0
+   Compiling data-url v0.3.2
+   Compiling pxfm v0.1.30
+   Compiling pico-args v0.5.0
+   Compiling base64 v0.22.1
+   Compiling zune-core v0.4.12
+   Compiling xmlwriter v0.1.0
+   Compiling unicode-bidi v0.3.18
+   Compiling imagesize v0.13.0
+   Compiling quick-error v2.0.1
+   Compiling zune-jpeg v0.4.21
+   Compiling image-webp v0.2.4
+   Compiling zune-jpeg v0.5.15
+   Compiling gif v0.14.2
+   Compiling fontdb v0.23.0
+   Compiling gif v0.13.3
+   Compiling simdutf8 v0.1.5
+   Compiling ryu v1.0.23
+   Compiling rustc-hash v2.1.3
+   Compiling scopeguard v1.2.0
+   Compiling pdf-writer v0.12.1
+   Compiling encoding_rs v0.8.42
+   Compiling zopfli v0.8.3
+   Compiling typed-path v0.12.3
+   Compiling wasm-bindgen-test-shared v0.2.129
+   Compiling nu-ansi-term v0.50.3
+   Compiling uuid v1.27.0
+   Compiling moxcms v0.8.1
+   Compiling oorandom v11.1.5
+   Compiling wasm-bindgen-macro-support v0.2.129
+   Compiling web-time v1.1.0
+   Compiling fnv v1.0.7
+   Compiling cast v0.3.0
+   Compiling cfb v0.14.0
+   Compiling quick-xml v0.39.4
+   Compiling embedded-io v0.7.1
+   Compiling byteorder v1.5.0
+   Compiling unicode-width v0.2.2
+   Compiling unicode-segmentation v1.13.3
+   Compiling snafu-derive v0.9.2
+   Compiling strum_macros v0.28.0
+   Compiling codepage v0.1.3
+   Compiling flate2 v1.1.10
+   Compiling bytemuck_derive v1.12.1
+   Compiling serde_derive v1.0.229
+   Compiling async-trait v0.1.92
+   Compiling wasm-bindgen-test-macro v0.3.79
+   Compiling png v0.17.16
+   Compiling png v0.18.1
+   Compiling zip v8.6.0
+   Compiling snafu v0.9.2
+   Compiling strum v0.28.0
+   Compiling bytemuck v1.25.2
+   Compiling wasm-bindgen-macro v0.2.129
+   Compiling wasm-bindgen v0.2.129
+   Compiling font-types v0.11.3
+   Compiling tiny-skia-path v0.11.4
+   Compiling rustybuzz v0.20.1
+   Compiling rgb v0.8.53
+   Compiling image v0.25.10
+   Compiling read-fonts v0.39.2
+   Compiling tiny-skia v0.11.4
+   Compiling usvg v0.45.1
+   Compiling js-sys v0.3.106
+   Compiling console_error_panic_hook v0.1.7
+   Compiling resvg v0.45.1
+   Compiling skrifa v0.42.1
+   Compiling write-fonts v0.48.1
+   Compiling wasm-bindgen-futures v0.4.79
+   Compiling wasm-bindgen-test v0.3.79
+   Compiling subsetter v0.2.6
+   Compiling svg2pdf v0.13.0
+   Compiling rhwp v0.7.3 (/Users/ken/orca/workspaces/rhwp/v318-engine-clippy-correction)
+warning: function `footnote_emits_autoNum` should have a snake case name
+   --> src/serializer/hwpx/field.rs:192:8
+    |
+192 |     fn footnote_emits_autoNum() {
+    |        ^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `footnote_emits_auto_num`
+    |
+    = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: function `test_merge_then_control_layout_has_colSpan` should have a snake case name
+    --> src/wasm_api/tests.rs:1173:4
+     |
+1173 | fn test_merge_then_control_layout_has_colSpan() {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `test_merge_then_control_layout_has_col_span`
+
+warning: unused `Result` that must be used
+     --> src/wasm_api/tests.rs:11958:5
+      |
+11958 |     doc.insert_text_native(0, 0, 0, "가나다라마바사아");
+      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      |
+      = note: this `Result` may be an `Err` variant, which should be handled
+      = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+help: use `let _ = ...` to ignore the resulting value
+      |
+11958 |     let _ = doc.insert_text_native(0, 0, 0, "가나다라마바사아");
+      |     +++++++
+
+warning: unused `Result` that must be used
+     --> src/wasm_api/tests.rs:16440:5
+      |
+16440 |     doc.convert_to_editable_native();
+      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      |
+      = note: this `Result` may be an `Err` variant, which should be handled
+help: use `let _ = ...` to ignore the resulting value
+      |
+16440 |     let _ = doc.convert_to_editable_native();
+      |     +++++++
+
+warning: `rhwp` (lib test) generated 4 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 20.32s
+     Running unittests src/lib.rs (target/debug/deps/rhwp-aaac856d4c847685)
+
+running 157 tests
+test parser::body_text::tests::test_is_extended_ctrl_char ... ok
+test parser::body_text::tests::test_lineseg_field_semantics ... ok
+test parser::bin_data::tests::test_bin_data_storage_name ... ok
+test parser::body_text::tests::test_parse_page_def_landscape ... ok
+test parser::bin_data::tests::test_bin_data_content ... ok
+test parser::body_text::tests::test_parse_page_def ... ok
+test parser::body_text::tests::test_parse_page_border_fill ... ok
+test parser::body_text::tests::test_parse_para_range_tag ... ok
+test parser::body_text::tests::test_parse_para_char_shape ... ok
+test parser::body_text::tests::test_parse_para_line_seg ... ok
+test parser::body_text::tests::test_parse_para_text_simple ... ok
+test parser::body_text::tests::test_parse_para_text_empty ... ok
+test parser::body_text::tests::test_parse_para_header_fields ... ok
+test parser::body_text::tests::test_parse_para_text_korean ... ok
+test parser::body_text::tests::test_parse_para_text_with_extended_ctrl ... ok
+test parser::body_text::tests::test_parse_para_text_with_tab ... ok
+test parser::body_text::tests::test_table_paragraph_diagnostics ... ok
+test parser::body_text::tests::test_parse_empty_section ... ok
+test document_core::table_calc::parser::tests::test_simple_add ... ok
+test parser::body_text::tests::test_parse_unknown_control ... ok
+test parser::body_text::tests::test_parse_section_simple ... ok
+test parser::body_text::tests::test_parse_section_with_column_def ... ok
+test document_core::table_calc::parser::tests::test_precedence ... ok
+test parser::byte_reader::tests::test_position_and_remaining ... ok
+test parser::body_text::tests::test_parse_section_multiple_paragraphs ... ok
+test parser::byte_reader::tests::test_read_empty_hwp_string ... ok
+test document_core::table_calc::parser::tests::test_negate ... ok
+test document_core::table_calc::parser::tests::test_function_direction ... ok
+test document_core::table_calc::parser::tests::test_function_sum_range ... ok
+test parser::byte_reader::tests::test_read_i16_negative ... ok
+test parser::byte_reader::tests::test_read_i32_negative ... ok
+test parser::byte_reader::tests::test_read_bytes ... ok
+test parser::byte_reader::tests::test_color_ref ... ok
+test parser::byte_reader::tests::test_read_u16_le ... ok
+test document_core::table_calc::parser::tests::test_cell_add ... ok
+test document_core::table_calc::parser::tests::test_nested_function ... ok
+test parser::byte_reader::tests::test_read_u32_le ... ok
+test parser::byte_reader::tests::test_read_u8 ... ok
+test parser::byte_reader::tests::test_sequential_reads ... ok
+test parser::byte_reader::tests::test_skip ... ok
+test parser::control::tests::test_char_dup_sample_parsing ... ok
+test parser::control::tests::test_parse_control_dispatch ... ok
+test parser::control::tests::test_parse_common_obj_attr ... ok
+test parser::control::tests::test_parse_auto_number ... ok
+test parser::byte_reader::tests::test_read_hwp_string ... ok
+test parser::byte_reader::tests::test_read_ascii_hwp_string ... ok
+test parser::control::tests::test_parse_bookmark ... ok
+test parser::control::tests::test_parse_page_hide ... ok
+test parser::control::tests::test_parse_hidden_comment ... ok
+test parser::control::tests::test_parse_header_control ... ok
+test parser::control::tests::test_parse_footer_control ... ok
+test parser::control::tests::test_parse_footnote_control ... ok
+test parser::control::tests::test_parse_char_overlap ... ok
+test parser::crypto::tests::test_decrypt_distribute_too_short ... ok
+test parser::control::tests::test_parse_table_basic ... ok
+test parser::crypto::tests::test_extract_aes_key_offset_0 ... ok
+test parser::crypto::tests::test_gf_multiply ... ok
+test parser::crypto::tests::test_lcg_deterministic ... ok
+test parser::crypto::tests::test_decrypt_distribute_doc_data ... ok
+test parser::crypto::tests::test_extract_aes_key ... ok
+test parser::crypto::tests::test_msvc_lcg ... ok
+test parser::crypto::tests::test_aes_key_expansion_length ... ok
+test parser::crypto::tests::test_no_distribute_data ... ok
+test parser::crypto::tests::test_xtime ... ok
+test parser::body_text::tests::test_parse_table_control_delegation ... ok
+test parser::crypto::tests::test_aes_encrypt_decrypt_roundtrip ... ok
+test parser::body_text::tests::test_parse_section_with_section_def ... ok
+test parser::doc_info::tests::test_parse_border_fill_none_type ... ok
+test parser::doc_info::tests::test_parse_border_fill_mixed_types ... ok
+test parser::doc_info::tests::test_parse_bin_data_embedding ... ok
+test parser::doc_info::tests::test_parse_document_properties ... ok
+test parser::doc_info::tests::test_parse_border_fill_interleaved ... ok
+test parser::doc_info::tests::test_parse_doc_info_with_font ... ok
+test parser::doc_info::tests::test_parse_doc_info_minimal ... ok
+test parser::doc_info::tests::test_parse_face_name_with_alt ... ok
+test parser::doc_info::tests::test_parse_para_shape_basic ... ok
+test parser::doc_info::tests::test_parse_face_name ... ok
+test parser::doc_info::tests::test_parse_char_shape_basic ... ok
+test parser::doc_info::tests::test_parse_style ... ok
+test parser::header::tests::test_hwp_signature ... ok
+test parser::cfb_reader::tests::test_decompress_empty ... ok
+test parser::cfb_reader::tests::test_decompress_real_data ... ok
+test parser::cfb_reader::tests::test_decompress_invalid_data ... ok
+test parser::header::tests::test_too_short_data ... ok
+test parser::header::tests::test_invalid_signature ... ok
+test parser::header::tests::test_parse_encrypted_document ... ok
+test parser::header::tests::test_parse_valid_header ... ok
+test parser::header::tests::test_parse_distribution_document ... ok
+test parser::header::tests::test_parse_all_flags ... ok
+test parser::header::tests::test_version_display ... ok
+test parser::header::tests::test_version_supported ... ok
+test parser::hwpx::header::tests::test_is_real_strike_shape_placeholder_3d ... ok
+test parser::hwpx::header::tests::test_is_real_strike_shape_placeholder_none ... ok
+test parser::hwpx::header::tests::test_is_real_strike_shape_unknown_fail_closed ... ok
+test parser::hwpx::header::tests::test_is_real_strike_shape_valid_shapes ... ok
+test parser::hwpx::reader::tests::test_read_limited_under_cap ... ok
+test parser::hwpx::reader::tests::test_read_limited_at_cap ... ok
+test parser::hwpx::reader::tests::test_read_limited_over_cap ... ok
+test parser::hwpx::header::tests::test_parse_color_none ... ok
+test parser::hwpx::section::tests::test_parse_empty_section ... ok
+test parser::hwpx::header::tests::test_parse_color_rgb ... ok
+test parser::hwpx::utils::tests::test_parse_color_str ... ok
+test parser::hwpx::utils::tests::test_parse_color_str_with_alpha ... ok
+test parser::hwpx::utils::tests::test_local_name ... ok
+test parser::hwpx::header::tests::test_parse_alignment ... ok
+test parser::hwpx::content::tests::test_parse_content_hpf ... ok
+test parser::record::tests::test_truncated_data_error ... ok
+test parser::record::tests::test_empty_data ... ok
+test parser::record::tests::test_extended_size_record ... ok
+test parser::hwpx::content::tests::test_parse_empty_content ... ok
+test parser::record::tests::test_read_single_record ... ok
+test parser::record::tests::test_read_multiple_records ... ok
+test parser::record::tests::test_zero_size_record ... ok
+test parser::tags::tests::test_ctrl_id ... ok
+test parser::tags::tests::test_ctrl_name ... ok
+test parser::record::tests::test_record_display ... ok
+test parser::tags::tests::test_tag_name ... ok
+test parser::tags::tests::test_tag_values ... ok
+test parser::tests::test_detect_image_format_gif ... ok
+test parser::tests::test_detect_image_format_bmp ... ok
+test parser::tests::test_detect_image_format_unknown ... ok
+test parser::tests::test_mock_parser ... ok
+test parser::tests::test_detect_format_hwpx ... ok
+test parser::tests::test_detect_format_too_short ... ok
+test parser::tests::test_detect_format_hwp ... ok
+test parser::hwpx::tests::test_parse_hwpx_invalid_data ... ok
+test parser::tests::test_parse_document_dispatches_hwpx ... ok
+test parser::tests::test_detect_format_unknown ... ok
+test parser::tests::test_parse_document_dispatches_hwp ... ok
+test parser::hwpx::reader::tests::test_open_invalid_zip ... ok
+test parser::tests::test_parse_hwp_too_small ... ok
+test parser::tests::test_parse_hwp_invalid_cfb ... ok
+test parser::hwpx::tests::test_parse_hwpx_not_zip ... ok
+test parser::hwpx::section::tests::test_parse_simple_section ... ok
+test renderer::equation::parser::tests::test_greek ... ok
+test renderer::equation::parser::tests::test_decoration ... ok
+test renderer::equation::parser::tests::test_integral ... ok
+test renderer::equation::parser::tests::test_limit ... ok
+test renderer::equation::parser::tests::test_font_style ... ok
+test renderer::equation::parser::tests::test_cases ... ok
+test renderer::equation::parser::tests::test_left_right ... ok
+test renderer::equation::parser::test_bar_rm_it ... ok
+test renderer::equation::parser::test_rm_p_left ... ok
+test renderer::equation::parser::tests::test_cos_fraction_with_left_right ... ok
+test renderer::equation::parser::tests::test_simple_fraction ... ok
+test renderer::equation::parser::test_lim_fraction ... ok
+test renderer::equation::parser::tests::test_sqrt ... ok
+test renderer::equation::parser::tests::test_sample_eq01_script ... ok
+test renderer::equation::parser::tests::test_matrix ... ok
+test renderer::equation::parser::test_cases_double_amp ... ok
+test renderer::equation::parser::tests::test_sqrt_with_index ... ok
+test renderer::equation::parser::tests::test_sum ... ok
+test renderer::equation::parser::tests::test_superscript ... ok
+test parser::control::tests::dump_bookreview_section1_controls ... ok
+test parser::cfb_reader::tests::test_compare_cfb_streams_cli_vs_browser ... ok
+test parser::control::tests::debug_border_data ... ok
+test parser::hwpx::reader::tests::test_zip_bomb_xml_entry_rejected ... ok
+
+test result: ok. 157 passed; 0 failed; 0 ignored; 0 measured; 765 filtered out; finished in 0.67s
+

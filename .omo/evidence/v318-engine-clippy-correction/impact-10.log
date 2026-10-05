@@ -1,0 +1,1908 @@
+IMPACT at=code:3033ae22c9031919757be1357a998471e67f1fab@3033ae22c903 query="src/serializer/hwpx/section.rs" mode=path jev=used(cache) jev_threshold=0.45 files=626 rows=6173 det_ms=531 total_ms=534 jev_requests=0 jev_http_attempts=0 jev_input_tokens=0
+  ! Jev 에 보내지 않은 파일 506 (상한 --max-files=120 또는 비밀 성격 경로)
+- [code] src/serializer/control/tests.rs  channel=other binding=mention jev=0.52★ rows=31
+    :5 [stem/stem_weak] use crate::parser::body_text::parse_body_text_section;
+    :6 [stem/stem_weak] use crate::serializer::body_text::serialize_section;
+    :10 [stem/stem_weak] fn test_roundtrip_section_def() {
+- [code] src/serializer/cfb_writer.rs  channel=other binding=mention jev=0.46★ rows=10
+    :17 [stem/stem_weak] use super::body_text::serialize_section;
+    :32 [stem/stem_weak] let mut section_bytes_list = Vec::new();
+    :33 [stem/stem_weak] for section in &doc.sections {
+- [code] mydocs/working/task_m100_182_stage2.md  channel=doc binding=mention jev=0.45★ rows=9
+    :43 [path/mention] **`src/serializer/hwpx/section.rs`** (133줄 → 228줄)
+    :13 [basename/mention] - `section.rs` 템플릿 치환 제거, `SectionWriter` 루트부터 빌드
+    :54 [basename/mention] `section.rs` 내부:
+- [code] rhwp-studio/tests/virtual-scroll-grid.test.ts  channel=test binding=mention jev=0.44 rows=1
+    :13 [stem/stem_weak] sectionIndex: 0,
+- [code] src/document_core/queries/rendering.rs  channel=other binding=mention jev=0.42 rows=199
+    :11 [stem/stem_weak] use crate::renderer::composer::{compose_paragraph, compose_section, ComposedParagraph};
+    :91 [stem/stem_weak] let sec_idx = page_content.section_index;
+    :92 [stem/stem_weak] let page_def = &self.document.sections[sec_idx].section_def.page_def;
+- [code] src/document_core/commands/table_ops.rs  channel=other binding=mention jev=0.41 rows=214
+    :14 [stem/stem_weak] section_idx: usize,
+    :19 [stem/stem_weak] self.get_table_by_path(section_idx, &path)
+    :25 [stem/stem_weak] section_idx: usize,
+- [code] rhwp-studio/public/rhwp.js  channel=other binding=mention jev=0.40 rows=394
+    :146 [stem/stem_weak] * @param {number} section_idx
+    :152 [stem/stem_weak] applyHfTemplate(section_idx, is_header, apply_to, template_id) {
+    :156 [stem/stem_weak] const ret = wasm.hwpdocument_applyHfTemplate(this.__wbg_ptr, section_idx, is_header, apply_to, template_id);
+- [code] src/document_core/mod.rs  channel=other binding=mention jev=0.40 rows=9
+    :74 [stem/stem_weak] pub(crate) dirty_sections: Vec<bool>,
+    :76 [stem/stem_weak] pub(crate) measured_sections: Vec<MeasuredSection>,
+    :82 [stem/stem_weak] /// para_column_map[section_idx][para_idx] = column_index
+- [code] src/serializer/body_text.rs  channel=other binding=mention jev=0.40 rows=41
+    :26 [stem/stem_weak] pub fn serialize_section(section: &Section) -> Vec<u8> {
+    :28 [stem/stem_weak] if let Some(ref raw) = section.raw_stream {
+    :33 [stem/stem_weak] let para_count = section.paragraphs.len();
+- [code] src/renderer/pagination/engine.rs  channel=other binding=mention jev=0.35 rows=10
+    :20 [stem/stem_weak] section_index: usize,
+    :28 [stem/stem_weak] section_index,
+    :40 [stem/stem_weak] section_index: usize,
+- [code] src/wasm_api.rs  channel=other binding=mention jev=0.35 rows=359
+    :26 [stem/stem_weak] compose_paragraph, compose_section, reflow_line_segs, ComposedParagraph,
+    :248 [stem/stem_weak] pub fn get_page_def(&self, section_idx: u32) -> Result<String, JsValue> {
+    :249 [stem/stem_weak] self.get_page_def_native(section_idx as usize)
+- [code] mydocs/orders/20260419.md  channel=doc binding=link jev=0.34 rows=1
+    :106 [stem/link] | [#186](https://github.com/edwardkim/rhwp/issues/186) | HWPX section.xml 완전 동적화 — secPr + 다중 run + Control dispatcher | 대기 | #182 Stage 2/3/4/5 이월분 |
+- [code] rhwp-studio/src/engine/cursor.ts  channel=other binding=mention jev=0.34 rows=44
+    :6 [stem/stem_weak] private position: DocumentPosition = { sectionIndex: 0, paragraphIndex: 0, charOffset: 0 };
+    :120 [stem/stem_weak] if (a.sectionIndex !== b.sectionIndex) return a.sectionIndex < b.sectionIndex ? -1 : 1;
+    :163 [stem/stem_weak] const { sectionIndex: sec, parentParaIndex: ppi, controlIndex: ci, cellIndex: cei } = this.position;
+- [code] src/main.rs  channel=other binding=mention jev=0.34 rows=43
+    :56 [stem/stem_weak] println!("  dump <파일.hwp> [--section <번호>] [--para <번호>]");
+    :539 [stem/stem_weak] println!("구역 수: {}", document.sections.len());
+    :543 [stem/stem_weak] for (sec_idx, section) in document.sections.iter().enumerate() {
+- [code] src/parser/body_text.rs  channel=other binding=mention jev=0.34 rows=9
+    :54 [stem/stem_weak] pub fn parse_body_text_section(data: &[u8]) -> Result<Section, BodyTextError> {
+    :57 [stem/stem_weak] let mut section = Section::default();
+    :77 [stem/stem_weak] section.section_def = (**sd).clone();
+- [code] src/renderer/render_tree.rs  channel=other binding=mention jev=0.34 rows=24
+    :99 [stem/stem_weak] tr.section_index
+    :235 [stem/stem_weak] pub section_index: usize,
+    :259 [stem/stem_weak] pub section_index: usize,
+- [code] src/serializer/cfb_writer/tests.rs  channel=other binding=mention jev=0.34 rows=61
+    :49 [stem/stem_weak] section_count: 1,
+    :54 [stem/stem_weak] sections: vec![crate::model::document::Section {
+    :55 [stem/stem_weak] section_def: SectionDef::default(),
+- [code] tests/hwpx_page_def_roundtrip.rs  channel=other binding=mention jev=0.34 rows=65
+    :64 [stem/stem_weak] /// HWPX ZIP 의 `Contents/section{N}.xml` 을 0번부터 차례로 읽는다.
+    :65 [stem/stem_weak] fn section_xmls(hwpx: &[u8]) -> Vec<String> {
+    :69 [stem/stem_weak] let mut entry = match archive.by_name(&format!("Contents/section{}.xml", i)) {
+- [code] src/document_core/commands/clipboard.rs  channel=other binding=mention jev=0.33 rows=146
+    :51 [stem/stem_weak] section_idx: usize,
+    :58 [stem/stem_weak] if section_idx >= self.document.sections.len() {
+    :61 [stem/stem_weak] section_idx
+- [code] src/parser/hwpx/content.rs  channel=other binding=mention jev=0.33 rows=16
+    :26 [stem/stem_weak] pub section_files: Vec<String>,
+    :83 [stem/stem_weak] if media_type == "application/xml" && href.contains("section") {
+    :84 [stem/stem_weak] info.section_files.push(href.clone());
+- [code] src/renderer/svg.rs  channel=other binding=mention jev=0.33 rows=20
+    :63 [stem/stem_weak] overlay_page_section: i32,
+    :76 [stem/stem_weak] section_index: usize,
+    :85 [stem/stem_weak] section_index: usize,
+- [code] mydocs/working/archives/task_3_step_3.md  channel=doc binding=mention jev=0.32 rows=9
+    :32 [stem/stem_weak] `parse_body_text_section()` → `parse_paragraph()` → `parse_ctrl_header()` 순으로 재귀적 분해.
+    :46 [stem/stem_weak] | `parse_body_text_section()` | 레코드 바이트 | `Section` |
+    :54 [stem/stem_weak] | `parse_section_def()` | secd 데이터 | `SectionDef` |
+- [code] src/document_core/commands/header_footer_ops.rs  channel=other binding=mention jev=0.32 rows=151
+    :47 [stem/stem_weak] section_idx: usize,
+    :51 [stem/stem_weak] let section = self.document.sections.get(section_idx)?;
+    :52 [stem/stem_weak] for (pi, para) in section.paragraphs.iter().enumerate() {
+- [code] src/document_core/commands/text_editing.rs  channel=other binding=mention jev=0.32 rows=403
+    :17 [stem/stem_weak] section_idx: usize,
+    :23 [stem/stem_weak] if section_idx >= self.document.sections.len() {
+    :26 [stem/stem_weak] section_idx,
+- [code] src/parser/body_text/tests.rs  channel=other binding=mention jev=0.32 rows=63
+    :99 [stem/stem_weak] assert!(is_extended_ctrl_char(0x0002)); // section/column def
+    :218 [stem/stem_weak] fn test_parse_section_simple() {
+    :223 [stem/stem_weak] let mut section_bytes = Vec::new();
+- [code] src/renderer/layout.rs  channel=other binding=mention jev=0.32 rows=35
+    :237 [stem/stem_weak] /// (section_idx, para_idx, control_idx, cell_path)
+    :444 [stem/stem_weak] page_content.section_index,
+    :656 [stem/stem_weak] 0, // section_index
+- [code] src/serializer/hwpx/mod.rs  channel=other binding=mention jev=0.32 rows=40
+    :6 [stem/stem_weak] //! - Stage 2: section.xml 동적화 + charPrIDRef 매핑
+    :20 [stem/stem_weak] pub mod section;
+    :59 [stem/stem_weak] // 4. Contents/section{N}.xml — 실제 섹션만큼, 없으면 0개
+- [code] mydocs/plans/task_m100_164_impl.md  channel=doc binding=mention jev=0.31 rows=17
+    :19 [path/mention] | `src/serializer/hwpx/section.rs` | 1~4 | 신규 — `Contents/section*.xml` |
+    :146 [basename/mention] **1-4. section0.xml 최소 버전 (`section.rs`)**
+    :200 [basename/mention] - `section.rs` (확장)
+- [code] rhwp-studio/tests/selection-rects.test.ts  channel=test binding=mention jev=0.31 rows=3
+    :104 [stem/stem_weak] sectionIndex: 0,
+    :149 [stem/stem_weak] sectionIndex: 0,
+    :205 [stem/stem_weak] sectionIndex: 0,
+- [code] src/document_core/queries/cursor_nav.rs  channel=other binding=mention jev=0.31 rows=50
+    :16 [stem/stem_weak] section_idx: usize,
+    :22 [stem/stem_weak] .sections
+    :23 [stem/stem_weak] .get(section_idx)
+- [code] mydocs/eng/working/archives/task_102_step4.md  channel=doc binding=mention jev=0.30 rows=13
+    :12 [stem/stem_weak] - Added `dirty_sections: Vec<bool>` field (whether re-pagination is needed per section)
+    :13 [stem/stem_weak] - `recompose_section(section_idx)` helper method: Combines section recomposition + dirty marking into a single call
+    :14 [stem/stem_weak] - Mechanically replaced direct `compose_section()` calls in 27 editing functions with `recompose_section()` delegation
+- [code] src/parser/hwpx/section.rs  channel=other binding=mention jev=0.30 rows=21
+    :1 [stem/stem_weak] //! section*.xml 파싱 — HWPX 섹션 본문을 Section 모델로 변환
+    :35 [stem/stem_weak] /// section*.xml을 파싱하여 Section 모델로 변환한다.
+    :36 [stem/stem_weak] pub fn parse_hwpx_section(xml: &str) -> Result<Section, HwpxError> {
+- [code] src/document_core/commands/footnote_ops.rs  channel=other binding=mention jev=0.29 rows=47
+    :14 [stem/stem_weak] section_idx: usize,
+    :19 [stem/stem_weak] let section = self.document.sections.get_mut(section_idx).ok_or_else(|| {
+    :20 [stem/stem_weak] HwpError::RenderError(format!("구역 인덱스 {} 범위 초과", section_idx))
+- [code] src/document_core/commands/object_ops.rs  channel=other binding=mention jev=0.29 rows=241
+    :20 [stem/stem_weak] section_idx: usize,
+    :24 [stem/stem_weak] let section = self.document.sections.get(section_idx).ok_or_else(|| {
+    :25 [stem/stem_weak] HwpError::RenderError(format!("구역 인덱스 {} 범위 초과", section_idx))
+- [code] rhwp-studio/src/ui/page-setup-dialog.ts  channel=other binding=link jev=0.28 rows=13
+    :42 [stem/stem_weak] private sectionIdx: number;
+    :54 [stem/stem_weak] constructor(wasm: WasmBridge, eventBus: EventBus, sectionIdx: number) {
+    :58 [stem/stem_weak] this.sectionIdx = sectionIdx;
+- [code] rhwp-studio/src/engine/input-handler.ts  channel=other binding=mention jev=0.28 rows=77
+    :57 [stem/stem_weak] readonly sectionIndex: number;
+    :607 [stem/stem_weak] const sec = cursorPos.sectionIndex;
+    :613 [stem/stem_weak] sectionIdx: sec,
+- [code] src/document_core/commands/document.rs  channel=other binding=mention jev=0.28 rows=77
+    :11 [stem/stem_weak] use crate::renderer::composer::{compose_section, reflow_line_segs};
+    :60 [stem/stem_weak] .sections
+    :62 [stem/stem_weak] .map(|s| compose_section(s))
+- [code] src/document_core/queries/cursor_rect.rs  channel=other binding=mention jev=0.28 rows=118
+    :28 [stem/stem_weak] section_idx: usize,
+    :36 [stem/stem_weak] let pages = self.find_pages_for_paragraph(section_idx, para_idx)?;
+    :59 [stem/stem_weak] if text_run.section_index == Some(sec)
+- [code] src/document_core/queries/field_query.rs  channel=other binding=mention jev=0.28 rows=48
+    :13 [stem/stem_weak] pub section_index: usize,
+    :50 [stem/stem_weak] for (si, sec) in self.document.sections.iter().enumerate() {
+    :53 [stem/stem_weak] section_index: si,
+- [code] src/serializer/hwpx/roundtrip.rs  channel=other binding=mention jev=0.28 rows=16
+    :11 [stem/stem_weak] //! - sections.len()
+    :12 [stem/stem_weak] //! - 각 section의 paragraphs.len()
+    :58 [stem/stem_weak] section: usize,
+- [code] tests/hwpx_to_hwp_adapter.rs  channel=other binding=mention jev=0.28 rows=16
+    :128 [stem/stem_weak] for section in &core.document().sections {
+    :129 [stem/stem_weak] for para in &section.paragraphs {
+    :155 [stem/stem_weak] for section in &doc.sections {
+- [code] web/rhwp.js  channel=other binding=mention jev=0.27 rows=60
+    :174 [stem/stem_weak] * @param {number} section_idx
+    :179 [stem/stem_weak] copyControl(section_idx, para_idx, control_idx) {
+    :183 [stem/stem_weak] const ret = wasm.hwpdocument_copyControl(this.__wbg_ptr, section_idx, para_idx, control_idx);
+- [code] rhwp-studio/src/core/wasm-bridge.ts  channel=other binding=mention jev=0.26 rows=33
+    :12 [stem/stem_weak] section: number;
+    :196 [stem/stem_weak] getPageDef(sectionIdx: number): PageDef {
+    :198 [stem/stem_weak] return JSON.parse(this.doc.getPageDef(sectionIdx));
+- [code] src/document_core/commands/html_import.rs  channel=other binding=mention jev=0.26 rows=47
+    :97 [stem/stem_weak] section_idx: usize,
+    :102 [stem/stem_weak] if section_idx >= self.document.sections.len() {
+    :105 [stem/stem_weak] section_idx
+- [code] src/renderer/layout/shape_layout.rs  channel=other binding=mention jev=0.26 rows=33
+    :136 [stem/stem_weak] section_index: usize,
+    :162 [stem/stem_weak] tree.get_inline_shape_position(section_index, para_index, control_index);
+    :200 [stem/stem_weak] section_index: Some(section_index),
+- [code] mydocs/manual/OWPML SCHEMA/Body XML schema.xml  channel=other binding=exec jev=0.25 rows=2
+    :5 [stem/stem_weak] xmlns:hs="http://www.owpml.org/owpml/2024/section"
+    :6 [stem/exec] targetNamespace="http://www.owpml.org/owpml/2024/section"
+- [code] mydocs/plans/task_m100_182_impl.md  channel=doc binding=mention jev=0.25 rows=18
+    :494 [path/mention] #### (1) `src/serializer/hwpx/section.rs`
+    :570 [basename/mention] // 기존 section.rs:60-119 render_paragraph_parts 로직 이식
+    :32 [stem/stem_weak] if doc.sections.len() == 1 && doc.bin_data_content.is_empty() {
+- [code] rhwp-studio/tests/embed-image-dimensions.test.ts  channel=test binding=mention jev=0.25 rows=1
+    :25 [stem/stem_weak] const position: DocumentPosition = { sectionIndex: 0, paragraphIndex: 0, charOffset: 0 };
+- [code] src/wasm_api/tests.rs  channel=other binding=exec jev=0.24 rows=452
+    :70 [stem/stem_weak] document.sections.push(Section {
+    :71 [stem/stem_weak] section_def: SectionDef {
+    :297 [stem/stem_weak] document.sections.push(Section {
+- [code] mydocs/plans/task_m100_177_impl.md  channel=doc binding=mention jev=0.24 rows=15
+    :211 [path/mention] ### 4.1 `src/serializer/hwpx/section.rs` 변경
+    :560 [path/mention] | 2 | `src/serializer/hwpx/section.rs` | — |
+    :42 [stem/stem_weak] pub section_idx: usize,
+- [code] rhwp-studio/src/command/commands/table.ts  channel=other binding=mention jev=0.24 rows=29
+    :60 [stem/stem_weak] sectionIndex: pos.sectionIndex,
+    :71 [stem/stem_weak] sectionIndex: pos.sectionIndex,
+    :94 [stem/stem_weak] return services.wasm.getCellInfoByPath(pos.sectionIndex, pos.parentParaIndex, pathJson);
+- [code] src/parser/mod.rs  channel=other binding=mention jev=0.24 rows=34
+    :16 [stem/stem_weak] //! 4. section*.xml → Section (hwpx/section)
+    :144 [stem/stem_weak] let section_count = cfb.section_count();
+    :145 [stem/stem_weak] let sections = parse_sections_strict(&mut cfb, section_count, compressed, distribution)?;
+- [code] src/renderer/composer/lineseg_compare_tests.rs  channel=other binding=mention jev=0.24 rows=24
+    :36 [stem/stem_weak] fn compare_section(
+    :39 [stem/stem_weak] section_idx: usize,
+    :42 [stem/stem_weak] let section = &document.sections[section_idx];
+- [code] src/renderer/typeset.rs  channel=other binding=mention jev=0.24 rows=25
+    :105 [stem/stem_weak] section_index: usize,
+    :126 [stem/stem_weak] section_index: usize,
+    :137 [stem/stem_weak] section_index,
+- [code] mydocs/eng/report/table_architecture_review.md  channel=doc binding=mention jev=0.23 rows=27
+    :79 [stem/stem_weak] Document -> sections[sec] -> paragraphs[ppi] -> controls[ci] -> Control::Table(table)
+    :88 [stem/stem_weak] When a table modification occurs, **full section re-serialization + re-layout** is triggered:
+    :92 [stem/stem_weak] self.document.sections[section_idx].raw_stream = None;       // Invalidate serialization cache
+- [code] mydocs/plans/archives/task_22.md  channel=doc binding=mention jev=0.23 rows=8
+    :22 [stem/stem_weak] → compose_section() [line_segs 기반 줄 분할]
+    :28 [stem/stem_weak] - `compose_section()`은 `line_segs`의 `text_start` 값을 그대로 사용하여 줄을 분할
+    :58 [stem/stem_weak] - `insert_text_native()` / `delete_text_native()`에서 `compose_section()` 호출 전에 `reflow_line_segs()` 호출
+- [code] mydocs/working/task_m100_182_stage3.md  channel=doc binding=mention jev=0.23 rows=9
+    :24 [basename/mention] - ⚠️ **section.rs dispatcher 연결은 이월**: `Control::Table` → `write_table` 호출을 section 본문에 삽입하는 작업은 **#186** (Stage 2 이월분: section.xml 완전 동적화) 와 함께 처리
+    :25 [basename/mention] - 현재 section.rs 는 템플릿 기반이라 `\u{0002}` 제어문자 위치에 `<hp:tbl>` 삽입이 어려움
+    :98 [basename/mention] | `hwp_table_test.hwp` HWPX 경로 라운드트립 IrDiff 0 | ❌ (이월) | section.rs dispatcher 없이는 표가 section.xml 에 출력되지 않음 |
+- [code] rhwp-studio/src/engine/input-handler-mouse.ts  channel=other binding=mention jev=0.23 rows=16
+    :99 [stem/stem_weak] pos.sectionIndex,
+    :104 [stem/stem_weak] pos.sectionIndex,
+    :741 [stem/stem_weak] pageInfo.sectionIdx, pageInfo.paraIdx, pageInfo.controlIdx,
+- [code] src/document_core/queries/doc_tree_nav.rs  channel=other binding=mention jev=0.23 rows=26
+    :89 [stem/stem_weak] sections: &'a [Section],
+    :94 [stem/stem_weak] let section_paras: &[Paragraph] = &sections.get(sec)?.paragraphs;
+    :95 [stem/stem_weak] let mut paragraphs: &[Paragraph] = section_paras;
+- [code] src/parser/hwpx/mod.rs  channel=other binding=mention jev=0.23 rows=11
+    :10 [stem/stem_weak] //! 4. section*.xml → Section 변환 (section)
+    :16 [stem/stem_weak] pub mod section;
+    :84 [stem/stem_weak] // 4. section*.xml → Section 변환
+- [code] src/renderer/layout/table_layout.rs  channel=other binding=mention jev=0.23 rows=15
+    :126 [stem/stem_weak] section_index: usize,
+    :205 [stem/stem_weak] section_index,
+    :355 [stem/stem_weak] section_index: Some(section_index),
+- [code] src/wmf/parser/records/escape/mod.rs  channel=other binding=mention jev=0.23 rows=45
+    :59 [stem/stem_weak] /// number of WORD structures, defined in [MS-DTYP] section 2.2.61, in
+    :72 [stem/stem_weak] /// number of WORD structures, defined in [MS-DTYP] section 2.2.61, in
+    :86 [stem/stem_weak] /// number of WORD structures, defined in [MS-DTYP] section 2.2.61, in
+- [code] mydocs/feedback/code-refactoring-strategy.md  channel=doc binding=mention jev=0.22 rows=10
+    :98 [stem/stem_weak] pub(crate) fn repaginate_section(&mut self, section_idx: usize) { ... }
+    :99 [stem/stem_weak] pub(crate) fn get_section(&self, idx: usize) -> Result<&Section, HwpError> { ... }
+    :234 [stem/stem_weak] fn insert_text(&mut self, section: usize, para: usize, offset: usize, text: &str) -> Result<(), HwpError>;
+- [code] src/document_core/converters/diagnostics.rs  channel=other binding=mention jev=0.22 rows=10
+    :78 [stem/stem_weak] /// - `section.raw_stream is Some` 인지 (있으면 직렬화기 빠른 경로, 없으면 동적)
+    :84 [stem/stem_weak] for (sec_idx, section) in hwpx.sections.iter().enumerate() {
+    :85 [stem/stem_weak] // section.raw_stream
+- [code] src/parser/cfb_reader.rs  channel=other binding=mention jev=0.22 rows=20
+    :100 [stem/stem_weak] pub fn read_body_text_section(
+    :126 [stem/stem_weak] let section_path = format!("/Section{}", index);
+    :127 [stem/stem_weak] if self.has_stream(&section_path) {
+- [code] tests/hwpx_roundtrip_integration.rs  channel=other binding=mention jev=0.22 rows=35
+    :15 [stem/stem_weak] fn section_texts(doc: &rhwp::model::document::Document) -> Vec<String> {
+    :16 [stem/stem_weak] doc.sections
+    :18 [stem/stem_weak] .flat_map(|section| section.paragraphs.iter())
+- [code] mydocs/plans/archives/table_refactoring_plan.md  channel=doc binding=mention jev=0.21 rows=9
+    :116 [stem/stem_weak] section_index: usize,
+    :139 [stem/stem_weak] &inner_area, section_index, styles, bin_data_content,
+    :207 [stem/stem_weak] section_idx: usize,
+- [code] rhwp-safari/HWP Viewer/HWP Viewer.xcodeproj/project.pbxproj  channel=other binding=mention jev=0.21 rows=28
+    :9 [stem/stem_weak] /* Begin PBXBuildFile section */
+    :60 [stem/stem_weak] /* End PBXBuildFile section */
+    :62 [stem/stem_weak] /* Begin PBXContainerItemProxy section */
+- [code] rhwp-studio/src/command/commands/page.ts  channel=other binding=mention jev=0.21 rows=27
+    :3 [stem/stem_weak] import { SectionSettingsDialog } from '@/ui/section-settings-dialog';
+    :47 [stem/stem_weak] targetResult.sectionIdx!,
+    :53 [stem/stem_weak] const sectionIdx = cursor.getPosition().sectionIndex;
+- [code] rhwp-studio/src/ui/section-settings-dialog.ts  channel=other binding=mention jev=0.21 rows=9
+    :28 [stem/stem_weak] private sectionIdx: number;
+    :29 [stem/stem_weak] private sectionDef!: SectionDef;
+    :44 [stem/stem_weak] constructor(wasm: WasmBridge, eventBus: EventBus, sectionIdx: number) {
+- [code] src/model/event.rs  channel=other binding=mention jev=0.21 rows=80
+    :11 [stem/stem_weak] section: usize,
+    :17 [stem/stem_weak] section: usize,
+    :23 [stem/stem_weak] section: usize,
+- [code] tests/hwpx_phase1_corpus.rs  channel=other binding=mention jev=0.21 rows=15
+    :15 [stem/stem_weak] sections: usize,
+    :34 [stem/stem_weak] sections: doc.sections.len(),
+    :43 [stem/stem_weak] for section in &doc.sections {
+- [code] mydocs/report/table_architecture_review.md  channel=doc binding=mention jev=0.20 rows=16
+    :79 [stem/stem_weak] Document → sections[sec] → paragraphs[ppi] → controls[ci] → Control::Table(table)
+    :92 [stem/stem_weak] self.document.sections[section_idx].raw_stream = None;       // 직렬화 캐시 무효화
+    :93 [stem/stem_weak] self.composed[section_idx] = compose_section(...);           // 전체 섹션 재레이아웃
+- [code] rhwp-studio/src/engine/input-handler-keyboard.ts  channel=other binding=mention jev=0.20 rows=33
+    :774 [stem/stem_weak] const sec = pos.sectionIndex;
+    :995 [stem/stem_weak] this.cursor.moveTo({ sectionIndex: 0, paragraphIndex: 0, charOffset: 0 });
+    :1044 [stem/stem_weak] start.sectionIndex, start.parentParaIndex, start.controlIndex!, start.cellIndex!,
+- [code] rhwp-studio/src/hwpctl/actions/navigate.ts  channel=other binding=mention jev=0.20 rows=11
+    :12 [stem/stem_weak] ctrl.SetPos(cursor.section, cursor.para, cursor.pos - 1);
+    :15 [stem/stem_weak] ctrl.SetPos(cursor.section, cursor.para - 1, 65535);
+    :22 [stem/stem_weak] ctrl.SetPos(cursor.section, cursor.para, cursor.pos + 1);
+- [code] src/document_core/commands/formatting.rs  channel=other binding=mention jev=0.20 rows=82
+    :23 [stem/stem_weak] let section = self
+    :25 [stem/stem_weak] .sections
+    :28 [stem/stem_weak] let para = section
+- [code] src/document_core/queries/search_query.rs  channel=other binding=mention jev=0.20 rows=15
+    :62 [stem/stem_weak] for (sec_idx, section) in doc.document.sections.iter().enumerate() {
+    :63 [stem/stem_weak] for (para_idx, para) in section.paragraphs.iter().enumerate() {
+    :225 [stem/stem_weak] let section = self
+- [code] src/renderer/composer/re_sample_gen.rs  channel=other binding=mention jev=0.20 rows=11
+    :56 [stem/stem_weak] let para_cs_id = doc.sections[0].paragraphs[0]
+    :138 [stem/stem_weak] let para = &core.document.sections[0].paragraphs[0];
+    :156 [stem/stem_weak] let prev_para = &core.document.sections[0].paragraphs[i - 1];
+- [code] src/renderer/layout/table_partial.rs  channel=other binding=mention jev=0.20 rows=9
+    :37 [stem/stem_weak] section_index: usize,
+    :356 [stem/stem_weak] section_index: Some(section_index),
+    :640 [stem/stem_weak] section_index,
+- [code] mydocs/eng/orders/20260402.md  channel=doc binding=link jev=0.19 rows=2
+    :13 [stem/link] | [#30](https://github.com/edwardkim/rhwp/issues/30) | Excessive page count increase after paragraph insert/delete | Done | measure_section off-by-one
+    :20 [stem/stem_weak] - **Pagination accuracy**: Post-edit reload result fully matches (measure_section cache + index adjustment)
+- [code] mydocs/eng/plans/archives/task_62_impl.md  channel=doc binding=mention jev=0.19 rows=10
+    :7 [stem/stem_weak] 1. Add `get_page_def(section_idx: u32)` — `#[wasm_bindgen(js_name = getPageDef)]`
+    :8 [stem/stem_weak] - Return HWPUNIT raw values from `self.document.sections[sec_idx].section_def.page_def` as JSON
+    :11 [stem/stem_weak] 2. Add `set_page_def(section_idx: u32, json: &str)` — `#[wasm_bindgen(js_name = setPageDef)]`
+- [code] mydocs/plans/archives/task_193_impl.md  channel=doc binding=mention jev=0.19 rows=16
+    :27 [stem/stem_weak] pub fn get_header_footer(doc: &Document, section_idx: usize, is_header: bool, apply_to: u8) -> Option<&[Paragraph]>
+    :30 [stem/stem_weak] pub fn create_header_footer(doc: &mut Document, section_idx: usize, is_header: bool, apply_to: u8) -> Result<(), String>
+    :33 [stem/stem_weak] pub fn insert_text_in_header_footer(doc: &mut Document, section_idx: usize, is_header: bool, apply_to: u8, para_idx: usize, char_offset: usize, text: 
+- [code] mydocs/plans/task_m100_182.md  channel=doc binding=mention jev=0.19 rows=13
+    :115 [path/mention] - `src/serializer/hwpx/section.rs:60-119` — `render_paragraph_parts`/`push_lineseg` → `paragraph::write_runs`로 이식
+    :14 [basename/mention] - **section.rs**: 텍스트·탭·소프트브레이크는 IR 기반 동적 생성 ✅
+    :16 [basename/mention] - **section.rs**: `secPr/pagePr/grid`는 `empty_section0.xml` 템플릿 치환 ❌
+- [code] mydocs/report/task_m100_182_report.md  channel=doc binding=mention jev=0.19 rows=10
+    :42 [basename/mention] | 2 | section.xml `<hp:p>`/`<hp:run>` IR 연결 | `section.rs` 속성 동적화 | 2026-04-17 |
+    :64 [stem/stem_weak] | section | 5 |
+    :102 [stem/stem_weak] | Stage 2 section 동적화 (secPr/pagePr/grid 완전) | ⚠️ 축소 — `<hp:p>`/`<hp:run>` 속성만 IR 기반 | #186 범위 A/B |
+- [code] mydocs/working/archives/task_102_step5.md  channel=doc binding=mention jev=0.19 rows=14
+    :12 [stem/stem_weak] - `mark_section_dirty()` 메서드 추가: 구역 dirty 표시만 수행 (재조판 스킵)
+    :13 [stem/stem_weak] - 카테고리 A 셀 편집 함수 7곳의 `recompose_section()` → `mark_section_dirty()` 치환:
+    :16 [stem/stem_weak] - **효과**: 셀 텍스트 편집 시 전체 구역 compose_section() O(N) 완전 스킵
+- [code] src/document_core/converters/hwpx_to_hwp.rs  channel=other binding=mention jev=0.19 rows=17
+    :41 [stem/stem_weak] pub section_def_controls_inserted: u32,
+    :60 [stem/stem_weak] + self.section_def_controls_inserted)
+    :71 [stem/stem_weak] /// - **SectionDef 컨트롤 삽입** (Stage 4) — `Section.section_def` 를 첫 문단의 `controls`
+- [code] src/parser/control/tests.rs  channel=other binding=mention jev=0.19 rows=15
+    :251 [stem/stem_weak] for section in &doc.sections {
+    :252 [stem/stem_weak] for para in &section.paragraphs {
+    :331 [stem/stem_weak] eprintln!("\n=== Tables in section 0 (first 30 paragraphs) ===");
+- [code] src/renderer/layout/paragraph_layout.rs  channel=other binding=mention jev=0.19 rows=44
+    :46 [stem/stem_weak] section_index: usize,
+    :359 [stem/stem_weak] section_index: Some(section_index),
+    :416 [stem/stem_weak] section_index,
+- [code] mydocs/orders/20260417.md  channel=doc binding=link jev=0.18 rows=2
+    :8 [stem/link] | [#164](https://github.com/edwardkim/rhwp/issues/164) | HWPX Serializer Stage 2.1 — section.xml 텍스트 IR 주입 + xml_escape | 완료 | "안녕 Hello 123" 정상 표시 |
+    :32 [stem/link] | [#186](https://github.com/edwardkim/rhwp/issues/186) | HWPX section.xml 완전 동적화 — secPr + 다중 run + Control dispatcher | 등록 | #182 Stage 2/3 이월분 |
+- [code] mydocs/working/task_m100_178_stage4.md  channel=doc binding=link jev=0.18 rows=10
+    :35 [stem/stem_weak] HWPX 파서가 `<hp:secPr>` 정보를 `Section.section_def` 로 채우지만,
+    :67 [stem/link] | [src/document_core/converters/hwpx_to_hwp.rs](src/document_core/converters/hwpx_to_hwp.rs) | `insert_section_def_control(section)` 추가 (PAGE_DEF 살리기 
+    :85 [stem/stem_weak] stage4_section_def_control_inserted ... ok                ← SectionDef 삽입 발생
+- [code] mydocs/eng/feedback/code-refactoring-strategy.md  channel=doc binding=mention jev=0.18 rows=10
+    :98 [stem/stem_weak] pub(crate) fn repaginate_section(&mut self, section_idx: usize) { ... }
+    :99 [stem/stem_weak] pub(crate) fn get_section(&self, idx: usize) -> Result<&Section, HwpError> { ... }
+    :234 [stem/stem_weak] fn insert_text(&mut self, section: usize, para: usize, offset: usize, text: &str) -> Result<(), HwpError>;
+- [code] mydocs/eng/tech/incremental_relayout_design.md  channel=doc binding=mention jev=0.18 rows=10
+    :15 [stem/stem_weak] | `dirty_sections: Vec<bool>` | document.rs | Section-level dirty flags |
+    :17 [stem/stem_weak] | `mark_section_dirty()` | rendering.rs:566 | Mark only a section as dirty (when composed is unchanged) |
+    :19 [stem/stem_weak] | `mark_all_sections_dirty()` | rendering.rs:634 | Mark everything dirty (initialization, etc.) |
+- [code] mydocs/plans/archives/task_89_impl.md  channel=doc binding=mention jev=0.18 rows=8
+    :73 [basename/mention] - `src/parser/hwpx/section.rs` — section XML 파싱 모듈
+    :153 [basename/mention] | `src/parser/hwpx/section.rs` | 3 | section*.xml → Section 변환 |
+    :168 [basename/mention] ├── section*.xml → Section  (section.rs)   ← quick-xml
+- [code] mydocs/report/rag_feature_analysis.md  channel=doc binding=mention jev=0.18 rows=9
+    :96 [stem/stem_weak] "section": 0,
+    :107 [stem/stem_weak] {"source":"docs/2025_사업계획서.hwp","section":0,"para":0,"text":"사업 계획서",...}
+    :172 [stem/stem_weak] "section": 1, "para": 12,
+- [code] rhwp-chrome/test/04-devtools.html  channel=test binding=mention jev=0.18 rows=4
+    :13 [stem/stem_weak] .section { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    :24 [stem/stem_weak] <div class="section">
+    :40 [stem/stem_weak] <div class="section">
+- [code] mydocs/eng/plans/archives/task_89.md  channel=doc binding=mention jev=0.17 rows=8
+    :104 [basename/mention] +-- section.rs         # section*.xml -> Section conversion
+    :24 [stem/stem_weak] |   +-- section0.xml         # Section body (paragraphs, tables, images, etc.)
+    :25 [stem/stem_weak] |   +-- section1.xml         # ...
+- [code] mydocs/working/archives/task_102_step4.md  channel=doc binding=mention jev=0.17 rows=11
+    :12 [stem/stem_weak] - `dirty_sections: Vec<bool>` 필드 추가 (구역별 재페이지네이션 필요 여부)
+    :13 [stem/stem_weak] - `recompose_section(section_idx)` 헬퍼 메서드: 구역 재구성 + dirty 마킹을 단일 호출로 통합
+    :14 [stem/stem_weak] - 편집 함수 27곳의 `compose_section()` 직접 호출을 `recompose_section()` 위임으로 기계적 치환
+- [code] rhwp-studio/src/engine/input-handler-text.ts  channel=other binding=mention jev=0.17 rows=13
+    :88 [stem/stem_weak] const { sectionIndex: sec, paragraphIndex: para } = pos;
+    :94 [stem/stem_weak] this.executeOperation({ kind: 'command', command: new MergeParagraphCommand({ sectionIndex: sec, paragraphIndex: para, charOffset: 0 }) });
+    :137 [stem/stem_weak] const sec = pos.sectionIndex;
+- [code] src/document_core/queries/bookmark_query.rs  channel=other binding=mention jev=0.17 rows=13
+    :63 [stem/stem_weak] let section = self
+    :65 [stem/stem_weak] .sections
+    :68 [stem/stem_weak] let paragraph = section
+- [code] mydocs/orders/20260402.md  channel=doc binding=link jev=0.16 rows=2
+    :13 [stem/link] | [#30](https://github.com/edwardkim/rhwp/issues/30) | 문단 삽입/삭제 후 페이지 수 과도 증가 | 완료 | measure_section off-by-one, TAC 표 높이 불일치, PartialTable v_offset, 
+    :20 [stem/stem_weak] - **페이지네이션 정확도**: 편집 후 재로드 결과 완전 일치 (measure_section 캐시 + 인덱스 조정)
+- [code] mydocs/orders/20260418.md  channel=doc binding=link jev=0.16 rows=2
+    :34 [stem/link] | [#186](https://github.com/edwardkim/rhwp/issues/186) | HWPX section.xml 완전 동적화 — secPr + 다중 run + Control dispatcher | 대기 | #182 Stage 2/3/4/5 이월분 통
+    :52 [stem/stem_weak] - `deabfc1` Task #182 Stage 2: section `<hp:p>`/`<hp:run>` IR 연결 (2026-04-17)
+- [code] mydocs/eng/feedback/cqrs-analysis.md  channel=doc binding=mention jev=0.16 rows=9
+    :20 [stem/stem_weak] 2. get_table_data(section=0, table=0)           <- Query  (parallelizable with 1)
+    :21 [stem/stem_weak] 3. get_table_data(section=0, table=1)           <- Query  (parallelizable with 1, 2)
+    :56 [stem/stem_weak] self.sections[section_idx].raw_stream = None;
+- [code] mydocs/eng/plans/archives/table_refactoring_plan.md  channel=doc binding=mention jev=0.16 rows=10
+    :116 [stem/stem_weak] section_index: usize,
+    :139 [stem/stem_weak] &inner_area, section_index, styles, bin_data_content,
+    :207 [stem/stem_weak] section_idx: usize,
+- [code] mydocs/eng/plans/archives/task_89_impl.md  channel=doc binding=mention jev=0.16 rows=13
+    :73 [basename/mention] - `src/parser/hwpx/section.rs` — section XML parsing module
+    :153 [basename/mention] | `src/parser/hwpx/section.rs` | 3 | section*.xml → Section conversion |
+    :168 [basename/mention] +-- section*.xml -> Section  (section.rs)   <- quick-xml
+- [code] mydocs/eng/working/archives/task_3_step_3.md  channel=doc binding=mention jev=0.16 rows=11
+    :9 [stem/stem_weak] | `src/parser/body_text.rs` | 866 | BodyText section/paragraph parsing (record tree -> Section/Paragraph) |
+    :32 [stem/stem_weak] Recursive decomposition via `parse_body_text_section()` -> `parse_paragraph()` -> `parse_ctrl_header()`.
+    :38 [stem/stem_weak] - **Extended controls** (8 code units = 16 bytes): 0x0002 (section/column), 0x0003 (field start), 0x000B (table/shape), etc.
+- [code] mydocs/feedback/cqrs-analysis.md  channel=doc binding=mention jev=0.16 rows=8
+    :20 [stem/stem_weak] 2. get_table_data(section=0, table=0)           ← Query  (1과 병렬 가능)
+    :21 [stem/stem_weak] 3. get_table_data(section=0, table=1)           ← Query  (1, 2와 병렬 가능)
+    :56 [stem/stem_weak] self.sections[section_idx].raw_stream = None;
+- [code] web/char_shape_dialog.js  channel=other binding=mention jev=0.16 rows=13
+    :136 [stem/stem_weak] sizeSection.className = 'dialog-section';
+    :147 [stem/stem_weak] langSection.className = 'dialog-section';
+    :149 [stem/stem_weak] langTitle.className = 'dialog-section-title';
+- [code] mydocs/eng/working/archives/task_102_step5.md  channel=doc binding=mention jev=0.15 rows=16
+    :12 [stem/stem_weak] - Added `mark_section_dirty()` method: Only marks section as dirty (skips retypesetting)
+    :13 [stem/stem_weak] - Replaced `recompose_section()` → `mark_section_dirty()` in 7 Category A cell editing functions:
+    :16 [stem/stem_weak] - **Effect**: Completely skips full section compose_section() O(N) during cell text editing
+- [code] mydocs/tech/incremental_relayout_design.md  channel=doc binding=mention jev=0.15 rows=8
+    :15 [stem/stem_weak] | `dirty_sections: Vec<bool>` | document.rs | 섹션 수준 dirty 플래그 |
+    :17 [stem/stem_weak] | `mark_section_dirty()` | rendering.rs:566 | 섹션만 dirty 마킹 (composed 불변 시) |
+    :19 [stem/stem_weak] | `mark_all_sections_dirty()` | rendering.rs:634 | 전체 dirty (초기화 등) |
+- [code] rhwp-chrome/test/01-auto-detect.html  channel=test binding=mention jev=0.15 rows=4
+    :13 [stem/stem_weak] .section { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    :21 [stem/stem_weak] <div class="section">
+    :30 [stem/stem_weak] <div class="section">
+- [code] rhwp-studio/src/engine/embed-commands.ts  channel=other binding=mention jev=0.15 rows=12
+    :134 [stem/stem_weak] position.sectionIndex,
+    :155 [stem/stem_weak] position.sectionIndex,
+    :165 [stem/stem_weak] position.sectionIndex,
+- [code] mydocs/eng/working/archives/task_47_final.md  channel=doc binding=mention jev=0.14 rows=8
+    :13 [stem/stem_weak] | 1 | `getSectionCount` | `() -> u32` | Query section count |
+    :14 [stem/stem_weak] | 2 | `getParagraphCount` | `(sec) -> u32` | Paragraph count within section |
+    :60 [stem/stem_weak] getParagraphCount(section_idx: number): number;
+- [code] mydocs/eng/plans/task_291.md  channel=doc binding=mention jev=0.13 rows=8
+    :7 [stem/stem_weak] displayed identically on all pages within a section.
+    :75 [stem/stem_weak] **Design Principle**: Master pages are identical across all pages in a section, so **build once → cache → reference**
+    :84 [stem/stem_weak] build_master_page_cache()  ← Pre-build master page render nodes for each section
+- [code] rhwp-chrome/test/02-data-hwp-protocol.html  channel=test binding=mention jev=0.13 rows=5
+    :13 [stem/stem_weak] .section { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    :24 [stem/stem_weak] <div class="section">
+    :63 [stem/stem_weak] <div class="section">
+- [code] rhwp-chrome/test/03-dynamic-content.html  channel=test binding=mention jev=0.12 rows=2
+    :11 [stem/stem_weak] .section { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    :23 [stem/stem_weak] <div class="section">
+- [code] mydocs/eng/tech/hwp_spec_errata.md  channel=doc binding=mention jev=0.11 rows=9
+    :69 [stem/stem_weak] | Actual meaning | **MSB = last paragraph of the current paragraph list (scope)**. When MSB=1, the paragraph is the last paragraph in the current scop
+    :186 [stem/stem_weak] | Section title mismatch | Page number properties (Table 150) are located in the "Character overlap" section -- table numbers are shifted by 2~3 |
+    :202 [stem/stem_weak] | Reference document | `troubleshootings/picture_save_hancom_compatibility.md` section 1 |
+- [code] scripts/dashboard.html  channel=script binding=mention jev=0.11 rows=2
+    :40 [stem/stem_weak] .section-title { padding: 16px 32px 8px; font-size: 14px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+    :51 [stem/stem_weak] <div class="section-title" id="delta-title" style="display:none">이전 대비 변동</div>
+- [code] mydocs/plans/archives/task_44_architecture.md  channel=doc binding=mention jev=0.10 rows=89
+    :17 [stem/stem_weak] → compose_section()     [Composer]
+    :18 [stem/stem_weak] → measure_section()     [HeightMeasurer]
+    :29 [stem/stem_weak] → compose_section() (전체)      [구역 전체 재구성]
+- [code] rhwp-studio/src/engine/command.ts  channel=other binding=mention jev=0.07 rows=46
+    :70 [stem/stem_weak] wasm.insertTextInCellByPath(pos.sectionIndex, pos.parentParaIndex!, cellPathJson(pos), pos.charOffset, text);
+    :72 [stem/stem_weak] wasm.insertTextInCell(pos.sectionIndex, pos.parentParaIndex!, pos.controlIndex!, pos.cellIndex!, pos.cellParaIndex!, pos.charOffset, text);
+    :74 [stem/stem_weak] wasm.insertText(pos.sectionIndex, pos.paragraphIndex, pos.charOffset, text);
+- [code] src/renderer/layout/picture_footnote.rs  channel=other binding=mention jev=0.07 rows=13
+    :34 [stem/stem_weak] section_index: Option<usize>,
+    :109 [stem/stem_weak] section_index,
+    :240 [stem/stem_weak] section_index: usize,
+- [code] CLAUDE.md  channel=doc binding=mention jev=- rows=2
+    :118 [stem/stem_weak] === 페이지 16 (global_idx=15, section=2, page_num=6) ===
+    :171 [stem/stem_weak] 5. HWPX XML 원본 확인 (header.xml / section0.xml)
+- [code] README.md  channel=doc binding=mention jev=- rows=2
+    :272 [stem/stem_weak] rhwp info sample.hwp                  # File info (size, version, sections, fonts)
+    :277 [stem/stem_weak] 1. `export-svg --debug-overlay` → Identify paragraphs/tables by `s{section}:pi={index} y={coord}`
+- [code] README_EN.md  channel=doc binding=mention jev=- rows=2
+    :290 [stem/stem_weak] rhwp info sample.hwp                  # File info (size, version, sections, fonts)
+    :295 [stem/stem_weak] 1. `export-svg --debug-overlay` → Identify paragraphs/tables by `s{section}:pi={index} y={coord}`
+- [code] examples/hwpx_dump_empty.rs  channel=other binding=mention jev=- rows=4
+    :20 [stem/stem_weak] let mut doc_with_section = doc;
+    :21 [stem/stem_weak] doc_with_section
+    :22 [stem/stem_weak] .sections
+- [code] examples/hwpx_dump_text.rs  channel=other binding=mention jev=- rows=3
+    :30 [stem/stem_weak] let mut section = Section::default();
+    :34 [stem/stem_weak] section.paragraphs.push(para);
+    :36 [stem/stem_weak] doc.sections.push(section);
+- [code] examples/hwpx_roundtrip.rs  channel=other binding=mention jev=- rows=3
+    :30 [stem/stem_weak] "Parsed: sections={}, paragraphs={}",
+    :31 [stem/stem_weak] doc.sections.len(),
+    :32 [stem/stem_weak] doc.sections
+- [code] mydocs/eng/feedback/code-complexity-recommendations.md  channel=doc binding=mention jev=- rows=3
+    :186 [stem/stem_weak] let para = &mut self.document.sections[si].paragraphs[pi];
+    :191 [stem/stem_weak] self.sections[si].raw_stream = None;
+    :205 [stem/stem_weak] let para = &mut self.document.sections[si].paragraphs[pi];
+- [code] mydocs/eng/feedback/post-refactoring-remaining-tasks.md  channel=doc binding=mention jev=- rows=2
+    :47 [stem/stem_weak] - Remove `paginate()` calls from Commands -> unify to a single `mark_dirty(section_idx)` line
+    :178 [stem/stem_weak] - Incremental pagination (recalculate only changed sections)
+- [code] mydocs/eng/feedback/r-code-review-4th.md  channel=doc binding=mention jev=- rows=3
+    :93 [basename/mention] | `parser/hwpx/section.rs` | 2,530 | 53 | 48 lines/fn | Excellent |
+    :133 [basename/mention] - section.rs 2,530 lines (53 functions, average 48 lines/function)
+    :184 [stem/stem_weak] - Multi-section document page transitions
+- [code] mydocs/eng/manual/dump_command.md  channel=doc binding=mention jev=- rows=4
+    :11 [stem/stem_weak] rhwp dump <file.hwp> [--section <number>] [--para <number>]
+    :18 [stem/stem_weak] | `--section <number>` | `-s` | Output only a specific section (0-based) |
+    :28 [stem/stem_weak] rhwp dump samples/basic/KTX.hwp --section 0
+- [code] mydocs/eng/manual/ir_diff_command.md  channel=doc binding=mention jev=- rows=3
+    :22 [stem/stem_weak] rhwp ir-diff <fileA> <fileB> [-s <section>] [-p <paragraph>]
+    :29 [stem/stem_weak] | `--section <number>` | `-s` | Compare only a specific section (0-based) |
+    :130 [stem/stem_weak] 3. **Inspect original HWPX XML** -- Extract the zip and examine header.xml / section0.xml
+- [code] mydocs/eng/manual/onboarding_guide.md  channel=doc binding=mention jev=- rows=5
+    :106 [stem/stem_weak] - **Paragraphs**: Alternating-color dashed borders + `s{section}:pi={index} y={coordinate}` label (top-left)
+    :107 [stem/stem_weak] - **Tables**: Red dashed borders + `s{section}:pi={index} ci={control} {rows}x{cols} y={coordinate}` label (top-right)
+    :127 [stem/stem_weak] === Page 16 (global_idx=15, section=2, page_num=6) ===
+- [code] mydocs/eng/orders/20260212.md  channel=doc binding=mention jev=- rows=1
+    :6 [stem/stem_weak] | 44 | Editing engine architecture design | Done | 10-section architecture design completed. 6 modules analyzed, 3-layer flow engine, incremental layo
+- [code] mydocs/eng/orders/20260213.md  channel=doc binding=mention jev=- rows=2
+    :9 [stem/stem_weak] | 53 | Bottom status bar (Status Bar) UI | Done | Hancom Web Gian-gi identical bottom status bar. Page (X/Y pages), section (Section: X/Y), insert/ove
+    :18 [stem/stem_weak] | 62 | Page setup dialog UI | Done | Hancom Web Gian-gi identical page setup modal dialog. WASM getPageDef/setPageDef API (HWPUNIT original values), m
+- [code] mydocs/eng/orders/20260215.md  channel=doc binding=mention jev=- rows=1
+    :18 [stem/stem_weak] | 89 | HWPX file format support | Done | HWPX (ZIP+XML) parser 5 modules implemented. header.xml->DocInfo, section*.xml->Section, content.hpf->section
+- [code] mydocs/eng/orders/20260217.md  channel=doc binding=mention jev=- rows=1
+    :20 [stem/stem_weak] | B-003 | Page break remaining space/line height accurate measurement | 2026-02-17 | Current HeightMeasurer line height (line_height+line_spacing) and
+- [code] mydocs/eng/orders/20260220.md  channel=doc binding=mention jev=- rows=2
+    :7 [stem/stem_weak] | 121 | Paragraph shape settings dialog UI | Done | All 4 tabs implemented. Basic (alignment/margin/first line/spacing/preview), Extended (paragraph t
+    :8 [stem/stem_weak] | 122 | Paragraph outline number/bullet rendering completion | Done | Bullet parsing (HWPTAG_BULLET)/rendering, SectionDef.outline_numbering_id parsin
+- [code] mydocs/eng/orders/20260221.md  channel=doc binding=mention jev=- rows=1
+    :14 [stem/stem_weak] | 134 | CFB error file recovery open | Done | "Malformed FAT (sector 0 pointed to twice)" error file opened normally with LenientCfbReader fallback. p
+- [code] mydocs/eng/orders/20260224.md  channel=doc binding=mention jev=- rows=1
+    :10 [stem/stem_weak] | 162 | Custom tab stops and tab leader (fill symbol) rendering | Done | Tab position /2.0 scale correction, left/right/center/decimal tab alignment, 
+- [code] mydocs/eng/orders/20260308.md  channel=doc binding=mention jev=- rows=1
+    :7 [stem/stem_weak] | 194 | Header/footer management features | Done | Delete, previous/next navigation, hide, toolbar enhancement, section inheritance bug fix, internal 
+- [code] mydocs/eng/orders/20260312.md  channel=doc binding=mention jev=- rows=2
+    :10 [stem/stem_weak] | 214 | Single-pass layout engine transition -- Phase 1: Paragraph typesetting | Done | TypesetEngine (typeset.rs) new. format -> fits -> place/split 
+    :23 [stem/stem_weak] | B-014 | kps-ai.hwp p66 blank page creation during table split | 2026-03-12 | Unresolved | Table > cell > nested table structure: approx_end < row_co
+- [code] mydocs/eng/orders/20260318.md  channel=doc binding=mention jev=- rows=1
+    :17 [stem/stem_weak] | 261 | Page reflow fundamental fix | Done | recalculate_section_vpos introduced + applied to all editing operations + column_start error fix |
+- [code] mydocs/eng/orders/20260322.md  channel=doc binding=mention jev=- rows=2
+    :19 [stem/stem_weak] | 323 | Header/footer Shape rendering + even/odd page selection | Done | Shape rendering added + even/odd header selection (section inheritance -> pag
+    :21 [stem/stem_weak] | 325 | Cross-section paragraph number continuity fix | Done | Number replay includes previous section pages. exam_social page 2 starts from number 6 
+- [code] mydocs/eng/orders/20260323.md  channel=doc binding=mention jev=- rows=3
+    :19 [stem/stem_weak] | 323 | Header/footer Shape rendering + even/odd page selection | Done | Shape rendering added + even/odd header selection (section inheritance -> pag
+    :21 [stem/stem_weak] | 325 | Cross-section paragraph number continuity fix | Done | Number replay includes previous section pages. exam_social page 2 starts from number 6 
+    :28 [stem/stem_weak] | 333 | Debug overlay feature implementation | Done | export-svg --debug-overlay flag. s{section}:pi={paragraph} label + paragraph boundary (dashed) +
+- [code] mydocs/eng/plans/archives/task_121.md  channel=doc binding=mention jev=- rows=2
+    :52 [stem/stem_weak] | `src/parser/body_text.rs` | Modify | Add horizontal_align field to section definition parser |
+    :53 [stem/stem_weak] | `src/serializer/control.rs` | Modify | Add horizontal_align field to section definition serialization |
+- [code] mydocs/eng/plans/archives/task_122_impl.md  channel=doc binding=mention jev=- rows=4
+    :6 [stem/stem_weak] **Steps 4~7**: Additional (local build, diagnostic tools, section outline numbering, integration verification)
+    :37 [stem/stem_weak] - Add local build commands to CLAUDE.md build section
+    :75 [stem/stem_weak] - Outline paragraphs have ParaShape.numbering_id=0, referencing Numbering via section's numbering_id
+- [code] mydocs/eng/plans/archives/task_130.md  channel=doc binding=mention jev=- rows=1
+    :52 [stem/stem_weak] // Existing fields (version, sectionCount, pageCount, encrypted, fallbackFont)
+- [code] mydocs/eng/plans/archives/task_132.md  channel=doc binding=mention jev=- rows=5
+    :20 [stem/stem_weak] | Table Paragraph creation pattern | Complete example exists in `inject_html_tables_to_section()` (wasm_api.rs:8560-8720) |
+    :41 [stem/stem_weak] section_idx: u32,
+    :54 [stem/stem_weak] 5. Create Table struct (reuse existing `inject_html_tables_to_section` pattern):
+- [code] mydocs/eng/plans/archives/task_133.md  channel=doc binding=mention jev=- rows=3
+    :70 [stem/stem_weak] //          return { sectionIndex: sec, paragraphIndex: para + 1, charOffset: 0 };
+    :74 [stem/stem_weak] return { sectionIndex: sec, paragraphIndex: result.paraIdx, charOffset: 0 };
+    :91 [stem/stem_weak] **API**: `createBlankDocument() → JSON(version, sectionCount, pageCount, fontsUsed)`
+- [code] mydocs/eng/plans/archives/task_142_impl.md  channel=doc binding=mention jev=- rows=2
+    :220 [stem/stem_weak] ├── mod.rs               ← compose_section(), compose_paragraph() entry points, data structures
+    :299 [stem/stem_weak] ├── body_text.rs         ← parse_body_text_section(), record tree processing (~500 lines)
+- [code] mydocs/eng/plans/archives/task_154.md  channel=doc binding=mention jev=- rows=5
+    :49 [basename/mention] - `<hp:ctrl>` elements are **entirely skipped** (section.rs:184-186) → fields, bookmarks, hyperlinks all ignored
+    :65 [basename/mention] | HWPX `<inMargin>` not parsed | `parser/hwpx/section.rs:464` | Added `table.padding` parsing |
+    :117 [basename/mention] | secPr page margins | HWPX page margin consistency | Check section.rs parsing |
+- [code] mydocs/eng/plans/archives/task_155.md  channel=doc binding=mention jev=- rows=1
+    :19 [stem/stem_weak] - Object rotation, skew, and other sections are missing
+- [code] mydocs/eng/plans/archives/task_157_impl.md  channel=doc binding=mention jev=- rows=2
+    :18 [stem/stem_weak] - Input: `section_idx, para_idx, char_offset, width, height, horz_offset, vert_offset, wrap_type`
+    :21 [stem/stem_weak] - After insertion: `recompose_section()`, `paginate_if_needed()`
+- [code] mydocs/eng/plans/archives/task_166.md  channel=doc binding=mention jev=- rows=1
+    :28 [stem/stem_weak] **Adding `columnIndex` field to `DocumentPosition` is unnecessary.** Columns are a rendering concept, and columns are determined by the combination of
+- [code] mydocs/eng/plans/archives/task_166_impl.md  channel=doc binding=mention jev=- rows=1
+    :28 [stem/stem_weak] - `para_column_map[section_idx][para_idx] = column_index` — paragraph's **primary column** (determined during pagination)
+- [code] mydocs/eng/plans/archives/task_175.md  channel=doc binding=mention jev=- rows=1
+    :40 [stem/stem_weak] Single key with full settings as JSON → only add sections for extension. Version field for migration support. Read/write API: `UserSettings.get(path)`
+- [code] mydocs/eng/plans/archives/task_175_impl.md  channel=doc binding=mention jev=- rows=2
+    :19 [stem/stem_weak] 1. Create `options-dialog.ts` — ModalDialog subclass, Font tab (recent fonts, representative font registration section)
+    :39 [stem/stem_weak] 2. "Representative Fonts" section divider + font set list in dropdown
+- [code] mydocs/eng/plans/archives/task_181_impl.md  channel=doc binding=mention jev=- rows=1
+    :14 [basename/mention] | `src/parser/hwpx/section.rs` | Modify `parse_equation()`: extract script from `<hp:script>` element |
+- [code] mydocs/eng/plans/archives/task_185.md  channel=doc binding=mention jev=- rows=1
+    :19 [stem/stem_weak] Debug trace results (page_idx=3, section 1):
+- [code] mydocs/eng/plans/archives/task_185_impl.md  channel=doc binding=mention jev=- rows=1
+    :29 [stem/stem_weak] - Verify composed data is correctly passed at section boundaries
+- [code] mydocs/eng/plans/archives/task_194.md  channel=doc binding=mention jev=- rows=2
+    :27 [stem/stem_weak] - Switch within same section: header→footer, footer→header
+    :28 [stem/stem_weak] - Navigate to next section's headers/footers
+- [code] mydocs/eng/plans/archives/task_194_impl.md  channel=doc binding=mention jev=- rows=2
+    :21 [stem/stem_weak] - Add `get_header_footer_list_native` to `header_footer_ops.rs` — returns list of all headers/footers across sections
+    :25 [stem/stem_weak] - `cursor.ts`: Add `switchHeaderFooter(sectionIdx, isHeader, applyTo)`
+- [code] mydocs/eng/plans/archives/task_195.md  channel=doc binding=mention jev=- rows=1
+    :11 [stem/stem_weak] | PageNumberPos model | Complete (section-level page number position setting) |
+- [code] mydocs/eng/plans/archives/task_195_impl.md  channel=doc binding=mention jev=- rows=1
+    :11 [stem/stem_weak] - `header_footer_ops.rs`: Add `insert_field_in_hf_native(section_idx, is_header, apply_to, hf_para_idx, char_offset, field_type: u8)` (field_type: 1=p
+- [code] mydocs/eng/plans/archives/task_213.md  channel=doc binding=mention jev=- rows=3
+    :10 [stem/stem_weak] - **Problem 3 (Current)**: p67~p68 composed only of empty paragraphs (para 675~751, text="", controls=0) rendering as empty pages. These empty paragra
+    :18 [stem/stem_weak] 1. Pagination engine's `paginate_paragraphs()` traverses cell internal paragraphs in the section-level paragraph list and continues beyond the table r
+    :19 [stem/stem_weak] 2. Table control's cell paragraph indices are confused with section paragraph indices, judging para 675~ as external
+- [code] mydocs/eng/plans/archives/task_214.md  channel=doc binding=mention jev=- rows=1
+    :27 [stem/stem_weak] - `typeset_section()` — entry point (paragraphs + page_def + styles → TypesetResult)
+- [code] mydocs/eng/plans/archives/task_215.md  channel=doc binding=mention jev=- rows=1
+    :78 [stem/stem_weak] | TYPESET_VERIFY table section differences | 3 documents with differences | 0 cases |
+- [code] mydocs/eng/plans/archives/task_22.md  channel=doc binding=mention jev=- rows=1
+    :22 [stem/stem_weak] → compose_section() [line splitting based on line_segs]
+- [code] mydocs/eng/plans/archives/task_225.md  channel=doc binding=mention jev=- rows=1
+    :11 [stem/stem_weak] - synam-001.hwp's `section_def.flags = 0x00080000` → bit 19 = 1 (hide empty lines enabled)
+- [code] mydocs/eng/plans/archives/task_226.md  channel=doc binding=mention jev=- rows=5
+    :5 [stem/stem_weak] Add "Section Settings(E)..." menu item to the Page menu, and implement a dialog to view/modify section settings at the current caret position.
+    :10 [stem/stem_weak] - `get_section_def(section_idx)` → return SectionDef as JSON
+    :11 [stem/stem_weak] - `set_section_def(section_idx, json)` → modify SectionDef and re-paginate
+- [code] mydocs/eng/plans/archives/task_238_impl.md  channel=doc binding=mention jev=- rows=2
+    :11 [stem/stem_weak] - Traverse section → paragraph → text
+    :18 [stem/stem_weak] - Call recompose_section
+- [code] mydocs/eng/plans/archives/task_24.md  channel=doc binding=mention jev=- rows=1
+    :30 [stem/stem_weak] - Paragraph path: section → paragraph (table control owner) → control (Table) → cell → cell paragraph
+- [code] mydocs/eng/plans/archives/task_240.md  channel=doc binding=mention jev=- rows=1
+    :28 [basename/mention] - HWPX XML parser (`src/parser/hwpx/section.rs`)
+- [code] mydocs/eng/plans/archives/task_24_impl.md  channel=doc binding=mention jev=- rows=4
+    :5 [stem/stem_weak] 1. **TextRunNode**: Only has `section_index`, `para_index` → cannot identify cell-internal paragraphs
+    :6 [stem/stem_weak] 2. **layout_table()**: Hardcodes `section_index=0, para_index=0` when rendering cell paragraphs (layout.rs:1131)
+    :7 [stem/stem_weak] 3. **insert_text/delete_text API**: Only supports `(section_idx, para_idx, char_offset)` → cannot access cell paragraphs
+- [code] mydocs/eng/plans/archives/task_27.md  channel=doc binding=mention jev=- rows=1
+    :33 [stem/stem_weak] `samples/k-water-rfp.hwp` (30 pages, 2 sections):
+- [code] mydocs/eng/plans/archives/task_3.md  channel=doc binding=mention jev=- rows=1
+    :67 [stem/stem_weak] - BodyText: paragraphs (text, char shape refs, line segments), section def, column def
+- [code] mydocs/eng/plans/archives/task_31_impl.md  channel=doc binding=mention jev=- rows=2
+    :57 [stem/stem_weak] 1. Verify `ColumnDef::default()` matches actual section's multi-column settings
+    :62 [stem/stem_weak] - Use actual section's `column_def` instead of `ColumnDef::default()` (multi-column layout support)
+- [code] mydocs/eng/plans/archives/task_32.md  channel=doc binding=mention jev=- rows=1
+    :59 [stem/stem_weak] | Performance after format application reflow | Optimize to reflow only changed sections |
+- [code] mydocs/eng/plans/archives/task_3_impl.md  channel=doc binding=mention jev=- rows=4
+    :61 [stem/stem_weak] Parse sections and paragraphs. Map paragraph text and style references to the IR.
+    :63 [stem/stem_weak] - `src/parser/body_text.rs` creation — BodyText section parsing
+    :64 [stem/stem_weak] - Iterate per-section streams (`BodyText/Section0`, `Section1`, ...)
+- [code] mydocs/eng/plans/archives/task_44.md  channel=doc binding=mention jev=- rows=1
+    :8 [stem/stem_weak] - **Batch pipeline**: entire section recomposition + full re-pagination for single character edit
+- [code] mydocs/eng/plans/archives/task_44_architecture.md  channel=doc binding=mention jev=- rows=6
+    :17 [stem/stem_weak] → compose_section()     [Composer]
+    :18 [stem/stem_weak] → measure_section()     [HeightMeasurer]
+    :29 [stem/stem_weak] → compose_section() (full)      [Full section recomposition]
+- [code] mydocs/eng/plans/archives/task_47.md  channel=doc binding=mention jev=- rows=1
+    :14 [stem/stem_weak] | 2 | **getParagraphCount** | `(sec) -> u32` | Paragraph count in section |
+- [code] mydocs/eng/plans/archives/task_48.md  channel=doc binding=mention jev=- rows=1
+    :39 [stem/stem_weak] - Return: `{sectionIndex, paragraphIndex, charOffset}`
+- [code] mydocs/eng/plans/archives/task_4_impl.md  channel=doc binding=mention jev=- rows=3
+    :104 [stem/stem_weak] - CharShapeRef intersection segment splitting within each line:
+    :108 [stem/stem_weak] - `compose_section(section: &Section, styles: &ResolvedStyleSet) -> Vec<ComposedParagraph>` function
+    :218 [stem/stem_weak] ���─ compose_section() ──→ Vec<ComposedParagraph> ──┐            │
+- [code] mydocs/eng/plans/archives/task_50_impl.md  channel=doc binding=mention jev=- rows=1
+    :38 [stem/stem_weak] { "sectionIndex": 0, "paragraphIndex": 2, "charOffset": 5 }
+- [code] mydocs/eng/plans/archives/task_51_impl.md  channel=doc binding=mention jev=- rows=5
+    :35 [stem/stem_weak] Body: (sectionIndex, paragraphIndex, charOffset) lexicographic order
+    :59 [stem/stem_weak] &self, section_idx: u32,
+    :66 [stem/stem_weak] &self, section_idx: u32, parent_para_idx: u32, control_idx: u32, cell_idx: u32,
+- [code] mydocs/eng/plans/archives/task_52_impl.md  channel=doc binding=mention jev=- rows=1
+    :231 [stem/stem_weak] return this.wasm.getCharPropertiesAt(pos.sectionIndex, pos.paragraphIndex, pos.charOffset);
+- [code] mydocs/eng/plans/archives/task_53.md  channel=doc binding=mention jev=- rows=1
+    :16 [stem/stem_weak] - Left side: page info, section info, insert/overwrite mode
+- [code] mydocs/eng/plans/archives/task_60_impl.md  channel=doc binding=mention jev=- rows=1
+    :6 [stem/stem_weak] 2. Pass `styles` argument at `measure_section()` call site
+- [code] mydocs/eng/plans/archives/task_62.md  channel=doc binding=mention jev=- rows=1
+    :50 [stem/stem_weak] | `src/wasm_api.rs` | `getPageDef(sectionIdx)` — return HWPUNIT raw values, `setPageDef(sectionIdx, json)` — apply values + re-paginate |
+- [code] mydocs/eng/plans/archives/task_65.md  channel=doc binding=mention jev=- rows=1
+    :34 [stem/stem_weak] | `src/renderer/layout.rs` | Propagate CellContext in `layout_textbox_content()` — add section_index, para_index, control_index parameters |
+- [code] mydocs/eng/plans/archives/task_65_impl.md  channel=doc binding=mention jev=- rows=4
+    :7 [stem/stem_weak] 1. `layout_shape()` (line 3359): Add `section_index` parameter
+    :11 [stem/stem_weak] 2. `layout_shape_object()` (line 3447): Add `section_index, para_index, control_index` parameters
+    :15 [stem/stem_weak] 3. `layout_textbox_content()` (line 3606): Add `section_index, para_index, control_index` parameters
+- [code] mydocs/eng/plans/archives/task_78.md  channel=doc binding=mention jev=- rows=1
+    :7 [stem/stem_weak] ### Document Structure (page 2 relevant section)
+- [code] mydocs/eng/plans/archives/task_83_impl.md  channel=doc binding=mention jev=- rows=1
+    :13 [stem/stem_weak] &self, section_idx: u32, parent_para_idx: u32, control_idx: u32,
+- [code] mydocs/eng/plans/archives/task_90.md  channel=doc binding=mention jev=- rows=3
+    :24 [basename/mention] ### section.rs Gaps
+    :39 [basename/mention] | Utility function duplication | header.rs, section.rs each have separate local_name, attr_str, parse_u8..parse_u32 | Extract to common module |
+    :50 [basename/mention] - `src/parser/hwpx/section.rs` — table cell/image/special character/control parsing improvements
+- [code] mydocs/eng/plans/archives/task_90_impl.md  channel=doc binding=mention jev=- rows=5
+    :15 [basename/mention] - `src/parser/hwpx/section.rs` — remove duplicates, use utils
+    :19 [basename/mention] 1. **utils.rs new creation** — extract duplicate functions from header.rs and section.rs:
+    :67 [basename/mention] ### Step 2: section.rs Text/Special Characters/Table Cell Parsing Improvements
+- [code] mydocs/eng/plans/archives/task_91.md  channel=doc binding=mention jev=- rows=5
+    :33 [basename/mention] - `src/parser/hwpx/section.rs` — no column-related XML element parsing
+    :70 [basename/mention] | `src/parser/hwpx/section.rs` | HWPX multi-column XML parsing |
+    :21 [stem/stem_weak] - `src/wasm_api.rs:1706` — ignores section's actual ColumnDef and uses default
+- [code] mydocs/eng/plans/archives/task_91_impl.md  channel=doc binding=mention jev=- rows=7
+    :63 [basename/mention] **Modified files**: `src/renderer/layout.rs`, `src/parser/hwpx/section.rs`
+    :74 [basename/mention] **B. HWPX multi-column parsing** (`src/parser/hwpx/section.rs`):
+    :92 [basename/mention] | `src/parser/hwpx/section.rs` | 3 | HWPX multi-column parsing |
+- [code] mydocs/eng/plans/archives/task_95.md  channel=doc binding=mention jev=- rows=1
+    :10 [stem/stem_weak] - Master pages are section-level page templates, configurable in 3 types: both pages / odd pages / even pages
+- [code] mydocs/eng/plans/archives/task_95_impl.md  channel=doc binding=mention jev=- rows=4
+    :10 [stem/stem_weak] - `src/parser/body_text.rs`: Modify `parse_section_def()`
+    :23 [stem/stem_weak] - Collect master_pages per section → odd/even page selection logic
+    :29 [stem/stem_weak] - `src/renderer/layout.rs`: Add sections parameter to build_render_tree(), insert MasterPage node
+- [code] mydocs/eng/plans/task_255.md  channel=doc binding=mention jev=- rows=1
+    :24 [stem/stem_weak] | `find_footnote_control()` | Locate footnote control by (para_idx, control_idx) within section |
+- [code] mydocs/eng/plans/task_261.md  channel=doc binding=mention jev=- rows=1
+    :13 [stem/stem_weak] - Original HWP: Each paragraph's `line_segs.vertical_pos` is an absolute value relative to **section start**
+- [code] mydocs/eng/plans/task_266.md  channel=doc binding=mention jev=- rows=1
+    :11 [stem/stem_weak] - Add to existing control codes (section break, page break, etc.):
+- [code] mydocs/eng/plans/task_309.md  channel=doc binding=mention jev=- rows=1
+    :27 [basename/mention] - Add vertAlign, horzAlign to `_ => {}` at `section.rs:549`
+- [code] mydocs/eng/plans/task_315.md  channel=doc binding=mention jev=- rows=6
+    :12 [stem/stem_weak] - Initial ColumnDef (column definition) exists in the first paragraph of a section — alongside SectionDef
+    :13 [stem/stem_weak] - Multiple ColumnDefs possible within a section (column split breaks)
+    :14 [stem/stem_weak] - `find_initial_column_def()`: Extracts initial ColumnDef for a section
+- [code] mydocs/eng/plans/task_321.md  channel=doc binding=mention jev=- rows=2
+    :66 [stem/stem_weak] 4. Extended Both (last page): **Replaces** Odd/Even/Both on the last page of the section
+    :92 [stem/stem_weak] fn select_master_page(mps, page_number, is_last_page, section_page_count) -> (Option<&MasterPage>, Vec<&MasterPage>)
+- [code] mydocs/eng/plans/task_m100_30.md  channel=doc binding=mention jev=- rows=4
+    :5 [stem/stem_weak] Fix the bug where paragraph split (Enter) or merge (Backspace) causes an excessive page count increase due to an off-by-one indexing bug in `measure_s
+    :14 [stem/stem_weak] Index mismatch occurs in `measure_section_selective` after paragraph insertion:
+    :28 [stem/stem_weak] - `insert_composed_paragraph`: Change to `dirty_paragraphs[section_idx] = None` (force full re-measurement)
+- [code] mydocs/eng/plans/task_m100_5.md  channel=doc binding=mention jev=- rows=2
+    :32 [basename/mention] - Parse `cellzoneList > cellzone` in HWPX parser (`section.rs`)
+    :50 [basename/mention] - `src/parser/hwpx/section.rs` — cellzoneList parsing
+- [code] mydocs/eng/report/issue2_context.md  channel=doc binding=mention jev=- rows=6
+    :69 [stem/stem_weak] | `dirty_sections` | document.rs | Section-level dirty flags |
+    :71 [stem/stem_weak] | `mark_section_dirty()` | rendering.rs | Mark only a section as dirty |
+    :80 [stem/stem_weak] | `measure_section_selective()` | Re-measure only dirty paragraphs, reuse cache for rest |
+- [code] mydocs/eng/report/midterm_review_day21.md  channel=doc binding=mention jev=- rows=2
+    :21 [stem/stem_weak] | Spec written (Day 8) | 56 | Per task_43_feature_def.md section 3.2 |
+    :600 [stem/stem_weak] Per the feature spec section 7's 4-Phase roadmap:
+- [code] mydocs/eng/report/table_algorithm_research.md  channel=doc binding=mention jev=- rows=4
+    :35 [stem/stem_weak] **Current**: A single character edit in a cell triggers full `compose_section()` + `measure_section()` + `paginate()`
+    :234 [stem/stem_weak] let path = [section_id, para_id, table_id, cell_id, nested_table_id];
+    :295 [stem/stem_weak] | - measure_section() re-call has effective cost     |
+- [code] mydocs/eng/report/task_24_final.md  channel=doc binding=mention jev=- rows=2
+    :12 [stem/stem_weak] | `src/renderer/layout.rs` | CellContext struct, cell_ctx parameter for layout_composed_paragraph, section_index parameter for layout_table |
+    :23 [stem/stem_weak] -> reflow_cell_paragraph(cell-width-based) -> compose_section -> paginate
+- [code] mydocs/eng/report/task_2_final.md  channel=doc binding=mention jev=- rows=1
+    :84 [stem/stem_weak] mydocs/tech/rendering_engine_design.md   Architecture design document (11 sections)
+- [code] mydocs/eng/report/task_36_final.md  channel=doc binding=mention jev=- rows=1
+    :22 [stem/stem_weak] - SVG: `<defs>` section management, `<linearGradient>/<radialGradient>` generation
+- [code] mydocs/eng/report/task_3_final.md  channel=doc binding=mention jev=- rows=2
+    :31 [stem/stem_weak] | body_text | `src/parser/body_text.rs` | 920 | BodyText section/paragraph parsing |
+    :49 [stem/stem_weak] +-- Parse BodyText sections (body_text + control)
+- [code] mydocs/eng/report/task_43_final.md  channel=doc binding=mention jev=- rows=1
+    :80 [stem/stem_weak] | **Feature definition** | `mydocs/plans/task_43_feature_def.md` | 1626 lines, 7 sections + appendix (final deliverable) |
+- [code] mydocs/eng/report/task_90_final.md  channel=doc binding=mention jev=- rows=4
+    :10 [basename/mention] - Removed 120 lines of duplicate functions from header.rs/section.rs
+    :14 [basename/mention] ### Step 2: section.rs Image/Table/Special Character Enhancement
+    :52 [basename/mention] | `src/parser/hwpx/section.rs` | Modified | Image/table cell/special character enhancements |
+- [code] mydocs/eng/tech/dev_roadmap_v1_backup.md  channel=doc binding=mention jev=- rows=3
+    :177 [stem/stem_weak] doc.insert_text(section, para, offset, text)        # Insert text
+    :178 [stem/stem_weak] doc.delete_text(section, para, start, end)          # Delete text
+    :251 [stem/stem_weak] | `create_hwp` | Create HWP from structured data | sections: JSON, path: string | Success/failure |
+- [code] mydocs/eng/tech/equation_support_status.md  channel=doc binding=mention jev=- rows=2
+    :62 [stem/stem_weak] | INTER | intersection | Intersection |
+    :65 [stem/stem_weak] | BIGINTER | big intersection | Big intersection |
+- [code] mydocs/eng/tech/hexagonal_architecture_review.md  channel=doc binding=mention jev=- rows=2
+    :76 [stem/stem_weak] pub measured_sections: Vec<MeasuredSection>,         // renderer::height_measurer
+    :99 [stem/stem_weak] self.reflow_line_segs(section_idx, para_idx);  // calls renderer's composer
+- [code] mydocs/eng/tech/hwp_ctrl_data.md  channel=doc binding=mention jev=- rows=1
+    :63 [stem/stem_weak] - Supplementary metadata for section settings
+- [code] mydocs/eng/tech/hwp_hwpx_ir_differences.md  channel=doc binding=mention jev=- rows=1
+    :44 [stem/stem_weak] - `vpos`: absolute position from section start (pre-calculated)
+- [code] mydocs/eng/tech/hwp_save_guide.md  channel=doc binding=mention jev=- rows=4
+    :75 [stem/stem_weak] | caret_list_id | 0 | Body section 0 |
+    :161 [stem/stem_weak] | section_count | u16 | 2 |
+    :419 [stem/stem_weak] **Note**: `memo_index` is not in the official spec but **4 bytes must be serialized**. If omitted, Hancom reports CTRL_HEADER size mismatch -> file co
+- [code] mydocs/eng/tech/hwpers_analysis.md  channel=doc binding=mention jev=- rows=1
+    :257 [stem/stem_weak] - BodyText: section/column definition paragraph missing
+- [code] mydocs/eng/tech/incremental_layout_research.md  channel=doc binding=mention jev=- rows=1
+    :19 [stem/stem_weak] │   └─ SwSectionFrame (section)
+- [code] mydocs/eng/tech/layout_engine_research.md  channel=doc binding=mention jev=- rows=2
+    :284 [stem/stem_weak] - TypesetEngine accurately handles sections containing tables
+    :285 [stem/stem_weak] - Goal: 0 differences in TYPESET_VERIFY for table sections
+- [code] mydocs/eng/tech/project_vision.md  channel=doc binding=mention jev=- rows=2
+    :468 [stem/stem_weak] | **Pagination** | Complete | Multi-column/multi-section, table page splitting (intra-row), body clipping (clipPath) |
+    :568 [stem/stem_weak] | 5 | Extend existing skill docs | Add one section: "Use `rhwp.html_to_hwp()` when HWP output is needed" |
+- [code] mydocs/eng/tech/rendering_engine_design.md  channel=doc binding=mention jev=- rows=1
+    :353 [stem/stem_weak] | Section | Per-section page settings, single/multi-section |
+- [code] mydocs/eng/tech/single_pass_layout_design.md  channel=doc binding=mention jev=- rows=3
+    :58 [stem/stem_weak] for each paragraph in section:
+    :131 [stem/stem_weak] let measured = height_measurer.measure_section(&paragraphs);
+    :141 [stem/stem_weak] let result = layout_engine.typeset_section(&paragraphs, &page_def, &styles);
+- [code] mydocs/eng/tech/webhwp_table_functions.md  channel=doc binding=mention jev=- rows=1
+    :12 [stem/stem_weak] | `Cbr()` | Corner border rendering. Clipping region for intersection handling | `clip`, `stroke` |
+- [code] mydocs/eng/troubleshootings/line_spacing_lineseg_sync.md  channel=doc binding=mention jev=- rows=3
+    :38 [stem/stem_weak] `apply_para_format_native()` only changed ParaShape and called `rebuild_section()`.
+    :39 [stem/stem_weak] However, `rebuild_section()` -> `recompose_section()` -> `compose_section()` only reads
+    :65 [stem/stem_weak] call `reflow_line_segs()` before `rebuild_section()` to update LineSeg:
+- [code] mydocs/eng/troubleshootings/picture_save_hancom_compatibility.md  channel=doc binding=mention jev=- rows=2
+    :96 [stem/stem_weak] section = ole.openstream('BodyText/Section0').read()
+    :97 [stem/stem_weak] data = zlib.decompress(section, -15)
+- [code] mydocs/eng/troubleshootings/table_paste_file_corruption.md  channel=doc binding=mention jev=- rows=6
+    :70 [stem/stem_weak] This rule applies uniformly to all paragraph lists: sections, cells, text boxes, headers/footers, etc.
+    :72 [stem/stem_weak] Therefore, MSB=1 was required in the empty document case because the table paragraph was the only (= last) paragraph in the section. MSB=0 was needed 
+    :143 [stem/stem_weak] - `save_test_section_only.hwp` (Section only re-serialization) -> Normal
+- [code] mydocs/eng/troubleshootings/task_70_page_number_false_completion.md  channel=doc binding=mention jev=- rows=1
+    :102 [stem/stem_weak] However, the cross-reference errors and section title mismatches in the spec document could cause similar mistakes in future parsing work, so caution 
+- [code] mydocs/eng/working/archives/task_102_step1.md  channel=doc binding=mention jev=- rows=3
+    :27 [basename/mention] - `src/parser/hwpx/section.rs`: HWPX XML parser — called just before table parsing completion
+    :56 [basename/mention] | `src/parser/hwpx/section.rs` | +1 line |
+    :36 [stem/stem_weak] - `src/wasm_api.rs`: Added `measured_tables: Vec<Vec<MeasuredTable>>` field to HwpDocument. Preserves per-section table measurement data after paginat
+- [code] mydocs/eng/working/archives/task_102_step3.md  channel=doc binding=mention jev=- rows=1
+    :21 [stem/stem_weak] - `get_table_by_path()`: Gets mutable reference via section index + DocumentPath
+- [code] mydocs/eng/working/archives/task_122_report.md  channel=doc binding=mention jev=- rows=3
+    :38 [stem/stem_weak] - Renderer: Falls back to section's outline_numbering_id when Outline paragraph's numbering_id=0
+    :63 [stem/stem_weak] - **Outline paragraphs are managed at the section level**: ParaShape.numbering_id=0, references Numbering via numbering_id at SectionDef bytes 14-15
+    :64 [stem/stem_weak] - **Hancom help confirms**: "Outline numbers can change shape per section. Within a section, all outline numbers have the same shape"
+- [code] mydocs/eng/working/archives/task_142_step4.md  channel=doc binding=mention jev=- rows=1
+    :47 [stem/stem_weak] - **shape.rs extraction**: Separated shape parsing section (~768 lines) from parser/control.rs into separate module
+- [code] mydocs/eng/working/archives/task_142_step6.md  channel=doc binding=mention jev=- rows=1
+    :25 [stem/stem_weak] Split into 11 section-specific CSS files, integrated via `@import`.
+- [code] mydocs/eng/working/archives/task_154_stage1.md  channel=doc binding=mention jev=- rows=2
+    :26 [stem/stem_weak] - Executes `reflow_zero_height_paragraphs()` **before** `compose_section()` call within `from_bytes()`
+    :27 [stem/stem_weak] - `reflow_zero_height_paragraphs()`: Iterates all sections' body paragraphs, performs reflow when `line_segs.len() == 1 && line_segs[0].line_height ==
+- [code] mydocs/eng/working/archives/task_154_stage2.md  channel=doc binding=mention jev=- rows=4
+    :12 [basename/mention] **File**: `src/parser/hwpx/section.rs`
+    :19 [basename/mention] **File**: `src/parser/hwpx/section.rs`
+    :30 [basename/mention] **File**: `src/parser/hwpx/section.rs`
+- [code] mydocs/eng/working/archives/task_154_stage3.md  channel=doc binding=mention jev=- rows=2
+    :12 [basename/mention] **File**: `src/parser/hwpx/section.rs`
+    :91 [basename/mention] | `src/parser/hwpx/section.rs` | Import extension, paragraph parser compose/dutmal/equation dispatch added, parse_ctrl() full reimplementation (13 ctr
+- [code] mydocs/eng/working/archives/task_157_step1_done.md  channel=doc binding=mention jev=- rows=1
+    :12 [stem/stem_weak] | `src/renderer/render_tree.rs` | Added `section_index`, `para_index`, `control_index` fields to `RectangleNode` |
+- [code] mydocs/eng/working/archives/task_181_stage1.md  channel=doc binding=mention jev=- rows=1
+    :17 [basename/mention] ### 3. HWPX Parser (`src/parser/hwpx/section.rs`)
+- [code] mydocs/eng/working/archives/task_193_step1.md  channel=doc binding=mention jev=- rows=2
+    :9 [stem/stem_weak] - 5 internal helpers: find_header_footer_control, get_hf_paragraph_mut/ref, reflow_hf_paragraph, find_section_for_page, get_active_hf_apply_to
+    :12 [stem/stem_weak] 1. Header/Footer stored as paragraph controls: `Control::Header(Box<Header>)` in `section.paragraphs[0].controls`
+- [code] mydocs/eng/working/archives/task_194_final.md  channel=doc binding=mention jev=- rows=4
+    :18 [stem/stem_weak] - Section-inherited header `source_section_index` bug fix (critical)
+    :22 [stem/stem_weak] - **Before**: hitTestHeaderFooter returned page's section → wrongly created empty header in wrong section → reset existing content
+    :23 [stem/stem_weak] - **After**: Returns `source_section_index` from active header → accesses correct section's existing header
+- [code] mydocs/eng/working/archives/task_196_step1.md  channel=doc binding=mention jev=- rows=1
+    :16 [stem/stem_weak] - **Fix**: Restricted skip to section's last paragraph only; middle empty paragraphs processed normally
+- [code] mydocs/eng/working/archives/task_214_final.md  channel=doc binding=mention jev=- rows=3
+    :28 [stem/stem_weak] - Non-table sections: Full match confirmed (hongbo, biz_plan, p222 sec0~1, etc.)
+    :47 [stem/stem_weak] | Document | Non-table sections | Table sections |
+    :80 [stem/stem_weak] - Goal: Full match for kps-ai.hwp, hwpp-001.hwp table sections
+- [code] mydocs/eng/working/archives/task_214_step1_2.md  channel=doc binding=mention jev=- rows=3
+    :12 [stem/stem_weak] - `typeset_section()` -- entry point
+    :45 [stem/stem_weak] - `test_typeset_vs_paginator_p222` -- p222.hwp (3 sections, non-table section match confirmed)
+    :54 [stem/stem_weak] - Page count differences with existing Paginator may occur in sections containing tables (p222.hwp sec2: 44 vs 43)
+- [code] mydocs/eng/working/archives/task_214_step3.md  channel=doc binding=mention jev=- rows=2
+    :25 [stem/stem_weak] - **Non-table sections**: Full match confirmed -- format()->fits()->place/split flow is accurate
+    :26 [stem/stem_weak] - **Table-containing sections**: Page count differences occur
+- [code] mydocs/eng/working/archives/task_22_final.md  channel=doc binding=mention jev=- rows=1
+    :27 [stem/stem_weak] - Inserts new paragraph into section.paragraphs, then reflows both sides
+- [code] mydocs/eng/working/archives/task_22_step1.md  channel=doc binding=mention jev=- rows=2
+    :21 [stem/stem_weak] 2. **`reflow_paragraph(section_idx, para_idx)`** (wasm_api.rs)
+    :22 [stem/stem_weak] - Calculates column width from section's PageDef
+- [code] mydocs/eng/working/archives/task_23_step3.md  channel=doc binding=mention jev=- rows=2
+    :11 [stem/stem_weak] | `serialize_section(section)` | Section → record byte stream (top-level) |
+    :34 [stem/stem_weak] | SectionDef | `serialize_section_def` | + PAGE_DEF, FOOTNOTE_SHAPE x2, PAGE_BORDER_FILL |
+- [code] mydocs/eng/working/archives/task_23_step4.md  channel=doc binding=mention jev=- rows=1
+    :67 [stem/stem_weak] 6. `parse_body_text_section()` → text "안녕하세요" match verification
+- [code] mydocs/eng/working/archives/task_24_step1.md  channel=doc binding=mention jev=- rows=2
+    :15 [stem/stem_weak] - Added `section_index: usize` parameter to `layout_table()` signature
+    :17 [stem/stem_weak] - Passes actual `CellContext` when calling cell paragraph layout (section_index, para_index, control_index, cell_idx, cell_para_idx)
+- [code] mydocs/eng/working/archives/task_24_step2.md  channel=doc binding=mention jev=- rows=2
+    :8 [stem/stem_weak] - `insertTextInCell(section_idx, parent_para_idx, control_idx, cell_idx, cell_para_idx, char_offset, text)` — Insert text into cell paragraph
+    :9 [stem/stem_weak] - `deleteTextInCell(section_idx, parent_para_idx, control_idx, cell_idx, cell_para_idx, char_offset, count)` — Delete text from cell paragraph
+- [code] mydocs/eng/working/archives/task_24_step4.md  channel=doc binding=mention jev=- rows=1
+    :9 [stem/stem_weak] | `test_cell_text_edit_invalid_indices` | Error handling for invalid indices (cell, control, section) |
+- [code] mydocs/eng/working/archives/task_25_final.md  channel=doc binding=mention jev=- rows=1
+    :14 [stem/stem_weak] | `render_tree.rs` | Added document coordinate fields (section_index, para_index, control_index) to TableNode, ImageNode |
+- [code] mydocs/eng/working/archives/task_25_step1.md  channel=doc binding=mention jev=- rows=3
+    :6 [stem/stem_weak] - Added 3 document coordinate fields to `TableNode`: `section_index`, `para_index`, `control_index`
+    :7 [stem/stem_weak] - Added 3 document coordinate fields to `ImageNode`: `section_index`, `para_index`, `control_index`
+    :11 [stem/stem_weak] - `layout_body_picture()`: Added 3 parameters (`section_index`, `para_index`, `control_index`), passes to ImageNode
+- [code] mydocs/eng/working/archives/task_2_step_2.md  channel=doc binding=mention jev=- rows=1
+    :33 [stem/stem_weak] 8. **Section definition**: Per-section independent page settings, header/footer/border/background hide flags
+- [code] mydocs/eng/working/archives/task_2_step_3.md  channel=doc binding=mention jev=- rows=1
+    :112 [stem/stem_weak] | renderer::render_tree | 5 | BoundingBox intersection/containment, dirty flag, HWPUNIT conversion |
+- [code] mydocs/eng/working/archives/task_2_step_5.md  channel=doc binding=mention jev=- rows=1
+    :27 [stem/stem_weak] #### Final Document Structure (11 sections)
+- [code] mydocs/eng/working/archives/task_32_stage_3.md  channel=doc binding=mention jev=- rows=3
+    :9 [stem/stem_weak] | `src/wasm_api.rs` | 4 WASM APIs + 4 native methods + JSON parsing helpers + rebuild_section + css_color_to_bgr |
+    :42 [stem/stem_weak] 5. `rebuild_section()` → style re-resolution + re-composition + re-pagination
+    :50 [stem/stem_weak] - `rebuild_section(idx)` — resolve_styles + compose_section + paginate
+- [code] mydocs/eng/working/archives/task_36_stage1.md  channel=doc binding=mention jev=- rows=1
+    :29 [stem/stem_weak] - `<defs>` section management: records insertion position in `begin_page()`, inserts in `end_page()`
+- [code] mydocs/eng/working/archives/task_36_stage2.md  channel=doc binding=mention jev=- rows=1
+    :49 [stem/stem_weak] **Reason:** For double/triple lines, `create_parallel_lines()` uses offsets, so separated segments can cause visual artifacts at intersections. Contin
+- [code] mydocs/eng/working/archives/task_37_stage2.md  channel=doc binding=mention jev=- rows=1
+    :52 [stem/stem_weak] - Cross-section, cross-cell selection not supported
+- [code] mydocs/eng/working/archives/task_3_step_1.md  channel=doc binding=mention jev=- rows=1
+    :41 [stem/stem_weak] - Automatic section count calculation
+- [code] mydocs/eng/working/archives/task_3_step_2.md  channel=doc binding=mention jev=- rows=1
+    :52 [stem/stem_weak] - `decrypt_viewtext_section()` - Full ViewText decryption pipeline
+- [code] mydocs/eng/working/archives/task_3_step_5.md  channel=doc binding=mention jev=- rows=6
+    :28 [stem/stem_weak] 4. **Parse BodyText per section**:
+    :29 [stem/stem_weak] - Normal documents: `read_body_text_section()` -> `parse_body_text_section()`
+    :30 [stem/stem_weak] - Distribution documents: `read_body_text_section()` -> `decrypt_viewtext_section()` -> `parse_body_text_section()`
+- [code] mydocs/eng/working/archives/task_41_step1.md  channel=doc binding=mention jev=- rows=1
+    :15 [stem/stem_weak] | `save_test_section_only.hwp` | Re-serialize Section only | Opens correctly |
+- [code] mydocs/eng/working/archives/task_43_step2.md  channel=doc binding=mention jev=- rows=1
+    :28 [stem/stem_weak] - rhwp: **Coordinate-based** API (direct access via section/para/offset)
+- [code] mydocs/eng/working/archives/task_44_final.md  channel=doc binding=mention jev=- rows=2
+    :7 [stem/stem_weak] Wrote a **10-section architecture design document** for extending the rhwp viewer into a web-based editor (rhwp-studio). Established a complete bluepr
+    :98 [stem/stem_weak] | **Architecture Design Document** | `mydocs/plans/task_44_architecture.md` | Complete 10-section design document |
+- [code] mydocs/eng/working/archives/task_44_step3.md  channel=doc binding=mention jev=- rows=1
+    :19 [stem/stem_weak] - `DocumentPosition` (sectionIndex, paragraphIndex, charOffset) -- logical document position
+- [code] mydocs/eng/working/archives/task_44_step4.md  channel=doc binding=mention jev=- rows=3
+    :79 [stem/stem_weak] - Existing internal logic paths (compose_section -> paginate -> build_render_tree) maintained
+    :105 [stem/stem_weak] mydocs/plans/task_44_architecture.md (10 sections completed)
+    :120 [stem/stem_weak] **Total 4 steps** of design completed. Architecture design document with 10 sections is finalized.
+- [code] mydocs/eng/working/archives/task_45_step1.md  channel=doc binding=mention jev=- rows=1
+    :32 [stem/stem_weak] - `getPageInfo(pageNum)`: Per-page width/height/section index (JSON parsing)
+- [code] mydocs/eng/working/archives/task_47_step1.md  channel=doc binding=mention jev=- rows=1
+    :7 [stem/stem_weak] Implemented 7 APIs in `wasm_api.rs` for both WASM + Native. Steps 1 (document/section/paragraph: 4) and Step 2 (cell: 3) were completed together.
+- [code] mydocs/eng/working/archives/task_48_final.md  channel=doc binding=mention jev=- rows=1
+    :16 [stem/stem_weak] | `hitTest` | `(page, x, y) -> {sectionIndex, paragraphIndex, charOffset, [cellContext]}` | Click coordinate -> document position conversion (body+cel
+- [code] mydocs/eng/working/archives/task_48_step1.md  channel=doc binding=mention jev=- rows=3
+    :14 [stem/stem_weak] | 2 | `hitTest` | `(page, x, y) -> String` | `{sectionIndex, paragraphIndex, charOffset}` |
+    :39 [stem/stem_weak] 4. Empty page fallback: return section's first paragraph start
+    :53 [stem/stem_weak] getCursorRect(section_idx: number, para_idx: number, char_offset: number): string;
+- [code] mydocs/eng/working/archives/task_48_step2.md  channel=doc binding=mention jev=- rows=2
+    :29 [stem/stem_weak] - `HitTestResult`: `{sectionIndex, paragraphIndex, charOffset}` -- hit test result
+    :30 [stem/stem_weak] - `DocumentPosition`: `{sectionIndex, paragraphIndex, charOffset}` -- cursor position
+- [code] mydocs/eng/working/archives/task_48_step3.md  channel=doc binding=mention jev=- rows=1
+    :39 [stem/stem_weak] -> hitTest(page, x, y) -> {sectionIndex, paragraphIndex, charOffset}
+- [code] mydocs/eng/working/archives/task_4_step_3.md  channel=doc binding=mention jev=- rows=2
+    :52 [stem/stem_weak] - `composed: Vec<Vec<ComposedParagraph>>` - Per-section composed paragraphs
+    :58 [stem/stem_weak] +-- compose_section(section) -> composed (per section)
+- [code] mydocs/eng/working/archives/task_51_step_report.md  channel=doc binding=mention jev=- rows=1
+    :17 [stem/stem_weak] - Body-Body: (sectionIndex, paragraphIndex, charOffset) lexicographic
+- [code] mydocs/eng/working/archives/task_62_report.md  channel=doc binding=mention jev=- rows=2
+    :25 [stem/stem_weak] - `getPageDef(sectionIdx)` -- Returns PageDef with HWPUNIT raw values (width, height, 9 margin types, landscape, binding)
+    :26 [stem/stem_weak] - `setPageDef(sectionIdx, json)` -- Changes PageDef then re-composes and re-paginates, returns updated pageCount
+- [code] mydocs/eng/working/archives/task_70_final.md  channel=doc binding=mention jev=- rows=1
+    :27 [stem/stem_weak] **Key Bug Fix**: Previously, only the last Footer of the entire section was applied to all pages, causing Footers with content to be overwritten by em
+- [code] mydocs/eng/working/archives/task_83_done.md  channel=doc binding=mention jev=- rows=1
+    :48 [stem/stem_weak] - Considers merged cells (rowSpan/colSpan area intersection check)
+- [code] mydocs/eng/working/archives/task_89_report.md  channel=doc binding=mention jev=- rows=7
+    :39 [basename/mention] | `src/parser/hwpx/section.rs` (~680 lines) | section XML -> Section model conversion |
+    :88 [basename/mention] - `src/parser/hwpx/section.rs` — section*.xml -> Section
+    :19 [stem/stem_weak] | `src/parser/hwpx/content.rs` | content.hpf parsing — section file list + BinData list extraction |
+- [code] mydocs/eng/working/archives/task_90_step1.md  channel=doc binding=mention jev=- rows=2
+    :27 [basename/mention] ### 3. section.rs Duplicate Function Removal
+    :42 [basename/mention] | `src/parser/hwpx/section.rs` | utils import, duplicate removal, function name unification |
+- [code] mydocs/eng/working/archives/task_90_step2.md  channel=doc binding=mention jev=- rows=2
+    :4 [basename/mention] Improve section.rs image/table/special character parsing
+    :34 [basename/mention] | `src/parser/hwpx/section.rs` | parse_picture improvements, columnBreak addition, cellPr parsing, import extensions |
+- [code] mydocs/eng/working/archives/task_90_step4.md  channel=doc binding=mention jev=- rows=2
+    :31 [basename/mention] - `section.rs` parse_picture: Modified to apply `curSz`/`sz` size only when non-zero
+    :36 [basename/mention] | `src/parser/hwpx/section.rs` | Prevented curSz/sz zero value overwrite |
+- [code] mydocs/eng/working/archives/task_91_step1.md  channel=doc binding=mention jev=- rows=2
+    :28 [stem/stem_weak] - `find_initial_column_def()` helper: Extracts first ColumnDef from section paragraphs
+    :36 [stem/stem_weak] - Changed `col_count`/`layout` to `mut` to support mid-section changes
+- [code] mydocs/eng/working/archives/task_91_step3.md  channel=doc binding=mention jev=- rows=3
+    :23 [basename/mention] ### 2. HWPX Multi-Column Parsing (section.rs)
+    :25 [basename/mention] **Fix**: `src/parser/hwpx/section.rs`
+    :58 [basename/mention] | `src/parser/hwpx/section.rs` | colPr parsing, columnBreak/pageBreak parsing |
+- [code] mydocs/eng/working/archives/task_95_final.md  channel=doc binding=mention jev=- rows=2
+    :27 [stem/stem_weak] - Added `MasterPageRef` struct (section_index, master_page_index)
+    :29 [stem/stem_weak] - Selects appropriate master page for odd/even page from section's master_pages
+- [code] mydocs/eng/working/task30_complete.md  channel=doc binding=mention jev=- rows=2
+    :13 [stem/stem_weak] if let Some(bits) = &mut self.dirty_paragraphs[section_idx] {
+    :18 [stem/stem_weak] self.dirty_paragraphs[section_idx] = None;
+- [code] mydocs/eng/working/task_231_final.md  channel=doc binding=mention jev=- rows=2
+    :26 [stem/stem_weak] - `getFieldInfoAt(section, para, charOffset)`
+    :27 [stem/stem_weak] - `getFieldInfoAtInCell(section, ppi, ci, cei, cpi, offset, isTextbox)`
+- [code] mydocs/eng/working/task_231_stage2.md  channel=doc binding=mention jev=- rows=4
+    :8 [stem/stem_weak] - `get_field_info_at(section, para, char_offset)` — queries field range at cursor position in body paragraphs
+    :9 [stem/stem_weak] - `get_field_info_at_in_cell(section, parent_para, ctrl, cell, cell_para, offset, is_textbox)` — queries field range within cells/text boxes
+    :14 [stem/stem_weak] - `getFieldInfoAt(section, para, charOffset)` — WASM API
+- [code] mydocs/eng/working/task_233_final.md  channel=doc binding=mention jev=- rows=2
+    :12 [stem/stem_weak] - `setFormValue(sec, para, ci, valueJson)` — Sets value + recompose_section + cache invalidation
+    :34 [stem/stem_weak] | `src/renderer/render_tree.rs` | Added section_index, para_index, control_index, name to FormObjectNode |
+- [code] mydocs/eng/working/task_233_stage1.md  channel=doc binding=mention jev=- rows=2
+    :6 [stem/stem_weak] - `src/renderer/render_tree.rs`: Added `section_index`, `para_index`, `control_index`, `name` fields to FormObjectNode
+    :13 [stem/stem_weak] - `set_form_value_native(sec, para, ci, value_json)` — Sets value/text/caption + recompose_section
+- [code] mydocs/eng/working/task_238_final.md  channel=doc binding=mention jev=- rows=2
+    :22 [stem/stem_weak] - `replaceAll(query, newText, caseSensitive)` — Full replacement (reverse order processing, batch recompose for affected sections)
+    :23 [stem/stem_weak] - `getPageOfPosition(sectionIdx, paraIdx)` — Position → page number
+- [code] mydocs/eng/working/task_238_stage1.md  channel=doc binding=mention jev=- rows=3
+    :13 [stem/stem_weak] - Batch recompose for changed sections
+    :14 [stem/stem_weak] - `get_page_of_position_native(section_idx, para_idx)` — Position → page number
+    :20 [stem/stem_weak] - `getPageOfPosition(sectionIdx, paraIdx)`
+- [code] mydocs/eng/working/task_242_stage1.md  channel=doc binding=mention jev=- rows=1
+    :11 [stem/stem_weak] - **render_tree.rs**: Added section/para/control index fields to LineNode, EllipseNode
+- [code] mydocs/eng/working/task_5_complete.md  channel=doc binding=mention jev=- rows=1
+    :7 [basename/mention] - `src/parser/hwpx/section.rs` -- HWPX cellzoneList > cellzone parsing
+- [code] mydocs/feedback/code-complexity-recommendations.md  channel=doc binding=mention jev=- rows=3
+    :186 [stem/stem_weak] let para = &mut self.document.sections[si].paragraphs[pi];
+    :191 [stem/stem_weak] self.sections[si].raw_stream = None;
+    :205 [stem/stem_weak] let para = &mut self.document.sections[si].paragraphs[pi];
+- [code] mydocs/feedback/post-refactoring-remaining-tasks.md  channel=doc binding=mention jev=- rows=1
+    :47 [stem/stem_weak] - Command에서 `paginate()` 호출 제거 → `mark_dirty(section_idx)` 1줄로 통합
+- [code] mydocs/feedback/r-code-review-4th.md  channel=doc binding=mention jev=- rows=2
+    :93 [basename/mention] | `parser/hwpx/section.rs` | 2,530 | 53 | 48줄/함수 | 우수 |
+    :133 [basename/mention] - section.rs 2,530줄 (53개 함수, 평균 48줄/함수)
+- [code] mydocs/feedback/rag_hwp_strategy.md  channel=doc binding=mention jev=- rows=1
+    :92 [stem/stem_weak] "section": 0,
+- [code] mydocs/manual/dump_command.md  channel=doc binding=mention jev=- rows=3
+    :11 [stem/stem_weak] rhwp dump <파일.hwp> [--section <번호>] [--para <번호>]
+    :18 [stem/stem_weak] | `--section <번호>` | `-s` | 특정 구역만 출력 (0부터 시작) |
+    :28 [stem/stem_weak] rhwp dump samples/basic/KTX.hwp --section 0
+- [code] mydocs/manual/ir_diff_command.md  channel=doc binding=mention jev=- rows=2
+    :29 [stem/stem_weak] | `--section <번호>` | `-s` | 특정 구역만 비교 (0부터 시작) |
+    :130 [stem/stem_weak] 3. **HWPX XML 원본 확인** — zip 해제 후 header.xml / section0.xml 검사
+- [code] mydocs/manual/onboarding_guide.md  channel=doc binding=mention jev=- rows=1
+    :127 [stem/stem_weak] === 페이지 16 (global_idx=15, section=2, page_num=6) ===
+- [code] mydocs/orders/20260215.md  channel=doc binding=mention jev=- rows=1
+    :18 [stem/stem_weak] | 89 | HWPX 파일 처리 지원 | 완료 | HWPX(ZIP+XML) 파서 5개 모듈 구현. header.xml→DocInfo, section*.xml→Section, content.hpf→섹션목록, BinData 로딩. 포맷 자동감지, WASM/프론트엔드 통합.
+- [code] mydocs/orders/20260221.md  channel=doc binding=mention jev=- rows=1
+    :14 [stem/stem_weak] | 134 | CFB 오류 파일 복구 열기 | 완료 | "Malformed FAT (sector 0 pointed to twice)" 오류 파일을 LenientCfbReader 폴백으로 정상 열기. parse_hwp() strict→lenient 2단계 전략. Leni
+- [code] mydocs/orders/20260318.md  channel=doc binding=mention jev=- rows=1
+    :17 [stem/stem_weak] | 261 | 페이지 리플로우 근본 수정 | 완료 | recalculate_section_vpos 도입 + 모든 편집 동작에 적용 + column_start 오류 수정 |
+- [code] mydocs/plans/archives/task_119.md  channel=doc binding=mention jev=- rows=1
+    :115 [stem/stem_weak] - `.dialog-body`, `.dialog-section` — 콘텐츠 영역
+- [code] mydocs/plans/archives/task_121.md  channel=doc binding=mention jev=- rows=3
+    :156 [stem/stem_weak] **파일**: `src/parser/body_text.rs` (parse_section_def)
+    :162 [stem/stem_weak] **파일**: `src/serializer/control.rs` (serialize_section_def)
+    :168 [stem/stem_weak] **파일**: `src/parser/body_text.rs` (test_parse_section_with_section_def)
+- [code] mydocs/plans/archives/task_122_impl.md  channel=doc binding=mention jev=- rows=2
+    :96 [stem/stem_weak] - LayoutEngine에 현재 section_index 전달 또는 section별 outline_numbering_id 참조
+    :97 [stem/stem_weak] - `apply_paragraph_numbering()`에 section-level numbering 참조 로직 추가
+- [code] mydocs/plans/archives/task_130.md  channel=doc binding=mention jev=- rows=1
+    :52 [stem/stem_weak] // 기존 필드 (version, sectionCount, pageCount, encrypted, fallbackFont)
+- [code] mydocs/plans/archives/task_132.md  channel=doc binding=mention jev=- rows=5
+    :20 [stem/stem_weak] | 표 Paragraph 생성 패턴 | `inject_html_tables_to_section()` (wasm_api.rs:8560-8720)에 완전한 예시 존재 |
+    :41 [stem/stem_weak] section_idx: u32,
+    :54 [stem/stem_weak] 5. Table 구조체 생성 (기존 `inject_html_tables_to_section` 패턴 재사용):
+- [code] mydocs/plans/archives/task_133.md  channel=doc binding=mention jev=- rows=3
+    :70 [stem/stem_weak] //          return { sectionIndex: sec, paragraphIndex: para + 1, charOffset: 0 };
+    :74 [stem/stem_weak] return { sectionIndex: sec, paragraphIndex: result.paraIdx, charOffset: 0 };
+    :91 [stem/stem_weak] **API**: `createBlankDocument() → JSON(version, sectionCount, pageCount, fontsUsed)`
+- [code] mydocs/plans/archives/task_142_impl.md  channel=doc binding=mention jev=- rows=2
+    :220 [stem/stem_weak] ├── mod.rs               ← compose_section(), compose_paragraph() 진입점, 데이터 구조
+    :299 [stem/stem_weak] ├── body_text.rs         ← parse_body_text_section(), 레코드 트리 처리 (~500줄)
+- [code] mydocs/plans/archives/task_154.md  channel=doc binding=mention jev=- rows=5
+    :49 [basename/mention] - `<hp:ctrl>` 요소가 **통째로 스킵** (section.rs:184-186) → 필드, 책갈피, 하이퍼링크 등 전부 무시
+    :65 [basename/mention] | HWPX `<inMargin>` 미파싱 | `parser/hwpx/section.rs:464` | `table.padding` 파싱 추가 |
+    :117 [basename/mention] | secPr 페이지 여백 | HWPX 페이지 여백 정합성 | section.rs 파싱 확인 |
+- [code] mydocs/plans/archives/task_157_impl.md  channel=doc binding=mention jev=- rows=3
+    :18 [stem/stem_weak] - 입력: `section_idx, para_idx, char_offset, width, height, horz_offset, vert_offset, wrap_type`
+    :60 [stem/stem_weak] - 삽입 후: `recompose_section()`, `paginate_if_needed()`
+    :86 [stem/stem_weak] - `recompose_section()`, `paginate_if_needed()`
+- [code] mydocs/plans/archives/task_166.md  channel=doc binding=mention jev=- rows=1
+    :28 [stem/stem_weak] **`DocumentPosition`에 `columnIndex` 필드 추가 불필요.** 칼럼은 렌더링 개념이며, `(sectionIndex, paragraphIndex, charOffset)` 조합과 페이지네이션 데이터(`PartialParagraph { start_l
+- [code] mydocs/plans/archives/task_166_impl.md  channel=doc binding=mention jev=- rows=3
+    :28 [stem/stem_weak] - `para_column_map[section_idx][para_idx] = column_index` — 문단의 **주 소속 단** (페이지네이션에서 결정)
+    :182 [stem/stem_weak] // target_para_i < 0 이면 이전 구역, >= section.paragraphs.len() 이면 다음 구역
+    :214 [stem/stem_weak] ) -> Option<(usize, usize)>  // (section_index, para_index)
+- [code] mydocs/plans/archives/task_181.md  channel=doc binding=mention jev=- rows=1
+    :94 [basename/mention] - `src/parser/hwpx/section.rs`: `parse_equation()` 수정 (스크립트 요소 파싱)
+- [code] mydocs/plans/archives/task_181_impl.md  channel=doc binding=mention jev=- rows=2
+    :14 [basename/mention] | `src/parser/hwpx/section.rs` | `parse_equation()` 수정: `<hp:script>` 요소에서 스크립트 추출 |
+    :184 [stem/stem_weak] pub section_index: usize,
+- [code] mydocs/plans/archives/task_185_impl.md  channel=doc binding=mention jev=- rows=1
+    :34 [stem/stem_weak] - 구역(section) 경계에서 composed 데이터가 올바르게 전달되는지 검증
+- [code] mydocs/plans/archives/task_191_impl.md  channel=doc binding=mention jev=- rows=1
+    :26 [stem/stem_weak] - 주요 클래스: `tcp-section`, `tcp-row`, `tcp-label`, `tcp-input`, `tcp-unit`, `tcp-btn-group`, `tcp-margin-grid`
+- [code] mydocs/plans/archives/task_193.md  channel=doc binding=mention jev=- rows=4
+    :49 [stem/stem_weak] - `getHeaderFooter(sectionIdx, isHeader, applyTo)` → JSON (paragraphs 정보)
+    :50 [stem/stem_weak] - `createHeaderFooter(sectionIdx, isHeader, applyTo)` → 빈 머리말/꼬리말 생성
+    :51 [stem/stem_weak] - `insertTextInHeaderFooter(sectionIdx, isHeader, applyTo, paraIdx, charOffset, text)` → 텍스트 삽입
+- [code] mydocs/plans/archives/task_194_impl.md  channel=doc binding=mention jev=- rows=2
+    :29 [stem/stem_weak] - JSON: `[{sectionIdx, isHeader, applyTo, label}, ...]`
+    :33 [stem/stem_weak] - `cursor.ts`에 `switchHeaderFooter(sectionIdx, isHeader, applyTo)` 추가
+- [code] mydocs/plans/archives/task_195.md  channel=doc binding=mention jev=- rows=1
+    :63 [stem/stem_weak] - Rust: `insert_field_in_hf_native(section_idx, is_header, apply_to, hf_para_idx, char_offset, field_type)` — 머리말 문단에 마커 문자 삽입
+- [code] mydocs/plans/archives/task_195_impl.md  channel=doc binding=mention jev=- rows=1
+    :11 [stem/stem_weak] - `header_footer_ops.rs`: `insert_field_in_hf_native(section_idx, is_header, apply_to, hf_para_idx, char_offset, field_type: u8)` 추가
+- [code] mydocs/plans/archives/task_214.md  channel=doc binding=mention jev=- rows=1
+    :29 [stem/stem_weak] - `typeset_section()` — 진입점 (paragraphs + page_def + styles → TypesetResult)
+- [code] mydocs/plans/archives/task_225.md  channel=doc binding=mention jev=- rows=1
+    :12 [stem/stem_weak] - synam-001.hwp의 `section_def.flags = 0x00080000` → bit 19 = 1 (빈 줄 감춤 활성)
+- [code] mydocs/plans/archives/task_226.md  channel=doc binding=mention jev=- rows=5
+    :48 [stem/stem_weak] - `get_section_def(section_idx)` → SectionDef를 JSON으로 반환
+    :49 [stem/stem_weak] - `set_section_def(section_idx, json)` → SectionDef 변경 후 재페이지네이션
+    :50 [stem/stem_weak] - 기존 `page:setup` 커맨드의 sectionIdx=0 하드코딩도 캐럿 위치 기반으로 수정
+- [code] mydocs/plans/archives/task_23.md  channel=doc binding=mention jev=- rows=3
+    :36 [stem/stem_weak] → serialize_section → 레코드 바이트
+    :112 [stem/stem_weak] - `serialize_section(section) -> Vec<u8>`: 섹션 전체 직렬화
+    :138 [stem/stem_weak] - `write_hwp_cfb(header, doc_info, sections, bin_data, compressed) -> Vec<u8>`
+- [code] mydocs/plans/archives/task_233_impl.md  channel=doc binding=mention jev=- rows=1
+    :18 [stem/stem_weak] 3. `setFormValue(sec, para, ci, valueJson)` — FormObject의 value/text 수정 + recompose_section + 캐시 무효화
+- [code] mydocs/plans/archives/task_238_impl.md  channel=doc binding=mention jev=- rows=2
+    :11 [stem/stem_weak] - section → paragraph → text 순회
+    :18 [stem/stem_weak] - recompose_section 호출
+- [code] mydocs/plans/archives/task_24.md  channel=doc binding=mention jev=- rows=1
+    :30 [stem/stem_weak] - 문단 경로: section → paragraph(표 컨트롤 소유) → control(Table) → cell → cell paragraph
+- [code] mydocs/plans/archives/task_240.md  channel=doc binding=mention jev=- rows=1
+    :28 [basename/mention] - HWPX XML 파서 (`src/parser/hwpx/section.rs`)
+- [code] mydocs/plans/archives/task_24_impl.md  channel=doc binding=mention jev=- rows=4
+    :5 [stem/stem_weak] 1. **TextRunNode**: `section_index`, `para_index`만 보유 → 셀 내부 문단 식별 불가
+    :6 [stem/stem_weak] 2. **layout_table()**: 셀 문단 렌더링 시 `section_index=0, para_index=0` 하드코딩 (layout.rs:1131)
+    :7 [stem/stem_weak] 3. **insert_text/delete_text API**: `(section_idx, para_idx, char_offset)`만 지원 → 셀 문단 접근 불가
+- [code] mydocs/plans/archives/task_25_impl.md  channel=doc binding=mention jev=- rows=1
+    :69 [stem/stem_weak] - 현재 TextRunNode에만 section_index/para_index가 있음
+- [code] mydocs/plans/archives/task_27_impl.md  channel=doc binding=mention jev=- rows=1
+    :76 [stem/stem_weak] section_index, styles, col_area, y_offset,
+- [code] mydocs/plans/archives/task_32_impl.md  channel=doc binding=mention jev=- rows=2
+    :233 [stem/stem_weak] self.composed = self.document.sections.iter()
+    :234 [stem/stem_weak] .map(|sec| compose_section(sec, &self.styles, self.dpi))
+- [code] mydocs/plans/archives/task_37_impl.md  channel=doc binding=mention jev=- rows=6
+    :57 [stem/stem_weak] pub fn copy_selection(&mut self, section_idx: u32, para_idx: u32,
+    :70 [stem/stem_weak] pub fn copy_selection_in_cell(&mut self, section_idx: u32, parent_para_idx: u32,
+    :82 [stem/stem_weak] pub fn copy_control(&mut self, section_idx: u32, para_idx: u32,
+- [code] mydocs/plans/archives/task_38_impl.md  channel=doc binding=mention jev=- rows=1
+    :154 [stem/stem_weak] - 삽입 후 `reflow_paragraph`, `compose_section`, `paginate` 동작 확인
+- [code] mydocs/plans/archives/task_43_feature_def.md  channel=doc binding=mention jev=- rows=2
+    :870 [stem/stem_weak] | 편집 패러다임 | **커서 기반** — 커서를 이동하고 현재 위치에서 편집 | **좌표 기반** — section/para/offset 좌표로 직접 접근 |
+    :1441 [stem/stem_weak] | 좌표 직접 편집 | section/para/offset 직접 접근 | 커서 이동 필수 |
+- [code] mydocs/plans/archives/task_44_impl.md  channel=doc binding=mention jev=- rows=1
+    :34 [stem/stem_weak] - `compose_section()`: 전체 재구성 → 증분 가능 지점은?
+- [code] mydocs/plans/archives/task_45_impl.md  channel=doc binding=mention jev=- rows=2
+    :137 [stem/stem_weak] sectionCount: number;
+    :147 [stem/stem_weak] sectionIndex: number;
+- [code] mydocs/plans/archives/task_47.md  channel=doc binding=mention jev=- rows=1
+    :35 [stem/stem_weak] - `getSectionCount` / `get_section_count_native`
+- [code] mydocs/plans/archives/task_48.md  channel=doc binding=mention jev=- rows=2
+    :25 [stem/stem_weak] 렌더 트리의 `TextRunNode`에 `(section_index, para_index, char_start)` + `BoundingBox(x, y, width, height)`가 이미 포함되어 있으므로, `build_page_tree()`를 활용하여 getCurso
+    :43 [stem/stem_weak] - 반환: `{sectionIndex, paragraphIndex, charOffset}`
+- [code] mydocs/plans/archives/task_4_impl.md  channel=doc binding=mention jev=- rows=2
+    :108 [stem/stem_weak] - `compose_section(section: &Section, styles: &ResolvedStyleSet) -> Vec<ComposedParagraph>` 함수
+    :218 [stem/stem_weak] ├─ compose_section() ──→ Vec<ComposedParagraph> ──┐            │
+- [code] mydocs/plans/archives/task_50.md  channel=doc binding=mention jev=- rows=2
+    :73 [stem/stem_weak] sectionIndex: number;    // doc_properties.caret_list_id
+    :112 [stem/stem_weak] - Ctrl+Home: `{ sectionIndex: 0, paragraphIndex: 0, charOffset: 0 }`
+- [code] mydocs/plans/archives/task_50_impl.md  channel=doc binding=mention jev=- rows=2
+    :38 [stem/stem_weak] { "sectionIndex": 0, "paragraphIndex": 2, "charOffset": 5 }
+    :42 [stem/stem_weak] 1. `doc_properties.caret_list_id` → sectionIndex
+- [code] mydocs/plans/archives/task_51_impl.md  channel=doc binding=mention jev=- rows=5
+    :35 [stem/stem_weak] 본문: (sectionIndex, paragraphIndex, charOffset) 사전순
+    :59 [stem/stem_weak] &self, section_idx: u32,
+    :66 [stem/stem_weak] &self, section_idx: u32, parent_para_idx: u32, control_idx: u32, cell_idx: u32,
+- [code] mydocs/plans/archives/task_52_impl.md  channel=doc binding=mention jev=- rows=1
+    :231 [stem/stem_weak] return this.wasm.getCharPropertiesAt(pos.sectionIndex, pos.paragraphIndex, pos.charOffset);
+- [code] mydocs/plans/archives/task_60_impl.md  channel=doc binding=mention jev=- rows=1
+    :8 [stem/stem_weak] 2. `measure_section()` 호출부에 `styles` 인자 전달
+- [code] mydocs/plans/archives/task_62.md  channel=doc binding=mention jev=- rows=1
+    :50 [stem/stem_weak] | `src/wasm_api.rs` | `getPageDef(sectionIdx)` — HWPUNIT 원본값 반환, `setPageDef(sectionIdx, json)` — 값 적용 + 재페이지네이션 |
+- [code] mydocs/plans/archives/task_62_impl.md  channel=doc binding=mention jev=- rows=6
+    :7 [stem/stem_weak] 1. `get_page_def(section_idx: u32)` 추가 — `#[wasm_bindgen(js_name = getPageDef)]`
+    :8 [stem/stem_weak] - `self.document.sections[sec_idx].section_def.page_def`에서 HWPUNIT 원본값을 JSON으로 반환
+    :11 [stem/stem_weak] 2. `set_page_def(section_idx: u32, json: &str)` 추가 — `#[wasm_bindgen(js_name = setPageDef)]`
+- [code] mydocs/plans/archives/task_65.md  channel=doc binding=mention jev=- rows=1
+    :34 [stem/stem_weak] | `src/renderer/layout.rs` | `layout_textbox_content()`에 CellContext 전파 — section_index, para_index, control_index 파라미터 추가 |
+- [code] mydocs/plans/archives/task_65_impl.md  channel=doc binding=mention jev=- rows=4
+    :7 [stem/stem_weak] 1. `layout_shape()` (line 3359): `section_index` 파라미터 추가
+    :11 [stem/stem_weak] 2. `layout_shape_object()` (line 3447): `section_index, para_index, control_index` 파라미터 추가
+    :15 [stem/stem_weak] 3. `layout_textbox_content()` (line 3606): `section_index, para_index, control_index` 파라미터 추가
+- [code] mydocs/plans/archives/task_83_impl.md  channel=doc binding=mention jev=- rows=1
+    :13 [stem/stem_weak] &self, section_idx: u32, parent_para_idx: u32, control_idx: u32,
+- [code] mydocs/plans/archives/task_89.md  channel=doc binding=mention jev=- rows=5
+    :104 [basename/mention] ├── section.rs         # section*.xml → Section 변환
+    :24 [stem/stem_weak] │   ├── section0.xml         # 섹션 본문 (문단, 표, 이미지 등)
+    :25 [stem/stem_weak] │   ├── section1.xml         # ...
+- [code] mydocs/plans/archives/task_90.md  channel=doc binding=mention jev=- rows=3
+    :25 [basename/mention] ### section.rs 갭
+    :40 [basename/mention] | 유틸리티 함수 중복 | header.rs, section.rs 각각 별도의 local_name, attr_str, parse_u8..parse_u32 | 공통 모듈로 추출 |
+    :51 [basename/mention] - `src/parser/hwpx/section.rs` — 표 셀/이미지/특수문자/컨트롤 파싱 보완
+- [code] mydocs/plans/archives/task_90_impl.md  channel=doc binding=mention jev=- rows=5
+    :15 [basename/mention] - `src/parser/hwpx/section.rs` — 중복 함수 제거, utils 사용
+    :19 [basename/mention] 1. **utils.rs 신규 생성** — header.rs와 section.rs에 중복되는 함수 추출:
+    :67 [basename/mention] ### 2단계: section.rs 텍스트/특수문자/표 셀 파싱 보완
+- [code] mydocs/plans/archives/task_91.md  channel=doc binding=mention jev=- rows=2
+    :33 [basename/mention] - `src/parser/hwpx/section.rs` — 컬럼 관련 XML 요소 파싱 없음
+    :70 [basename/mention] | `src/parser/hwpx/section.rs` | HWPX 다단 XML 파싱 |
+- [code] mydocs/plans/archives/task_91_impl.md  channel=doc binding=mention jev=- rows=5
+    :63 [basename/mention] **수정 파일**: `src/renderer/layout.rs`, `src/parser/hwpx/section.rs`
+    :74 [basename/mention] **B. HWPX 다단 파싱** (`src/parser/hwpx/section.rs`):
+    :92 [basename/mention] | `src/parser/hwpx/section.rs` | 3 | HWPX 다단 파싱 |
+- [code] mydocs/plans/archives/task_95_impl.md  channel=doc binding=mention jev=- rows=3
+    :10 [stem/stem_weak] - `src/parser/body_text.rs`: `parse_section_def()` 수정
+    :29 [stem/stem_weak] - `src/renderer/layout.rs`: build_render_tree()에 sections 파라미터 추가, MasterPage 노드 삽입
+    :32 [stem/stem_weak] - `src/wasm_api.rs`: build_page_tree 호출 시 sections 전달
+- [code] mydocs/plans/task_291.md  channel=doc binding=mention jev=- rows=5
+    :100 [stem/stem_weak] // 키: (section_index, master_page_index)
+    :108 [stem/stem_weak] for (sec_idx, section) in self.document.sections.iter().enumerate() {
+    :109 [stem/stem_weak] if section.section_def.hide_master_page { continue; }
+- [code] mydocs/plans/task_309.md  channel=doc binding=mention jev=- rows=1
+    :27 [basename/mention] - `section.rs:549`의 `_ => {}`에 vertAlign, horzAlign 추가
+- [code] mydocs/plans/task_315.md  channel=doc binding=mention jev=- rows=2
+    :28 [stem/stem_weak] - 수정 후: recompose_section + paginate + invalidate_page_tree_cache
+    :29 [stem/stem_weak] - 파라미터: section_idx, column_count, column_type, same_width, spacing
+- [code] mydocs/plans/task_321.md  channel=doc binding=mention jev=- rows=1
+    :92 [stem/stem_weak] fn select_master_page(mps, page_number, is_last_page, section_page_count) -> (Option<&MasterPage>, Vec<&MasterPage>)
+- [code] mydocs/plans/task_m100_110.md  channel=doc binding=mention jev=- rows=2
+    :17 [basename/mention] HWPX 파서(`src/parser/hwpx/section.rs`)의 `<hp:run>` 파싱 분기에 양식 컨트롤 요소 처리가 없다.
+    :25 [basename/mention] `src/parser/hwpx/section.rs` 단일 파일
+- [code] mydocs/plans/task_m100_110_impl.md  channel=doc binding=mention jev=- rows=2
+    :13 [basename/mention] `src/parser/hwpx/section.rs` 단일 파일
+    :53 [basename/mention] // src/parser/hwpx/section.rs, run 파싱 Start 이벤트 match 분기 (line ~228 _ => {} 앞)
+- [code] mydocs/plans/task_m100_111_impl.md  channel=doc binding=mention jev=- rows=7
+    :52 [stem/stem_weak] `FormObjectNode`에는 `section_index`, `para_index`, `control_index` (line 233-238 of render_tree.rs)가 있다.
+    :72 [stem/stem_weak] section_index: usize,
+    :97 [stem/stem_weak] section_index: fo.section_index,
+- [code] mydocs/plans/task_m100_127.md  channel=doc binding=mention jev=- rows=1
+    :12 [basename/mention] - `src/parser/hwpx/section.rs` 6곳에서 `BytesText::unescape()` 호출
+- [code] mydocs/plans/task_m100_127_impl.md  channel=doc binding=mention jev=- rows=1
+    :13 [basename/mention] | Stage 1 | quick-xml 0.39 대응: `unescape()` → `decode()` 교체 | `src/parser/hwpx/section.rs` |
+- [code] mydocs/plans/task_m100_164.md  channel=doc binding=mention jev=- rows=5
+    :62 [path/mention] - `src/serializer/hwpx/section.rs` — 최소 `section0.xml` (SECTIONDEF + COLUMNDEF + 빈 문단 하나)
+    :29 [basename/mention] | `src/parser/hwpx/section.rs` | 완료 | `section*.xml` → Section IR |
+    :74 [basename/mention] - `section.rs` 확장: 문단 헤더 속성(`paraPrIDRef`, `styleIDRef`, `pageBreak`, `columnBreak`), `<run>` + charPrIDRef, `<t>` 텍스트 + 제어문자(Tab, LineBreak), `<lineS
+- [code] mydocs/plans/task_m100_177.md  channel=doc binding=mention jev=- rows=6
+    :100 [path/mention] - `src/serializer/hwpx/section.rs` 의 `push_lineseg` 로직 교체 (IR 원본 보존)
+    :121 [path/mention] - `src/serializer/hwpx/section.rs` 의 `push_lineseg` 교체
+    :16 [basename/mention] > **원인**: section.rs에서 line_seg를 정적 `VERT_STEP=1600` 누적으로 생성.
+- [code] mydocs/plans/task_m100_178.md  channel=doc binding=mention jev=- rows=2
+    :101 [stem/stem_weak] - 차이 영역 자동 검출: section.raw_stream 유무, table.raw_ctrl_data 유무, table.attr vs common, 등
+    :173 [stem/stem_weak] - Stage 2 (페이지·section.raw_stream): 1~2일
+- [code] mydocs/plans/task_m100_178_impl.md  channel=doc binding=mention jev=- rows=7
+    :41 [stem/stem_weak] `section.raw_stream` 합성 불필요 발견은 단순한 최적화가 아니다 — **HWP 직렬화기가 이미 동적 경로를 가지고 있고, 그 동적 경로가 동작하므로 어댑터는 끼어들 필요가 없다**는 본 원칙의 적용. 이런 식으로 매핑 영역을 늘리지 않고 줄이는 것이 본
+    :75 [stem/stem_weak] | `body_text.rs:28` | `if let Some(ref raw) = section.raw_stream { return raw.clone(); }` | `None` → 동적 경로 진입 (OK) |
+    :83 [stem/stem_weak] → `section.raw_stream` 은 `None` 이어도 동적 경로로 OK (별도 합성 불필요).
+- [code] mydocs/plans/task_m100_30.md  channel=doc binding=mention jev=- rows=4
+    :5 [stem/stem_weak] 문단 분할(Enter) 또는 병합(Backspace) 시 `measure_section_selective`의 off-by-one 인덱싱 버그로 인해 페이지 수가 과도하게 증가하는 문제를 수정한다.
+    :14 [stem/stem_weak] `measure_section_selective`에서 문단 삽입 후 인덱스 불일치 발생:
+    :28 [stem/stem_weak] - `insert_composed_paragraph`: `dirty_paragraphs[section_idx] = None`으로 변경 (전체 재측정 강제)
+- [code] mydocs/plans/task_m100_5.md  channel=doc binding=mention jev=- rows=2
+    :32 [basename/mention] - HWPX 파서(`section.rs`)에서 `cellzoneList > cellzone` 파싱
+    :50 [basename/mention] - `src/parser/hwpx/section.rs` — cellzoneList 파싱
+- [code] mydocs/report/issue2_context.md  channel=doc binding=mention jev=- rows=5
+    :71 [stem/stem_weak] | `dirty_sections` | document.rs | 섹션 수준 dirty 플래그 |
+    :73 [stem/stem_weak] | `mark_section_dirty()` | rendering.rs | 섹션만 dirty 마킹 |
+    :82 [stem/stem_weak] | `measure_section_selective()` | dirty 문단만 재측정, 나머지 캐시 재사용 |
+- [code] mydocs/report/table_algorithm_research.md  channel=doc binding=mention jev=- rows=3
+    :35 [stem/stem_weak] **현재**: 셀 한 글자 편집에 `compose_section()` + `measure_section()` + `paginate()` 전체 실행
+    :234 [stem/stem_weak] let path = [section_id, para_id, table_id, cell_id, nested_table_id];
+    :293 [stem/stem_weak] │ - measure_section() 재호출해도 실질 비용 O(dirty)   │
+- [code] mydocs/report/task_24_final.md  channel=doc binding=mention jev=- rows=2
+    :12 [stem/stem_weak] | `src/renderer/layout.rs` | CellContext 구조체, layout_composed_paragraph에 cell_ctx 파라미터, layout_table에 section_index 파라미터 |
+    :23 [stem/stem_weak] → reflow_cell_paragraph(셀 폭 기반) → compose_section → paginate
+- [code] mydocs/report/task_90_final.md  channel=doc binding=mention jev=- rows=4
+    :11 [basename/mention] - header.rs/section.rs 중복 함수 120줄 제거
+    :16 [basename/mention] ### 2단계: section.rs 이미지/표/특수문자 보완
+    :56 [basename/mention] | `src/parser/hwpx/section.rs` | 수정 | 이미지/표셀/특수문자 보완 |
+- [code] mydocs/report/task_m100_110_report.md  channel=doc binding=mention jev=- rows=2
+    :20 [basename/mention] `src/parser/hwpx/section.rs`의 `<hp:run>` 파싱 분기에 양식 컨트롤 요소 처리가 없어
+    :30 [basename/mention] ### `src/parser/hwpx/section.rs`
+- [code] mydocs/report/task_m100_111_report.md  channel=doc binding=mention jev=- rows=3
+    :31 [stem/stem_weak] `set_form_value_native(sec, para, ci)`는 `sections[sec].paragraphs[para].controls[ci]`로
+    :40 [stem/stem_weak] - `CellBboxInfo`에 `section_index`, `has_meta` 필드 추가
+    :42 [stem/stem_weak] - `RenderNodeType::Table` 진입 시 `(section_index, para_index, control_index)` 추출하여 하위 전파
+- [code] mydocs/report/task_m100_127_report.md  channel=doc binding=mention jev=- rows=2
+    :22 [basename/mention] **변경 파일**: `Cargo.toml`, `src/parser/hwpx/section.rs`
+    :25 [basename/mention] - `section.rs` 6곳: `BytesText::unescape()` → `decode()` 교체
+- [code] mydocs/report/task_m100_177_report.md  channel=doc binding=mention jev=- rows=2
+    :173 [basename/mention] | 수정 파일 | 7개 (section.rs, wasm_api.rs, document.rs, wasm-bridge.ts, main.ts, wasm_api/tests.rs, 통합테스트) |
+    :102 [stem/stem_weak] - `serializer::hwpx::section::tests`: 9개 (Stage 2의 4 신규 포함)
+- [code] mydocs/report/task_m100_178_report.md  channel=doc binding=mention jev=- rows=1
+    :75 [stem/stem_weak] HWPX 파서는 `Section.section_def` 만 채우고 `Control::SectionDef` 컨트롤을 `paragraph.controls` 에 삽입하지 않음. HWP 직렬화기가 PAGE_DEF 출력 못 함 → 재로드 시 page_def 가 모두 0 → 16
+- [code] mydocs/report/task_m100_62r_report.md  channel=doc binding=mention jev=- rows=1
+    :70 [stem/stem_weak] 1. **페이지 메인 섹션 자동 감지**: `overlay_page_section` 필드 추가 — 다른 섹션 문단 오버레이 제외 (`s0:pi=0` 제거)
+- [code] mydocs/tech/browser_decompression_stream.md  channel=doc binding=mention jev=- rows=1
+    :55 [stem/stem_weak] HWPX의 section XML도 ZIP deflate로 압축되어 있으므로, 브라우저에서 HWPX를 직접 파싱할 때 동일하게 활용 가능.
+- [code] mydocs/tech/dev_roadmap_v1_backup.md  channel=doc binding=mention jev=- rows=3
+    :177 [stem/stem_weak] doc.insert_text(section, para, offset, text)        # 텍스트 삽입
+    :178 [stem/stem_weak] doc.delete_text(section, para, start, end)          # 텍스트 삭제
+    :251 [stem/stem_weak] | `create_hwp` | 구조화된 데이터로 HWP 생성 | sections: JSON, path: string | 성공/실패 |
+- [code] mydocs/tech/hexagonal_architecture_review.md  channel=doc binding=mention jev=- rows=2
+    :77 [stem/stem_weak] pub measured_sections: Vec<MeasuredSection>,         // renderer::height_measurer
+    :100 [stem/stem_weak] self.reflow_line_segs(section_idx, para_idx);  // renderer의 composer 호출
+- [code] mydocs/tech/hwp_save_guide.md  channel=doc binding=mention jev=- rows=1
+    :161 [stem/stem_weak] | section_count | u16 | 2 |
+- [code] mydocs/tech/hwpers_analysis.md  channel=doc binding=mention jev=- rows=1
+    :255 [stem/stem_weak] - BodyText: section/column definition paragraph 누락
+- [code] mydocs/tech/hwpx_hancom_reference.md  channel=doc binding=mention jev=- rows=3
+    :171 [basename/mention] 조사 결과, rhwp 파서는 292개 중 **약 283개를 다루고 있음**으로 추정된다 (`src/parser/hwpx/section.rs`, `header.rs`의 매칭 태그 기준).
+    :28 [stem/stem_weak] │  ├─ Para/  (134) — section{N}.xml 요소: 문단, 표, 이미지, 도형
+    :242 [stem/stem_weak] | Stage 2 (section.xml) | 한컴 `Class/Para/*.cpp` 속성 목록 대조 |
+- [code] mydocs/tech/hwpx_lineseg_validation.md  channel=doc binding=mention jev=- rows=4
+    :206 [path/mention] - `src/serializer/hwpx/section.rs::render_lineseg_array_from_ir` — 원본 보존
+    :143 [stem/stem_weak] 셀 내부 문단도 동일 처리. reflow 후 `composed` · `dirty_sections` 갱신 + `paginate()` 재수행.
+    :165 [stem/stem_weak] pub section_idx: usize,
+- [code] mydocs/tech/single_pass_layout_design.md  channel=doc binding=mention jev=- rows=3
+    :58 [stem/stem_weak] for each paragraph in section:
+    :131 [stem/stem_weak] let measured = height_measurer.measure_section(&paragraphs);
+    :141 [stem/stem_weak] let result = layout_engine.typeset_section(&paragraphs, &page_def, &styles);
+- [code] mydocs/tech/webhwp/04_page_layout.md  channel=doc binding=mention jev=- rows=2
+    :249 [stem/stem_weak] gap = section.$6t;
+    :517 [stem/stem_weak] sectionBreak               — 섹션 구분
+- [code] mydocs/troubleshootings/line_spacing_lineseg_sync.md  channel=doc binding=mention jev=- rows=3
+    :38 [stem/stem_weak] `apply_para_format_native()`는 ParaShape만 변경하고 `rebuild_section()`을 호출했다.
+    :39 [stem/stem_weak] 그러나 `rebuild_section()` → `recompose_section()` → `compose_section()`은
+    :65 [stem/stem_weak] `rebuild_section()` 전에 `reflow_line_segs()`를 호출하여 LineSeg를 갱신:
+- [code] mydocs/troubleshootings/picture_save_hancom_compatibility.md  channel=doc binding=mention jev=- rows=2
+    :96 [stem/stem_weak] section = ole.openstream('BodyText/Section0').read()
+    :97 [stem/stem_weak] data = zlib.decompress(section, -15)
+- [code] mydocs/troubleshootings/table_paste_file_corruption.md  channel=doc binding=mention jev=- rows=2
+    :143 [stem/stem_weak] - `save_test_section_only.hwp` (Section만 재직렬화) → 정상
+    :289 [stem/stem_weak] - **원인**: `section.raw_stream = None` 설정으로 전체 섹션이 재직렬화될 때, 원본 표의 BorderFill 참조가 DocInfo에 새로 추가된 BorderFill 인덱스 오프셋의 영향을 받는 것으로 추정
+- [code] mydocs/working/archives/task_102_step1.md  channel=doc binding=mention jev=- rows=2
+    :27 [basename/mention] - `src/parser/hwpx/section.rs`: HWPX XML 파서 — 표 파싱 완료 직전 호출
+    :56 [basename/mention] | `src/parser/hwpx/section.rs` | +1줄 |
+- [code] mydocs/working/archives/task_154_stage1.md  channel=doc binding=mention jev=- rows=1
+    :26 [stem/stem_weak] - `from_bytes()` 내부에서 `compose_section()` 호출 **전에** `reflow_zero_height_paragraphs()` 실행
+- [code] mydocs/working/archives/task_154_stage2.md  channel=doc binding=mention jev=- rows=5
+    :12 [basename/mention] **파일**: `src/parser/hwpx/section.rs`
+    :19 [basename/mention] **파일**: `src/parser/hwpx/section.rs`
+    :30 [basename/mention] **파일**: `src/parser/hwpx/section.rs`
+- [code] mydocs/working/archives/task_154_stage3.md  channel=doc binding=mention jev=- rows=3
+    :12 [basename/mention] **파일**: `src/parser/hwpx/section.rs`
+    :164 [basename/mention] | `src/parser/hwpx/section.rs` | 임포트 확장 (Header, Footer, Footnote, Endnote, AutoNumber, NewNumber, Bookmark, Field, FieldType, HiddenComment, Ruby, Ch
+    :110 [stem/stem_weak] | `hwp2hwpx/section/object/For*.java` | 각 컨트롤별 HWPX 속성 매핑 |
+- [code] mydocs/working/archives/task_157_final.md  channel=doc binding=mention jev=- rows=1
+    :25 [stem/stem_weak] | `src/renderer/render_tree.rs` | `RectangleNode`에 `section_index`, `para_index`, `control_index` 필드 추가 |
+- [code] mydocs/working/archives/task_157_step1_done.md  channel=doc binding=mention jev=- rows=1
+    :12 [stem/stem_weak] | `src/renderer/render_tree.rs` | `RectangleNode`에 `section_index`, `para_index`, `control_index` 필드 추가 |
+- [code] mydocs/working/archives/task_165_stage1_report.md  channel=doc binding=mention jev=- rows=2
+    :19 [stem/stem_weak] - `RectangleNode::new(corner_radius, style, gradient)` — transform + section/para/control_index 자동 None
+    :27 [stem/stem_weak] 3. 위치 정보 포함: `RectangleNode { section_index: Some(si), ..RectangleNode::new(r, s, g) }`
+- [code] mydocs/working/archives/task_181_stage1.md  channel=doc binding=mention jev=- rows=2
+    :17 [basename/mention] ### 3. HWPX 파서 (`src/parser/hwpx/section.rs`)
+    :59 [basename/mention] | `src/parser/hwpx/section.rs` | parse_equation() → Control::Equation 반환 |
+- [code] mydocs/working/archives/task_193_step1.md  channel=doc binding=mention jev=- rows=4
+    :31 [stem/stem_weak] | `getHeaderFooter(sectionIdx, isHeader, applyTo)` | 조회 |
+    :32 [stem/stem_weak] | `createHeaderFooter(sectionIdx, isHeader, applyTo)` | 생성 |
+    :45 [stem/stem_weak] - `find_section_for_page` — 페이지 번호 → 구역 인덱스 변환
+- [code] mydocs/working/archives/task_193_step2_3_4.md  channel=doc binding=mention jev=- rows=1
+    :32 [stem/stem_weak] - `enterHeaderFooterMode(isHeader, sectionIdx, applyTo)` — 진입
+- [code] mydocs/working/archives/task_194_final.md  channel=doc binding=mention jev=- rows=4
+    :50 [stem/stem_weak] | 구역 상속 머리말 `source_section_index` 버그 수정 | 완료 |
+    :58 [stem/stem_weak] - **수정 전**: `hitTestHeaderFooter`가 `find_section_for_page()`로 페이지 소속 구역 반환 → 잘못된 구역에 빈 머리말 생성 → 기존 내용 리셋
+    :59 [stem/stem_weak] - **수정 후**: `get_active_hf_info()`로 active_header의 `source_section_index` 반환 → 올바른 구역의 기존 머리말에 접근
+- [code] mydocs/working/archives/task_214_step1_2.md  channel=doc binding=mention jev=- rows=1
+    :12 [stem/stem_weak] - `typeset_section()` — 진입점
+- [code] mydocs/working/archives/task_22_final.md  channel=doc binding=mention jev=- rows=1
+    :27 [stem/stem_weak] - 새 문단을 section.paragraphs에 삽입 후 양쪽 리플로우
+- [code] mydocs/working/archives/task_22_step1.md  channel=doc binding=mention jev=- rows=2
+    :21 [stem/stem_weak] 2. **`reflow_paragraph(section_idx, para_idx)`** (wasm_api.rs)
+    :22 [stem/stem_weak] - section의 PageDef에서 컬럼 너비 계산
+- [code] mydocs/working/archives/task_23_step3.md  channel=doc binding=mention jev=- rows=2
+    :11 [stem/stem_weak] | `serialize_section(section)` | Section → 레코드 바이트 스트림 (최상위) |
+    :34 [stem/stem_weak] | SectionDef | `serialize_section_def` | + PAGE_DEF, FOOTNOTE_SHAPE×2, PAGE_BORDER_FILL |
+- [code] mydocs/working/archives/task_23_step4.md  channel=doc binding=mention jev=- rows=1
+    :67 [stem/stem_weak] 6. `parse_body_text_section()` → 텍스트 "안녕하세요" 일치 확인
+- [code] mydocs/working/archives/task_24_step1.md  channel=doc binding=mention jev=- rows=2
+    :15 [stem/stem_weak] - `layout_table()` 시그니처에 `section_index: usize` 파라미터 추가
+    :17 [stem/stem_weak] - 셀 내 문단 레이아웃 호출 시 실제 `CellContext` 전달 (section_index, para_index, control_index, cell_idx, cell_para_idx)
+- [code] mydocs/working/archives/task_24_step2.md  channel=doc binding=mention jev=- rows=2
+    :8 [stem/stem_weak] - `insertTextInCell(section_idx, parent_para_idx, control_idx, cell_idx, cell_para_idx, char_offset, text)` — 셀 내부 문단에 텍스트 삽입
+    :9 [stem/stem_weak] - `deleteTextInCell(section_idx, parent_para_idx, control_idx, cell_idx, cell_para_idx, char_offset, count)` — 셀 내부 문단에서 텍스트 삭제
+- [code] mydocs/working/archives/task_25_final.md  channel=doc binding=mention jev=- rows=1
+    :14 [stem/stem_weak] | `render_tree.rs` | TableNode, ImageNode에 문서 좌표 필드(section_index, para_index, control_index) 추가 |
+- [code] mydocs/working/archives/task_25_step1.md  channel=doc binding=mention jev=- rows=3
+    :6 [stem/stem_weak] - `TableNode`에 문서 좌표 필드 3개 추가: `section_index`, `para_index`, `control_index`
+    :7 [stem/stem_weak] - `ImageNode`에 문서 좌표 필드 3개 추가: `section_index`, `para_index`, `control_index`
+    :11 [stem/stem_weak] - `layout_body_picture()`: 파라미터 3개 추가 (`section_index`, `para_index`, `control_index`), ImageNode에 전달
+- [code] mydocs/working/archives/task_32_stage_3.md  channel=doc binding=mention jev=- rows=3
+    :9 [stem/stem_weak] | `src/wasm_api.rs` | 4개 WASM API + 4개 네이티브 메서드 + JSON 파싱 헬퍼 + rebuild_section + css_color_to_bgr |
+    :42 [stem/stem_weak] 5. `rebuild_section()` → 스타일 재해석 + 재조판 + 재페이지네이션
+    :50 [stem/stem_weak] - `rebuild_section(idx)` — resolve_styles + compose_section + paginate
+- [code] mydocs/working/archives/task_3_step_2.md  channel=doc binding=mention jev=- rows=1
+    :52 [stem/stem_weak] - `decrypt_viewtext_section()` - 전체 ViewText 복호화 파이프라인
+- [code] mydocs/working/archives/task_3_step_5.md  channel=doc binding=mention jev=- rows=2
+    :29 [stem/stem_weak] - 일반 문서: `read_body_text_section()` → `parse_body_text_section()`
+    :30 [stem/stem_weak] - 배포용 문서: `read_body_text_section()` → `decrypt_viewtext_section()` → `parse_body_text_section()`
+- [code] mydocs/working/archives/task_41_step1.md  channel=doc binding=mention jev=- rows=1
+    :15 [stem/stem_weak] | `save_test_section_only.hwp` | Section만 재직렬화 | 정상 오픈 |
+- [code] mydocs/working/archives/task_43_step2.md  channel=doc binding=mention jev=- rows=1
+    :28 [stem/stem_weak] - rhwp: **좌표 기반** API (section/para/offset 직접 접근)
+- [code] mydocs/working/archives/task_44_step3.md  channel=doc binding=mention jev=- rows=1
+    :19 [stem/stem_weak] - `DocumentPosition` (sectionIndex, paragraphIndex, charOffset) — 논리적 문서 위치
+- [code] mydocs/working/archives/task_44_step4.md  channel=doc binding=mention jev=- rows=1
+    :79 [stem/stem_weak] - 기존 내부 로직 경로 (compose_section → paginate → build_render_tree) 유지
+- [code] mydocs/working/archives/task_47_final.md  channel=doc binding=mention jev=- rows=6
+    :60 [stem/stem_weak] getParagraphCount(section_idx: number): number;
+    :61 [stem/stem_weak] getParagraphLength(section_idx: number, para_idx: number): number;
+    :62 [stem/stem_weak] getTextRange(section_idx: number, para_idx: number, char_offset: number, count: number): string;
+- [code] mydocs/working/archives/task_48_final.md  channel=doc binding=mention jev=- rows=1
+    :16 [stem/stem_weak] | `hitTest` | `(page, x, y) → {sectionIndex, paragraphIndex, charOffset, [셀컨텍스트]}` | 클릭 좌표 → 문서 위치 변환 (본문+셀) |
+- [code] mydocs/working/archives/task_48_step1.md  channel=doc binding=mention jev=- rows=2
+    :14 [stem/stem_weak] | 2 | `hitTest` | `(page, x, y) → String` | `{sectionIndex, paragraphIndex, charOffset}` |
+    :53 [stem/stem_weak] getCursorRect(section_idx: number, para_idx: number, char_offset: number): string;
+- [code] mydocs/working/archives/task_48_step2.md  channel=doc binding=mention jev=- rows=2
+    :29 [stem/stem_weak] - `HitTestResult`: `{sectionIndex, paragraphIndex, charOffset}` — 히트 테스트 결과
+    :30 [stem/stem_weak] - `DocumentPosition`: `{sectionIndex, paragraphIndex, charOffset}` — 커서 위치
+- [code] mydocs/working/archives/task_48_step3.md  channel=doc binding=mention jev=- rows=1
+    :39 [stem/stem_weak] → hitTest(page, x, y) → {sectionIndex, paragraphIndex, charOffset}
+- [code] mydocs/working/archives/task_4_step_3.md  channel=doc binding=mention jev=- rows=1
+    :58 [stem/stem_weak] ├─ compose_section(section) → composed (각 구역별)
+- [code] mydocs/working/archives/task_51_step_report.md  channel=doc binding=mention jev=- rows=1
+    :17 [stem/stem_weak] - 본문↔본문: (sectionIndex, paragraphIndex, charOffset) 사전순
+- [code] mydocs/working/archives/task_62_report.md  channel=doc binding=mention jev=- rows=2
+    :25 [stem/stem_weak] - `getPageDef(sectionIdx)` — HWPUNIT 원본값으로 PageDef 반환 (width, height, 여백 9종, landscape, binding)
+    :26 [stem/stem_weak] - `setPageDef(sectionIdx, json)` — PageDef 변경 후 재조판+재페이지네이션, 변경된 pageCount 반환
+- [code] mydocs/working/archives/task_89_report.md  channel=doc binding=mention jev=- rows=4
+    :40 [basename/mention] | `src/parser/hwpx/section.rs` (~680행) | section XML → Section 모델 변환 |
+    :89 [basename/mention] - `src/parser/hwpx/section.rs` — section*.xml → Section
+    :36 [stem/stem_weak] ### 3단계: section*.xml 파싱 → Section 변환
+- [code] mydocs/working/archives/task_90_step1.md  channel=doc binding=mention jev=- rows=2
+    :27 [basename/mention] ### 3. section.rs 중복 함수 제거
+    :42 [basename/mention] | `src/parser/hwpx/section.rs` | utils import, 중복 제거, 함수명 통일 |
+- [code] mydocs/working/archives/task_90_step2.md  channel=doc binding=mention jev=- rows=2
+    :4 [basename/mention] section.rs 이미지/표/특수문자 파싱 보완
+    :34 [basename/mention] | `src/parser/hwpx/section.rs` | parse_picture 보완, columnBreak 추가, cellPr 파싱, import 확장 |
+- [code] mydocs/working/archives/task_90_step4.md  channel=doc binding=mention jev=- rows=2
+    :31 [basename/mention] - `section.rs` parse_picture: `curSz`/`sz`가 0이 아닌 경우에만 크기 적용하도록 수정
+    :36 [basename/mention] | `src/parser/hwpx/section.rs` | curSz/sz 0값 덮어쓰기 방지 |
+- [code] mydocs/working/archives/task_91_step1.md  channel=doc binding=mention jev=- rows=1
+    :36 [stem/stem_weak] - `col_count`/`layout`를 `mut`로 변경하여 mid-section 변경 지원
+- [code] mydocs/working/archives/task_91_step3.md  channel=doc binding=mention jev=- rows=3
+    :23 [basename/mention] ### 2. HWPX 다단 파싱 (section.rs)
+    :25 [basename/mention] **수정**: `src/parser/hwpx/section.rs`
+    :58 [basename/mention] | `src/parser/hwpx/section.rs` | colPr 파싱, columnBreak/pageBreak 파싱 |
+- [code] mydocs/working/archives/task_95_final.md  channel=doc binding=mention jev=- rows=1
+    :27 [stem/stem_weak] - `MasterPageRef` 구조체 추가 (section_index, master_page_index)
+- [code] mydocs/working/task30_complete.md  channel=doc binding=mention jev=- rows=2
+    :13 [stem/stem_weak] if let Some(bits) = &mut self.dirty_paragraphs[section_idx] {
+    :18 [stem/stem_weak] self.dirty_paragraphs[section_idx] = None;
+- [code] mydocs/working/task_231_final.md  channel=doc binding=mention jev=- rows=2
+    :26 [stem/stem_weak] - `getFieldInfoAt(section, para, charOffset)`
+    :27 [stem/stem_weak] - `getFieldInfoAtInCell(section, ppi, ci, cei, cpi, offset, isTextbox)`
+- [code] mydocs/working/task_231_stage2.md  channel=doc binding=mention jev=- rows=4
+    :8 [stem/stem_weak] - `get_field_info_at(section, para, char_offset)` — 본문 문단 커서 위치의 필드 범위 조회
+    :9 [stem/stem_weak] - `get_field_info_at_in_cell(section, parent_para, ctrl, cell, cell_para, offset, is_textbox)` — 셀/글상자 내 필드 범위 조회
+    :14 [stem/stem_weak] - `getFieldInfoAt(section, para, charOffset)` — WASM API
+- [code] mydocs/working/task_233_final.md  channel=doc binding=mention jev=- rows=2
+    :12 [stem/stem_weak] - `setFormValue(sec, para, ci, valueJson)` — 값 설정 + recompose_section + 캐시 무효화
+    :34 [stem/stem_weak] | `src/renderer/render_tree.rs` | FormObjectNode에 section_index, para_index, control_index, name 추가 |
+- [code] mydocs/working/task_233_stage1.md  channel=doc binding=mention jev=- rows=2
+    :6 [stem/stem_weak] - `src/renderer/render_tree.rs`: FormObjectNode에 `section_index`, `para_index`, `control_index`, `name` 필드 추가
+    :13 [stem/stem_weak] - `set_form_value_native(sec, para, ci, value_json)` — value/text/caption 설정 + recompose_section
+- [code] mydocs/working/task_238_final.md  channel=doc binding=mention jev=- rows=1
+    :23 [stem/stem_weak] - `getPageOfPosition(sectionIdx, paraIdx)` — 위치→쪽 번호
+- [code] mydocs/working/task_238_stage1.md  channel=doc binding=mention jev=- rows=2
+    :14 [stem/stem_weak] - `get_page_of_position_native(section_idx, para_idx)` — 위치→쪽 번호
+    :20 [stem/stem_weak] - `getPageOfPosition(sectionIdx, paraIdx)`
+- [code] mydocs/working/task_242_stage1.md  channel=doc binding=mention jev=- rows=1
+    :11 [stem/stem_weak] - **render_tree.rs**: LineNode, EllipseNode에 section/para/control 인덱스 필드 추가
+- [code] mydocs/working/task_5_complete.md  channel=doc binding=mention jev=- rows=1
+    :7 [basename/mention] - `src/parser/hwpx/section.rs` — HWPX cellzoneList > cellzone 파싱
+- [code] mydocs/working/task_m100_111_stage1.md  channel=doc binding=mention jev=- rows=6
+    :22 [stem/stem_weak] 1. **`CellBboxInfo`에 `section_index`, `has_meta` 추가**
+    :25 [stem/stem_weak] - `RenderNodeType::Table` 진입 시 `(section_index, para_index, control_index)` 추출하여 하위 전파
+    :26 [stem/stem_weak] - `TableCell` 노드 등록 시 `table_meta`로 즉시 `section_index`, `parent_para_index`, `control_index` 채움
+- [code] mydocs/working/task_m100_164_report.md  channel=doc binding=mention jev=- rows=7
+    :24 [basename/mention] | `section.rs` | `Contents/section{N}.xml` 동적 생성 (다문단/탭/소프트브레이크) |
+    :35 [stem/stem_weak] | `Section` | `Contents/section{N}.xml` | 첫 섹션은 `<hp:secPr>` 포함 |
+    :36 [stem/stem_weak] | `section.paragraphs` 여러 개 | `<hp:p>` 여러 개 (하드 문단 경계) | |
+- [code] mydocs/working/task_m100_164_stage1.md  channel=doc binding=mention jev=- rows=4
+    :24 [path/mention] | `src/serializer/hwpx/section.rs` | `Contents/section*.xml` (Stage 1: 템플릿) |
+    :77 [basename/mention] - `section.rs`: 템플릿 → Section.paragraphs/SectionDef IR 기반 동적 생성
+    :46 [stem/stem_weak] | `serialize_with_one_section_parses_back` | ✅ 1-섹션 라운드트립 |
+- [code] mydocs/working/task_m100_164_stage2_1.md  channel=doc binding=mention jev=- rows=5
+    :19 [path/mention] - `src/serializer/hwpx/section.rs` — 템플릿 기반 텍스트 주입 로직
+    :4 [stem/stem_weak] **단계**: Stage 2.1 — section.xml 텍스트 주입
+    :12 [stem/stem_weak] `Section` IR의 첫 문단 텍스트를 `section0.xml` 템플릿의 `<hp:t/>` 자리에 주입하여, 한글2020에서 오픈 시 해당 텍스트가 표시되도록 한다.
+- [code] mydocs/working/task_m100_164_stage2_2.md  channel=doc binding=mention jev=- rows=1
+    :18 [path/mention] - `src/serializer/hwpx/section.rs` — `render_text_run()` 도입
+- [code] mydocs/working/task_m100_164_stage2_3.md  channel=doc binding=mention jev=- rows=3
+    :36 [path/mention] - `src/serializer/hwpx/section.rs` — 전면 재작성
+    :16 [stem/stem_weak] `samples/hwpx/ref/ref_mixed.hwpx` section0.xml 분석:
+    :27 [stem/stem_weak] section.paragraphs 여러 개  →  하드 문단 경계 (여러 <hp:p>)
+- [code] mydocs/working/task_m100_177_stage1.md  channel=doc binding=mention jev=- rows=3
+    :129 [path/mention] - `src/serializer/hwpx/section.rs` 의 `push_lineseg` 제거
+    :23 [stem/stem_weak] - `ValidationWarning` — 경고 한 건 (section/paragraph 경로 + kind)
+    :95 [stem/stem_weak] parse_document → resolve_styles → reflow_zero_height_paragraphs → compose_section
+- [code] mydocs/working/task_m100_177_stage2.md  channel=doc binding=mention jev=- rows=5
+    :11 [path/mention] 구현계획서의 Stage 2 — `src/serializer/hwpx/section.rs` 의 `push_lineseg` 하드코딩 로직을 제거하고 IR의 `Paragraph.line_segs` 값을 그대로 XML 출력으로 전환. 기존 하드코딩(`vertsize=1000,
+    :15 [path/mention] ### 2.1 수정 파일: `src/serializer/hwpx/section.rs`
+    :61 [path/mention] `src/serializer/hwpx/section.rs` 내부:
+- [code] mydocs/working/task_m100_182_stage0.md  channel=doc binding=mention jev=- rows=3
+    :33 [stem/stem_weak] - 빈 문서 분기(`doc.sections.len() == 1 && doc.bin_data_content.is_empty()`) **제거**
+    :98 [stem/stem_weak] referenced: HashSet<T>,  // section.xml 등에서 참조됨
+    :102 [stem/stem_weak] Stage 1~4에서 writer가 `reference(id)` 호출하면 자동으로 미등록 참조를 탐지. "section에선 쓰는데 header엔 없는" 단편적 실패를 컴파일 타임에는 아니지만 **런타임 단언**으로 차단.
+- [code] mydocs/working/task_m100_182_stage1.md  channel=doc binding=mention jev=- rows=6
+    :143 [basename/mention] - `section.rs` 의 `empty_section0.xml` 템플릿 치환 제거
+    :122 [stem/stem_weak] ### 6.4 `section0.xml`에서 참조하는 paraPrIDRef/styleIDRef
+    :124 [stem/stem_weak] Stage 1에선 `write_header`만 동적화되고 section.xml은 기존 템플릿 치환 경로를 유지. 그러나 template이 `paraPrIDRef="0"`을 쓰므로 header.xml에 `<hh:paraPr id="0">` 이 존재해야 함 — ref_em
+- [code] mydocs/working/task_m100_182_stage4.md  channel=doc binding=mention jev=- rows=7
+    :26 [basename/mention] - ⚠️ **section.rs dispatcher 연결은 이월**: `Control::Picture` → `write_picture` 호출은 **#186 범위 C** 에 포함. `picture.rs` 독립 모듈로만 완성.
+    :105 [basename/mention] | `pic-in-head-01.hwp`/`pic-crop-01.hwp` 라운드트립 IrDiff 0 | ❌ (이월) | section.rs dispatcher 없이는 `<hp:pic>` 이 section.xml 에 출력되지 않음 → #186 범위 C |
+    :112 [basename/mention] **"라운드트립 IrDiff 0"** 은 section.rs 에서 `Control::Picture` 를 실제 렌더링해야 성립. Stage 3 표와 동일 구조로 분할정복 원칙에 따라 #186 (Section 완전 동적화 + Control dispatcher) 로 이월.
+- [code] mydocs/working/task_m100_182_stage5.md  channel=doc binding=mention jev=- rows=6
+    :25 [basename/mention] - ⚠️ section.rs dispatcher 연결(Control::Shape / Control::Field → write_*)은 **#186 범위 C** 에 포함
+    :139 [basename/mention] 4. section.rs dispatcher 연결은 **#186 범위 C** 로 이월
+    :166 [basename/mention] | 2 | section.rs `<hp:p>`/`<hp:run>` 속성 IR 연결 | +5 |
+- [code] mydocs/working/task_m100_62r_stage2.md  channel=doc binding=mention jev=- rows=2
+    :50 [stem/stem_weak] - **수정**: 페이지 메인 섹션 자동 감지 (`overlay_page_section`) — 처음 등장하는 섹션을 메인으로 설정하고 다른 섹션 문단은 오버레이에서 제외
+    :64 [stem/stem_weak] - `overlay_para_bounds`, `overlay_table_bounds`, `overlay_skip_depth`, `overlay_page_section`을 페이지 시작 시 초기화
+- [code] rhwp-safari/HWP Viewer/Shared (App)/Resources/Script.js  channel=other binding=mention jev=- rows=3
+    :5 [stem/stem_weak] document.getElementsByClassName('platform-mac state-on')[0].innerText = "HWP Viewer’s extension is currently on. You can turn it off in the Extensions
+    :6 [stem/stem_weak] document.getElementsByClassName('platform-mac state-off')[0].innerText = "HWP Viewer’s extension is currently off. You can turn it on in the Extension
+    :7 [stem/stem_weak] document.getElementsByClassName('platform-mac state-unknown')[0].innerText = "You can turn on HWP Viewer’s extension in the Extensions section of Safa
+- [code] rhwp-studio/e2e/blogform.test.mjs  channel=other binding=mention jev=- rows=1
+    :40 [stem/stem_weak] return { inField, pos: { sec: pos?.sectionIndex, para: pos?.paragraphIndex, char: pos?.charOffset,
+- [code] rhwp-studio/e2e/debug-textbox.test.mjs  channel=other binding=mention jev=- rows=1
+    :17 [stem/stem_weak] sectionIdx: 0, paraIdx: 1, charOffset: 0,
+- [code] rhwp-studio/e2e/edit-pipeline.test.mjs  channel=other binding=mention jev=- rows=1
+    :752 [stem/stem_weak] sectionIdx: 0, paraIdx: 2, charOffset: 0,
+- [code] rhwp-studio/e2e/helpers.mjs  channel=other binding=mention jev=- rows=6
+    :176 [stem/stem_weak] export async function moveCursorTo(page, sectionIndex, paragraphIndex, charOffset) {
+    :181 [stem/stem_weak] sectionIndex: sec,
+    :186 [stem/stem_weak] }, sectionIndex, paragraphIndex, charOffset);
+- [code] rhwp-studio/e2e/report-generator.mjs  channel=other binding=mention jev=- rows=5
+    :22 [stem/stem_weak] section(name) {
+    :27 [stem/stem_weak] this.results.push({ tc, status: 'PASS', message, screenshot, section: this.currentSection });
+    :31 [stem/stem_weak] this.results.push({ tc, status: 'FAIL', message, screenshot, section: this.currentSection });
+- [code] rhwp-studio/e2e/scenario-runner.mjs  channel=other binding=mention jev=- rows=2
+    :106 [stem/stem_weak] sectionIdx: sec, paraIdx: para, charOffset: textLen,
+    :124 [stem/stem_weak] sectionIndex: sec,
+- [code] rhwp-studio/e2e/shape-inline.test.mjs  channel=other binding=mention jev=- rows=2
+    :18 [stem/stem_weak] return { sec: pos.sectionIndex, para: pos.paragraphIndex, offset: pos.charOffset };
+    :30 [stem/stem_weak] sectionIdx: 0, paraIdx: 0, charOffset: 0,
+- [code] rhwp-studio/e2e/tac-inline-create.test.mjs  channel=other binding=mention jev=- rows=1
+    :56 [stem/stem_weak] sectionIdx: 0, paraIdx: 1, charOffset: textLen,
+- [code] rhwp-studio/hwpctl-test.html  channel=other binding=mention jev=- rows=4
+    :17 [stem/stem_weak] .log-section { flex: 0 0 25%; max-height: 25%; display: flex; flex-direction: column; border-bottom: 2px solid #dee2e6; overflow: hidden; }
+    :23 [stem/stem_weak] .canvas-section { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+    :122 [stem/stem_weak] <div class="log-section">
+- [code] rhwp-studio/index.html  channel=other binding=mention jev=- rows=2
+    :327 [stem/stem_weak] <div class="md-item disabled" data-cmd="page:section-settings"><span class="md-icon"></span><span class="md-label">구역 설정</span></div>
+    :568 [stem/stem_weak] <span id="sb-section" class="stb-item">구역: 1 / 1</span>
+- [code] rhwp-studio/src/bootstrap.ts  channel=other binding=mention jev=- rows=5
+    :157 [stem/stem_weak] typeof position.sectionIndex === 'number' &&
+    :227 [stem/stem_weak] const sbSection = () => q('sb-section');
+    :492 [stem/stem_weak] // 구역 정보: 현재 페이지의 sectionIndex로 갱신
+- [code] rhwp-studio/src/command/commands/edit.ts  channel=other binding=mention jev=- rows=3
+    :139 [stem/stem_weak] FindDialog.lastQuery, pos.sectionIndex, pos.paragraphIndex,
+    :144 [stem/stem_weak] sectionIndex: result.sec!,
+    :152 [stem/stem_weak] sectionIndex: result.sec!,
+- [code] rhwp-studio/src/command/commands/format.ts  channel=other binding=mention jev=- rows=2
+    :313 [stem/stem_weak] services.wasm.applyParaFormat(pos.sectionIndex, pos.paragraphIndex,
+    :429 [stem/stem_weak] const tableCtx = { sec: pos.sectionIndex, ppi: pos.parentParaIndex, ci: pos.controlIndex };
+- [code] rhwp-studio/src/command/commands/insert.ts  channel=other binding=mention jev=- rows=1
+    :110 [stem/stem_weak] const result = services.wasm.insertFootnote(pos.sectionIndex, pos.paragraphIndex, pos.charOffset);
+- [code] rhwp-studio/src/core/types.ts  channel=other binding=mention jev=- rows=5
+    :4 [stem/stem_weak] sectionCount: number;
+    :16 [stem/stem_weak] sectionIndex: number;
+    :93 [stem/stem_weak] sectionIndex: number;
+- [code] rhwp-studio/src/engine/input-handler-connector.ts  channel=other binding=mention jev=- rows=2
+    :223 [stem/stem_weak] const sec = pos.sectionIndex;
+    :229 [stem/stem_weak] sectionIdx: sec,
+- [code] rhwp-studio/src/engine/input-handler-table.ts  channel=other binding=mention jev=- rows=2
+    :291 [stem/stem_weak] const sec = hit.sectionIndex;
+    :350 [stem/stem_weak] sectionIndex: sec,
+- [code] rhwp-studio/src/engine/selection-rects.ts  channel=other binding=mention jev=- rows=4
+    :5 [stem/stem_weak] sectionIndex: number;
+    :17 [stem/stem_weak] sectionIndex: number;
+    :152 [stem/stem_weak] run.secIdx !== range.sectionIndex ||
+- [code] rhwp-studio/src/hwpctl/actions/clipboard.ts  channel=other binding=mention jev=- rows=5
+    :13 [stem/stem_weak] doc.copySelection(cursor.section, cursor.para, 0, cursor.para, 65535);
+    :25 [stem/stem_weak] doc.copySelection(cursor.section, cursor.para, 0, cursor.para, 65535);
+    :26 [stem/stem_weak] doc.deleteText(cursor.section, cursor.para, 0, 65535);
+- [code] rhwp-studio/src/hwpctl/actions/format.ts  channel=other binding=mention jev=- rows=3
+    :99 [stem/stem_weak] const result = doc.applyCharFormat(cursor.section, cursor.para, 0, 65535, json);
+    :114 [stem/stem_weak] const result = doc.applyParaFormat(cursor.section, cursor.para, json);
+    :130 [stem/stem_weak] const result = doc.applyCharFormat(cursor.section, cursor.para, 0, 65535, json);
+- [code] rhwp-studio/src/hwpctl/actions/page.ts  channel=other binding=mention jev=- rows=2
+    :40 [stem/stem_weak] const result = doc.setPageDef(cursor.section, JSON.stringify(obj));
+    :66 [stem/stem_weak] cursor.section, cursor.para,
+- [code] rhwp-studio/src/hwpctl/actions/table-edit.ts  channel=other binding=mention jev=- rows=6
+    :24 [stem/stem_weak] result = doc.insertTableColumn(cursor.section, cursor.para, 0, 0, true);
+    :27 [stem/stem_weak] result = doc.insertTableRow(cursor.section, cursor.para, 0, 0, true);
+    :44 [stem/stem_weak] result = doc.deleteTableColumn(cursor.section, cursor.para, 0, 0);
+- [code] rhwp-studio/src/hwpctl/actions/table.ts  channel=other binding=mention jev=- rows=2
+    :28 [stem/stem_weak] const result = doc.createTable(cursor.section, cursor.para, cursor.pos, rows, cols);
+    :46 [stem/stem_weak] ctrl.SetPos(cursor.section, tableParaIdx + 1, 0);
+- [code] rhwp-studio/src/hwpctl/actions/text.ts  channel=other binding=mention jev=- rows=8
+    :16 [stem/stem_weak] const result = doc.insertText(cursor.section, cursor.para, cursor.pos, text);
+    :19 [stem/stem_weak] ctrl.SetPos(cursor.section, cursor.para, parsed.charOffset ?? cursor.pos + text.length);
+    :33 [stem/stem_weak] const result = doc.splitParagraph(cursor.section, cursor.para, cursor.pos);
+- [code] rhwp-studio/src/hwpctl/index.ts  channel=other binding=mention jev=- rows=3
+    :43 [stem/stem_weak] getCursor(): { section: number; para: number; pos: number } {
+    :44 [stem/stem_weak] return { section: this.cursorSection, para: this.cursorPara, pos: this.cursorPos };
+    :262 [stem/stem_weak] this.cursorSection = loc.sectionIndex ?? 0;
+- [code] rhwp-studio/src/styles/dialogs.css  channel=other binding=mention jev=- rows=5
+    :58 [stem/stem_weak] .dialog-section {
+    :66 [stem/stem_weak] .dialog-section-title {
+    :177 [stem/stem_weak] .page-setup-sections {
+- [code] rhwp-studio/src/styles/numbering-dialog.css  channel=other binding=mention jev=- rows=2
+    :40 [stem/stem_weak] .nd-start-section {
+    :47 [stem/stem_weak] .nd-preview-section {
+- [code] rhwp-studio/src/styles/style-dialog.css  channel=other binding=mention jev=- rows=1
+    :119 [stem/stem_weak] .sd-info-section {
+- [code] rhwp-studio/src/ui/bookmark-dialog.ts  channel=other binding=mention jev=- rows=2
+    :284 [stem/stem_weak] pos.sectionIndex, pos.paragraphIndex, pos.charOffset, name,
+    :303 [stem/stem_weak] ih.moveCursorTo({ sectionIndex: s, paragraphIndex: p, charOffset: o });
+- [code] rhwp-studio/src/ui/cell-border-bg-dialog.ts  channel=other binding=mention jev=- rows=5
+    :580 [stem/stem_weak] const section = this.createSection('적용 범위');
+    :597 [stem/stem_weak] section.appendChild(radioGroup);
+    :603 [stem/stem_weak] return section;
+- [code] rhwp-studio/src/ui/cell-split-dialog.ts  channel=other binding=mention jev=- rows=4
+    :85 [stem/stem_weak] splitSection.className = 'dialog-section';
+    :88 [stem/stem_weak] splitTitle.className = 'dialog-section-title';
+    :150 [stem/stem_weak] optSection.className = 'dialog-section';
+- [code] rhwp-studio/src/ui/find-dialog.ts  channel=other binding=mention jev=- rows=3
+    :214 [stem/stem_weak] let fromSec = pos.sectionIndex;
+    :255 [stem/stem_weak] sectionIndex: hit.sec!,
+    :260 [stem/stem_weak] sectionIndex: hit.sec!,
+- [code] rhwp-studio/src/ui/goto-dialog.ts  channel=other binding=mention jev=- rows=3
+    :154 [stem/stem_weak] return ih.moveCursorTo({ sectionIndex: sec, paragraphIndex: para, charOffset: offset });
+    :171 [stem/stem_weak] const pageResult = this.services.wasm.getPageOfPosition(pos.sectionIndex, pos.paragraphIndex);
+    :205 [stem/stem_weak] sectionIndex: posResult.sec!,
+- [code] rhwp-studio/src/ui/numbering-dialog.ts  channel=other binding=mention jev=- rows=7
+    :277 [stem/stem_weak] fmtSection.className = 'dialog-section';
+    :279 [stem/stem_weak] fmtTitle.className = 'dialog-section-title';
+    :313 [stem/stem_weak] restartSection.className = 'dialog-section';
+- [code] rhwp-studio/src/ui/options-dialog.ts  channel=other binding=mention jev=- rows=6
+    :62 [stem/stem_weak] viewSection.className = 'dialog-section';
+    :65 [stem/stem_weak] viewTitle.className = 'dialog-section-title';
+    :103 [stem/stem_weak] fontSetSection.className = 'dialog-section';
+- [code] rhwp-studio/src/ui/para-shape-dialog.ts  channel=other binding=mention jev=- rows=4
+    :432 [stem/stem_weak] typeSection.className = 'dialog-section';
+    :434 [stem/stem_weak] typeTitle.className = 'dialog-section-title';
+    :487 [stem/stem_weak] etcSection.className = 'dialog-section';
+- [code] rhwp-studio/src/ui/para-shape-tab-builders.ts  channel=other binding=mention jev=- rows=8
+    :70 [stem/stem_weak] typeSection.className = 'dialog-section';
+    :72 [stem/stem_weak] typeTitle.className = 'dialog-section-title';
+    :161 [stem/stem_weak] tabListLabel.className = 'dialog-section-title';
+- [code] rhwp-studio/src/ui/style-dialog.ts  channel=other binding=mention jev=- rows=1
+    :200 [stem/stem_weak] sec.className = 'sd-info-section';
+- [code] rhwp-studio/src/ui/table-cell-props-dialog.ts  channel=other binding=mention jev=- rows=2
+    :1476 [stem/stem_weak] sec.className = 'dialog-section';
+    :1478 [stem/stem_weak] t.className = 'dialog-section-title';
+- [code] rhwp-studio/src/ui/table-create-dialog.ts  channel=other binding=mention jev=- rows=2
+    :380 [stem/stem_weak] sec.className = 'dialog-section';
+    :382 [stem/stem_weak] t.className = 'dialog-section-title';
+- [code] rhwp-studio/src/ui/validation-modal.ts  channel=other binding=mention jev=- rows=1
+    :129 [stem/stem_weak] line.textContent = `section=${w.section} para=${w.paragraph} ${kindLabel}${cellStr}`;
+- [code] rhwp-vscode/CHANGELOG.md  channel=doc binding=mention jev=- rows=1
+    :112 [stem/stem_weak] - measure_section 캐시 인덱스 조정, 증분 측정 최적화
+- [code] rhwp-vscode/package-lock.json  channel=other binding=mention jev=- rows=3
+    :189 [stem/stem_weak] "node_modules/@webassemblyjs/helper-wasm-section": {
+    :191 [stem/stem_weak] "resolved": "https://registry.npmjs.org/@webassemblyjs/helper-wasm-section/-/helper-wasm-section-1.14.1.tgz",
+    :239 [stem/stem_weak] "@webassemblyjs/helper-wasm-section": "1.14.1",
+- [code] src/document_core/html_table_import.rs  channel=other binding=mention jev=- rows=2
+    :627 [stem/stem_weak] 'outer: for section in &self.document.sections {
+    :628 [stem/stem_weak] for para in &section.paragraphs {
+- [code] src/document_core/queries/form_query.rs  channel=other binding=mention jev=- rows=7
+    :44 [stem/stem_weak] form.section_index,
+    :72 [stem/stem_weak] .sections
+    :106 [stem/stem_weak] .sections
+- [code] src/document_core/validation.rs  channel=other binding=mention jev=- rows=4
+    :65 [stem/stem_weak] pub section_idx: usize,
+    :126 [stem/stem_weak] section_idx: 0,
+    :132 [stem/stem_weak] section_idx: 0,
+- [code] src/model/document.rs  channel=other binding=mention jev=- rows=5
+    :32 [stem/stem_weak] pub sections: Vec<Section>,
+    :105 [stem/stem_weak] pub section_count: u16,
+    :165 [stem/stem_weak] pub section_def: SectionDef,
+- [code] src/model/page.rs  channel=other binding=mention jev=- rows=1
+    :234 [stem/stem_weak] fn test_page_areas_degenerate_zero_size_section() {
+- [code] src/parser/crypto.rs  channel=other binding=mention jev=- rows=6
+    :327 [stem/stem_weak] pub fn decrypt_viewtext_section(
+    :328 [stem/stem_weak] section_data: &[u8],
+    :336 [stem/stem_weak] read_first_record(section_data).map_err(|e| CryptoError::RecordError(e.to_string()))?;
+- [code] src/parser/doc_info.rs  channel=other binding=mention jev=- rows=5
+    :162 [stem/stem_weak] section_count: r.read_u16().unwrap_or(1),
+    :870 [stem/stem_weak] data.extend_from_slice(&2u16.to_le_bytes()); // section_count
+    :879 [stem/stem_weak] assert_eq!(props.section_count, 2);
+- [code] src/parser/hwpx/header.rs  channel=other binding=mention jev=- rows=1
+    :150 [stem/stem_weak] doc_props.section_count = 1; // content.hpf에서 갱신됨
+- [code] src/parser/hwpx/reader.rs  channel=other binding=mention jev=- rows=2
+    :19 [stem/stem_weak] /// XML 엔트리(section, header, content.hpf 등) 엔트리당 압축 해제 상한.
+    :21 [stem/stem_weak] /// 실제 정부 보도자료·법령 HWPX에서도 section.xml이 이 한도를 넘는 경우는
+- [code] src/parser/hwpx/utils.rs  channel=other binding=mention jev=- rows=1
+    :3 [basename/mention] //! header.rs, section.rs 등에서 공통으로 사용하는 XML 파싱 헬퍼.
+- [code] src/renderer/composer.rs  channel=other binding=mention jev=- rows=3
+    :104 [stem/stem_weak] pub fn compose_section(section: &Section) -> Vec<ComposedParagraph> {
+    :105 [stem/stem_weak] section.paragraphs.iter().map(compose_paragraph).collect()
+    :1118 [stem/stem_weak] is_line_end_forbidden, is_line_start_forbidden, recalculate_section_vpos, reflow_line_segs,
+- [code] src/renderer/composer/line_breaking.rs  channel=other binding=mention jev=- rows=1
+    :1057 [stem/stem_weak] pub(crate) fn recalculate_section_vpos(paragraphs: &mut [Paragraph], start_para: usize) {
+- [code] src/renderer/composer/lineseg_compare.rs  channel=other binding=mention jev=- rows=2
+    :63 [stem/stem_weak] pub section_idx: usize,
+    :199 [stem/stem_weak] report.section_idx, report.total_paragraphs, report.compared_paragraphs
+- [code] src/renderer/height_measurer.rs  channel=other binding=mention jev=- rows=8
+    :168 [stem/stem_weak] pub fn measure_section(
+    :1092 [stem/stem_weak] pub fn measure_section_incremental(
+    :1149 [stem/stem_weak] /// None이면 전체 재측정한다 (measure_section_incremental 폴백).
+- [code] src/renderer/layout/table_cell_content.rs  channel=other binding=mention jev=- rows=5
+    :40 [stem/stem_weak] section_index: usize,
+    :269 [stem/stem_weak] section_index: Some(section_index),
+    :385 [stem/stem_weak] /// enclosing_ctx: (section_index, body_para_index, 상위 경로, 표의 컨트롤 인덱스)
+- [code] src/renderer/layout/tests.rs  channel=other binding=mention jev=- rows=6
+    :34 [stem/stem_weak] section_index: 0,
+    :86 [stem/stem_weak] section_index: 0,
+    :189 [stem/stem_weak] section_index: 0,
+- [code] src/renderer/pagination.rs  channel=other binding=mention jev=- rows=7
+    :39 [stem/stem_weak] pub section_index: usize,
+    :64 [stem/stem_weak] pub section_index: usize,
+    :77 [stem/stem_weak] pub source_section_index: usize,
+- [code] src/renderer/pagination/state.rs  channel=other binding=mention jev=- rows=4
+    :25 [stem/stem_weak] pub section_index: usize,
+    :50 [stem/stem_weak] section_index: usize,
+    :66 [stem/stem_weak] section_index,
+- [code] src/serializer/control.rs  channel=other binding=mention jev=- rows=2
+    :38 [stem/stem_weak] Control::SectionDef(sd) => serialize_section_def(sd, level, records),
+    :169 [stem/stem_weak] fn serialize_section_def(sd: &SectionDef, level: u16, records: &mut Vec<Record>) {
+- [code] src/serializer/doc_info.rs  channel=other binding=mention jev=- rows=2
+    :141 [stem/stem_weak] w.write_u16(props.section_count).unwrap();
+    :876 [stem/stem_weak] ///   offset 0-1:  section_count (u16)
+- [code] src/serializer/doc_info/tests.rs  channel=other binding=mention jev=- rows=3
+    :13 [stem/stem_weak] section_count: 2,
+    :307 [stem/stem_weak] section_count: 1,
+    :396 [stem/stem_weak] assert_eq!(parsed_props.section_count, 1);
+- [code] src/serializer/hwpx/content.rs  channel=other binding=mention jev=- rows=6
+    :23 [stem/stem_weak] section_hrefs: &[String],
+    :39 [stem/stem_weak] ("xmlns:hs", "http://www.hancom.co.kr/hwpml/2011/section"),
+    :100 [stem/stem_weak] for (i, href) in section_hrefs.iter().enumerate() {
+- [code] src/serializer/hwpx/context.rs  channel=other binding=mention jev=- rows=2
+    :5 [stem/stem_weak] //! HWPX 직렬화에서 가장 큰 함정은 **한 파일(section.xml)에서 쓴 ID가 다른 파일(header.xml)에
+    :43 [stem/stem_weak] /// section/기타 writer가 ID를 참조할 때 호출.
+- [code] src/serializer/hwpx/field.rs  channel=other binding=mention jev=- rows=1
+    :8 [basename/mention] //! - Stage 5 에서는 **필드 뼈대 출력** 기능만 제공 (section.rs dispatcher 연결은 #186).
+- [code] src/serializer/hwpx/fixtures.rs  channel=other binding=mention jev=- rows=1
+    :13 [stem/stem_weak] pub const EMPTY_SECTION0_XML: &str = include_str!("templates/empty_section0.xml");
+- [code] src/serializer/hwpx/header.rs  channel=other binding=mention jev=- rows=3
+    :36 [stem/stem_weak] let sec_cnt = doc.doc_properties.section_count.max(1).to_string();
+    :44 [stem/stem_weak] ("xmlns:hs", "http://www.hancom.co.kr/hwpml/2011/section"),
+    :888 [stem/stem_weak] empty_tag(w, "hh:section", &[])?;
+- [code] src/serializer/hwpx/shape.rs  channel=other binding=mention jev=- rows=1
+    :10 [basename/mention] //! - Stage 5 에서는 **도형 뼈대 출력** 기능만 제공 (section.rs dispatcher 연결은 #186).
+- [code] src/serializer/hwpx/static_assets.rs  channel=other binding=mention jev=- rows=2
+    :33 [stem/stem_weak] r#"<ns0:hasPart xmlns:ns0="http://www.hancom.co.kr/hwpml/2016/meta/pkg#" rdf:resource="Contents/section0.xml"/>"#,
+    :35 [stem/stem_weak] r#"<rdf:Description rdf:about="Contents/section0.xml">"#,
+- [code] src/serializer/hwpx/templates/empty_content.hpf  channel=other binding=mention jev=- rows=1
+    :1 [stem/stem_weak] <?xml version="1.0" encoding="UTF-8" standalone="yes" ?><opf:package xmlns:ha="http://www.hancom.co.kr/hwpml/2011/app" xmlns:hp="http://www.hancom.co.
+- [code] src/serializer/hwpx/templates/empty_header.xml  channel=other binding=mention jev=- rows=1
+    :1 [stem/stem_weak] <?xml version="1.0" encoding="UTF-8" standalone="yes" ?><hh:head xmlns:ha="http://www.hancom.co.kr/hwpml/2011/app" xmlns:hp="http://www.hancom.co.kr/h
+- [code] src/serializer/hwpx/templates/empty_section0.xml  channel=other binding=mention jev=- rows=1
+    :1 [stem/stem_weak] <?xml version="1.0" encoding="UTF-8" standalone="yes" ?><hs:sec xmlns:ha="http://www.hancom.co.kr/hwpml/2011/app" xmlns:hp="http://www.hancom.co.kr/hw
+- [code] src/wmf/converter/graphics_object.rs  channel=other binding=mention jev=- rows=1
+    :74 [stem/stem_weak] style: PenStyleSubsection {
+- [code] src/wmf/parser/constants/enums/binary_raster_operation.rs  channel=other binding=mention jev=- rows=1
+    :1 [stem/stem_weak] /// The BinaryRasterOperation Enumeration section lists the binary
+- [code] src/wmf/parser/constants/enums/bit_count.rs  channel=other binding=mention jev=- rows=2
+    :41 [stem/stem_weak] /// section 2.2.61) in the bitmap represents a single pixel. The relative
+    :48 [stem/stem_weak] /// Colors field contains three DWORD (defined in [MS-DTYP] section 2.2.9)
+- [code] src/wmf/parser/constants/enums/compression.rs  channel=other binding=mention jev=- rows=1
+    :18 [stem/stem_weak] /// DWORD (defined in [MS-DTYP] section 2.2.9) color masks that specify the
+- [code] src/wmf/parser/constants/enums/metafile_escapes.rs  channel=other binding=mention jev=- rows=1
+    :88 [stem/stem_weak] /// section.
+- [code] src/wmf/parser/constants/enums/record_type.rs  channel=other binding=mention jev=- rows=4
+    :123 [stem/stem_weak] /// device context to the intersection of the existing clipping region and
+    :170 [stem/stem_weak] /// This record draws a pie-shaped wedge bounded by the intersection of an
+    :200 [stem/stem_weak] /// intersection of an ellipse and a line segment. The chord is outlined by
+- [code] src/wmf/parser/objects/graphics/pen.rs  channel=other binding=mention jev=- rows=4
+    :6 [stem/stem_weak] pub style: PenStyleSubsection,
+    :26 [stem/stem_weak] PenStyleSubsection::parse(buf)?,
+    :43 [stem/stem_weak] pub struct PenStyleSubsection {
+- [code] src/wmf/parser/objects/structure/ciexyz_triple.rs  channel=other binding=mention jev=- rows=1
+    :5 [stem/stem_weak] /// ciexyzRed (12 bytes): A 96-bit CIEXYZ Object (section 2.2.2.6) that
+- [code] src/wmf/parser/records/bitmap/bit_blt.rs  channel=other binding=mention jev=- rows=3
+    :8 [stem/stem_weak] /// below. The subsections that follow specify the packet structures of the two
+    :22 [stem/stem_weak] /// 16-bit WORD structures, defined in [MS-DTYP] section 2.2.61, in the
+    :62 [stem/stem_weak] /// 16-bit WORD structures, defined in [MS-DTYP] section 2.2.61, in the
+- [code] src/wmf/parser/records/bitmap/dib_bit_blt.rs  channel=other binding=mention jev=- rows=3
+    :12 [stem/stem_weak] /// that are the same in the two forms of META_DIBBITBLT. The subsections that
+    :26 [stem/stem_weak] /// 16-bit WORD structures, defined in [MS-DTYP] section 2.2.61, in the
+    :66 [stem/stem_weak] /// 16-bit WORD structures, defined in [MS-DTYP] section 2.2.61, in the
+- [code] src/wmf/parser/records/bitmap/dib_stretch_blt.rs  channel=other binding=mention jev=- rows=3
+    :13 [stem/stem_weak] /// that are the same in the two forms of META_DIBSTRETCHBLT. The subsections
+    :32 [stem/stem_weak] /// 16-bit WORD structures, defined in [MS-DTYP] section 2.2.61, in the
+    :77 [stem/stem_weak] /// 16-bit WORD structures, defined in [MS-DTYP] section 2.2.61, in the
+- [code] src/wmf/parser/records/bitmap/set_dib_to_dev.rs  channel=other binding=mention jev=- rows=1
+    :8 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the record.
+- [code] src/wmf/parser/records/bitmap/stretch_blt.rs  channel=other binding=mention jev=- rows=3
+    :10 [stem/stem_weak] /// META_STRETCHBLT are defined below. The subsections that follow specify the
+    :28 [stem/stem_weak] /// 16-bit WORD structures, defined in [MS-DTYP] section 2.2.61, in the
+    :74 [stem/stem_weak] /// 16-bit WORD structures, defined in [MS-DTYP] section 2.2.61, in the
+- [code] src/wmf/parser/records/bitmap/stretch_dib.rs  channel=other binding=mention jev=- rows=1
+    :10 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the record.
+- [code] src/wmf/parser/records/control/eof.rs  channel=other binding=mention jev=- rows=1
+    :7 [stem/stem_weak] /// of 16-bit WORD structures, defined in [MS-DTYP] section 2.2.61, in the
+- [code] src/wmf/parser/records/control/header.rs  channel=other binding=mention jev=- rows=2
+    :11 [stem/stem_weak] /// of 16-bit WORD structures, defined in [MS-DTYP] section 2.2.61, in the
+    :28 [stem/stem_weak] /// section 2.2.1.
+- [code] src/wmf/parser/records/drawing/arc.rs  channel=other binding=mention jev=- rows=1
+    :5 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/drawing/chord.rs  channel=other binding=mention jev=- rows=2
+    :2 [stem/stem_weak] /// the intersection of an ellipse with a line segment. The chord is outlined
+    :8 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/drawing/ellipse.rs  channel=other binding=mention jev=- rows=1
+    :8 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/drawing/ext_flood_fill.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/drawing/ext_text_out.rs  channel=other binding=mention jev=- rows=1
+    :9 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/drawing/fill_region.rs  channel=other binding=mention jev=- rows=1
+    :5 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/drawing/flood_fill.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/drawing/frame_region.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/drawing/invert_region.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/drawing/line_to.rs  channel=other binding=mention jev=- rows=1
+    :7 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/drawing/paint_region.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/drawing/pat_blt.rs  channel=other binding=mention jev=- rows=1
+    :7 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/drawing/pie.rs  channel=other binding=mention jev=- rows=2
+    :1 [stem/stem_weak] /// The META_PIE Record draws a pie-shaped wedge bounded by the intersection of
+    :7 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/drawing/poly_line.rs  channel=other binding=mention jev=- rows=1
+    :8 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/drawing/poly_polygon.rs  channel=other binding=mention jev=- rows=1
+    :8 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/drawing/polygon.rs  channel=other binding=mention jev=- rows=1
+    :10 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/drawing/rectangle.rs  channel=other binding=mention jev=- rows=1
+    :7 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/drawing/round_rect.rs  channel=other binding=mention jev=- rows=1
+    :7 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/drawing/set_pixel.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/drawing/text_out.rs  channel=other binding=mention jev=- rows=1
+    :9 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/mod.rs  channel=other binding=mention jev=- rows=1
+    :40 [stem/stem_weak] /// defined in [MS-DTYP] section 2.2.61, in the record.
+- [code] src/wmf/parser/records/object/create_brush_indirect.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/object/create_font_indirect.rs  channel=other binding=mention jev=- rows=1
+    :5 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/object/create_palette.rs  channel=other binding=mention jev=- rows=1
+    :5 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/object/create_pattern_brush.rs  channel=other binding=mention jev=- rows=1
+    :11 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/object/create_pen_indirect.rs  channel=other binding=mention jev=- rows=1
+    :5 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/object/create_region.rs  channel=other binding=mention jev=- rows=1
+    :5 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/object/delete_object.rs  channel=other binding=mention jev=- rows=1
+    :9 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/object/dib_create_pattern_brush.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/object/select_clip_region.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/object/select_object.rs  channel=other binding=mention jev=- rows=1
+    :12 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/object/select_palette.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/animate_palette.rs  channel=other binding=mention jev=- rows=1
+    :15 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/exclude_clip_rect.rs  channel=other binding=mention jev=- rows=1
+    :7 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/intersect_clip_rect.rs  channel=other binding=mention jev=- rows=2
+    :2 [stem/stem_weak] /// device context to the intersection of the existing clipping region and the
+    :7 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/move_to.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/offset_clip_rgn.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/offset_viewport_org.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/offset_window_org.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/realize_palette.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/resize_palette.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/restore_dc.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/save_dc.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/scale_viewport_ext.rs  channel=other binding=mention jev=- rows=1
+    :7 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/scale_window_ext.rs  channel=other binding=mention jev=- rows=1
+    :7 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/set_bk_color.rs  channel=other binding=mention jev=- rows=1
+    :7 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/set_bk_mode.rs  channel=other binding=mention jev=- rows=1
+    :8 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/set_layout.rs  channel=other binding=mention jev=- rows=1
+    :8 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/set_map_mode.rs  channel=other binding=mention jev=- rows=1
+    :10 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/set_mapper_flags.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/set_pal_entries.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/set_polyfill_mode.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/set_relabs.rs  channel=other binding=mention jev=- rows=1
+    :5 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/set_rop2.rs  channel=other binding=mention jev=- rows=1
+    :8 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/set_stretch_blt_mode.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/set_text_align.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/set_text_char_extra.rs  channel=other binding=mention jev=- rows=1
+    :8 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/set_text_color.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/set_text_justification.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/set_viewport_ext.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/set_viewport_org.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/set_window_ext.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] src/wmf/parser/records/state/set_window_org.rs  channel=other binding=mention jev=- rows=1
+    :6 [stem/stem_weak] /// of WORD structures, defined in [MS-DTYP] section 2.2.61, in the WMF
+- [code] typescript/rhwp.d.ts  channel=other binding=mention jev=- rows=2
+    :79 [stem/stem_weak] sectionIndex: number;
+    :85 [stem/stem_weak] sectionCount: number;
+- [code] web/editor.css  channel=other binding=mention jev=- rows=2
+    :555 [stem/stem_weak] .dialog-section {
+    :563 [stem/stem_weak] .dialog-section-title {
+- [code] web/editor.html  channel=other binding=mention jev=- rows=2
+    :320 [stem/stem_weak] <section id="editor-area">
+    :328 [stem/stem_weak] </section>
+- [code] web/editor.js  channel=other binding=mention jev=- rows=1
+    :416 [stem/stem_weak] // 모든 폰트 로딩 완료 대기 (compose_section에서 js_measure_text_width 콜백 시
+- [code] web/index.html  channel=other binding=mention jev=- rows=4
+    :37 [stem/stem_weak] <section id="info-panel">
+    :39 [stem/stem_weak] </section>
+    :41 [stem/stem_weak] <section id="render-panel">
