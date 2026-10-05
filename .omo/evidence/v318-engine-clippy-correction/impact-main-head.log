@@ -1,0 +1,317 @@
+IMPACT at=code:HEAD@fc3184b9a3fb query="src/main.rs" mode=path jev=used(cache) jev_threshold=0.45 files=137 rows=304 det_ms=144 total_ms=145 jev_requests=0 jev_http_attempts=0 jev_input_tokens=0
+  ! Jev 에 보내지 않은 파일 17 (상한 --max-files=120 또는 비밀 성격 경로)
+- [code] gates/V318_ENGINE_CLIPPY_CORRECTION_GATES.md  channel=gate_ledger binding=mention jev=0.60★ rows=2
+    :3 [path/mention] 상태: **BLOCKED_STRICT_CLIPPY_OUTSIDE_OWNED11**. 승인된 11개 파일의 14개 진단은 수정했지만 전체 엄격 Clippy는 아직 실패한다. `src/main.rs:1331`의 추가 진단에 대한 coordinator 질문이 진행 중이다. 
+    :58 [path/mention] EVIDENCE: FAIL rc101 candidate-clippy.log SHA256 0e87a2e4ad81dfa524ddabef49de6f80233842f33edda90bb3c09c052cf9ce4f; src/main.rs:1331의 추가 redundant prin
+- [code] mydocs/working/task_m100_71_stage3.md  channel=doc binding=mention jev=0.46★ rows=2
+    :12 [path/mention] | `src/main.rs:1249` | #5 (warning) | dump 출력 텍스트를 30자 절단 + `...(truncated)` 표시 |
+    :22 [basename/mention] - 경고 5: Cleartext logging of sensitive information — main.rs
+- [code] .omo/evidence/v318-engine-clippy-correction/SELF_CHECK.md  channel=doc binding=mention jev=0.45★ rows=1
+    :5 [path/mention] 1. **HIGH / BLOCKING — src/main.rs:1331**: `cargo +1.99.0 clippy -- -D warnings`는 library 14개 수정 뒤 binary의 `println!` 인수 `&para.raw_header_extra`를 red
+- [code] .omo/evidence/v318-engine-clippy-correction/baseline-clippy.json  channel=other binding=mention jev=0.38 rows=1
+    :51 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/source-doc-diff-check.json  channel=other binding=mention jev=0.37 rows=1
+    :54 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/source-input-check.json  channel=other binding=mention jev=0.34 rows=1
+    :46 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/source-identity.json  channel=other binding=mention jev=0.33 rows=1
+    :25 [path/mention] "strict_clippy_blocker": "src/main.rs:1331 useless_borrows_in_formatting (outside initial11)",
+- [code] .omo/evidence/v318-engine-clippy-correction/candidate-clippy.json  channel=other binding=mention jev=0.30 rows=1
+    :51 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/cursor-line-break.json  channel=other binding=mention jev=0.30 rows=1
+    :52 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/staged-diff-check.json  channel=other binding=mention jev=0.29 rows=1
+    :47 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/candidate-clippy.log  channel=other binding=mention jev=0.28 rows=1
+    :3 [path/mention] --> src/main.rs:1331:25
+- [code] .omo/evidence/v318-engine-clippy-correction/focused-parser.json  channel=other binding=mention jev=0.28 rows=1
+    :50 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/command-batch.json  channel=other binding=mention jev=0.26 rows=1
+    :52 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/focused-hwpx.json  channel=other binding=mention jev=0.26 rows=1
+    :50 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/gate-status.json  channel=other binding=mention jev=0.24 rows=1
+    :47 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] Cargo.toml  channel=other binding=mention jev=0.24 rows=1
+    :14 [path/mention] path = "src/main.rs"
+- [code] .omo/evidence/v318-engine-clippy-correction/diff-check.json  channel=other binding=mention jev=0.23 rows=1
+    :46 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-11.json  channel=other binding=mention jev=0.23 rows=1
+    :55 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-2.json  channel=other binding=mention jev=0.23 rows=1
+    :55 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/executor-lock.json  channel=other binding=mention jev=0.22 rows=1
+    :47 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-main.json  channel=other binding=mention jev=0.22 rows=2
+    :13 [path/mention] "src/main.rs",
+    :55 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/source-diff.json  channel=other binding=mention jev=0.22 rows=1
+    :48 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] mydocs/plans/task_m100_68.md  channel=doc binding=mention jev=0.22 rows=1
+    :50 [path/mention] - `src/main.rs` — `--embed-fonts` CLI 옵션
+- [code] mydocs/working/archives/task_3_step_5.md  channel=doc binding=mention jev=0.22 rows=3
+    :11 [path/mention] | `src/main.rs` | 수정 | `export-svg`, `info` 명령 실제 파싱 연결 |
+    :65 [basename/mention] #### main.rs - CLI 실제 파싱 연결
+    :113 [basename/mention] └── CLI (main.rs)
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-1.json  channel=other binding=mention jev=0.21 rows=1
+    :55 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/semantics.json  channel=other binding=mention jev=0.21 rows=1
+    :47 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/dispatch-identity.json  channel=other binding=mention jev=0.20 rows=1
+    :49 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/toolchain.json  channel=other binding=mention jev=0.20 rows=1
+    :48 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-10.json  channel=other binding=mention jev=0.19 rows=1
+    :55 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-10.log  channel=other binding=mention jev=0.19 rows=1
+    :51 [path/mention] - [code] src/main.rs  channel=other binding=mention jev=0.34 rows=43
+- [code] mydocs/eng/plans/archives/task_74_impl.md  channel=doc binding=mention jev=0.19 rows=2
+    :102 [path/mention] | `src/main.rs` | Add Picture to info command ShapeObject match | ~5 lines |
+    :85 [basename/mention] 3. **Other ShapeObject match code**: Add Picture branch to all `match ShapeObject` blocks flagged by compiler (including info command in main.rs)
+- [code] mydocs/plans/task_m100_164_impl.md  channel=doc binding=mention jev=0.18 rows=2
+    :23 [path/mention] | `src/main.rs` | 5 | 수정 — `export-hwpx` 서브커맨드 |
+    :370 [path/mention] - `src/main.rs` (확장)
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-9.log  channel=other binding=mention jev=0.17 rows=3
+    :263 [path/mention] - [code] src/main.rs  channel=other binding=mention jev=0.23 rows=35
+    :1260 [path/mention] :29 [stem/stem_weak] - Cell internal control detailed output code (`src/main.rs`) **retained** (useful for debugging)
+    :1223 [basename/mention] :46 [stem/stem_weak] - Added detailed master page info output in `main.rs` dump mode (count, apply_to, paragraph count, control list)
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-main.log  channel=other binding=mention jev=0.17 rows=125
+    :1 [path/mention] IMPACT at=code:3033ae22c9031919757be1357a998471e67f1fab@3033ae22c903 query="src/main.rs" mode=path jev=used jev_threshold=0.45 files=89 rows=128 det_m
+    :6 [path/mention] :14 [path/mention] path = "src/main.rs"
+    :15 [path/mention] :49 [path/mention] | `src/main.rs` | Info command rectangle border info output |
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-3.json  channel=other binding=mention jev=0.16 rows=1
+    :55 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-gate.json  channel=other binding=mention jev=0.16 rows=1
+    :55 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/record-integrity.json  channel=other binding=mention jev=0.16 rows=1
+    :46 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/rustfmt-final.json  channel=other binding=mention jev=0.16 rows=1
+    :61 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] mydocs/eng/feedback/code-refactoring-strategy.md  channel=doc binding=mention jev=0.16 rows=4
+    :35 [basename/mention] Phase 4 --- main.rs cleanup and polishing (SRP +1, OCP +1)
+    :200 [basename/mention] ### 2.3 `main.rs` 990 lines -> Modularized
+    :204 [basename/mention] +-- main.rs              <- Entry point only (under 50 lines)
+- [code] .omo/evidence/v318-engine-clippy-correction/inline-table.json  channel=other binding=mention jev=0.15 rows=1
+    :52 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/model-style.json  channel=other binding=mention jev=0.15 rows=1
+    :50 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] mydocs/eng/manual/onboarding_guide.md  channel=doc binding=mention jev=0.15 rows=2
+    :231 [basename/mention] wasm_api          main.rs
+    :237 [basename/mention] - **wasm_api/main.rs knows everything** (adapter layer)
+- [code] mydocs/eng/plans/archives/task_3_impl.md  channel=doc binding=mention jev=0.15 rows=2
+    :113 [path/mention] - `src/main.rs` modification — Use actual parse results in CLI
+    :139 [path/mention] | `src/main.rs` | 5 | CLI actual parsing integration |
+- [code] mydocs/eng/report/task_73_postfix.md  channel=doc binding=mention jev=0.15 rows=2
+    :49 [path/mention] | `src/main.rs` | Info command rectangle border info output |
+    :31 [basename/mention] - **Additional**: Added rectangle border debugging info output to `main.rs` info command
+- [code] mydocs/eng/working/archives/task_2_step_5.md  channel=doc binding=mention jev=0.15 rows=2
+    :74 [path/mention] | | src/main.rs | CLI commands |
+    :47 [basename/mention] | Module structure | Reflects wasm_api.rs, main.rs, scheduler.rs, etc. |
+- [code] mydocs/plans/archives/task_96.md  channel=doc binding=mention jev=0.15 rows=1
+    :75 [path/mention] | `src/main.rs` | 디버그 출력 (필요시) |
+- [code] mydocs/plans/task_m100_68_impl.md  channel=doc binding=mention jev=0.15 rows=2
+    :62 [path/mention] **대상 파일:** `src/main.rs`, `src/renderer/svg.rs`
+    :65 [path/mention] 1. `src/main.rs` export-svg CLI에 옵션 추가:
+- [code] mydocs/tech/hexagonal_architecture_review.md  channel=doc binding=mention jev=0.15 rows=4
+    :17 [basename/mention] - CLI (main.rs)                 - HWP Parser (파일 입력)
+    :38 [basename/mention] main.rs → document_core, model    ✅ 올바름 (driving adapter)
+    :54 [basename/mention] | main.rs | Driving Adapter | CLI 진입점 | ✅ 완벽 |
+- [code] .omo/evidence/v318-engine-clippy-correction/nested-table.json  channel=other binding=mention jev=0.14 rows=1
+    :52 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/pagedef13.json  channel=other binding=mention jev=0.14 rows=1
+    :50 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/rustfmt.json  channel=other binding=mention jev=0.14 rows=1
+    :61 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/scoped-clippy.json  channel=other binding=mention jev=0.14 rows=1
+    :52 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] mydocs/eng/feedback/r-code-review-report.md  channel=doc binding=mention jev=0.14 rows=2
+    :50 [basename/mention] ### 1.4 Major: `main.rs` -- 990 lines
+    :194 [basename/mention] 5. **Adopt CLI framework for `main.rs`**: Use `clap` crate
+- [code] mydocs/eng/working/archives/task_3_step_5.md  channel=doc binding=mention jev=0.14 rows=3
+    :11 [path/mention] | `src/main.rs` | Modified | `export-svg`, `info` commands connected to actual parsing |
+    :64 [basename/mention] #### main.rs - CLI Actual Parsing Connection
+    :112 [basename/mention] |-- CLI (main.rs)
+- [code] mydocs/eng/working/archives/task_94_final.md  channel=doc binding=mention jev=0.14 rows=1
+    :53 [path/mention] | `src/main.rs` | Improved dump fill info output |
+- [code] mydocs/manual/onboarding_guide.md  channel=doc binding=mention jev=0.14 rows=2
+    :230 [basename/mention] wasm_api          main.rs
+    :236 [basename/mention] - **wasm_api/main.rs는 모든 것을 안다** (adapter)
+- [code] mydocs/plans/archives/task_74_impl.md  channel=doc binding=mention jev=0.14 rows=2
+    :102 [path/mention] | `src/main.rs` | info 커맨드 ShapeObject match에 Picture 추가 | ~5줄 |
+    :85 [basename/mention] 3. **기타 ShapeObject 매칭 코드**: 컴파일러가 지적하는 모든 `match ShapeObject` 블록에 Picture 분기 추가 (info 커맨드의 main.rs 포함)
+- [code] mydocs/plans/task_B009.md  channel=doc binding=mention jev=0.14 rows=1
+    :490 [basename/mention] │   ├── main.rs              ← Windows Service 진입점
+- [code] mydocs/plans/task_m100_164.md  channel=doc binding=mention jev=0.14 rows=1
+    :116 [path/mention] - `src/main.rs` CLI 엔트리 확장: `rhwp export-hwpx input.hwpx -o output.hwpx` (또는 HWP→HWPX 는 범위 외로 명확히)
+- [code] mydocs/plans/task_m100_3.md  channel=doc binding=mention jev=0.14 rows=1
+    :47 [path/mention] - `src/main.rs` — dump 코드 정리 (선택)
+- [code] mydocs/plans/task_m100_71_impl.md  channel=doc binding=mention jev=0.14 rows=1
+    :89 [path/mention] ### `src/main.rs:1249` (경고 5)
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-4.json  channel=other binding=mention jev=0.13 rows=1
+    :55 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-7.json  channel=other binding=mention jev=0.13 rows=1
+    :55 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-8.json  channel=other binding=mention jev=0.13 rows=1
+    :55 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/metadata-online.log  channel=other binding=mention jev=0.13 rows=1
+    :4 [path/mention] {"packages":[{"name":"adler2","version":"2.0.1","id":"registry+https://github.com/rust-lang/crates.io-index#adler2@2.0.1","license":"0BSD OR MIT OR Ap
+- [code] .omo/evidence/v318-engine-clippy-correction/metadata.json  channel=other binding=mention jev=0.13 rows=1
+    :49 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] mydocs/eng/plans/archives/task_29_impl.md  channel=doc binding=mention jev=0.13 rows=2
+    :57 [path/mention] **File**: `src/main.rs`
+    :97 [path/mention] | `src/main.rs` | `convert` CLI subcommand |
+- [code] mydocs/eng/plans/task_265.md  channel=doc binding=mention jev=0.13 rows=1
+    :32 [path/mention] | src/main.rs | Add page_num field to dump |
+- [code] mydocs/eng/working/task_3_step1_complete.md  channel=doc binding=mention jev=0.13 rows=1
+    :29 [path/mention] - Cell internal control detailed output code (`src/main.rs`) **retained** (useful for debugging)
+- [code] mydocs/eng/working/task_5_complete.md  channel=doc binding=mention jev=0.13 rows=1
+    :11 [path/mention] - `src/main.rs` -- Added zone/border_fill detail output to dump
+- [code] mydocs/feedback/r-code-review-report.md  channel=doc binding=mention jev=0.13 rows=2
+    :50 [basename/mention] ### 1.4 Major: `main.rs` — 990줄
+    :194 [basename/mention] 5. **`main.rs`에 CLI 프레임워크 도입**: `clap` 크레이트 활용
+- [code] mydocs/plans/archives/task_122_impl.md  channel=doc binding=mention jev=0.13 rows=2
+    :64 [path/mention] - src/main.rs: `diag` 서브커맨드 추가
+    :133 [path/mention] | src/main.rs | 5 | diag 서브커맨드 추가 |
+- [code] mydocs/plans/archives/task_29_impl.md  channel=doc binding=mention jev=0.13 rows=2
+    :58 [path/mention] **파일**: `src/main.rs`
+    :98 [path/mention] | `src/main.rs` | `convert` CLI 서브커맨드 |
+- [code] mydocs/plans/archives/task_3_impl.md  channel=doc binding=mention jev=0.13 rows=2
+    :113 [path/mention] - `src/main.rs` 수정 - CLI에서 실제 파싱 결과 사용
+    :139 [path/mention] | `src/main.rs` | 5 | CLI 실제 파싱 연결 |
+- [code] mydocs/plans/task_265.md  channel=doc binding=mention jev=0.13 rows=1
+    :32 [path/mention] | src/main.rs | dump에 page_num 필드 추가 |
+- [code] mydocs/working/archives/task_95_final.md  channel=doc binding=mention jev=0.13 rows=2
+    :59 [path/mention] | `src/main.rs` | 바탕쪽 dump 상세 정보 출력 |
+    :46 [basename/mention] - `main.rs` dump 모드에서 바탕쪽 상세 정보 출력 (개수, apply_to, 문단수, 컨트롤 목록)
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-5.json  channel=other binding=mention jev=0.12 rows=1
+    :55 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-6.json  channel=other binding=mention jev=0.12 rows=1
+    :55 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-7.log  channel=other binding=mention jev=0.12 rows=1
+    :32 [path/mention] - [code] src/main.rs  channel=other binding=mention jev=0.41 rows=1
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-9.json  channel=other binding=mention jev=0.12 rows=1
+    :55 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] README.md  channel=doc binding=mention jev=0.12 rows=1
+    :287 [basename/mention] ├── main.rs                    # CLI entry point
+- [code] README_EN.md  channel=doc binding=mention jev=0.12 rows=1
+    :305 [basename/mention] ├── main.rs                    # CLI entry point
+- [code] mydocs/eng/tech/rendering_engine_design.md  channel=doc binding=mention jev=0.12 rows=1
+    :101 [basename/mention] ├── main.rs             # Native CLI (export-svg, info)
+- [code] mydocs/eng/working/archives/task_29_final.md  channel=doc binding=mention jev=0.12 rows=2
+    :17 [path/mention] - **CLI** (`src/main.rs`): Added `rhwp convert <input.hwp> <output.hwp>` command
+    :36 [path/mention] | `src/main.rs` | `convert` CLI command + help (+68 lines) |
+- [code] mydocs/eng/working/archives/task_95_final.md  channel=doc binding=mention jev=0.12 rows=2
+    :59 [path/mention] | `src/main.rs` | Master page dump detailed info output |
+    :46 [basename/mention] - Added detailed master page info output in `main.rs` dump mode (count, apply_to, paragraph count, control list)
+- [code] mydocs/feedback/code-refactoring-strategy.md  channel=doc binding=mention jev=0.12 rows=4
+    :35 [basename/mention] Phase 4 ─── main.rs 정리 및 폴리싱 (SRP +1, OCP +1)
+    :200 [basename/mention] ### 2.3 `main.rs` 990줄 → 모듈화
+    :204 [basename/mention] ├── main.rs              ← 진입점만 (50줄 이하)
+- [code] mydocs/plans/archives/task_1_impl.md  channel=doc binding=mention jev=0.12 rows=1
+    :10 [path/mention] - `src/main.rs` 생성 (네이티브 실행용)
+- [code] mydocs/report/task_1_final.md  channel=doc binding=mention jev=0.12 rows=1
+    :23 [path/mention] | `src/main.rs` | 네이티브 실행 진입점 |
+- [code] mydocs/report/task_2_final.md  channel=doc binding=mention jev=0.12 rows=1
+    :72 [path/mention] src/main.rs         CLI (export-svg, info)
+- [code] mydocs/report/task_3_final.md  channel=doc binding=mention jev=0.12 rows=1
+    :64 [basename/mention] └── CLI (main.rs)
+- [code] mydocs/report/task_68_report.md  channel=doc binding=mention jev=0.12 rows=1
+    :22 [path/mention] | `src/main.rs` | CLI 옵션 파싱 + help 메시지 |
+- [code] mydocs/report/task_73_postfix.md  channel=doc binding=mention jev=0.12 rows=2
+    :49 [path/mention] | `src/main.rs` | info 커맨드 사각형 border 정보 출력 |
+    :31 [basename/mention] - **부가**: `main.rs` info 커맨드에 사각형 border 디버깅 정보 출력 추가
+- [code] .omo/evidence/v318-engine-clippy-correction/metadata-online.json  channel=other binding=mention jev=0.11 rows=1
+    :48 [path/mention] "src/main.rs": "5dd51765a1cd3bf2a7a59a30433f67b18c7bb33ef9a0bdc0a19f205b485e1edb",
+- [code] mydocs/eng/plans/archives/task_122_impl.md  channel=doc binding=mention jev=0.11 rows=1
+    :64 [path/mention] - src/main.rs: Add `diag` subcommand
+- [code] mydocs/eng/plans/archives/task_96.md  channel=doc binding=mention jev=0.11 rows=1
+    :75 [path/mention] | `src/main.rs` | Debug output (if needed) |
+- [code] mydocs/eng/report/task_96_final.md  channel=doc binding=mention jev=0.11 rows=1
+    :62 [path/mention] | `src/main.rs` | dump-controls improvement |
+- [code] mydocs/eng/tech/hexagonal_architecture_review.md  channel=doc binding=mention jev=0.11 rows=4
+    :16 [basename/mention] - CLI (main.rs)                 - HWP Parser (file input)
+    :37 [basename/mention] main.rs -> document_core, model    Correct (driving adapter)
+    :53 [basename/mention] | main.rs | Driving Adapter | CLI entry point | Perfect |
+- [code] mydocs/eng/working/task_232_final.md  channel=doc binding=mention jev=0.11 rows=1
+    :50 [path/mention] | `src/main.rs` | Control::Form dump output |
+- [code] mydocs/feedback/r-code-review-2nd.md  channel=doc binding=mention jev=0.11 rows=1
+    :211 [basename/mention] | 10 | **main.rs CLI 정리** (clap 도입) | SRP, OCP 소폭 향상 | ⭐⭐ 중간 |
+- [code] mydocs/plans/archives/task_145.md  channel=doc binding=mention jev=0.11 rows=1
+    :20 [path/mention] | src/main.rs | 2개 match → shape_name() + common()/shape_attr() |
+- [code] mydocs/plans/archives/task_29.md  channel=doc binding=mention jev=0.11 rows=1
+    :67 [path/mention] | `src/main.rs` | CLI convert 명령어 |
+- [code] mydocs/plans/task_m100_86_impl.md  channel=doc binding=mention jev=0.11 rows=1
+    :41 [path/mention] **`src/main.rs`** — `thumbnail` 서브커맨드 추가:
+- [code] mydocs/working/archives/task_181_stage1.md  channel=doc binding=mention jev=0.11 rows=2
+    :28 [path/mention] - `src/main.rs`: diag 명령 Equation 출력
+    :62 [path/mention] | `src/main.rs` | diag Equation 출력 |
+- [code] mydocs/working/archives/task_2_step_5.md  channel=doc binding=mention jev=0.11 rows=2
+    :74 [path/mention] | | src/main.rs | CLI 명령어 |
+    :47 [basename/mention] | 모듈 구조 | wasm_api.rs, main.rs, scheduler.rs 등 반영 |
+- [code] mydocs/eng/feedback/r-code-review-2nd.md  channel=doc binding=mention jev=0.10 rows=1
+    :211 [basename/mention] | 10 | **main.rs CLI cleanup** (clap adoption) | SRP, OCP minor improvement | Medium |
+- [code] mydocs/eng/plans/task_B009.md  channel=doc binding=mention jev=0.10 rows=1
+    :490 [basename/mention] │   ├── main.rs              ← Windows Service entry point
+- [code] mydocs/eng/report/task_2_final.md  channel=doc binding=mention jev=0.10 rows=1
+    :72 [path/mention] src/main.rs         CLI (export-svg, info)
+- [code] mydocs/eng/report/task_74.md  channel=doc binding=mention jev=0.10 rows=1
+    :55 [path/mention] | `src/main.rs` | Info command group child info output |
+- [code] mydocs/working/archives/task_29_final.md  channel=doc binding=mention jev=0.10 rows=2
+    :17 [path/mention] - **CLI** (`src/main.rs`): `rhwp convert <입력.hwp> <출력.hwp>` 명령 추가
+    :36 [path/mention] | `src/main.rs` | `convert` CLI 명령 + 도움말 (+68줄) |
+- [code] mydocs/eng/plans/archives/task_145.md  channel=doc binding=mention jev=0.09 rows=1
+    :20 [path/mention] | src/main.rs | 2 match blocks → shape_name() + common()/shape_attr() |
+- [code] mydocs/eng/plans/archives/task_1_impl.md  channel=doc binding=mention jev=0.09 rows=1
+    :10 [path/mention] - Create `src/main.rs` (for native execution)
+- [code] mydocs/eng/plans/task_m100_3.md  channel=doc binding=mention jev=0.09 rows=1
+    :47 [path/mention] - `src/main.rs` — Dump code cleanup (optional)
+- [code] mydocs/eng/report/task_1_final.md  channel=doc binding=mention jev=0.09 rows=1
+    :22 [path/mention] | `src/main.rs` | Native execution entry point |
+- [code] mydocs/eng/report/task_3_final.md  channel=doc binding=mention jev=0.09 rows=1
+    :63 [basename/mention] +-- CLI (main.rs)
+- [code] mydocs/eng/working/archives/task_122_report.md  channel=doc binding=mention jev=0.09 rows=1
+    :83 [path/mention] | src/main.rs | diag subcommand added |
+- [code] mydocs/eng/working/archives/task_1_step_1.md  channel=doc binding=mention jev=0.09 rows=1
+    :8 [path/mention] - Created `src/main.rs` (native execution entry point)
+- [code] mydocs/eng/plans/archives/task_29.md  channel=doc binding=mention jev=0.08 rows=1
+    :67 [path/mention] | `src/main.rs` | CLI convert command |
+- [code] mydocs/eng/working/archives/task_1_step_3.md  channel=doc binding=mention jev=0.08 rows=1
+    :16 [basename/mention] ├── main.rs         # Native execution entry point
+- [code] mydocs/eng/working/archives/task_2_step_4.md  channel=doc binding=mention jev=0.08 rows=1
+    :10 [path/mention] | `src/main.rs` | CLI commands (export-svg, info) |
+- [code] mydocs/eng/working/archives/task_3_step_4.md  channel=doc binding=mention jev=0.08 rows=1
+    :152 [basename/mention] - Connect main.rs CLI
+- [code] mydocs/report/task_74.md  channel=doc binding=mention jev=- rows=1
+    :55 [path/mention] | `src/main.rs` | info 커맨드 그룹 자식 정보 출력 |
+- [code] mydocs/report/task_96_final.md  channel=doc binding=mention jev=- rows=1
+    :62 [path/mention] | `src/main.rs` | dump-controls 개선 |
+- [code] mydocs/report/task_m100_142_report.md  channel=doc binding=mention jev=- rows=1
+    :69 [path/mention] | `src/main.rs` | dump 수식 정보, --show-grid |
+- [code] mydocs/report/task_m100_71_report.md  channel=doc binding=mention jev=- rows=1
+    :25 [path/mention] | `src/main.rs` | dump 출력 텍스트 30자 절단 |
+- [code] mydocs/tech/rendering_engine_design.md  channel=doc binding=mention jev=- rows=1
+    :97 [basename/mention] ├── main.rs             # 네이티브 CLI (export-svg, info)
+- [code] mydocs/working/archives/task_122_report.md  channel=doc binding=mention jev=- rows=1
+    :83 [path/mention] | src/main.rs | diag 서브커맨드 추가 |
+- [code] mydocs/working/archives/task_1_step_1.md  channel=doc binding=mention jev=- rows=1
+    :8 [path/mention] - `src/main.rs` 생성 (네이티브 실행 진입점)
+- [code] mydocs/working/archives/task_1_step_3.md  channel=doc binding=mention jev=- rows=1
+    :16 [basename/mention] ├── main.rs         # 네이티브 실행 진입점
+- [code] mydocs/working/archives/task_2_step_4.md  channel=doc binding=mention jev=- rows=1
+    :10 [path/mention] | `src/main.rs` | CLI 명령어 (export-svg, info) |
+- [code] mydocs/working/archives/task_3_step_4.md  channel=doc binding=mention jev=- rows=1
+    :152 [basename/mention] - main.rs CLI 연결
+- [code] mydocs/working/archives/task_94_final.md  channel=doc binding=mention jev=- rows=1
+    :53 [path/mention] | `src/main.rs` | dump 채우기 정보 출력 개선 |
+- [code] mydocs/working/task_232_final.md  channel=doc binding=mention jev=- rows=1
+    :50 [path/mention] | `src/main.rs` | Control::Form dump 출력 |
+- [code] mydocs/working/task_3_step1_complete.md  channel=doc binding=mention jev=- rows=1
+    :29 [path/mention] - 셀 내부 컨트롤 상세 출력 코드(`src/main.rs`) **유지** (디버깅 유용성)
+- [code] mydocs/working/task_5_complete.md  channel=doc binding=mention jev=- rows=1
+    :11 [path/mention] - `src/main.rs` — dump에 zone/border_fill 상세 출력 추가
+- [code] mydocs/working/task_68_step1_complete.md  channel=doc binding=mention jev=- rows=1
+    :9 [path/mention] - `src/main.rs` — CLI 옵션 파싱 (--font-style, --embed-fonts, --font-path)
+- [code] mydocs/working/task_m100_178_stage5.md  channel=doc binding=mention jev=- rows=1
+    :71 [basename/mention] 기존 호출자 (CLI `main.rs`, 테스트, `wasm_api`) 가 사용하는 `export_hwp_native` 는
+- [code] mydocs/working/task_m100_86_stage2.md  channel=doc binding=mention jev=- rows=1
+    :11 [path/mention] | `src/main.rs` | `thumbnail` 서브커맨드 + help 추가 |

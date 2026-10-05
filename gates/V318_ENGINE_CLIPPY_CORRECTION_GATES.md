@@ -1,12 +1,14 @@
 # v318 Engine Clippy correction 검증 원장
 
-상태: **BLOCKED_STRICT_CLIPPY_OUTSIDE_OWNED11**. 승인된 11개 파일의 14개 진단은 수정했지만 전체 엄격 Clippy는 아직 실패한다. `src/main.rs:1331`의 추가 진단에 대한 coordinator 질문이 진행 중이다. READY_FOR_VAULT_SINGLE_MERGE, R2, final5 또는 CI 성공으로 표시하지 않는다.
+상태: **READY_FOR_VAULT_SINGLE_MERGE**. 최초11파일의14진단과 coordinator가 추가 승인한 src/main.rs 1-byte/15번째 진단을 수정했고 실제 Rust1.99 전체 엄격 Clippy가 rc0이다. 로컬 후보 인계이며 parent R2, final5, exact-head CI 또는 착지 승인과 다르다. 원래14 RED 및 중간15번째 rc101 증거는 보존한다.
 
 ## 고정 소스와 권한
 
 - 작업 트리: `/Users/ken/orca/workspaces/rhwp/v318-engine-clippy-correction`.
 - base: `3033ae22c9031919757be1357a998471e67f1fab`; base tree: `c46c996dfdc57f5f8c75c51a8e49d9b2cd1c2a42`.
-- 수정 소스 checkpoint: `e957b3b87a8bebaf9091d3cf590a388c7a7d1ad7`; parent는 위 base; source tree: `377e08af4758266c2a9f271723e32a7f5f7f87c3`.
+- 최초11 수정 소스 checkpoint: `e957b3b87a8bebaf9091d3cf590a388c7a7d1ad7`; parent는 위 base; source tree: `377e08af4758266c2a9f271723e32a7f5f7f87c3`.
+- 추가 CLI 수정까지 포함한 소스 checkpoint: `0a9ffb11999565619be38937ad6b369cb1a3818b`; parent `fc3184b9a3fb1ff57a8dd04de6cf55d774fa367e`; source tree `1251cecc0d8ade8a33bca388beda847c8aa5923c`.
+- 추가 권한 = coordinator Orca ask 응답 `msg_8518abc7d707` 및 갱신된 parent CLIPPY_CORRECTION_PACKET.md. CLI_SCOPE_AUTHORIZATION.md에 답변을 보존했다. src/main.rs의 & 하나만 제거했고 다른 CLI 코드는 수정하지 않았다.
 - 원장/증거를 추가하는 후속 commit은 제품 소스를 바꾸지 않는다. 최종 인계 HEAD/tree는 raw git으로 별도 보고한다.
 - matching mah lease: `0f9b97c9eec07c961d503882dd248ac1`, task `v318-engine-clippy-correction`, agent `codex`, role `executor`, scope `repo`.
 - 실제 모델/effort: **gpt-6.1-sol / xhigh**. 추천값 max와 다르며 사용자 승인 fallback이다. `dispatch-identity.log`의 terminal.preview가 실제 xhigh를 보여준다. xhigh를 max로 주장하지 않는다.
@@ -14,7 +16,7 @@
 
 ## 정확한 제품 diff
 
-11 files, 39 insertions, 42 deletions. 완전한 diff = `.omo/evidence/v318-engine-clippy-correction/source-diff.log`, SHA256 `6baa9451651e2fd20d6cc08bae16de2c3a87e874237926a469f8db6b0c9a076b`.
+최종12 files, 40 insertions, 43 deletions. 완전한 제품 diff = `.omo/evidence/v318-engine-clippy-correction/final-source-diff.log`, SHA256 `683b4d62cc871ff7c2ba8ea3e782d9fc9319827a184cf523aa97e370556ceff6`. 최초11 diff는 source-diff.log, SHA256 `6baa9451651e2fd20d6cc08bae16de2c3a87e874237926a469f8db6b0c9a076b`로 보존했다.
 
 | 파일 | 변경과 의미 보존 |
 | --- | --- |
@@ -29,6 +31,7 @@
 | src/parser/control.rs | cell field name 및 form UTF-16 decoder의 완전한 LE pair iteration만 변경. |
 | src/serializer/hwpx/section.rs | PageDef seam 밖 format 인수의 & 두 개만 제거. format의 자동 borrow로 텍스트/anchor 동일. |
 | src/wmf/parser/objects/structure/mod.rs | 완전한 LE pair를 typed array로 읽음. 기존 odd-length 거부와 strict surrogate 오류 정책 그대로. |
+| src/main.rs | coordinator 승인 후 println의 & 하나만 제거. 자동 Debug borrow 및 format 문자열 그대로. |
 
 manifest, tracked lockfile, workflow, renderer/pagination, API, publication, PageDef 모델/파서/테스트 입력 변경 0. 처음에는 Cargo.lock이 없고 gitignored였으며 cargo가 재현 빌드의 로컬 산출물로 생성했다. 추적되는 lockfile/dependency 수정은 없다. upstream 및 origin/main ref는 이 새 source root에 없어 원격 비교는 미검증이다.
 
@@ -42,20 +45,20 @@ Cargo package rust_version는 null이고 CI는 stable을 사용한다. 현재 ma
 
 ## Gates
 
-- [x] G1: base identity, owned11 source diff, PageDef seam/입력 불변
-  CHECK: node -e 'const fs=require("fs"),a=require("assert/strict"),cp=require("child_process"),d=".omo/evidence/v318-engine-clippy-correction"; const id=JSON.parse(fs.readFileSync(d+"/source-identity.json")); a.equal(cp.execFileSync("git",["rev-parse",id.base],{encoding:"utf8"}).trim(),id.base); a.deepEqual(cp.execFileSync("git",["diff","--name-only",id.base,"HEAD","--","src"],{encoding:"utf8"}).trim().split("\n").sort(),id.owned_rust.slice().sort()); console.log("PASS owned11")'
-  EXPECT: PASS owned11
-  EVIDENCE: source-input-check.log rc0 SHA256 a3a9217c05147258b69bee3b1a58ccecbf4e1039762761bfab59c4346491ab48; exactly11 Rust inputs changed; PageDef parser/test and render_page_pr/replace_page_pr unchanged.
+- [x] G1: base identity, owned11+승인CLI1 source diff, PageDef seam/입력 불변
+  CHECK: node -e 'const fs=require("fs"),a=require("assert/strict"),cp=require("child_process"),d=".omo/evidence/v318-engine-clippy-correction"; const id=JSON.parse(fs.readFileSync(d+"/source-identity.json")); a.equal(cp.execFileSync("git",["rev-parse",id.base],{encoding:"utf8"}).trim(),id.base); a.deepEqual(cp.execFileSync("git",["diff","--name-only",id.base,"HEAD","--","src"],{encoding:"utf8"}).trim().split("\n").sort(),id.owned_rust.slice().sort()); console.log("PASS owned12")'
+  EXPECT: PASS owned12
+  EVIDENCE: source-input-check.log는 최초11에서 rc0,SHA256 a3a9217c05147258b69bee3b1a58ccecbf4e1039762761bfab59c4346491ab48. 최종12 source-identity.json과 final-input-check.log rc0/SHA256 197f8c614dd1cdba3dc1f1317b0c229390599a4594da0742e7c7495a36c121e7로 실제 Clippy 입력을 소스HEAD와 대조했다. library-carry-check.log rc0, fc3184b9..0a9ffb11에서 src/main.rs 외 library/test/manifest/workflow 차이0.
 
 - [x] G2: 실제 Rust1.99 baseline RED를 정직하게 기록
   CHECK: node -e 'const fs=require("fs"),a=require("assert/strict"),d=".omo/evidence/v318-engine-clippy-correction"; const r=JSON.parse(fs.readFileSync(d+"/baseline-clippy.json")); a.equal(r.rc,101); a.equal(r.head,"3033ae22c9031919757be1357a998471e67f1fab"); a.equal(fs.readFileSync(r.log,"utf8").match(/^error:/gm).length,15); console.log("BASELINE_RED: 14 diagnostics plus compile summary")'
   EXPECT: BASELINE_RED
   EVIDENCE: baseline-clippy.log actual cargo +1.99.0 clippy -- -D warnings rc101, exact14 reported paths/lines, SHA256 2d37421af33401109b94e14f178aea8c4e816b7fcc0740fc4b107d9e4820aabe. G2 성공은 실패 재현 사실의 검증이며 제품 green 주장이 아니다.
 
-- [ ] G3: 전체 cargo clippy -- -D warnings GREEN
+- [x] G3: 전체 cargo clippy -- -D warnings GREEN
   CHECK: env RUSTUP_HOME=/tmp/rhwp-v318-clippy-rustup-ctx_00b0367d9380 cargo +1.99.0 clippy -- -D warnings
   EXPECT: Finished
-  EVIDENCE: FAIL rc101 candidate-clippy.log SHA256 0e87a2e4ad81dfa524ddabef49de6f80233842f33edda90bb3c09c052cf9ce4f; src/main.rs:1331의 추가 redundant println borrow. 14 library errors가 먼저 binary 진단을 가렸다. 이 main 소스는 base와 동일하며 original PageDef 논리 때문이라는 귀속을 하지 않는다. 승인 없이 main 수정 0.
+  EVIDENCE: strict-clippy-final.log 실제 동일 full cargo +1.99.0 clippy -- -D warnings rc0,SHA256 745bd9aca75097f35b503e3273dcf3701d54199eff4e903f1f500331c027aca6. 이전 candidate-clippy.log rc101/SHA256 0e87a2e4ad81dfa524ddabef49de6f80233842f33edda90bb3c09c052cf9ce4f는 그대로 보존. 14 library errors가 먼저 main의15번째 진단을 가렸고 coordinator 승인 뒤 & 하나만 고쳐 해결했다.
 
 - [x] G4: scoped library strict Clippy, owned 파일 format, diff 구조
   CHECK: env RUSTUP_HOME=/tmp/rhwp-v318-clippy-rustup-ctx_00b0367d9380 cargo +1.99.0 clippy --lib -- -D warnings
@@ -79,9 +82,13 @@ Cargo package rust_version는 null이고 CI는 stable을 사용한다. 현재 ma
 
 - [x] G8: raw 증거 해시와 현재 세션 자체 diff 검토
   CHECK: git diff --check 3033ae22c9031919757be1357a998471e67f1fab HEAD -- src gates .omo/evidence/v318-engine-clippy-correction/SELF_CHECK.md .omo/evidence/v318-engine-clippy-correction/run.mjs .omo/evidence/v318-engine-clippy-correction/semantics.mjs
-  EVIDENCE: record-integrity.log rc0,34 raw command log hashes 확인. 현재 세션 findings-first 자체 검토: owned11 blocking finding 0, 범위 밖 main strict diagnostic 1. 코드/테스트 삭제, allows/flags 완화, byte order/여백/방향/제책 변경 없음. 같은 Codex 검토이므로 독립 보증 아님; mah self-review/review-result receipt 발행 0. parent Codex R2와 final5는 아직 NOT_RUN.
+  EVIDENCE: record-integrity.log rc0,최초34 raw command hashes 확인; final-integrity.log rc0,49 hashes/SHA256 e7b0dab8df38713193ad3dc723a1ac044049242042c4bf30589183e36b986117. final-gate-status.log rc0,8 met/1 deferred/SHA256 aa2a78d9140d2556f759bd117e6bda00a78ff28d6da77d7a554890821582d141. 현재 세션 findings-first 자체 검토: open substantive blocker0, 승인된 main 진단1 closed. 코드/테스트 삭제, allows/flags 완화, byte order/여백/방향/제책 변경 없음. 같은 Codex 검토이므로 독립 보증 아님; mah self-review/review-result receipt 발행0. parent Codex R2/final5 NOT_RUN.
 
 NOTE: 원시 compiler/Jev/git 출력의 공백을 보존했으므로 전체 staged git diff --check는 rc2다(staged-diff-check.log, SHA256 ebb094aaf7152dabb4295cb0bd6a278ef8b817c5970da946ecc35786db93a817). 해당 실패는 raw .log의 trailing whitespace/EOF blank에만 해당하며 소스/원장/스크립트 검사는 source-doc-diff-check.log rc0다. 원시 출력 byte/hash를 바꾸거나 전체 rc2를 성공으로 재명명하지 않는다.
+
+NOTE: CLI warm build rc0(cli-build.log), src/main.rs rustfmt rc0(cli-rustfmt.log), 실제 native dump 전후329732 bytes/SHA256 55575c736ec6265b3979401d780251e27830734ade653be45d7aac93df85acb2 동일(cli-before/after.log, cli-output-parity.log rc0). 이 대표 HWPX fixture는 head/raw_extra 줄이 없으므로 해당 println 분기 직접 coverage라고 주장하지 않으며 단일 Debug borrow는 전체 diff/컴파일 검토로 동등성을 확인했다.
+
+NOTE: 승인CLI1 후 G4..G7의 library/PageDef/semantic 테스트 입력은 library-carry-check로 동일함을 확인해 이전 실제 증거를 이어 쓴다. 전체240 테스트/131075 입력 matrix를 다시 돌리지 않았다. 최종 strict Clippy와 CLI cheap checks만 실행했다.
 
 - [ ] G9: 최종 exact-head native/full suite/WASM/전체 workflow
   CHECK: false
@@ -94,4 +101,4 @@ publication/merge/push/PR/Actions/provider/DB/deploy/host-browser/full-fidelity 
 
 원래3033의 PARENT_REVIEW_R2.md, PUBLICATION_PREFLIGHT.md 및 final5는 원래 source identity를 유지한다. PageDef parser/test 및 PageDef render/replace 함수 입력 불변은 source-input-check로 확인했고 현재13 테스트는 새로 돌렸다. 원래 corpus/native/바이트 출력 proof를 현재 후보의 재실행으로 표시하지 않는다. 이 correction의 두 format borrow는 PageDef 기능 밖이며 전체 diff로 확인했다.
 
-jev=used: owned11/main/manifest/workflow 후보는 Jev cache/실제 ranking 사용. 결정적 pin/exec 후보는 점수 아래라도 제외하지 않았다(impact-1..11.log --top0). binding=exec의 wasm_api/tests 및 schema 후보도 검토 범위로 유지하며 관련 parser/serializer/nested-table 실행을 기록했다. 전체 wasm_api suite는 G9 최종 CI로 넘긴다. 새 gate 경로는 jev=unused(후보0). 보호된 prior failure 입력도 impact 실행 후 읽었으며 고치지 않았다.
+jev=used: owned11/main/manifest/workflow 후보는 Jev cache/실제 ranking 사용. 결정적 pin/exec 후보는 점수 아래라도 제외하지 않았다(impact-1..11.log --top0). binding=exec의 wasm_api/tests 및 schema 후보도 검토 범위로 유지하며 관련 parser/serializer/nested-table 실행을 기록했다. 전체 wasm_api suite는 G9 최종 CI로 넘긴다. 처음 새 gate 경로는 jev=unused(후보0), evidence를 commit한 후 HEAD에서는 gate 후보 ranking도 jev=used다. 보호된 prior failure/갱신packet은 impact 실행 후 읽었으며 고치지 않았다.

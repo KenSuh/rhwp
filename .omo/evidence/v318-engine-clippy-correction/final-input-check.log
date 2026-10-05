@@ -1,0 +1,1 @@
+PASS: owned12, full strict Clippy rc0 input hashes match current source; library/PageDef evidence carries across exact CLI-only diff
