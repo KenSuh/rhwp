@@ -492,6 +492,35 @@ impl DocumentCore {
         cell_idx: usize,
         cell_para_idx: usize,
     ) {
+        if !self.reflow_cell_paragraph_lines(
+            section_idx,
+            parent_para_idx,
+            control_idx,
+            cell_idx,
+            cell_para_idx,
+        ) {
+            return;
+        }
+
+        if cell_idx != 65534
+            && self.grow_table_rows_to_fit_content(section_idx, parent_para_idx, control_idx)
+        {
+            self.reflow_paragraph(section_idx, parent_para_idx);
+            self.recompose_paragraph(section_idx, parent_para_idx);
+            self.mark_section_dirty_full(section_idx);
+        }
+    }
+
+    /// 셀·글상자·캡션 문단의 줄을 그 컨테이너 안쪽 폭(폭 − 좌우 안 여백 − 문단 여백)으로 다시 나눈다.
+    /// 행 높이는 건드리지 않는다. 컨테이너나 문단을 찾지 못하면 false.
+    pub(crate) fn reflow_cell_paragraph_lines(
+        &mut self,
+        section_idx: usize,
+        parent_para_idx: usize,
+        control_idx: usize,
+        cell_idx: usize,
+        cell_para_idx: usize,
+    ) -> bool {
         use crate::renderer::hwpunit_to_px;
 
         // 셀/글상자 폭과 패딩 읽기 (불변 참조)
@@ -509,7 +538,7 @@ impl DocumentCore {
                             };
                             (w, 0, 0)
                         } else {
-                            return;
+                            return false;
                         }
                     } else if let Some(cell) = table.cells.get(cell_idx) {
                         let pad_l = if cell.padding.left != 0 {
@@ -524,7 +553,7 @@ impl DocumentCore {
                         };
                         (cell.width, pad_l, pad_r)
                     } else {
-                        return;
+                        return false;
                     }
                 }
                 Some(Control::Shape(shape)) => {
@@ -533,14 +562,14 @@ impl DocumentCore {
                         // 글상자 폭 = common.width, 여백 = textbox margin
                         (common.width as u32, tb.margin_left, tb.margin_right)
                     } else {
-                        return;
+                        return false;
                     }
                 }
                 Some(Control::Picture(pic)) => {
                     // 캡션 폭 = 그림 폭 (Bottom/Top 방향), 여백 없음
                     (pic.common.width as u32, 0, 0)
                 }
-                _ => return,
+                _ => return false,
             }
         };
 
@@ -560,7 +589,7 @@ impl DocumentCore {
             );
             match cell_para {
                 Some(p) => p.para_shape_id,
-                None => return,
+                None => return false,
             }
         };
         let para_style = self.styles.para_styles.get(para_shape_id as usize);
@@ -596,14 +625,7 @@ impl DocumentCore {
             }
             _ => {}
         }
-
-        if cell_idx != 65534
-            && self.grow_table_rows_to_fit_content(section_idx, parent_para_idx, control_idx)
-        {
-            self.reflow_paragraph(section_idx, parent_para_idx);
-            self.recompose_paragraph(section_idx, parent_para_idx);
-            self.mark_section_dirty_full(section_idx);
-        }
+        true
     }
 
     fn grow_table_rows_to_fit_content(
