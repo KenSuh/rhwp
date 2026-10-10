@@ -29,12 +29,16 @@ fn json_number(json: &str, key: &str) -> usize {
 }
 
 fn table_fixture() -> Fixture {
+    table_fixture_with_cols(9)
+}
+
+fn table_fixture_with_cols(cols: usize) -> Fixture {
     let mut doc = HwpDocument::create_empty();
     doc.create_blank_document().unwrap();
-    let widths = vec![COL_WIDTH.to_string(); 9].join(",");
+    let widths = vec![COL_WIDTH.to_string(); cols].join(",");
     let created = doc
         .create_table_ex(&format!(
-            "{{\"sectionIdx\":0,\"paraIdx\":0,\"charOffset\":0,\"rowCount\":2,\"colCount\":9,\
+            "{{\"sectionIdx\":0,\"paraIdx\":0,\"charOffset\":0,\"rowCount\":2,\"colCount\":{cols},\
              \"treatAsChar\":true,\"colWidths\":[{widths}]}}"
         ))
         .unwrap();
@@ -428,6 +432,146 @@ fn cell_path_para_format_applies_new_line_spacing() {
         )
         .unwrap();
     assert_triple_line_spacing(&fixture.doc, &fixture, 7, "para format by cell path");
+}
+
+/// 표 캡션(셀 순번 65534) 문단의 줄이 캡션 폭(표 폭) 안에서 여러 줄로 나뉘었는지 확인한다.
+fn assert_caption_lines_fit(doc: &HwpDocument, fixture: &Fixture, context: &str) {
+    let caption = table(doc, fixture).caption.as_ref().expect("table caption");
+    let segs = &caption.paragraphs[0].line_segs;
+    assert!(
+        segs.len() > 1,
+        "{context}: caption must wrap, got {} line(s)",
+        segs.len()
+    );
+    for seg in segs {
+        assert!(
+            seg.segment_width > 0 && seg.segment_width <= caption.max_width as i32,
+            "{context}: segment width {} exceeds caption width {}",
+            seg.segment_width,
+            caption.max_width
+        );
+    }
+}
+
+#[test]
+fn table_caption_formats_reflow_at_caption_width() {
+    let mut fixture = table_fixture_with_cols(2);
+    fixture
+        .doc
+        .set_table_properties(
+            0,
+            fixture.para_idx as u32,
+            fixture.control_idx as u32,
+            "{\"hasCaption\":true}",
+        )
+        .unwrap();
+    let prefix = table(&fixture.doc, &fixture)
+        .caption
+        .as_ref()
+        .unwrap()
+        .paragraphs[0]
+        .text
+        .chars()
+        .count();
+    fixture
+        .doc
+        .insert_text_in_cell(
+            0,
+            fixture.para_idx as u32,
+            fixture.control_idx as u32,
+            65534,
+            0,
+            prefix as u32,
+            LONG_TEXT,
+        )
+        .unwrap();
+    let end = prefix + LONG_TEXT.chars().count();
+    fixture
+        .doc
+        .apply_char_format_in_cell(
+            0,
+            fixture.para_idx,
+            fixture.control_idx,
+            65534,
+            0,
+            0,
+            end,
+            "{\"fontSize\":900}",
+        )
+        .unwrap();
+    assert_caption_lines_fit(&fixture.doc, &fixture, "char format in table caption");
+    fixture
+        .doc
+        .apply_para_format_in_cell(
+            0,
+            fixture.para_idx,
+            fixture.control_idx,
+            65534,
+            0,
+            "{\"lineSpacing\":300,\"lineSpacingType\":\"Percent\"}",
+        )
+        .unwrap();
+    assert_caption_lines_fit(&fixture.doc, &fixture, "para format in table caption");
+    let caption = table(&fixture.doc, &fixture).caption.as_ref().unwrap();
+    for seg in &caption.paragraphs[0].line_segs {
+        assert_eq!(
+            seg.line_spacing,
+            seg.line_height * 2,
+            "table caption: 300% line spacing must follow the new paragraph shape"
+        );
+    }
+}
+
+#[test]
+fn textbox_char_format_reflows_at_textbox_width() {
+    let mut doc = HwpDocument::create_empty();
+    doc.create_blank_document().unwrap();
+    let created = doc
+        .create_shape_control(
+            "{\"sectionIdx\":0,\"paraIdx\":0,\"charOffset\":0,\"width\":10000,\"height\":20000,\
+             \"shapeType\":\"textbox\"}",
+        )
+        .unwrap();
+    let para_idx = json_number(&created, "paraIdx");
+    let control_idx = json_number(&created, "controlIdx");
+    doc.insert_text_in_cell(0, para_idx as u32, control_idx as u32, 0, 0, 0, LONG_TEXT)
+        .unwrap();
+    doc.apply_char_format_in_cell(
+        0,
+        para_idx,
+        control_idx,
+        0,
+        0,
+        0,
+        LONG_TEXT.chars().count(),
+        "{\"fontSize\":900}",
+    )
+    .unwrap();
+    let Control::Shape(shape) =
+        &doc.document().sections[0].paragraphs[para_idx].controls[control_idx]
+    else {
+        panic!("textbox control missing");
+    };
+    let text_box = shape
+        .drawing()
+        .and_then(|drawing| drawing.text_box.as_ref())
+        .expect("text box");
+    let inner = shape.common().width as i32
+        - i32::from(text_box.margin_left)
+        - i32::from(text_box.margin_right);
+    let segs = &text_box.paragraphs[0].line_segs;
+    assert!(
+        segs.len() > 1,
+        "textbox text must wrap, got {} line(s)",
+        segs.len()
+    );
+    for seg in segs {
+        assert!(
+            seg.segment_width > 0 && seg.segment_width <= inner,
+            "textbox: segment width {} exceeds textbox inner width {inner}",
+            seg.segment_width
+        );
+    }
 }
 
 #[test]

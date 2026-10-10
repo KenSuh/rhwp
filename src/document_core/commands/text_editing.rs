@@ -498,6 +498,7 @@ impl DocumentCore {
             control_idx,
             cell_idx,
             cell_para_idx,
+            false,
         ) {
             return;
         }
@@ -513,6 +514,7 @@ impl DocumentCore {
 
     /// 셀·글상자·캡션 문단의 줄을 그 컨테이너 안쪽 폭(폭 − 좌우 안 여백 − 문단 여백)으로 다시 나눈다.
     /// 행 높이는 건드리지 않는다. 컨테이너나 문단을 찾지 못하면 false.
+    /// `reflow_table_caption` 이 false 면 표 캡션(셀 순번 65534)은 줄을 그대로 둔다 — 글자 입력 경로의 기존 동작이다.
     pub(crate) fn reflow_cell_paragraph_lines(
         &mut self,
         section_idx: usize,
@@ -520,6 +522,7 @@ impl DocumentCore {
         control_idx: usize,
         cell_idx: usize,
         cell_para_idx: usize,
+        reflow_table_caption: bool,
     ) -> bool {
         use crate::renderer::hwpunit_to_px;
 
@@ -603,7 +606,17 @@ impl DocumentCore {
             .get_mut(control_idx)
         {
             Some(Control::Table(table)) => {
-                if let Some(cell) = table.cells.get_mut(cell_idx) {
+                if cell_idx == 65534 {
+                    if reflow_table_caption {
+                        if let Some(cap_para) = table
+                            .caption
+                            .as_mut()
+                            .and_then(|cap| cap.paragraphs.get_mut(cell_para_idx))
+                        {
+                            reflow_line_segs(cap_para, final_width, &self.styles, self.dpi);
+                        }
+                    }
+                } else if let Some(cell) = table.cells.get_mut(cell_idx) {
                     if let Some(cell_para) = cell.paragraphs.get_mut(cell_para_idx) {
                         reflow_line_segs(cell_para, final_width, &self.styles, self.dpi);
                     }
