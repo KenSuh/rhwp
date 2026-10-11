@@ -677,6 +677,9 @@ impl DocumentCore {
         control_idx: usize,
         cell_idx: usize,
     ) -> bool {
+        if cell_idx == 65534 {
+            return false;
+        }
         match self
             .document
             .sections
@@ -698,6 +701,12 @@ impl DocumentCore {
         parent_para_idx: usize,
         path: &[(usize, usize, usize)],
     ) -> bool {
+        if path
+            .last()
+            .is_some_and(|&(_, cell_idx, _)| cell_idx == 65534)
+        {
+            return false;
+        }
         self.get_table_ref_by_cell_path(section_idx, parent_para_idx, path)
             .and_then(|table| {
                 path.last()
@@ -2648,6 +2657,47 @@ impl DocumentCore {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn caption_sentinel_keeps_caption_reflow_with_a_vertical_physical_slot() {
+        use crate::model::shape::{Caption, CaptionDirection};
+        use crate::model::table::{Cell, Table};
+
+        let mut core = DocumentCore::new_empty();
+        core.create_blank_document_native().unwrap();
+        let mut paragraph = crate::model::paragraph::Paragraph::new_empty();
+        paragraph.text = "caption text that must wrap ".repeat(8);
+        let mut table = Table {
+            cells: vec![Cell::default(); 65535],
+            caption: Some(Caption {
+                direction: CaptionDirection::Left,
+                width: 7000,
+                paragraphs: vec![paragraph],
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        table.cells[0].text_direction = 1;
+        table.cells[65534].text_direction = 2;
+        let control_idx = core.document.sections[0].paragraphs[0].controls.len();
+        core.document.sections[0].paragraphs[0]
+            .controls
+            .push(Control::Table(Box::new(table)));
+
+        assert!(core.is_vertical_table_cell(0, 0, control_idx, 0));
+        assert!(core.is_vertical_cell_path(0, 0, &[(control_idx, 0, 0)]));
+        assert!(!core.is_vertical_table_cell(0, 0, control_idx, 65534));
+        assert!(!core.is_vertical_cell_path(0, 0, &[(control_idx, 65534, 0)]));
+        core.reflow_cell_paragraph(0, 0, control_idx, 65534, 0);
+        let caption = core
+            .get_cell_paragraph_ref(0, 0, control_idx, 65534, 0)
+            .unwrap();
+        assert!(caption.line_segs.len() > 1);
+        assert!(caption
+            .line_segs
+            .iter()
+            .all(|segment| segment.segment_width == 7000));
+    }
 
     #[test]
     fn test_page_overflow_with_enter() {
