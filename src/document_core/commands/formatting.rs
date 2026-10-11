@@ -1021,7 +1021,6 @@ impl DocumentCore {
                 control_idx,
                 cell_idx,
                 cell_para_idx,
-                true,
             );
 
             // 표 dirty 마킹 — 셀 높이 재계산 필요
@@ -1252,7 +1251,6 @@ impl DocumentCore {
                 control_idx,
                 cell_idx,
                 cell_para_idx,
-                true,
             );
         }
 

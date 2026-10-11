@@ -8,6 +8,7 @@ use crate::model::paragraph::{CharShapeRef, LineSeg, Paragraph};
 use crate::model::style::LineSpacingType;
 use crate::renderer::layout::{
     estimate_text_width, estimate_text_width_unrounded, is_cjk_char, resolved_to_text_style,
+    vertical_char_advance,
 };
 use crate::renderer::px_to_hwpunit;
 use crate::renderer::style_resolver::{detect_lang_category, ResolvedStyleSet};
@@ -905,6 +906,16 @@ pub(crate) fn reflow_line_segs(
     styles: &ResolvedStyleSet,
     dpi: f64,
 ) {
+    reflow_line_segs_with_direction(para, available_width_px, styles, dpi, 0);
+}
+
+pub(crate) fn reflow_line_segs_with_direction(
+    para: &mut Paragraph,
+    available_width_px: f64,
+    styles: &ResolvedStyleSet,
+    dpi: f64,
+    text_direction: u8,
+) {
     // 기존 LineSeg에서 dimension 값 보존 (원본 HWP 호환성 유지)
     let seg_width_hwp = px_to_hwpunit(available_width_px, dpi);
     let orig = para.line_segs.first().cloned();
@@ -958,14 +969,45 @@ pub(crate) fn reflow_line_segs(
     let tab_width = para_style.map(|s| s.default_tab_width).unwrap_or(0.0);
 
     // 토큰화 → 줄 채움 → LineSeg 생성
-    let tokens = tokenize_paragraph(
-        &text_chars,
-        &para.char_offsets,
-        &para.char_shapes,
-        styles,
-        english_break_unit,
-        korean_break_unit,
-    );
+    let tokens = if text_direction == 0 {
+        tokenize_paragraph(
+            &text_chars,
+            &para.char_offsets,
+            &para.char_shapes,
+            styles,
+            english_break_unit,
+            korean_break_unit,
+        )
+    } else {
+        let mut lang = 0;
+        text_chars
+            .iter()
+            .enumerate()
+            .map(|(idx, &ch)| {
+                if ch == '\n' {
+                    return BreakToken::LineBreak { idx };
+                }
+                if !is_lang_neutral(ch) {
+                    lang = detect_lang_category(ch);
+                }
+                let offset = para
+                    .char_offsets
+                    .get(idx)
+                    .copied()
+                    .unwrap_or_else(|| u32::try_from(idx).unwrap_or(u32::MAX));
+                let style_id = find_active_char_shape(&para.char_shapes, offset);
+                let ts = resolved_to_text_style(styles, style_id, lang);
+                let advance = vertical_char_advance(ch, ts.font_size, text_direction);
+                BreakToken::Text {
+                    start_idx: idx,
+                    end_idx: idx + 1,
+                    width: advance,
+                    max_font_size: ts.font_size,
+                    char_widths: vec![advance],
+                }
+            })
+            .collect()
+    };
     let line_breaks = fill_lines(
         &tokens,
         &text_chars,
@@ -1014,11 +1056,9 @@ pub(crate) fn reflow_line_segs(
             .controls
             .iter()
             .filter_map(|ctrl| match ctrl {
-                Control::Table(t) if t.common.treat_as_char => Some(
-                    t.common
-                        .height
-                        .max(t.get_row_heights().iter().sum::<u32>()) as i32,
-                ),
+                Control::Table(t) if t.common.treat_as_char => {
+                    Some(t.common.height.max(t.get_row_heights().iter().sum::<u32>()) as i32)
+                }
                 Control::Picture(p) if p.common.treat_as_char => Some(p.common.height as i32),
                 Control::Shape(s) if s.common().treat_as_char => Some(s.common().height as i32),
                 Control::Equation(eq) if eq.common.treat_as_char => Some(eq.common.height as i32),

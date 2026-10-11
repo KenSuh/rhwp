@@ -5,6 +5,15 @@ use super::super::style_resolver::ResolvedStyleSet;
 use super::super::{hwpunit_to_px, TabLeaderInfo, TabStop, TextStyle};
 use crate::model::style::UnderlineType;
 
+pub(crate) fn vertical_char_advance(ch: char, font_size: f64, text_direction: u8) -> f64 {
+    let rotated = is_vertical_rotate_char(ch) || (text_direction == 1 && !is_cjk_char(ch));
+    if rotated || (!is_cjk_char(ch) && !ch.is_ascii_alphanumeric()) {
+        font_size * 0.5
+    } else {
+        font_size
+    }
+}
+
 // ── TextMeasurer trait ──────────────────────────────────────────────
 
 /// 텍스트 폭 측정 추상화 트레이트

@@ -259,7 +259,7 @@ pub(crate) use paragraph_layout::{ensure_min_baseline, map_pua_bullet_char};
 pub(crate) use text_measurement::{
     compute_char_positions, estimate_text_width, estimate_text_width_unrounded,
     extract_tab_leaders_with_extended, find_next_tab_stop, is_cjk_char, resolved_to_text_style,
-    split_into_clusters,
+    split_into_clusters, vertical_char_advance,
 };
 pub(crate) use utils::{
     drawing_to_line_style, drawing_to_shape_style, find_bin_data, format_page_number,

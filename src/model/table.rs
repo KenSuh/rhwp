@@ -282,10 +282,34 @@ impl Table {
         widths
     }
 
-    /// 행별 높이를 추출한다 (row_span==1인 셀 기준).
+    /// 행별 높이를 추출한다 (단독 셀 + 미지 행의 병합 셀 높이).
     /// 높이가 0인 행은 기본값 400으로 대체 (새 셀 생성용).
     pub fn get_row_heights(&self) -> Vec<HwpUnit> {
         let mut heights = self.get_raw_row_heights();
+        let mut merged: Vec<_> = self.cells.iter().filter(|cell| cell.row_span > 1).collect();
+        merged.sort_by_key(|cell| (cell.row_span, std::cmp::Reverse(cell.height)));
+        for cell in merged {
+            let start = usize::from(cell.row);
+            let end = start + usize::from(cell.row_span);
+            if end > heights.len() {
+                continue;
+            }
+            let rows = &mut heights[start..end];
+            let unknown = rows.iter().fold(0u16, |n, &h| n + u16::from(h == 0));
+            if unknown == 0 {
+                continue;
+            }
+            let known = rows.iter().fold(0u32, |sum, &h| sum.saturating_add(h));
+            let remaining = cell.height.saturating_sub(known);
+            let each = remaining / u32::from(unknown);
+            let mut remainder = remaining % u32::from(unknown);
+            for height in rows {
+                if *height == 0 {
+                    *height = each + u32::from(remainder > 0);
+                    remainder = remainder.saturating_sub(1);
+                }
+            }
+        }
         // 높이가 0인 행은 기본값 400 HWPUNIT
         for h in &mut heights {
             if *h == 0 {

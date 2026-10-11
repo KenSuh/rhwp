@@ -72,6 +72,47 @@ fn test_get_row_heights() {
 }
 
 #[test]
+fn merged_rows_keep_physical_height_when_dimensions_are_updated() {
+    let mut table = make_table(2, 2);
+    table.merge_cells(0, 0, 1, 1).unwrap();
+    table.cells[0].height = 32001;
+
+    table.update_ctrl_dimensions();
+
+    assert_eq!(table.common.height, 32001);
+    assert_eq!(table.get_row_heights(), vec![16001, 16000]);
+    assert_eq!(table.get_raw_row_heights(), vec![0, 0]);
+}
+
+#[test]
+fn merged_rows_fill_only_unknown_heights() {
+    let mut table = make_table(2, 2);
+    table.merge_cells(0, 0, 1, 0).unwrap();
+    table.cells.retain(|cell| cell.row == 0);
+    table.cells[0].height = 32000;
+
+    let heights = table.get_row_heights();
+
+    assert_eq!(heights, vec![1000, 31000]);
+}
+
+#[test]
+fn merged_rows_use_the_largest_span_height_independent_of_cell_order() {
+    let mut table = make_table(2, 2);
+    table.merge_cells(0, 0, 1, 0).unwrap();
+    table.merge_cells(0, 1, 1, 1).unwrap();
+    table.cells[0].height = 32000;
+    table.cells[1].height = 64000;
+
+    table.update_ctrl_dimensions();
+
+    assert_eq!(table.common.height, 64000);
+    assert_eq!(table.get_row_heights(), vec![32000, 32000]);
+    table.cells.reverse();
+    assert_eq!(table.get_row_heights(), vec![32000, 32000]);
+}
+
+#[test]
 fn test_update_ctrl_dimensions_syncs_common_attr() {
     let mut table = make_table(2, 3);
     table.common.width = 1;

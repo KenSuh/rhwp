@@ -8,7 +8,9 @@ use crate::error::HwpError;
 use crate::model::control::Control;
 use crate::model::document::Document;
 use crate::model::paragraph::Paragraph;
-use crate::renderer::composer::{compose_section, reflow_line_segs};
+use crate::renderer::composer::{
+    compose_section, reflow_line_segs, reflow_line_segs_with_direction,
+};
 use crate::renderer::layout::LayoutEngine;
 use crate::renderer::page_layout::PageLayoutInfo;
 use crate::renderer::style_resolver::{resolve_styles, ResolvedStyleSet};
@@ -455,9 +457,9 @@ impl DocumentCore {
     }
 
     fn cell_reflow_width_px(
-        table_padding: crate::model::Padding,
         cell_width: u32,
-        cell_padding: crate::model::Padding,
+        pad_left: i16,
+        pad_right: i16,
         para_shape_id: u16,
         styles: &ResolvedStyleSet,
         dpi: f64,
@@ -469,16 +471,6 @@ impl DocumentCore {
             hwpunit_to_px(cell_width as i32, dpi)
         } else {
             fallback_width_px
-        };
-        let pad_left = if cell_padding.left != 0 {
-            cell_padding.left
-        } else {
-            table_padding.left
-        };
-        let pad_right = if cell_padding.right != 0 {
-            cell_padding.right
-        } else {
-            table_padding.right
         };
         let content_width =
             width_px - hwpunit_to_px(pad_left as i32, dpi) - hwpunit_to_px(pad_right as i32, dpi);
@@ -499,20 +491,26 @@ impl DocumentCore {
         let table_padding = table.padding;
 
         for cell in &mut table.cells {
-            let cell_width = cell.width;
-            let cell_padding = cell.padding;
+            let (cell_width, pad_left, pad_right) =
+                super::super::helpers::cell_reflow_geometry(cell, table_padding);
             for cell_para in &mut cell.paragraphs {
                 let cell_width_px = Self::cell_reflow_width_px(
-                    table_padding,
                     cell_width,
-                    cell_padding,
+                    pad_left,
+                    pad_right,
                     cell_para.para_shape_id,
                     styles,
                     dpi,
                     fallback_width_px,
                 );
                 if should_reflow(cell_para) {
-                    reflow_line_segs(cell_para, cell_width_px, styles, dpi);
+                    reflow_line_segs_with_direction(
+                        cell_para,
+                        cell_width_px,
+                        styles,
+                        dpi,
+                        cell.text_direction,
+                    );
                     reflowed += 1;
                 }
                 for ctrl in &mut cell_para.controls {
@@ -1244,5 +1242,58 @@ mod validate_linesegs_tests {
             "셀 lineseg 폭은 본문 컬럼 폭이 아니라 셀 폭 이하여야 함: {:?}",
             lines
         );
+    }
+
+    #[test]
+    fn document_reflow_uses_vertical_cell_capacity_in_nested_and_merged_cells() {
+        use crate::model::table::{Cell, Table};
+
+        for direction in [1, 2] {
+            let mut para = Paragraph::new_empty();
+            para.insert_text_at(
+                0,
+                "가나다라마바사아자차카타파하가나다라마바사아자차카타파하",
+            );
+            para.line_segs.clear();
+            let mut cell = Cell::new_empty(0, 0, 5291, 32000, 0);
+            cell.text_direction = direction;
+            cell.col_span = 2;
+            cell.row_span = 2;
+            cell.padding.top = 1200;
+            cell.padding.bottom = 2300;
+            cell.paragraphs = vec![para];
+            let mut nested = Table::default();
+            nested.row_count = 2;
+            nested.col_count = 2;
+            nested.cells.push(cell);
+            let mut outer = Table::default();
+            let mut host = Cell::new_empty(0, 0, 15000, 40000, 0);
+            host.paragraphs[0]
+                .controls
+                .push(Control::Table(Box::new(nested)));
+            outer.cells.push(host);
+            let styles = resolve_styles(&Document::default().doc_info, DEFAULT_DPI);
+
+            let reflowed = DocumentCore::reflow_table_cell_paragraphs(
+                &mut outer,
+                &styles,
+                DEFAULT_DPI,
+                600.0,
+                DocumentCore::needs_reflow_broadly,
+            );
+
+            assert_eq!(reflowed, 1);
+            let Control::Table(nested) = &outer.cells[0].paragraphs[0].controls[0] else {
+                panic!("nested table");
+            };
+            let lines = &nested.cells[0].paragraphs[0].line_segs;
+            assert!(!lines.is_empty());
+            assert!(
+                lines
+                    .iter()
+                    .all(|line| (28499..=28500).contains(&line.segment_width)),
+                "vertical document capacity: {lines:?}"
+            );
+        }
     }
 }

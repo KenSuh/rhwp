@@ -602,3 +602,213 @@ fn text_insert_in_cell_still_reflows_at_cell_width() {
         .unwrap();
     assert!(assert_cell_lines_fit(&fixture.doc, &fixture, 4, "delete text in cell") <= lines);
 }
+
+fn vertical_fixture(direction: u8) -> Fixture {
+    let mut fixture = table_fixture_with_cols(2);
+    fixture
+        .doc
+        .set_cell_properties(
+            0,
+            fixture.para_idx.try_into().unwrap(),
+            fixture.control_idx.try_into().unwrap(),
+            0,
+            &format!(
+                "{{\"textDirection\":{direction},\"height\":32000,\"paddingTop\":1200,\"paddingBottom\":2300}}"
+            ),
+        )
+        .unwrap();
+    fixture
+}
+
+fn assert_vertical_capacity(fixture: &Fixture, capacity: i32, context: &str) {
+    let segs = &table(&fixture.doc, fixture).cells[0].paragraphs[0].line_segs;
+    assert_eq!(segs.len(), 1, "{context}: tall cell must fit one column");
+    assert!(
+        (capacity - 1..=capacity).contains(&segs[0].segment_width),
+        "{context}: height minus top/bottom padding is {capacity}, got {}",
+        segs[0].segment_width
+    );
+    let tree = fixture.doc.get_page_render_tree(0).unwrap();
+    assert_eq!(
+        text_values(&tree).replace(' ', ""),
+        LONG_TEXT.replace(' ', ""),
+        "{context}: native render must preserve all vertical text"
+    );
+}
+
+#[test]
+fn vertical_cell_font_size_uses_height_and_vertical_padding() {
+    for direction in [1, 2] {
+        let mut fixture = vertical_fixture(direction);
+        let end = insert_long_text(&mut fixture, 0);
+        let capacity = i32::try_from(table(&fixture.doc, &fixture).cells[0].height).unwrap() - 3500;
+        fixture
+            .doc
+            .apply_char_format_in_cell(
+                0,
+                fixture.para_idx,
+                fixture.control_idx,
+                0,
+                0,
+                0,
+                end,
+                "{\"fontSize\":900}",
+            )
+            .unwrap();
+        assert_vertical_capacity(&fixture, capacity, "vertical font size");
+    }
+}
+
+#[test]
+fn vertical_cell_line_spacing_uses_height_and_vertical_padding() {
+    for direction in [1, 2] {
+        let mut fixture = vertical_fixture(direction);
+        insert_long_text(&mut fixture, 0);
+        let capacity = i32::try_from(table(&fixture.doc, &fixture).cells[0].height).unwrap() - 3500;
+        fixture
+            .doc
+            .apply_para_format_in_cell(
+                0,
+                fixture.para_idx,
+                fixture.control_idx,
+                0,
+                0,
+                "{\"lineSpacing\":300,\"lineSpacingType\":\"Percent\"}",
+            )
+            .unwrap();
+        assert_vertical_capacity(&fixture, capacity, "vertical line spacing");
+        assert_triple_line_spacing(&fixture.doc, &fixture, 0, "vertical line spacing");
+    }
+}
+
+#[test]
+fn vertical_cell_input_uses_height_and_vertical_padding() {
+    let mut fixture = vertical_fixture(1);
+    insert_long_text(&mut fixture, 0);
+    assert_vertical_capacity(&fixture, 28500, "vertical input");
+}
+
+fn resized_caption_fixture() -> Fixture {
+    let mut fixture = table_fixture_with_cols(2);
+    fixture
+        .doc
+        .set_table_properties(
+            0,
+            fixture.para_idx.try_into().unwrap(),
+            fixture.control_idx.try_into().unwrap(),
+            "{\"hasCaption\":true}",
+        )
+        .unwrap();
+    assert_eq!(
+        table(&fixture.doc, &fixture)
+            .caption
+            .as_ref()
+            .unwrap()
+            .max_width,
+        10582
+    );
+    let page = &fixture.doc.document().sections[0].section_def.page_def;
+    let width = page.width - page.margin_left - page.margin_right;
+    let target = width / 2;
+    let delta = i64::from(target) - i64::from(COL_WIDTH);
+    let updates = (0..4)
+        .map(|i| format!("{{\"cellIdx\":{i},\"widthDelta\":{delta}}}"))
+        .collect::<Vec<_>>()
+        .join(",");
+    fixture
+        .doc
+        .resize_table_cells(
+            0,
+            fixture.para_idx.try_into().unwrap(),
+            fixture.control_idx.try_into().unwrap(),
+            &format!("[{updates}]"),
+        )
+        .unwrap();
+    fixture
+}
+
+fn insert_caption_text(fixture: &mut Fixture) -> usize {
+    let prefix = table(&fixture.doc, fixture)
+        .caption
+        .as_ref()
+        .unwrap()
+        .paragraphs[0]
+        .text
+        .chars()
+        .count();
+    fixture
+        .doc
+        .insert_text_in_cell(
+            0,
+            fixture.para_idx.try_into().unwrap(),
+            fixture.control_idx.try_into().unwrap(),
+            65534,
+            0,
+            prefix.try_into().unwrap(),
+            LONG_TEXT,
+        )
+        .unwrap();
+    prefix + LONG_TEXT.chars().count()
+}
+
+fn assert_resized_caption(fixture: &Fixture, context: &str) {
+    let current_table = table(&fixture.doc, fixture);
+    let width: u32 = current_table.get_column_widths().iter().sum();
+    let segs = &current_table.caption.as_ref().unwrap().paragraphs[0].line_segs;
+    assert_eq!(
+        segs.len(),
+        1,
+        "{context}: enlarged caption must fit on one line"
+    );
+    let width = i32::try_from(width).unwrap();
+    assert!(
+        (width - 1..=width).contains(&segs[0].segment_width),
+        "{context}: current table width {width}, got {}",
+        segs[0].segment_width
+    );
+}
+
+#[test]
+fn resized_table_caption_font_size_uses_current_geometry() {
+    let mut fixture = resized_caption_fixture();
+    let end = insert_caption_text(&mut fixture);
+    fixture
+        .doc
+        .apply_char_format_in_cell(
+            0,
+            fixture.para_idx,
+            fixture.control_idx,
+            65534,
+            0,
+            0,
+            end,
+            "{\"fontSize\":900}",
+        )
+        .unwrap();
+    assert_resized_caption(&fixture, "resized caption font size");
+}
+
+#[test]
+fn resized_table_caption_line_spacing_uses_current_geometry() {
+    let mut fixture = resized_caption_fixture();
+    insert_caption_text(&mut fixture);
+    fixture
+        .doc
+        .apply_para_format_in_cell(
+            0,
+            fixture.para_idx,
+            fixture.control_idx,
+            65534,
+            0,
+            "{\"lineSpacing\":300,\"lineSpacingType\":\"Percent\"}",
+        )
+        .unwrap();
+    assert_resized_caption(&fixture, "resized caption line spacing");
+}
+
+#[test]
+fn resized_table_caption_input_uses_current_geometry() {
+    let mut fixture = resized_caption_fixture();
+    insert_caption_text(&mut fixture);
+    assert_resized_caption(&fixture, "resized caption input");
+}

@@ -7,7 +7,9 @@ use crate::model::control::Control;
 use crate::model::event::DocumentEvent;
 use crate::model::page::ColumnDef;
 use crate::model::paragraph::Paragraph;
-use crate::renderer::composer::{compose_paragraph, reflow_line_segs, ComposedParagraph};
+use crate::renderer::composer::{
+    compose_paragraph, reflow_line_segs, reflow_line_segs_with_direction, ComposedParagraph,
+};
 use crate::renderer::page_layout::PageLayoutInfo;
 use crate::renderer::px_to_hwpunit;
 
@@ -498,7 +500,6 @@ impl DocumentCore {
             control_idx,
             cell_idx,
             cell_para_idx,
-            false,
         ) {
             return;
         }
@@ -512,9 +513,8 @@ impl DocumentCore {
         }
     }
 
-    /// 셀·글상자·캡션 문단의 줄을 그 컨테이너 안쪽 폭(폭 − 좌우 안 여백 − 문단 여백)으로 다시 나눈다.
+    /// 셀·글상자·캡션 문단의 줄을 그 컨테이너의 줄 진행 방향 안쪽 용량으로 다시 나눈다.
     /// 행 높이는 건드리지 않는다. 컨테이너나 문단을 찾지 못하면 false.
-    /// `reflow_table_caption` 이 false 면 표 캡션(셀 순번 65534)은 줄을 그대로 둔다 — 글자 입력 경로의 기존 동작이다.
     pub(crate) fn reflow_cell_paragraph_lines(
         &mut self,
         section_idx: usize,
@@ -522,39 +522,38 @@ impl DocumentCore {
         control_idx: usize,
         cell_idx: usize,
         cell_para_idx: usize,
-        reflow_table_caption: bool,
     ) -> bool {
         use crate::renderer::hwpunit_to_px;
 
-        // 셀/글상자 폭과 패딩 읽기 (불변 참조)
         let (cell_width, pad_left, pad_right) = {
             let para = &self.document.sections[section_idx].paragraphs[parent_para_idx];
             match para.controls.get(control_idx) {
                 Some(Control::Table(table)) => {
                     if cell_idx == 65534 {
-                        // 표 캡션 리플로우: Top/Bottom은 max_width, Left/Right는 width 사용
+                        // 가로 캡션은 렌더러와 같은 현재 열 기하·셀 간격, 옆 캡션은 지정 폭
                         if let Some(ref cap) = table.caption {
                             use crate::model::shape::CaptionDirection;
                             let w = match cap.direction {
-                                CaptionDirection::Left | CaptionDirection::Right => cap.width,
-                                _ => cap.max_width,
+                                CaptionDirection::Left | CaptionDirection::Right => {
+                                    hwpunit_to_px(cap.width as i32, self.dpi)
+                                }
+                                CaptionDirection::Top | CaptionDirection::Bottom => {
+                                    self.layout_engine
+                                        .resolve_column_widths(table, usize::from(table.col_count))
+                                        .iter()
+                                        .sum::<f64>()
+                                        + hwpunit_to_px(i32::from(table.cell_spacing), self.dpi)
+                                            * f64::from(table.col_count.saturating_sub(1))
+                                }
                             };
                             (w, 0, 0)
                         } else {
                             return false;
                         }
                     } else if let Some(cell) = table.cells.get(cell_idx) {
-                        let pad_l = if cell.padding.left != 0 {
-                            cell.padding.left
-                        } else {
-                            table.padding.left
-                        };
-                        let pad_r = if cell.padding.right != 0 {
-                            cell.padding.right
-                        } else {
-                            table.padding.right
-                        };
-                        (cell.width, pad_l, pad_r)
+                        let (extent, before, after) =
+                            super::super::helpers::cell_reflow_geometry(cell, table.padding);
+                        (hwpunit_to_px(extent as i32, self.dpi), before, after)
                     } else {
                         return false;
                     }
@@ -563,23 +562,33 @@ impl DocumentCore {
                     if let Some(tb) = super::super::helpers::get_textbox_from_shape(shape) {
                         let common = shape.common();
                         // 글상자 폭 = common.width, 여백 = textbox margin
-                        (common.width as u32, tb.margin_left, tb.margin_right)
+                        (
+                            hwpunit_to_px(common.width as i32, self.dpi),
+                            tb.margin_left,
+                            tb.margin_right,
+                        )
                     } else {
                         return false;
                     }
                 }
                 Some(Control::Picture(pic)) => {
-                    // 캡션 폭 = 그림 폭 (Bottom/Top 방향), 여백 없음
-                    (pic.common.width as u32, 0, 0)
+                    use crate::model::shape::CaptionDirection;
+                    let Some(cap) = &pic.caption else {
+                        return false;
+                    };
+                    let width = match cap.direction {
+                        CaptionDirection::Left | CaptionDirection::Right => cap.width,
+                        CaptionDirection::Top | CaptionDirection::Bottom => pic.common.width,
+                    };
+                    (hwpunit_to_px(width as i32, self.dpi), 0, 0)
                 }
                 _ => return false,
             }
         };
 
-        let cell_width_px = hwpunit_to_px(cell_width as i32, self.dpi);
         let pad_left_px = hwpunit_to_px(pad_left as i32, self.dpi);
         let pad_right_px = hwpunit_to_px(pad_right as i32, self.dpi);
-        let available_width = (cell_width_px - pad_left_px - pad_right_px).max(0.0);
+        let available_width = (cell_width - pad_left_px - pad_right_px).max(0.0);
 
         // 문단 여백 계산
         let para_shape_id = {
@@ -607,18 +616,22 @@ impl DocumentCore {
         {
             Some(Control::Table(table)) => {
                 if cell_idx == 65534 {
-                    if reflow_table_caption {
-                        if let Some(cap_para) = table
-                            .caption
-                            .as_mut()
-                            .and_then(|cap| cap.paragraphs.get_mut(cell_para_idx))
-                        {
-                            reflow_line_segs(cap_para, final_width, &self.styles, self.dpi);
-                        }
+                    if let Some(cap_para) = table
+                        .caption
+                        .as_mut()
+                        .and_then(|cap| cap.paragraphs.get_mut(cell_para_idx))
+                    {
+                        reflow_line_segs(cap_para, final_width, &self.styles, self.dpi);
                     }
                 } else if let Some(cell) = table.cells.get_mut(cell_idx) {
                     if let Some(cell_para) = cell.paragraphs.get_mut(cell_para_idx) {
-                        reflow_line_segs(cell_para, final_width, &self.styles, self.dpi);
+                        reflow_line_segs_with_direction(
+                            cell_para,
+                            final_width,
+                            &self.styles,
+                            self.dpi,
+                            cell.text_direction,
+                        );
                     }
                 }
             }
@@ -753,17 +766,9 @@ impl DocumentCore {
                 let cell = table.cells.get(cell_idx)?;
                 if i == path.len() - 1 {
                     let cell_para = cell.paragraphs.get(cell_para_idx)?;
-                    let pad_l = if cell.padding.left != 0 {
-                        cell.padding.left
-                    } else {
-                        table.padding.left
-                    };
-                    let pad_r = if cell.padding.right != 0 {
-                        cell.padding.right
-                    } else {
-                        table.padding.right
-                    };
-                    let available_width = (hwpunit_to_px(cell.width as i32, self.dpi)
+                    let (extent, pad_l, pad_r) =
+                        super::super::helpers::cell_reflow_geometry(cell, table.padding);
+                    let available_width = (hwpunit_to_px(extent as i32, self.dpi)
                         - hwpunit_to_px(pad_l as i32, self.dpi)
                         - hwpunit_to_px(pad_r as i32, self.dpi))
                     .max(0.0);
@@ -802,7 +807,13 @@ impl DocumentCore {
                 let Some(cell_para) = cell.paragraphs.get_mut(cell_para_idx) else {
                     return false;
                 };
-                reflow_line_segs(cell_para, final_width, styles, dpi);
+                reflow_line_segs_with_direction(
+                    cell_para,
+                    final_width,
+                    styles,
+                    dpi,
+                    cell.text_direction,
+                );
                 return true;
             }
             let Some(next_para) = cell.paragraphs.get_mut(cell_para_idx) else {

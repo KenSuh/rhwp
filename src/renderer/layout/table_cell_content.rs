@@ -9,7 +9,8 @@ use super::border_rendering::{
     build_row_col_x, collect_cell_borders, render_edge_borders, render_transparent_borders,
 };
 use super::text_measurement::{
-    is_cjk_char, is_vertical_rotate_char, resolved_to_text_style, vertical_substitute_char,
+    is_cjk_char, is_vertical_rotate_char, resolved_to_text_style, vertical_char_advance,
+    vertical_substitute_char,
 };
 use super::utils::find_bin_data;
 use super::{CellContext, CellPathEntry, LayoutEngine};
@@ -125,16 +126,8 @@ impl LayoutEngine {
                             char_offset += 1;
                             continue;
                         }
-                        let is_rotate = is_vertical_rotate_char(ch);
-                        let needs_rotation = is_rotate || (text_direction == 1 && !is_cjk_char(ch));
-                        // 세로쓰기에서 구두점/기호만 반칸 advance (영문/숫자는 캐릭터 높이)
-                        let half_advance =
-                            needs_rotation || (!is_cjk_char(ch) && !ch.is_ascii_alphanumeric());
-                        let advance = if half_advance {
-                            text_style.font_size * 0.5
-                        } else {
-                            text_style.font_size
-                        };
+                        let advance =
+                            vertical_char_advance(ch, text_style.font_size, text_direction);
                         chars.push(CharInfo {
                             ch,
                             style: text_style.clone(),
@@ -222,14 +215,7 @@ impl LayoutEngine {
                 let ci = &chars[i];
                 let is_rotate = is_vertical_rotate_char(ci.ch);
                 let needs_rotation = is_rotate || (text_direction == 1 && !is_cjk_char(ci.ch));
-                // 세로쓰기에서 구두점/기호만 반칸 advance (영문/숫자는 캐릭터 높이)
-                let half_advance =
-                    needs_rotation || (!is_cjk_char(ci.ch) && !ci.ch.is_ascii_alphanumeric());
-                let advance = if half_advance {
-                    ci.style.font_size * 0.5
-                } else {
-                    ci.style.font_size
-                };
+                let advance = vertical_char_advance(ci.ch, ci.style.font_size, text_direction);
 
                 // 열 높이 초과 시 렌더링 중단
                 if char_y + advance > col_bottom + 0.5 {

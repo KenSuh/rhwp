@@ -2159,23 +2159,9 @@ impl DocumentCore {
             if let Some(ls) = para.line_segs.first_mut() {
                 ls.segment_width = cap_max_width as i32;
             }
-            // 직접 접근으로 borrow 분리하여 reflow_line_segs 호출
-            if let Some(crate::model::control::Control::Table(ref mut tbl)) =
-                self.document.sections[section_idx].paragraphs[parent_para_idx]
-                    .controls
-                    .get_mut(control_idx)
-            {
-                if let Some(ref mut cap) = tbl.caption {
-                    let available_width_px =
-                        crate::renderer::hwpunit_to_px(cap.max_width as i32, self.dpi);
-                    crate::renderer::composer::reflow_line_segs(
-                        &mut cap.paragraphs[0],
-                        available_width_px,
-                        &self.styles,
-                        self.dpi,
-                    );
-                }
-            }
+        }
+        if caption_created || caption_changed {
+            self.reflow_cell_paragraph_lines(section_idx, parent_para_idx, control_idx, 65534, 0);
         }
 
         self.document.sections[section_idx].raw_stream = None;

@@ -8,6 +8,35 @@ use crate::model::paragraph::Paragraph;
 use crate::model::path::PathSegment;
 use crate::model::style::BorderLineType;
 
+/// 줄 진행 방향의 셀 용량과 양 끝 안 여백 — 세로쓰기의 한 줄은 높이를 쓰는 열이다.
+pub(crate) fn cell_reflow_geometry(
+    cell: &crate::model::table::Cell,
+    table_padding: crate::model::Padding,
+) -> (u32, i16, i16) {
+    let (extent, before, after, fallback_before, fallback_after) = if cell.text_direction == 0 {
+        (
+            cell.width,
+            cell.padding.left,
+            cell.padding.right,
+            table_padding.left,
+            table_padding.right,
+        )
+    } else {
+        (
+            cell.height,
+            cell.padding.top,
+            cell.padding.bottom,
+            table_padding.top,
+            table_padding.bottom,
+        )
+    };
+    (
+        extent,
+        if before != 0 { before } else { fallback_before },
+        if after != 0 { after } else { fallback_after },
+    )
+}
+
 /// 문단의 탐색 가능한 텍스트 길이를 반환한다.
 ///
 /// CharOverlap(TCPS)은 inline 컨트롤이라 para.text에 포함되지 않지만,
