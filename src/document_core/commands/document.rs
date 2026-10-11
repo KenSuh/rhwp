@@ -521,16 +521,17 @@ impl DocumentCore {
         for cell in &mut table.cells {
             let geometry = super::super::helpers::cell_reflow_geometry(cell, table_padding);
             for cell_para in &mut cell.paragraphs {
+                let descendant_width_px = Self::vertical_cell_reflow_width_legacy(
+                    table_padding,
+                    cell.width,
+                    cell.padding,
+                    cell_para.para_shape_id,
+                    styles,
+                    dpi,
+                    fallback_width_px,
+                );
                 let cell_width_px = if cell.text_direction != 0 {
-                    Some(Self::vertical_cell_reflow_width_legacy(
-                        table_padding,
-                        cell.width,
-                        cell.padding,
-                        cell_para.para_shape_id,
-                        styles,
-                        dpi,
-                        fallback_width_px,
-                    ))
+                    Some(descendant_width_px)
                 } else {
                     geometry.and_then(|(cell_width, pad_left, pad_right)| {
                         Self::cell_reflow_width_px(
@@ -553,7 +554,7 @@ impl DocumentCore {
                             nested_table,
                             styles,
                             dpi,
-                            cell_width_px.unwrap_or(fallback_width_px),
+                            descendant_width_px,
                             should_reflow,
                         );
                     }
