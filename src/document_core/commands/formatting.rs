@@ -959,6 +959,44 @@ impl DocumentCore {
         Ok("{\"ok\":true}".to_string())
     }
 
+    fn reflow_vertical_cell_format_legacy(
+        &mut self,
+        sec_idx: usize,
+        parent_para_idx: usize,
+        control_idx: usize,
+        cell_idx: usize,
+        cell_para_idx: usize,
+        clear_segments: bool,
+    ) -> Result<(), HwpError> {
+        let dpi = self.dpi;
+        let styles = resolve_styles(&self.document.doc_info, dpi);
+        let section = &self.document.sections[sec_idx];
+        let page_def = &section.section_def.page_def;
+        let column_def = DocumentCore::find_initial_column_def(&section.paragraphs);
+        let layout = PageLayoutInfo::from_page_def(page_def, &column_def, dpi);
+        let col_width = layout
+            .column_areas
+            .first()
+            .map(|area| area.width)
+            .unwrap_or(layout.body_area.width);
+        let cell_para = self.get_cell_paragraph_mut(
+            sec_idx,
+            parent_para_idx,
+            control_idx,
+            cell_idx,
+            cell_para_idx,
+        )?;
+        let para_style = styles.para_styles.get(cell_para.para_shape_id as usize);
+        let margin_left = para_style.map(|style| style.margin_left).unwrap_or(0.0);
+        let margin_right = para_style.map(|style| style.margin_right).unwrap_or(0.0);
+        let available_width = (col_width - margin_left - margin_right).max(1.0);
+        if clear_segments {
+            cell_para.line_segs.clear();
+        }
+        reflow_line_segs(cell_para, available_width, &styles, dpi);
+        Ok(())
+    }
+
     /// 글자 서식 적용 (네이티브) — 셀 내 문단
     pub fn apply_char_format_in_cell_native(
         &mut self,
@@ -1004,15 +1042,26 @@ impl DocumentCore {
 
         // 글꼴 크기 변경 시 셀 내 LineSeg 재계산 — 구역 단 폭이 아니라 셀(글상자·캡션) 안쪽 폭 기준
         if mods.base_size.is_some() {
-            // 방금 만든 글자 모양이 줄 계산에 보이도록 스타일을 먼저 다시 해소한다
-            self.styles = resolve_styles(&self.document.doc_info, self.dpi);
-            self.reflow_cell_paragraph_lines(
-                sec_idx,
-                parent_para_idx,
-                control_idx,
-                cell_idx,
-                cell_para_idx,
-            );
+            if self.is_vertical_table_cell(sec_idx, parent_para_idx, control_idx, cell_idx) {
+                self.reflow_vertical_cell_format_legacy(
+                    sec_idx,
+                    parent_para_idx,
+                    control_idx,
+                    cell_idx,
+                    cell_para_idx,
+                    true,
+                )?;
+            } else {
+                // 방금 만든 글자 모양이 줄 계산에 보이도록 스타일을 먼저 다시 해소한다
+                self.styles = resolve_styles(&self.document.doc_info, self.dpi);
+                self.reflow_cell_paragraph_lines(
+                    sec_idx,
+                    parent_para_idx,
+                    control_idx,
+                    cell_idx,
+                    cell_para_idx,
+                );
+            }
 
             // 표 dirty 마킹 — 셀 높이 재계산 필요
             if let Control::Table(ref mut t) =
@@ -1060,7 +1109,9 @@ impl DocumentCore {
 
         if mods.base_size.is_some() {
             // 방금 만든 글자 모양이 줄 계산에 보이도록 스타일을 먼저 다시 해소한다
-            self.styles = resolve_styles(&self.document.doc_info, self.dpi);
+            if !self.is_vertical_cell_path(sec_idx, parent_para_idx, path) {
+                self.styles = resolve_styles(&self.document.doc_info, self.dpi);
+            }
             self.reflow_cell_paragraph_by_path(sec_idx, parent_para_idx, path);
         }
         self.refresh_tables_after_cell_path_edit(sec_idx, parent_para_idx, path);
@@ -1234,15 +1285,26 @@ impl DocumentCore {
 
         // 줄간격 변경 시 셀 내 문단 LineSeg 재계산 — 구역 단 폭이 아니라 셀(글상자·캡션) 안쪽 폭 기준
         if mods.line_spacing.is_some() || mods.line_spacing_type.is_some() {
-            // 방금 만든 문단 모양이 줄 계산에 보이도록 스타일을 먼저 다시 해소한다
-            self.styles = resolve_styles(&self.document.doc_info, self.dpi);
-            self.reflow_cell_paragraph_lines(
-                sec_idx,
-                parent_para_idx,
-                control_idx,
-                cell_idx,
-                cell_para_idx,
-            );
+            if self.is_vertical_table_cell(sec_idx, parent_para_idx, control_idx, cell_idx) {
+                self.reflow_vertical_cell_format_legacy(
+                    sec_idx,
+                    parent_para_idx,
+                    control_idx,
+                    cell_idx,
+                    cell_para_idx,
+                    false,
+                )?;
+            } else {
+                // 방금 만든 문단 모양이 줄 계산에 보이도록 스타일을 먼저 다시 해소한다
+                self.styles = resolve_styles(&self.document.doc_info, self.dpi);
+                self.reflow_cell_paragraph_lines(
+                    sec_idx,
+                    parent_para_idx,
+                    control_idx,
+                    cell_idx,
+                    cell_para_idx,
+                );
+            }
         }
 
         // 표 dirty 마킹 — measure_section_incremental이 셀 높이를 재계산하도록
@@ -1314,7 +1376,9 @@ impl DocumentCore {
         // 줄간격 변경 시 LineSeg 재계산
         if mods.line_spacing.is_some() || mods.line_spacing_type.is_some() {
             // 방금 만든 문단 모양이 줄 계산에 보이도록 스타일을 먼저 다시 해소한다
-            self.styles = resolve_styles(&self.document.doc_info, self.dpi);
+            if !self.is_vertical_cell_path(sec_idx, parent_para_idx, path) {
+                self.styles = resolve_styles(&self.document.doc_info, self.dpi);
+            }
             self.reflow_cell_paragraph_by_path(sec_idx, parent_para_idx, path);
         }
         self.refresh_tables_after_cell_path_edit(sec_idx, parent_para_idx, path);

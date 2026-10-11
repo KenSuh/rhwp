@@ -7,9 +7,7 @@ use crate::model::control::Control;
 use crate::model::event::DocumentEvent;
 use crate::model::page::ColumnDef;
 use crate::model::paragraph::Paragraph;
-use crate::renderer::composer::{
-    compose_paragraph, reflow_line_segs, reflow_line_segs_with_direction, ComposedParagraph,
-};
+use crate::renderer::composer::{compose_paragraph, reflow_line_segs, ComposedParagraph};
 use crate::renderer::page_layout::PageLayoutInfo;
 use crate::renderer::px_to_hwpunit;
 
@@ -494,6 +492,17 @@ impl DocumentCore {
         cell_idx: usize,
         cell_para_idx: usize,
     ) {
+        // shortcut: vertical cells retain pre-L1 reflow until the separate vertical geometry follow-up is verified.
+        if self.is_vertical_table_cell(section_idx, parent_para_idx, control_idx, cell_idx) {
+            self.reflow_vertical_cell_paragraph_legacy(
+                section_idx,
+                parent_para_idx,
+                control_idx,
+                cell_idx,
+                cell_para_idx,
+            );
+            return;
+        }
         if !self.reflow_cell_paragraph_lines(
             section_idx,
             parent_para_idx,
@@ -638,13 +647,7 @@ impl DocumentCore {
                     }
                 } else if let Some(cell) = table.cells.get_mut(cell_idx) {
                     if let Some(cell_para) = cell.paragraphs.get_mut(cell_para_idx) {
-                        reflow_line_segs_with_direction(
-                            cell_para,
-                            final_width,
-                            &self.styles,
-                            self.dpi,
-                            cell.text_direction,
-                        );
+                        reflow_line_segs(cell_para, final_width, &self.styles, self.dpi);
                     }
                 }
             }
@@ -665,6 +668,247 @@ impl DocumentCore {
             _ => {}
         }
         true
+    }
+
+    pub(crate) fn is_vertical_table_cell(
+        &self,
+        section_idx: usize,
+        parent_para_idx: usize,
+        control_idx: usize,
+        cell_idx: usize,
+    ) -> bool {
+        match self
+            .document
+            .sections
+            .get(section_idx)
+            .and_then(|section| section.paragraphs.get(parent_para_idx))
+            .and_then(|para| para.controls.get(control_idx))
+        {
+            Some(Control::Table(table)) => table
+                .cells
+                .get(cell_idx)
+                .is_some_and(|cell| cell.text_direction != 0),
+            _ => false,
+        }
+    }
+
+    pub(crate) fn is_vertical_cell_path(
+        &self,
+        section_idx: usize,
+        parent_para_idx: usize,
+        path: &[(usize, usize, usize)],
+    ) -> bool {
+        self.get_table_ref_by_cell_path(section_idx, parent_para_idx, path)
+            .and_then(|table| {
+                path.last()
+                    .and_then(|&(_, cell_idx, _)| table.cells.get(cell_idx))
+            })
+            .is_some_and(|cell| cell.text_direction != 0)
+    }
+
+    pub(crate) fn reflow_vertical_cell_paragraph_legacy(
+        &mut self,
+        section_idx: usize,
+        parent_para_idx: usize,
+        control_idx: usize,
+        cell_idx: usize,
+        cell_para_idx: usize,
+    ) {
+        use crate::renderer::hwpunit_to_px;
+
+        // 셀/글상자 폭과 패딩 읽기 (불변 참조)
+        let (cell_width, pad_left, pad_right) = {
+            let para = &self.document.sections[section_idx].paragraphs[parent_para_idx];
+            match para.controls.get(control_idx) {
+                Some(Control::Table(table)) => {
+                    if cell_idx == 65534 {
+                        // 표 캡션 리플로우: Top/Bottom은 max_width, Left/Right는 width 사용
+                        if let Some(ref cap) = table.caption {
+                            use crate::model::shape::CaptionDirection;
+                            let w = match cap.direction {
+                                CaptionDirection::Left | CaptionDirection::Right => cap.width,
+                                _ => cap.max_width,
+                            };
+                            (w, 0, 0)
+                        } else {
+                            return;
+                        }
+                    } else if let Some(cell) = table.cells.get(cell_idx) {
+                        let pad_l = if cell.padding.left != 0 {
+                            cell.padding.left
+                        } else {
+                            table.padding.left
+                        };
+                        let pad_r = if cell.padding.right != 0 {
+                            cell.padding.right
+                        } else {
+                            table.padding.right
+                        };
+                        (cell.width, pad_l, pad_r)
+                    } else {
+                        return;
+                    }
+                }
+                Some(Control::Shape(shape)) => {
+                    if let Some(tb) = super::super::helpers::get_textbox_from_shape(shape) {
+                        let common = shape.common();
+                        // 글상자 폭 = common.width, 여백 = textbox margin
+                        (common.width as u32, tb.margin_left, tb.margin_right)
+                    } else {
+                        return;
+                    }
+                }
+                Some(Control::Picture(pic)) => {
+                    // 캡션 폭 = 그림 폭 (Bottom/Top 방향), 여백 없음
+                    (pic.common.width as u32, 0, 0)
+                }
+                _ => return,
+            }
+        };
+
+        let cell_width_px = hwpunit_to_px(cell_width as i32, self.dpi);
+        let pad_left_px = hwpunit_to_px(pad_left as i32, self.dpi);
+        let pad_right_px = hwpunit_to_px(pad_right as i32, self.dpi);
+        let available_width = (cell_width_px - pad_left_px - pad_right_px).max(0.0);
+
+        // 문단 여백 계산
+        let para_shape_id = {
+            let cell_para = self.get_cell_paragraph_ref(
+                section_idx,
+                parent_para_idx,
+                control_idx,
+                cell_idx,
+                cell_para_idx,
+            );
+            match cell_para {
+                Some(p) => p.para_shape_id,
+                None => return,
+            }
+        };
+        let para_style = self.styles.para_styles.get(para_shape_id as usize);
+        let margin_left = para_style.map(|s| s.margin_left).unwrap_or(0.0);
+        let margin_right = para_style.map(|s| s.margin_right).unwrap_or(0.0);
+        let final_width = (available_width - margin_left - margin_right).max(0.0);
+
+        // 가변 참조로 리플로우 실행
+        match self.document.sections[section_idx].paragraphs[parent_para_idx]
+            .controls
+            .get_mut(control_idx)
+        {
+            Some(Control::Table(table)) => {
+                if let Some(cell) = table.cells.get_mut(cell_idx) {
+                    if let Some(cell_para) = cell.paragraphs.get_mut(cell_para_idx) {
+                        reflow_line_segs(cell_para, final_width, &self.styles, self.dpi);
+                    }
+                }
+            }
+            Some(Control::Shape(shape)) => {
+                if let Some(tb) = super::super::helpers::get_textbox_from_shape_mut(shape) {
+                    if let Some(cell_para) = tb.paragraphs.get_mut(cell_para_idx) {
+                        reflow_line_segs(cell_para, final_width, &self.styles, self.dpi);
+                    }
+                }
+            }
+            Some(Control::Picture(pic)) => {
+                if let Some(ref mut cap) = pic.caption {
+                    if let Some(cell_para) = cap.paragraphs.get_mut(cell_para_idx) {
+                        reflow_line_segs(cell_para, final_width, &self.styles, self.dpi);
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        if cell_idx != 65534
+            && self.grow_table_rows_to_fit_content(section_idx, parent_para_idx, control_idx)
+        {
+            self.reflow_paragraph(section_idx, parent_para_idx);
+            self.recompose_paragraph(section_idx, parent_para_idx);
+            self.mark_section_dirty_full(section_idx);
+        }
+    }
+
+    pub(crate) fn reflow_vertical_cell_paragraph_by_path_legacy(
+        &mut self,
+        section_idx: usize,
+        parent_para_idx: usize,
+        path: &[(usize, usize, usize)],
+    ) -> bool {
+        use crate::renderer::hwpunit_to_px;
+
+        if path.is_empty() {
+            return false;
+        }
+
+        let Some(final_width) = (|| {
+            let section = self.document.sections.get(section_idx)?;
+            let mut para = section.paragraphs.get(parent_para_idx)?;
+            for (i, &(ctrl_idx, cell_idx, cell_para_idx)) in path.iter().enumerate() {
+                let table = match para.controls.get(ctrl_idx) {
+                    Some(Control::Table(t)) => t.as_ref(),
+                    _ => return None,
+                };
+                let cell = table.cells.get(cell_idx)?;
+                if i == path.len() - 1 {
+                    let cell_para = cell.paragraphs.get(cell_para_idx)?;
+                    let pad_l = if cell.padding.left != 0 {
+                        cell.padding.left
+                    } else {
+                        table.padding.left
+                    };
+                    let pad_r = if cell.padding.right != 0 {
+                        cell.padding.right
+                    } else {
+                        table.padding.right
+                    };
+                    let available_width = (hwpunit_to_px(cell.width as i32, self.dpi)
+                        - hwpunit_to_px(pad_l as i32, self.dpi)
+                        - hwpunit_to_px(pad_r as i32, self.dpi))
+                    .max(0.0);
+                    let para_style = self
+                        .styles
+                        .para_styles
+                        .get(cell_para.para_shape_id as usize);
+                    let margin_left = para_style.map(|s| s.margin_left).unwrap_or(0.0);
+                    let margin_right = para_style.map(|s| s.margin_right).unwrap_or(0.0);
+                    return Some((available_width - margin_left - margin_right).max(0.0));
+                }
+                para = cell.paragraphs.get(cell_para_idx)?;
+            }
+            None
+        })() else {
+            return false;
+        };
+
+        let styles = &self.styles;
+        let dpi = self.dpi;
+        let Some(section) = self.document.sections.get_mut(section_idx) else {
+            return false;
+        };
+        let Some(mut para) = section.paragraphs.get_mut(parent_para_idx) else {
+            return false;
+        };
+
+        for (i, &(ctrl_idx, cell_idx, cell_para_idx)) in path.iter().enumerate() {
+            let Some(Control::Table(table)) = para.controls.get_mut(ctrl_idx) else {
+                return false;
+            };
+            let Some(cell) = table.cells.get_mut(cell_idx) else {
+                return false;
+            };
+            if i == path.len() - 1 {
+                let Some(cell_para) = cell.paragraphs.get_mut(cell_para_idx) else {
+                    return false;
+                };
+                reflow_line_segs(cell_para, final_width, styles, dpi);
+                return true;
+            }
+            let Some(next_para) = cell.paragraphs.get_mut(cell_para_idx) else {
+                return false;
+            };
+            para = next_para;
+        }
+        false
     }
 
     fn grow_table_rows_to_fit_content(
@@ -764,6 +1008,14 @@ impl DocumentCore {
     ) -> bool {
         use crate::renderer::hwpunit_to_px;
 
+        if self.is_vertical_cell_path(section_idx, parent_para_idx, path) {
+            return self.reflow_vertical_cell_paragraph_by_path_legacy(
+                section_idx,
+                parent_para_idx,
+                path,
+            );
+        }
+
         if path.is_empty() {
             return false;
         }
@@ -820,13 +1072,7 @@ impl DocumentCore {
                 let Some(cell_para) = cell.paragraphs.get_mut(cell_para_idx) else {
                     return false;
                 };
-                reflow_line_segs_with_direction(
-                    cell_para,
-                    final_width,
-                    styles,
-                    dpi,
-                    cell.text_direction,
-                );
+                reflow_line_segs(cell_para, final_width, styles, dpi);
                 return true;
             }
             let Some(next_para) = cell.paragraphs.get_mut(cell_para_idx) else {

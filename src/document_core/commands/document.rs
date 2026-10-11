@@ -8,9 +8,7 @@ use crate::error::HwpError;
 use crate::model::control::Control;
 use crate::model::document::Document;
 use crate::model::paragraph::Paragraph;
-use crate::renderer::composer::{
-    compose_section, reflow_line_segs, reflow_line_segs_with_direction,
-};
+use crate::renderer::composer::{compose_section, reflow_line_segs};
 use crate::renderer::layout::LayoutEngine;
 use crate::renderer::page_layout::PageLayoutInfo;
 use crate::renderer::style_resolver::{resolve_styles, ResolvedStyleSet};
@@ -299,6 +297,7 @@ impl DocumentCore {
                             table,
                             styles,
                             dpi,
+                            col_width,
                             Self::needs_line_seg_reflow,
                         );
                     }
@@ -475,10 +474,45 @@ impl DocumentCore {
         (width > 0.0).then_some(width)
     }
 
+    fn vertical_cell_reflow_width_legacy(
+        table_padding: crate::model::Padding,
+        cell_width: u32,
+        cell_padding: crate::model::Padding,
+        para_shape_id: u16,
+        styles: &ResolvedStyleSet,
+        dpi: f64,
+        fallback_width_px: f64,
+    ) -> f64 {
+        use crate::renderer::hwpunit_to_px;
+
+        let width_px = if cell_width > 0 {
+            hwpunit_to_px(cell_width as i32, dpi)
+        } else {
+            fallback_width_px
+        };
+        let pad_left = if cell_padding.left != 0 {
+            cell_padding.left
+        } else {
+            table_padding.left
+        };
+        let pad_right = if cell_padding.right != 0 {
+            cell_padding.right
+        } else {
+            table_padding.right
+        };
+        let content_width =
+            width_px - hwpunit_to_px(pad_left as i32, dpi) - hwpunit_to_px(pad_right as i32, dpi);
+        let para_style = styles.para_styles.get(para_shape_id as usize);
+        let margin_left = para_style.map(|s| s.margin_left).unwrap_or(0.0);
+        let margin_right = para_style.map(|s| s.margin_right).unwrap_or(0.0);
+        (content_width - margin_left - margin_right).max(1.0)
+    }
+
     fn reflow_table_cell_paragraphs(
         table: &mut crate::model::table::Table,
         styles: &ResolvedStyleSet,
         dpi: f64,
+        fallback_width_px: f64,
         should_reflow: fn(&crate::model::paragraph::Paragraph) -> bool,
     ) -> usize {
         let mut reflowed = 0usize;
@@ -487,24 +521,30 @@ impl DocumentCore {
         for cell in &mut table.cells {
             let geometry = super::super::helpers::cell_reflow_geometry(cell, table_padding);
             for cell_para in &mut cell.paragraphs {
-                let cell_width_px = geometry.and_then(|(cell_width, pad_left, pad_right)| {
-                    Self::cell_reflow_width_px(
-                        cell_width,
-                        pad_left,
-                        pad_right,
+                let cell_width_px = if cell.text_direction != 0 {
+                    Some(Self::vertical_cell_reflow_width_legacy(
+                        table_padding,
+                        cell.width,
+                        cell.padding,
                         cell_para.para_shape_id,
                         styles,
                         dpi,
-                    )
-                });
+                        fallback_width_px,
+                    ))
+                } else {
+                    geometry.and_then(|(cell_width, pad_left, pad_right)| {
+                        Self::cell_reflow_width_px(
+                            cell_width,
+                            pad_left,
+                            pad_right,
+                            cell_para.para_shape_id,
+                            styles,
+                            dpi,
+                        )
+                    })
+                };
                 if let Some(cell_width_px) = cell_width_px.filter(|_| should_reflow(cell_para)) {
-                    reflow_line_segs_with_direction(
-                        cell_para,
-                        cell_width_px,
-                        styles,
-                        dpi,
-                        cell.text_direction,
-                    );
+                    reflow_line_segs(cell_para, cell_width_px, styles, dpi);
                     reflowed += 1;
                 }
                 for ctrl in &mut cell_para.controls {
@@ -513,6 +553,7 @@ impl DocumentCore {
                             nested_table,
                             styles,
                             dpi,
+                            cell_width_px.unwrap_or(fallback_width_px),
                             should_reflow,
                         );
                     }
@@ -568,6 +609,7 @@ impl DocumentCore {
                             table,
                             &styles,
                             dpi,
+                            col_width,
                             Self::needs_reflow_broadly,
                         );
                     }
@@ -1218,6 +1260,7 @@ mod validate_linesegs_tests {
             &mut table,
             &styles,
             DEFAULT_DPI,
+            600.0,
             DocumentCore::needs_reflow_broadly,
         );
 
@@ -1236,11 +1279,11 @@ mod validate_linesegs_tests {
     }
 
     #[test]
-    fn document_reflow_preserves_unavailable_cell_geometry() {
+    fn document_reflow_preserves_unavailable_horizontal_cell_geometry() {
         use crate::model::table::{Cell, Table};
 
         let styles = resolve_styles(&Document::default().doc_info, DEFAULT_DPI);
-        for direction in [0, 1, 2] {
+        for direction in [0] {
             for extent in [0, u32::MAX, 200] {
                 for line_height in [0, 900] {
                     let mut cell = Cell::new_empty(0, 0, 5291, 32000, 0);
@@ -1278,6 +1321,7 @@ mod validate_linesegs_tests {
                                 &mut table,
                                 &styles,
                                 DEFAULT_DPI,
+                                600.0,
                                 predicate
                             ),
                             0
@@ -1293,7 +1337,7 @@ mod validate_linesegs_tests {
     }
 
     #[test]
-    fn document_reflow_uses_vertical_cell_capacity_in_nested_and_merged_cells() {
+    fn document_reflow_keeps_pre_l1_vertical_cell_width_in_nested_and_merged_cells() {
         use crate::model::table::{Cell, Table};
 
         for direction in [1, 2] {
@@ -1326,6 +1370,7 @@ mod validate_linesegs_tests {
                 &mut outer,
                 &styles,
                 DEFAULT_DPI,
+                600.0,
                 DocumentCore::needs_reflow_broadly,
             );
 
@@ -1338,7 +1383,7 @@ mod validate_linesegs_tests {
             assert!(
                 lines
                     .iter()
-                    .all(|line| (28499..=28500).contains(&line.segment_width)),
+                    .all(|line| (5290..=5291).contains(&line.segment_width)),
                 "vertical document capacity: {lines:?}"
             );
         }

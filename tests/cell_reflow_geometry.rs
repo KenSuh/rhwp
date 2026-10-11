@@ -1,4 +1,6 @@
 // 각 컨테이너 형태에서 글자 크기·줄 간격·입력이 현재 안쪽 용량으로 줄을 나누는지 시험한다.
+#[path = "common/vertical_baseline.rs"]
+mod baseline;
 #[path = "common/reflow_geometry.rs"]
 mod geometry;
 
@@ -18,6 +20,21 @@ fn check(form: Form, edit: Edit) {
 }
 
 fn check_text(form: Form, edit: Edit, text: &str) {
+    if matches!(
+        form,
+        Form::Cell {
+            direction: 1 | 2,
+            ..
+        }
+    ) {
+        let action = match edit {
+            Edit::FontSize => "900",
+            Edit::LineSpacing => "spacing",
+            Edit::Input => "input",
+        };
+        baseline::assert_pre_l1(&baseline::single(form, action, text));
+        return;
+    }
     let mut f = fixture(
         form,
         if matches!(edit, Edit::Input) {
@@ -190,7 +207,7 @@ fn remove_capacity(f: &mut Fixture, form: Form, both_axes: bool) {
 }
 
 #[test]
-fn unavailable_geometry_matrix_preserves_segments() {
+fn unavailable_geometry_matrix_preserves_horizontal_segments_and_vertical_baseline() {
     let mut forms = Vec::new();
     for direction in [0, 1, 2] {
         for merged in [false, true] {
@@ -228,6 +245,27 @@ fn unavailable_geometry_matrix_preserves_segments() {
         for both_axes in [false, true] {
             for by_index in [false, true] {
                 for edit in [Edit::FontSize, Edit::LineSpacing, Edit::Input] {
+                    if matches!(
+                        form,
+                        Form::Cell {
+                            direction: 1 | 2,
+                            ..
+                        }
+                    ) {
+                        if by_index && matches!(form, Form::Cell { nested: true, .. }) {
+                            continue;
+                        }
+                        let action = match edit {
+                            Edit::FontSize => "900",
+                            Edit::LineSpacing => "spacing",
+                            Edit::Input => "input",
+                        };
+                        baseline::assert_pre_l1(&baseline::unavailable(
+                            form, by_index, both_axes, action,
+                        ));
+                        scenarios += 1;
+                        continue;
+                    }
                     let mut f = fixture(form, Some(TEXT));
                     if by_index {
                         if matches!(form, Form::Cell { nested: true, .. }) {
@@ -319,7 +357,7 @@ fn unusable_table_caption_geometry_preserves_segments() {
 }
 
 #[test]
-fn zero_cross_axis_still_reflows_at_resolved_capacity() {
+fn zero_cross_axis_reflows_horizontal_and_keeps_vertical_baseline() {
     for direction in [0, 1, 2] {
         for by_index in [false, true] {
             let form = Form::Cell {
@@ -328,6 +366,10 @@ fn zero_cross_axis_still_reflows_at_resolved_capacity() {
                 nested: false,
                 inherited: false,
             };
+            if direction != 0 {
+                baseline::assert_pre_l1(&baseline::cross(form, by_index));
+                continue;
+            }
             let mut f = fixture(form, Some(TEXT));
             if by_index {
                 f.path = None;
@@ -357,7 +399,7 @@ fn zero_cross_axis_still_reflows_at_resolved_capacity() {
 }
 
 #[test]
-fn automatic_height_vertical_cell_keeps_rendered_text() {
+fn automatic_height_vertical_cell_keeps_pre_l1_rendered_text() {
     for direction in [1, 2] {
         for by_index in [false, true] {
             let form = Form::Cell {
@@ -366,31 +408,13 @@ fn automatic_height_vertical_cell_keeps_rendered_text() {
                 nested: false,
                 inherited: false,
             };
-            let mut f = fixture(form, Some(TEXT));
-            if by_index {
-                f.path = None;
-            }
-            apply_edit(&mut f, Edit::FontSize, TEXT);
-            remove_capacity(&mut f, form, false);
-            let old_segments = format!("{:?}", f.paragraph().line_segs);
-            let before = f.doc.get_page_render_tree(0).unwrap();
-            apply_edit(&mut f, Edit::FontSize, TEXT);
-            assert_eq!(format!("{:?}", f.paragraph().line_segs), old_segments);
-            let after = f.doc.get_page_render_tree(0).unwrap();
-            let text = |tree: &str| -> String {
-                tree.split("\"text\":\"")
-                    .skip(1)
-                    .map(|s| s.split('"').next().unwrap())
-                    .collect()
-            };
-            assert_eq!(text(&before), TEXT);
-            assert_eq!(text(&after), TEXT);
+            baseline::assert_pre_l1(&baseline::unavailable(form, by_index, false, "900"));
         }
     }
 }
 
 #[test]
-fn vertical_latin_rotated_and_upright_geometry_preserves_rendered_text() {
+fn vertical_latin_rotated_and_upright_geometry_keeps_pre_l1_rendered_text() {
     let text = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     for direction in [1, 2] {
         for edit in [Edit::FontSize, Edit::LineSpacing, Edit::Input] {

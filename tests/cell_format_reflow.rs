@@ -622,10 +622,18 @@ fn vertical_fixture(direction: u8) -> Fixture {
 
 fn assert_vertical_capacity(fixture: &Fixture, capacity: i32, context: &str) {
     let segs = &table(&fixture.doc, fixture).cells[0].paragraphs[0].line_segs;
-    assert_eq!(segs.len(), 1, "{context}: tall cell must fit one column");
+    if context == "vertical input" {
+        assert!(segs.len() > 1, "pre-L1 input uses the cell width");
+    } else {
+        assert_eq!(
+            segs.len(),
+            1,
+            "pre-L1 indexed formatting uses the section width"
+        );
+    }
     assert!(
         (capacity - 1..=capacity).contains(&segs[0].segment_width),
-        "{context}: height minus top/bottom padding is {capacity}, got {}",
+        "{context}: pre-L1 capacity is {capacity}, got {}",
         segs[0].segment_width
     );
     let tree = fixture.doc.get_page_render_tree(0).unwrap();
@@ -637,11 +645,12 @@ fn assert_vertical_capacity(fixture: &Fixture, capacity: i32, context: &str) {
 }
 
 #[test]
-fn vertical_cell_font_size_uses_height_and_vertical_padding() {
+fn vertical_cell_font_size_keeps_pre_l1_section_width() {
     for direction in [1, 2] {
         let mut fixture = vertical_fixture(direction);
         let end = insert_long_text(&mut fixture, 0);
-        let capacity = i32::try_from(table(&fixture.doc, &fixture).cells[0].height).unwrap() - 3500;
+        let page = &fixture.doc.document().sections[0].section_def.page_def;
+        let capacity = i32::try_from(page.width - page.margin_left - page.margin_right).unwrap();
         fixture
             .doc
             .apply_char_format_in_cell(
@@ -660,11 +669,12 @@ fn vertical_cell_font_size_uses_height_and_vertical_padding() {
 }
 
 #[test]
-fn vertical_cell_line_spacing_uses_height_and_vertical_padding() {
+fn vertical_cell_line_spacing_keeps_pre_l1_section_width() {
     for direction in [1, 2] {
         let mut fixture = vertical_fixture(direction);
         insert_long_text(&mut fixture, 0);
-        let capacity = i32::try_from(table(&fixture.doc, &fixture).cells[0].height).unwrap() - 3500;
+        let page = &fixture.doc.document().sections[0].section_def.page_def;
+        let capacity = i32::try_from(page.width - page.margin_left - page.margin_right).unwrap();
         fixture
             .doc
             .apply_para_format_in_cell(
@@ -682,10 +692,11 @@ fn vertical_cell_line_spacing_uses_height_and_vertical_padding() {
 }
 
 #[test]
-fn vertical_cell_input_uses_height_and_vertical_padding() {
+fn vertical_cell_input_keeps_pre_l1_cell_width() {
     let mut fixture = vertical_fixture(1);
     insert_long_text(&mut fixture, 0);
-    assert_vertical_capacity(&fixture, 28500, "vertical input");
+    let capacity = inner_width(table(&fixture.doc, &fixture), 0);
+    assert_vertical_capacity(&fixture, capacity, "vertical input");
 }
 
 fn resized_caption_fixture() -> Fixture {

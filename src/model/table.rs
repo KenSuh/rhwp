@@ -286,7 +286,11 @@ impl Table {
     /// 높이가 0인 행은 기본값 400으로 대체 (새 셀 생성용).
     pub fn get_row_heights(&self) -> Vec<HwpUnit> {
         let mut heights = self.get_raw_row_heights();
-        let mut merged: Vec<_> = self.cells.iter().filter(|cell| cell.row_span > 1).collect();
+        let mut merged: Vec<_> = self
+            .cells
+            .iter()
+            .filter(|cell| cell.row_span > 1 && cell.text_direction == 0)
+            .collect();
         merged.sort_by_key(|cell| (cell.row_span, std::cmp::Reverse(cell.height)));
         for cell in merged {
             let start = usize::from(cell.row);
