@@ -538,6 +538,15 @@ impl DocumentCore {
                                     hwpunit_to_px(cap.width as i32, self.dpi)
                                 }
                                 CaptionDirection::Top | CaptionDirection::Bottom => {
+                                    if !(0..table.col_count).all(|col| {
+                                        table.cells.iter().any(|cell| {
+                                            cell.width > 0
+                                                && cell.col <= col
+                                                && col < cell.col.saturating_add(cell.col_span)
+                                        })
+                                    }) {
+                                        return false;
+                                    }
                                     self.layout_engine
                                         .resolve_column_widths(table, usize::from(table.col_count))
                                         .iter()
@@ -551,9 +560,12 @@ impl DocumentCore {
                             return false;
                         }
                     } else if let Some(cell) = table.cells.get(cell_idx) {
-                        let (extent, before, after) =
-                            super::super::helpers::cell_reflow_geometry(cell, table.padding);
-                        (hwpunit_to_px(extent as i32, self.dpi), before, after)
+                        let Some((extent, before, after)) =
+                            super::super::helpers::cell_reflow_geometry(cell, table.padding)
+                        else {
+                            return false;
+                        };
+                        (hwpunit_to_px(extent, self.dpi), before, after)
                     } else {
                         return false;
                     }
@@ -588,7 +600,10 @@ impl DocumentCore {
 
         let pad_left_px = hwpunit_to_px(pad_left as i32, self.dpi);
         let pad_right_px = hwpunit_to_px(pad_right as i32, self.dpi);
-        let available_width = (cell_width - pad_left_px - pad_right_px).max(0.0);
+        if cell_width <= 0.0 {
+            return false;
+        }
+        let available_width = cell_width - pad_left_px - pad_right_px;
 
         // 문단 여백 계산
         let para_shape_id = {
@@ -607,7 +622,10 @@ impl DocumentCore {
         let para_style = self.styles.para_styles.get(para_shape_id as usize);
         let margin_left = para_style.map(|s| s.margin_left).unwrap_or(0.0);
         let margin_right = para_style.map(|s| s.margin_right).unwrap_or(0.0);
-        let final_width = (available_width - margin_left - margin_right).max(0.0);
+        let final_width = available_width - margin_left - margin_right;
+        if final_width <= 0.0 {
+            return false;
+        }
 
         // 가변 참조로 리플로우 실행
         match self.document.sections[section_idx].paragraphs[parent_para_idx]
@@ -767,18 +785,18 @@ impl DocumentCore {
                 if i == path.len() - 1 {
                     let cell_para = cell.paragraphs.get(cell_para_idx)?;
                     let (extent, pad_l, pad_r) =
-                        super::super::helpers::cell_reflow_geometry(cell, table.padding);
-                    let available_width = (hwpunit_to_px(extent as i32, self.dpi)
+                        super::super::helpers::cell_reflow_geometry(cell, table.padding)?;
+                    let available_width = hwpunit_to_px(extent, self.dpi)
                         - hwpunit_to_px(pad_l as i32, self.dpi)
-                        - hwpunit_to_px(pad_r as i32, self.dpi))
-                    .max(0.0);
+                        - hwpunit_to_px(pad_r as i32, self.dpi);
                     let para_style = self
                         .styles
                         .para_styles
                         .get(cell_para.para_shape_id as usize);
                     let margin_left = para_style.map(|s| s.margin_left).unwrap_or(0.0);
                     let margin_right = para_style.map(|s| s.margin_right).unwrap_or(0.0);
-                    return Some((available_width - margin_left - margin_right).max(0.0));
+                    let width = available_width - margin_left - margin_right;
+                    return (width > 0.0).then_some(width);
                 }
                 para = cell.paragraphs.get(cell_para_idx)?;
             }

@@ -2,7 +2,8 @@
 #[path = "common/reflow_geometry.rs"]
 mod geometry;
 
-use geometry::{fixture, Form, TEXT};
+use geometry::{fixture, Fixture, Form, TEXT};
+use rhwp::model::control::Control;
 use rhwp::model::shape::CaptionDirection::{Bottom, Left, Right, Top};
 
 #[derive(Clone, Copy, Debug)]
@@ -25,6 +26,48 @@ fn check_text(form: Form, edit: Edit, text: &str) {
             Some(text)
         },
     );
+    apply_edit(&mut f, edit, text);
+    let para = f.paragraph();
+    assert_eq!(para.text, text, "{form:?} {edit:?}");
+    assert!(
+        para.line_segs.len() > 1,
+        "{form:?} {edit:?}: fixture must wrap"
+    );
+    for line in &para.line_segs {
+        assert!(
+            (f.capacity - 1..=f.capacity).contains(&line.segment_width),
+            "{form:?} {edit:?}: capacity {}, got {}",
+            f.capacity,
+            line.segment_width
+        );
+        match edit {
+            Edit::FontSize => assert!(
+                (899..=901).contains(&line.line_height),
+                "{form:?}: new font metrics {}",
+                line.line_height
+            ),
+            Edit::LineSpacing => assert_eq!(
+                line.line_spacing,
+                line.line_height * 2,
+                "{form:?}: new spacing"
+            ),
+            Edit::Input => {}
+        }
+    }
+    let tree = f.doc.get_page_render_tree(0).unwrap();
+    let rendered: String = tree
+        .split("\"text\":\"")
+        .skip(1)
+        .map(|s| s.split('"').next().unwrap())
+        .collect();
+    assert_eq!(rendered, text, "{form:?} {edit:?}: native rendered text");
+    assert!(
+        f.doc.render_page_svg(0).unwrap().contains("<svg"),
+        "{form:?} {edit:?}: SVG render"
+    );
+}
+
+fn apply_edit(f: &mut Fixture, edit: Edit, text: &str) {
     let end = text.chars().count();
     match (edit, &f.path) {
         (Edit::FontSize, Some(path)) => {
@@ -94,44 +137,204 @@ fn check_text(form: Form, edit: Edit, text: &str) {
                 .unwrap();
         }
     }
-    let para = f.paragraph();
-    assert_eq!(para.text, text, "{form:?} {edit:?}");
-    assert!(
-        para.line_segs.len() > 1,
-        "{form:?} {edit:?}: fixture must wrap"
-    );
-    for line in &para.line_segs {
-        assert!(
-            (f.capacity - 1..=f.capacity).contains(&line.segment_width),
-            "{form:?} {edit:?}: capacity {}, got {}",
-            f.capacity,
-            line.segment_width
-        );
-        match edit {
-            Edit::FontSize => assert!(
-                (899..=901).contains(&line.line_height),
-                "{form:?}: new font metrics {}",
-                line.line_height
-            ),
-            Edit::LineSpacing => assert_eq!(
-                line.line_spacing,
-                line.line_height * 2,
-                "{form:?}: new spacing"
-            ),
-            Edit::Input => {}
+}
+
+fn remove_capacity(f: &mut Fixture, form: Form, both_axes: bool) {
+    let mut model = f.doc.document().clone();
+    let mut control = &mut model.sections[0].paragraphs[f.para_idx].controls[f.control_idx];
+    if matches!(form, Form::Cell { nested: true, .. }) {
+        let Control::Table(table) = control else {
+            panic!("outer table")
+        };
+        control = &mut table.cells[0].paragraphs[0].controls[0];
+    }
+    match control {
+        Control::Table(table) if matches!(form, Form::Cell { .. }) => {
+            table.common.height = 0;
+            table.dirty = true;
+            for cell in &mut table.cells {
+                if cell.text_direction == 0 || both_axes {
+                    cell.width = 0;
+                }
+                if cell.text_direction != 0 || both_axes {
+                    cell.height = 0;
+                }
+            }
+        }
+        Control::Table(table) => match table.caption.as_ref().unwrap().direction {
+            Top | Bottom => {
+                for cell in &mut table.cells {
+                    cell.width = 0;
+                }
+            }
+            Left | Right => table.caption.as_mut().unwrap().width = 0,
+        },
+        Control::Shape(shape) => {
+            shape.common_mut().width = 0;
+            if both_axes {
+                shape.common_mut().height = 0;
+            }
+        }
+        Control::Picture(pic) => {
+            match pic.caption.as_ref().unwrap().direction {
+                Top | Bottom => pic.common.width = 0,
+                Left | Right => pic.caption.as_mut().unwrap().width = 0,
+            }
+            if both_axes {
+                pic.common.height = 0;
+            }
+        }
+        _ => panic!("fixture geometry"),
+    }
+    f.doc.set_document(model);
+}
+
+#[test]
+fn unavailable_geometry_matrix_preserves_segments() {
+    let mut forms = Vec::new();
+    for direction in [0, 1, 2] {
+        for merged in [false, true] {
+            for nested in [false, true] {
+                for inherited in [false, true] {
+                    forms.push(Form::Cell {
+                        direction,
+                        merged,
+                        nested,
+                        inherited,
+                    });
+                }
+            }
         }
     }
-    let tree = f.doc.get_page_render_tree(0).unwrap();
-    let rendered: String = tree
-        .split("\"text\":\"")
-        .skip(1)
-        .map(|s| s.split('"').next().unwrap())
-        .collect();
-    assert_eq!(rendered, text, "{form:?} {edit:?}: native rendered text");
-    assert!(
-        f.doc.render_page_svg(0).unwrap().contains("<svg"),
-        "{form:?} {edit:?}: SVG render"
-    );
+    forms.extend([
+        Form::TextBox { rotation: 0 },
+        Form::TextBox { rotation: 90 },
+    ]);
+    for direction in [Top, Bottom, Left, Right] {
+        forms.push(Form::TableCaption {
+            direction,
+            merged: false,
+            spacing: 0,
+        });
+        forms.push(Form::TableCaption {
+            direction,
+            merged: true,
+            spacing: 200,
+        });
+        forms.push(Form::PictureCaption(direction));
+    }
+    let mut scenarios = 0;
+    for form in forms {
+        for both_axes in [false, true] {
+            for by_index in [false, true] {
+                for edit in [Edit::FontSize, Edit::LineSpacing, Edit::Input] {
+                    let mut f = fixture(form, Some(TEXT));
+                    if by_index {
+                        if matches!(form, Form::Cell { nested: true, .. }) {
+                            continue;
+                        }
+                        f.path = None;
+                    }
+                    apply_edit(&mut f, Edit::FontSize, TEXT);
+                    remove_capacity(&mut f, form, both_axes);
+                    let mut expected_para = f.paragraph().clone();
+                    if matches!(edit, Edit::Input) {
+                        expected_para.insert_text_at(0, TEXT);
+                    }
+                    let old = format!("{:?}", expected_para.line_segs);
+                    apply_edit(&mut f, edit, TEXT);
+                    assert_eq!(
+                        format!("{:?}", f.paragraph().line_segs),
+                        old,
+                        "{form:?} {edit:?} both={both_axes} index={by_index}"
+                    );
+                    let expected = if matches!(edit, Edit::Input) {
+                        TEXT.repeat(2)
+                    } else {
+                        TEXT.to_string()
+                    };
+                    assert_eq!(f.paragraph().text, expected);
+                    f.doc.reflow_linesegs();
+                    assert_eq!(
+                        format!("{:?}", f.paragraph().line_segs),
+                        old,
+                        "{form:?}: document reflow must preserve unavailable geometry"
+                    );
+                    scenarios += 1;
+                }
+            }
+        }
+    }
+    assert_eq!(scenarios, 384);
+}
+
+#[test]
+fn zero_cross_axis_still_reflows_at_resolved_capacity() {
+    for direction in [0, 1, 2] {
+        for by_index in [false, true] {
+            let form = Form::Cell {
+                direction,
+                merged: false,
+                nested: false,
+                inherited: false,
+            };
+            let mut f = fixture(form, Some(TEXT));
+            if by_index {
+                f.path = None;
+            }
+            let mut model = f.doc.document().clone();
+            let Control::Table(table) =
+                &mut model.sections[0].paragraphs[f.para_idx].controls[f.control_idx]
+            else {
+                panic!("table")
+            };
+            for cell in &mut table.cells {
+                if direction == 0 {
+                    cell.height = 0;
+                } else {
+                    cell.width = 0;
+                }
+            }
+            f.doc.set_document(model);
+            apply_edit(&mut f, Edit::FontSize, TEXT);
+            assert!(f.paragraph().line_segs.len() > 1);
+            assert!(f.paragraph().line_segs.iter().all(|line| {
+                (f.capacity - 1..=f.capacity).contains(&line.segment_width)
+                    && (899..=901).contains(&line.line_height)
+            }));
+        }
+    }
+}
+
+#[test]
+fn automatic_height_vertical_cell_keeps_rendered_text() {
+    for direction in [1, 2] {
+        for by_index in [false, true] {
+            let form = Form::Cell {
+                direction,
+                merged: false,
+                nested: false,
+                inherited: false,
+            };
+            let mut f = fixture(form, Some(TEXT));
+            if by_index {
+                f.path = None;
+            }
+            apply_edit(&mut f, Edit::FontSize, TEXT);
+            remove_capacity(&mut f, form, false);
+            let before = f.doc.get_page_render_tree(0).unwrap();
+            apply_edit(&mut f, Edit::FontSize, TEXT);
+            let after = f.doc.get_page_render_tree(0).unwrap();
+            let text = |tree: &str| -> String {
+                tree.split("\"text\":\"")
+                    .skip(1)
+                    .map(|s| s.split('"').next().unwrap())
+                    .collect()
+            };
+            assert_eq!(text(&before), TEXT);
+            assert_eq!(text(&after), TEXT);
+        }
+    }
 }
 
 #[test]

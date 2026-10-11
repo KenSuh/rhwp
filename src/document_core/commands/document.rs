@@ -299,7 +299,6 @@ impl DocumentCore {
                             table,
                             styles,
                             dpi,
-                            col_width,
                             Self::needs_line_seg_reflow,
                         );
                     }
@@ -457,53 +456,48 @@ impl DocumentCore {
     }
 
     fn cell_reflow_width_px(
-        cell_width: u32,
+        cell_width: i32,
         pad_left: i16,
         pad_right: i16,
         para_shape_id: u16,
         styles: &ResolvedStyleSet,
         dpi: f64,
-        fallback_width_px: f64,
-    ) -> f64 {
+    ) -> Option<f64> {
         use crate::renderer::hwpunit_to_px;
 
-        let width_px = if cell_width > 0 {
-            hwpunit_to_px(cell_width as i32, dpi)
-        } else {
-            fallback_width_px
-        };
+        let width_px = hwpunit_to_px(cell_width, dpi);
         let content_width =
             width_px - hwpunit_to_px(pad_left as i32, dpi) - hwpunit_to_px(pad_right as i32, dpi);
         let para_style = styles.para_styles.get(para_shape_id as usize);
         let margin_left = para_style.map(|s| s.margin_left).unwrap_or(0.0);
         let margin_right = para_style.map(|s| s.margin_right).unwrap_or(0.0);
-        (content_width - margin_left - margin_right).max(1.0)
+        let width = content_width - margin_left - margin_right;
+        (width > 0.0).then_some(width)
     }
 
     fn reflow_table_cell_paragraphs(
         table: &mut crate::model::table::Table,
         styles: &ResolvedStyleSet,
         dpi: f64,
-        fallback_width_px: f64,
         should_reflow: fn(&crate::model::paragraph::Paragraph) -> bool,
     ) -> usize {
         let mut reflowed = 0usize;
         let table_padding = table.padding;
 
         for cell in &mut table.cells {
-            let (cell_width, pad_left, pad_right) =
-                super::super::helpers::cell_reflow_geometry(cell, table_padding);
+            let geometry = super::super::helpers::cell_reflow_geometry(cell, table_padding);
             for cell_para in &mut cell.paragraphs {
-                let cell_width_px = Self::cell_reflow_width_px(
-                    cell_width,
-                    pad_left,
-                    pad_right,
-                    cell_para.para_shape_id,
-                    styles,
-                    dpi,
-                    fallback_width_px,
-                );
-                if should_reflow(cell_para) {
+                let cell_width_px = geometry.and_then(|(cell_width, pad_left, pad_right)| {
+                    Self::cell_reflow_width_px(
+                        cell_width,
+                        pad_left,
+                        pad_right,
+                        cell_para.para_shape_id,
+                        styles,
+                        dpi,
+                    )
+                });
+                if let Some(cell_width_px) = cell_width_px.filter(|_| should_reflow(cell_para)) {
                     reflow_line_segs_with_direction(
                         cell_para,
                         cell_width_px,
@@ -519,7 +513,6 @@ impl DocumentCore {
                             nested_table,
                             styles,
                             dpi,
-                            cell_width_px,
                             should_reflow,
                         );
                     }
@@ -575,7 +568,6 @@ impl DocumentCore {
                             table,
                             &styles,
                             dpi,
-                            col_width,
                             Self::needs_reflow_broadly,
                         );
                     }
@@ -1226,7 +1218,6 @@ mod validate_linesegs_tests {
             &mut table,
             &styles,
             DEFAULT_DPI,
-            600.0,
             DocumentCore::needs_reflow_broadly,
         );
 
@@ -1242,6 +1233,63 @@ mod validate_linesegs_tests {
             "셀 lineseg 폭은 본문 컬럼 폭이 아니라 셀 폭 이하여야 함: {:?}",
             lines
         );
+    }
+
+    #[test]
+    fn document_reflow_preserves_unavailable_cell_geometry() {
+        use crate::model::table::{Cell, Table};
+
+        let styles = resolve_styles(&Document::default().doc_info, DEFAULT_DPI);
+        for direction in [0, 1, 2] {
+            for extent in [0, u32::MAX, 200] {
+                for line_height in [0, 900] {
+                    let mut cell = Cell::new_empty(0, 0, 5291, 32000, 0);
+                    cell.text_direction = direction;
+                    if direction == 0 {
+                        cell.width = extent;
+                        cell.padding.left = 300;
+                    } else {
+                        cell.height = extent;
+                        cell.padding.top = 300;
+                    }
+                    let para = &mut cell.paragraphs[0];
+                    para.insert_text_at(
+                        0,
+                        "가나다라마바사아자차카타파하가나다라마바사아자차카타파하",
+                    );
+                    para.line_segs = vec![LineSeg {
+                        line_height,
+                        segment_width: 28500,
+                        ..Default::default()
+                    }];
+                    let before = format!("{:?}", para.line_segs);
+                    let mut table = Table {
+                        row_count: 1,
+                        col_count: 1,
+                        cells: vec![cell],
+                        ..Default::default()
+                    };
+                    for predicate in [
+                        DocumentCore::needs_line_seg_reflow,
+                        DocumentCore::needs_reflow_broadly,
+                    ] {
+                        assert_eq!(
+                            DocumentCore::reflow_table_cell_paragraphs(
+                                &mut table,
+                                &styles,
+                                DEFAULT_DPI,
+                                predicate
+                            ),
+                            0
+                        );
+                        assert_eq!(
+                            format!("{:?}", table.cells[0].paragraphs[0].line_segs),
+                            before
+                        );
+                    }
+                }
+            }
+        }
     }
 
     #[test]
@@ -1267,7 +1315,7 @@ mod validate_linesegs_tests {
             nested.col_count = 2;
             nested.cells.push(cell);
             let mut outer = Table::default();
-            let mut host = Cell::new_empty(0, 0, 15000, 40000, 0);
+            let mut host = Cell::new_empty(0, 0, 0, 0, 0);
             host.paragraphs[0]
                 .controls
                 .push(Control::Table(Box::new(nested)));
@@ -1278,7 +1326,6 @@ mod validate_linesegs_tests {
                 &mut outer,
                 &styles,
                 DEFAULT_DPI,
-                600.0,
                 DocumentCore::needs_reflow_broadly,
             );
 

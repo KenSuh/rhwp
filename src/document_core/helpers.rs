@@ -12,7 +12,7 @@ use crate::model::style::BorderLineType;
 pub(crate) fn cell_reflow_geometry(
     cell: &crate::model::table::Cell,
     table_padding: crate::model::Padding,
-) -> (u32, i16, i16) {
+) -> Option<(i32, i16, i16)> {
     let (extent, before, after, fallback_before, fallback_after) = if cell.text_direction == 0 {
         (
             cell.width,
@@ -30,11 +30,12 @@ pub(crate) fn cell_reflow_geometry(
             table_padding.bottom,
         )
     };
-    (
+    let extent = i32::try_from(extent).ok().filter(|&extent| extent > 0)?;
+    Some((
         extent,
         if before != 0 { before } else { fallback_before },
         if after != 0 { after } else { fallback_after },
-    )
+    ))
 }
 
 /// 문단의 탐색 가능한 텍스트 길이를 반환한다.

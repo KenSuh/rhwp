@@ -1006,15 +1006,6 @@ impl DocumentCore {
         if mods.base_size.is_some() {
             // 방금 만든 글자 모양이 줄 계산에 보이도록 스타일을 먼저 다시 해소한다
             self.styles = resolve_styles(&self.document.doc_info, self.dpi);
-            self.get_cell_paragraph_mut(
-                sec_idx,
-                parent_para_idx,
-                control_idx,
-                cell_idx,
-                cell_para_idx,
-            )?
-            .line_segs
-            .clear();
             self.reflow_cell_paragraph_lines(
                 sec_idx,
                 parent_para_idx,
