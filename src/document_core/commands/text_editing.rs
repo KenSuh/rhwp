@@ -538,19 +538,14 @@ impl DocumentCore {
                                     hwpunit_to_px(cap.width as i32, self.dpi)
                                 }
                                 CaptionDirection::Top | CaptionDirection::Bottom => {
-                                    if !(0..table.col_count).all(|col| {
-                                        table.cells.iter().any(|cell| {
-                                            cell.width > 0
-                                                && cell.col <= col
-                                                && col < cell.col.saturating_add(cell.col_span)
-                                        })
-                                    }) {
+                                    let widths = self.layout_engine.resolve_cell_column_widths(
+                                        table,
+                                        usize::from(table.col_count),
+                                    );
+                                    if widths.iter().any(|width| *width <= 0.0) {
                                         return false;
                                     }
-                                    self.layout_engine
-                                        .resolve_column_widths(table, usize::from(table.col_count))
-                                        .iter()
-                                        .sum::<f64>()
+                                    widths.iter().sum::<f64>()
                                         + hwpunit_to_px(i32::from(table.cell_spacing), self.dpi)
                                             * f64::from(table.col_count.saturating_sub(1))
                                 }

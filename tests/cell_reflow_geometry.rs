@@ -269,6 +269,56 @@ fn unavailable_geometry_matrix_preserves_segments() {
 }
 
 #[test]
+fn unusable_table_caption_geometry_preserves_segments() {
+    for direction in [Top, Bottom] {
+        for (width, span) in [(u32::MAX, 1), (5291, 3), (5291, 0), (3000, 2)] {
+            for edit in [Edit::FontSize, Edit::LineSpacing, Edit::Input] {
+                let mut f = fixture(
+                    Form::TableCaption {
+                        direction,
+                        merged: false,
+                        spacing: 200,
+                    },
+                    Some(TEXT),
+                );
+                apply_edit(&mut f, Edit::FontSize, TEXT);
+                let mut expected = f.paragraph().clone();
+                if matches!(edit, Edit::Input) {
+                    expected.insert_text_at(0, TEXT);
+                }
+                let before = format!("{:?}", expected.line_segs);
+                let mut model = f.doc.document().clone();
+                let Control::Table(table) =
+                    &mut model.sections[0].paragraphs[f.para_idx].controls[f.control_idx]
+                else {
+                    panic!("table")
+                };
+                for cell in &mut table.cells {
+                    cell.width = if span == 2 && cell.col == 1 {
+                        5000
+                    } else {
+                        width
+                    };
+                    cell.col_span = if span == 2 && cell.col == 1 { 1 } else { span };
+                }
+                if width == u32::MAX {
+                    table.col_count = 1;
+                    table.cells.retain(|cell| cell.col == 0);
+                }
+                table.dirty = true;
+                f.doc.set_document(model);
+                apply_edit(&mut f, edit, TEXT);
+                assert_eq!(
+                    format!("{:?}", f.paragraph().line_segs),
+                    before,
+                    "caption {direction:?} {edit:?} width={width} span={span}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn zero_cross_axis_still_reflows_at_resolved_capacity() {
     for direction in [0, 1, 2] {
         for by_index in [false, true] {
