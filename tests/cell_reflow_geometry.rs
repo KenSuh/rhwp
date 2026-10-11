@@ -322,8 +322,10 @@ fn automatic_height_vertical_cell_keeps_rendered_text() {
             }
             apply_edit(&mut f, Edit::FontSize, TEXT);
             remove_capacity(&mut f, form, false);
+            let old_segments = format!("{:?}", f.paragraph().line_segs);
             let before = f.doc.get_page_render_tree(0).unwrap();
             apply_edit(&mut f, Edit::FontSize, TEXT);
+            assert_eq!(format!("{:?}", f.paragraph().line_segs), old_segments);
             let after = f.doc.get_page_render_tree(0).unwrap();
             let text = |tree: &str| -> String {
                 tree.split("\"text\":\"")
