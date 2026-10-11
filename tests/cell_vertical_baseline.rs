@@ -54,7 +54,10 @@ fn vertical_positive_geometry_renders_all_text_after_input_and_different_font_si
             assert_eq!(rendered, expected);
             baseline::edit(&mut f, "600", TEXT);
             let shape_id = usize::try_from(f.paragraph().char_shape_id_at(0).unwrap()).unwrap();
-            assert_eq!(f.doc.document().doc_info.char_shapes[shape_id].base_size, 600);
+            assert_eq!(
+                f.doc.document().doc_info.char_shapes[shape_id].base_size,
+                600
+            );
             let rendered = baseline::render_text(&f);
             assert_eq!(rendered.chars().count(), 112);
             assert_eq!(rendered, expected);
