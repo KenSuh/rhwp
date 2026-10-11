@@ -701,12 +701,6 @@ impl DocumentCore {
         parent_para_idx: usize,
         path: &[(usize, usize, usize)],
     ) -> bool {
-        if path
-            .last()
-            .is_some_and(|&(_, cell_idx, _)| cell_idx == 65534)
-        {
-            return false;
-        }
         self.get_table_ref_by_cell_path(section_idx, parent_para_idx, path)
             .and_then(|table| {
                 path.last()
@@ -2668,6 +2662,8 @@ mod tests {
         let mut paragraph = crate::model::paragraph::Paragraph::new_empty();
         paragraph.text = "caption text that must wrap ".repeat(8);
         let mut table = Table {
+            row_count: u16::MAX,
+            col_count: 1,
             cells: vec![Cell::default(); 65535],
             caption: Some(Caption {
                 direction: CaptionDirection::Left,
@@ -2677,8 +2673,18 @@ mod tests {
             }),
             ..Default::default()
         };
+        for (index, cell) in table.cells.iter_mut().enumerate() {
+            cell.row = u16::try_from(index).unwrap();
+            cell.row_span = 1;
+            cell.col_span = 1;
+            cell.width = 6000;
+        }
         table.cells[0].text_direction = 1;
         table.cells[65534].text_direction = 2;
+        table.cells[65534].height = 60000;
+        let mut physical = crate::model::paragraph::Paragraph::new_empty();
+        physical.text = "physical vertical cell text ".repeat(8);
+        table.cells[65534].paragraphs = vec![physical];
         let control_idx = core.document.sections[0].paragraphs[0].controls.len();
         core.document.sections[0].paragraphs[0]
             .controls
@@ -2687,7 +2693,7 @@ mod tests {
         assert!(core.is_vertical_table_cell(0, 0, control_idx, 0));
         assert!(core.is_vertical_cell_path(0, 0, &[(control_idx, 0, 0)]));
         assert!(!core.is_vertical_table_cell(0, 0, control_idx, 65534));
-        assert!(!core.is_vertical_cell_path(0, 0, &[(control_idx, 65534, 0)]));
+        assert!(core.is_vertical_cell_path(0, 0, &[(control_idx, 65534, 0)]));
         core.reflow_cell_paragraph(0, 0, control_idx, 65534, 0);
         let caption = core
             .get_cell_paragraph_ref(0, 0, control_idx, 65534, 0)
@@ -2697,6 +2703,16 @@ mod tests {
             .line_segs
             .iter()
             .all(|segment| segment.segment_width == 7000));
+        assert!(core.reflow_cell_paragraph_by_path(0, 0, &[(control_idx, 65534, 0)]));
+        let physical = core
+            .get_cell_paragraph_ref_by_path(0, 0, &[(control_idx, 65534, 0)])
+            .unwrap();
+        assert_eq!(physical.text, "physical vertical cell text ".repeat(8));
+        assert!(physical.line_segs.len() > 1);
+        assert!(physical
+            .line_segs
+            .iter()
+            .all(|segment| segment.segment_width == 6000));
     }
 
     #[test]
