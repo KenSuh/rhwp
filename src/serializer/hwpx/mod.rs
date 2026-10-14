@@ -291,6 +291,148 @@ mod tests {
         assert!(xml.contains("a &amp; b &lt; c"), "escape missing: {}", xml);
     }
 
+    /// ZIP 안 `Contents/section0.xml` 을 읽는다.
+    fn section0_xml(bytes: &[u8]) -> String {
+        let cursor = std::io::Cursor::new(bytes);
+        let mut archive = zip::ZipArchive::new(cursor).expect("zip");
+        let mut sec0 = archive.by_name("Contents/section0.xml").expect("section0");
+        let mut xml = String::new();
+        std::io::Read::read_to_string(&mut sec0, &mut xml).expect("read");
+        xml
+    }
+
+    /// 양식 컨트롤마다 (종류, name, caption, text, listItem 순서대로) 를 모은다.
+    fn form_fields(doc: &Document) -> Vec<(String, String, String, String, Vec<String>)> {
+        use crate::model::control::Control;
+        doc.sections
+            .iter()
+            .flat_map(|section| section.paragraphs.iter())
+            .flat_map(|para| para.controls.iter())
+            .filter_map(|ctrl| match ctrl {
+                Control::Form(form) => {
+                    let mut items: Vec<(usize, String)> = form
+                        .properties
+                        .iter()
+                        .filter_map(|(key, value)| {
+                            let index = key.strip_prefix("listItem")?.parse().ok()?;
+                            Some((index, value.clone()))
+                        })
+                        .collect();
+                    items.sort();
+                    Some((
+                        format!("{:?}", form.form_type),
+                        form.name.clone(),
+                        form.caption.clone(),
+                        form.text.clone(),
+                        items.into_iter().map(|(_, value)| value).collect(),
+                    ))
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn form_attribute_entities_survive_two_hwpx_saves() {
+        use crate::parser::hwpx::section::parse_hwpx_section;
+
+        // Given: 한컴 양식 속성 XML — 기대값은 이 XML 에서 손으로 옮긴 리터럴이다.
+        let section_xml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<hs:sec xmlns:hp="http://www.hancom.co.kr/hwpml/2011/paragraph" xmlns:hs="http://www.hancom.co.kr/hwpml/2011/section">
+  <hp:p paraPrIDRef="0" styleIDRef="0">
+    <hp:run charPrIDRef="0">
+      <hp:checkBtn caption="IP R&amp;&amp;D연계" value="CHECKED" name="Check&amp;Box &quot;1&quot;" foreColor="#000000" backColor="#FFFFFF" enabled="1"><hp:sz width="6803" height="1700"/></hp:checkBtn>
+      <hp:btn caption="&lt;Say &quot;hi&quot;&gt; &apos;now&apos;" name="Btn&lt;1&gt;"><hp:sz width="5000" height="1500"/></hp:btn>
+      <hp:radioBtn caption="&#xAC00;&#45208; &#38; done" name="Radio&#49;" value="UNCHECKED"><hp:sz width="5000" height="1500"/></hp:radioBtn>
+      <hp:comboBox name="Combo literal &amp;amp;" selectedValue="A&amp;B &lt;sel&gt;"><hp:sz width="9000" height="1500"/><hp:listItem value="A&amp;B &lt;sel&gt;"/><hp:listItem value="literal &amp;amp; item"/><hp:listItem value="&quot;q&quot; &#x26; &apos;a&apos;"/></hp:comboBox>
+      <hp:t>R&amp;D 본문</hp:t>
+    </hp:run>
+  </hp:p>
+</hs:sec>"##;
+        let no_items: Vec<String> = Vec::new();
+        let expected = vec![
+            (
+                "CheckBox".to_string(),
+                "Check&Box \"1\"".to_string(),
+                "IP R&&D연계".to_string(),
+                String::new(),
+                no_items.clone(),
+            ),
+            (
+                "PushButton".to_string(),
+                "Btn<1>".to_string(),
+                "<Say \"hi\"> 'now'".to_string(),
+                String::new(),
+                no_items.clone(),
+            ),
+            (
+                "RadioButton".to_string(),
+                "Radio1".to_string(),
+                "가나 & done".to_string(),
+                String::new(),
+                no_items,
+            ),
+            (
+                "ComboBox".to_string(),
+                "Combo literal &amp;".to_string(),
+                String::new(),
+                "A&B <sel>".to_string(),
+                vec![
+                    "A&B <sel>".to_string(),
+                    "literal &amp; item".to_string(),
+                    "\"q\" & 'a'".to_string(),
+                ],
+            ),
+        ];
+        let mut doc = Document::default();
+        doc.sections
+            .push(parse_hwpx_section(section_xml).expect("parse form section XML"));
+        assert_eq!(form_fields(&doc), expected, "open: attributes decode once");
+
+        // When: export → reopen 을 두 번 반복한다.
+        let save1 = serialize_hwpx(&doc).expect("save 1");
+        let reopened1 = parse_hwpx(&save1).expect("reopen 1");
+        let save2 = serialize_hwpx(&reopened1).expect("save 2");
+        let reopened2 = parse_hwpx(&save2).expect("reopen 2");
+
+        // Then: 모델 값은 매 경계에서 같고 본문 entity 도 그대로다.
+        for (label, reopened) in [("reopen 1", &reopened1), ("reopen 2", &reopened2)] {
+            assert_eq!(form_fields(reopened), expected, "{}", label);
+            let body = &reopened.sections[0].paragraphs[0].text;
+            assert!(body.contains("R&D 본문"), "{}: body text {:?}", label, body);
+        }
+
+        // Then: XML 은 한 번만 이스케이프된다 — 글자 그대로의 "&amp;" 두 곳만 `&amp;amp;` 로 남는다.
+        let xml1 = section0_xml(&save1);
+        let xml2 = section0_xml(&save2);
+        for (label, xml) in [("save 1", &xml1), ("save 2", &xml2)] {
+            for attr in [
+                r#"caption="IP R&amp;&amp;D연계""#,
+                r#"name="Check&amp;Box &quot;1&quot;""#,
+                r#"caption="&lt;Say &quot;hi&quot;&gt; &apos;now&apos;""#,
+                r#"name="Btn&lt;1&gt;""#,
+                r#"caption="가나 &amp; done""#,
+                r#"name="Combo literal &amp;amp;""#,
+                r#"selectedValue="A&amp;B &lt;sel&gt;""#,
+                r#"value="literal &amp;amp; item""#,
+                r#"value="&quot;q&quot; &amp; &apos;a&apos;""#,
+            ] {
+                assert!(xml.contains(attr), "{}: missing {} in {}", label, attr, xml);
+            }
+            assert_eq!(
+                xml.matches("&amp;amp;").count(),
+                2,
+                "{}: only the literal \"&amp;\" texts stay escaped: {}",
+                label,
+                xml
+            );
+        }
+        assert_eq!(
+            xml1, xml2,
+            "second save must reproduce the first section XML"
+        );
+    }
+
     #[test]
     fn mimetype_is_first_entry() {
         let doc = Document::default();
