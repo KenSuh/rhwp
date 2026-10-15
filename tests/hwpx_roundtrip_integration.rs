@@ -802,3 +802,93 @@ fn v330_form_002_caption_entities_stable_across_two_native_saves() {
         form_elements1.len()
     );
 }
+
+#[test]
+fn v330_form_attribute_whitespace_survives_two_native_saves() {
+    use rhwp::document_core::DocumentCore;
+    use std::io::{Cursor, Read, Write};
+
+    // Given: independent XML with references in start-tag and empty-tag attributes.
+    let section_xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<hs:sec xmlns:hp="http://www.hancom.co.kr/hwpml/2011/paragraph" xmlns:hs="http://www.hancom.co.kr/hwpml/2011/section">
+  <hp:p paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="0">
+    <hp:btn name="A&#9;B" caption="A&#10;B"></hp:btn>
+    <hp:comboBox name="A&#13;&#10;B" selectedValue="A&#9;B">
+      <hp:listItem value="A&#10;B"/><hp:listItem value="A&#9;B"/><hp:listItem value="A&#13;&#10;B"/>
+    </hp:comboBox>
+  </hp:run></hp:p>
+</hs:sec>"#;
+    let fixture = include_bytes!("../samples/hwpx/ref/ref_empty.hwpx");
+    let mut original = zip::ZipArchive::new(Cursor::new(fixture)).unwrap();
+    let mut input = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    for i in 0..original.len() {
+        let mut entry = original.by_index(i).unwrap();
+        let mut bytes = Vec::new();
+        entry.read_to_end(&mut bytes).unwrap();
+        input
+            .start_file(entry.name(), zip::write::SimpleFileOptions::default())
+            .unwrap();
+        if entry.name() == "Contents/section0.xml" {
+            input.write_all(section_xml.as_bytes()).unwrap();
+        } else {
+            input.write_all(&bytes).unwrap();
+        }
+    }
+    let input = input.finish().unwrap().into_inner();
+    let opened = DocumentCore::from_bytes(&input).expect("open referenced whitespace");
+    let expected = form_fields(opened.document());
+    assert_eq!(expected.len(), 2);
+    assert_eq!(expected[0].1, "A\tB");
+    assert_eq!(expected[0].2, "A\nB");
+    assert_eq!(expected[1].1, "A\r\nB");
+    assert_eq!(expected[1].3, "A\tB");
+    assert_eq!(
+        expected[1].7,
+        vec![
+            ("listItem0".to_string(), "A\nB".to_string()),
+            ("listItem1".to_string(), "A\tB".to_string()),
+            ("listItem2".to_string(), "A\r\nB".to_string()),
+        ]
+    );
+
+    // When: use the editor's native save/reopen path twice.
+    let save1 = opened.export_hwpx_native().expect("save 1");
+    let reopened1 = DocumentCore::from_bytes(&save1).expect("reopen 1");
+    let save2 = reopened1.export_hwpx_native().expect("save 2");
+    let reopened2 = DocumentCore::from_bytes(&save2).expect("reopen 2");
+
+    // Then: model values survive and each raw attribute contains character references.
+    for core in [&reopened1, &reopened2] {
+        assert_eq!(form_fields(core.document()), expected);
+    }
+    for (pass, saved) in [(1, &save1), (2, &save2)] {
+        let xml = hwpx_section_xml(saved);
+        for (tag, occurrence, key, expected_raw) in [
+            ("hp:btn", 1, "name", "A&#9;B"),
+            ("hp:btn", 1, "caption", "A&#10;B"),
+            ("hp:comboBox", 1, "name", "A&#13;&#10;B"),
+            ("hp:comboBox", 1, "selectedValue", "A&#9;B"),
+            ("hp:listItem", 1, "value", "A&#10;B"),
+            ("hp:listItem", 2, "value", "A&#9;B"),
+            ("hp:listItem", 3, "value", "A&#13;&#10;B"),
+        ] {
+            let tag_marker = format!("<{tag} ");
+            let attr_marker = format!("{key}=\"");
+            let raw_tag = xml
+                .split(tag_marker.as_str())
+                .nth(occurrence)
+                .unwrap()
+                .split_once('>')
+                .unwrap()
+                .0;
+            let raw = raw_tag
+                .split_once(attr_marker.as_str())
+                .unwrap()
+                .1
+                .split_once('"')
+                .unwrap()
+                .0;
+            assert_eq!(raw, expected_raw, "save {pass}, {tag}[{occurrence}].{key}");
+        }
+    }
+}

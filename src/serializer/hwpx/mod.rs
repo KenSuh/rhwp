@@ -434,6 +434,44 @@ mod tests {
     }
 
     #[test]
+    fn v330_attribute_whitespace_is_referenced_in_start_and_empty_tags() {
+        // Given: literal expectations independent of the XML writer and reader.
+        let cases = [
+            ("", ""),
+            ("plain 한글", "plain 한글"),
+            ("A\nB", "A&#10;B"),
+            ("A\tB", "A&#9;B"),
+            ("A\rB", "A&#13;B"),
+            ("A\r\nB", "A&#13;&#10;B"),
+            ("&<>\"'\t\n\r", "&amp;&lt;&gt;&quot;&apos;&#9;&#10;&#13;"),
+            ("literal &#10; &amp;", "literal &amp;#10; &amp;amp;"),
+        ];
+        for (value, expected) in cases {
+            for empty in [false, true] {
+                // When: write through each attribute output path.
+                let mut writer = quick_xml::Writer::new(Vec::new());
+                if empty {
+                    utils::empty_tag(&mut writer, "x", &[("value", value)]).unwrap();
+                } else {
+                    utils::start_tag_attrs(&mut writer, "x", &[("value", value)]).unwrap();
+                    utils::end_tag(&mut writer, "x").unwrap();
+                }
+
+                // Then: inspect the raw attribute without quick-xml normalization.
+                let xml = String::from_utf8(writer.into_inner()).unwrap();
+                let raw = xml
+                    .split_once(" value=\"")
+                    .unwrap()
+                    .1
+                    .split_once('"')
+                    .unwrap()
+                    .0;
+                assert_eq!(raw, expected, "empty={empty}, input={value:?}, xml={xml:?}");
+            }
+        }
+    }
+
+    #[test]
     fn mimetype_is_first_entry() {
         let doc = Document::default();
         let bytes = serialize_hwpx(&doc).expect("serialize");
