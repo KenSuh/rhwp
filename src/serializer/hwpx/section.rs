@@ -28,7 +28,7 @@ use quick_xml::Writer;
 use crate::model::control::{Control, PageHide, PageNumberPos};
 use crate::model::document::{Document, Section};
 use crate::model::page::{BindingMethod, PageDef};
-use crate::model::paragraph::{CharShapeRef, ColumnBreakType, LineSeg, Paragraph};
+use crate::model::paragraph::{ColumnBreakType, LineSeg, Paragraph};
 use crate::model::shape::ShapeObject;
 
 use super::context::SerializeContext;
@@ -148,15 +148,17 @@ fn render_controls_xml(
     ctx: &mut SerializeContext,
 ) -> Result<String, SerializeError> {
     let mut out = String::new();
-    let char_shape_ids = control_char_shape_ids(p);
-    for (ctrl, char_shape_id) in p.controls.iter().zip(char_shape_ids) {
+    for ctrl in &p.controls {
         let mut writer = Writer::new(Vec::new());
         if write_control_xml(&mut writer, ctrl, ctx)? {
             let bytes = writer.into_inner();
             let xml = String::from_utf8(bytes).map_err(|e| {
                 SerializeError::XmlError(format!("control XML UTF-8 변환 실패: {}", e))
             })?;
-            out.push_str(&format!(r#"<hp:run charPrIDRef="{}">"#, char_shape_id));
+            out.push_str(&format!(
+                r#"<hp:run charPrIDRef="{}">"#,
+                first_run_char_shape_id(p)
+            ));
             out.push_str(&xml);
             out.push_str("</hp:run>");
         }
@@ -333,106 +335,6 @@ fn render_hp_p_open(p: &Paragraph, id: u32) -> String {
 /// 비어있으면 0 (기본 글자모양) 반환.
 fn first_run_char_shape_id(p: &Paragraph) -> u32 {
     p.char_shapes.first().map(|r| r.char_shape_id).unwrap_or(0)
-}
-
-/// 컨트롤마다 그 `<hp:run>` 에 쓸 charPrIDRef — 그 컨트롤 자리에서 활성인 글자모양.
-///
-/// HWPX parser 는 `<hp:run>` 이 시작할 때마다 (자리 + 8×컨트롤 수, id) 를 남긴다. 자리는 글자
-/// (탭 8 · BMP 밖 2 · 그 밖 1)와 `\u{0002}` 를 남기는 컨트롤 한 칸씩으로 세고, 쪽 번호·단 정의 같은
-/// 컨트롤은 자리를 차지하지 않는다. 이 writer 는 글자를 먼저, 컨트롤을 그 뒤에 차례로 쓰므로 같은
-/// 규칙으로 각 컨트롤의 자리를 다시 매긴다.
-/// - 자리를 차지하는 컨트롤: 그 자리를 덮는 마지막 변경(시작 ≤ 자리)의 id.
-/// - 자리 없는 컨트롤: 같은 자리에서 시작한 run 들 중 뒤따르는 자리 컨트롤 몫(마지막)을 뺀 것을
-///   뒤에서부터 하나씩 차지하고, 남는 것이 없으면 그 자리 직전에 활성인 id 를 쓴다.
-///
-/// 첫 변경이 컨트롤 영역(8×컨트롤 수) 앞에 있으면 HWPX parser 좌표가 아니므로(HWP 바이너리 등)
-/// 종전대로 문단 첫 글자모양을 쓴다.
-fn control_char_shape_ids(p: &Paragraph) -> Vec<u32> {
-    let shapes = &p.char_shapes;
-    let ctrl_area = 8 * p.controls.len() as u32;
-    let mut ids = vec![first_run_char_shape_id(p); p.controls.len()];
-    if shapes.first().is_none_or(|s| s.start_pos < ctrl_area) {
-        return ids;
-    }
-    let mut pos = ctrl_area + p.text.chars().map(hwpx_char_width).sum::<u32>();
-    let mut zero_width: Vec<usize> = Vec::new();
-    for (i, ctrl) in p.controls.iter().enumerate() {
-        if takes_text_slot(ctrl) {
-            ids[i] = active_char_shape_at(shapes, pos);
-            assign_zero_width_controls(shapes, pos, true, &zero_width, &mut ids);
-            zero_width.clear();
-            pos += 1;
-        } else {
-            zero_width.push(i);
-        }
-    }
-    assign_zero_width_controls(shapes, pos, false, &zero_width, &mut ids);
-    ids
-}
-
-/// 같은 자리 `pos` 의 자리 없는 컨트롤들(`controls`, 문서 순서)에 run id 를 준다.
-fn assign_zero_width_controls(
-    shapes: &[CharShapeRef],
-    pos: u32,
-    slot_follows: bool,
-    controls: &[usize],
-    ids: &mut [u32],
-) {
-    if controls.is_empty() {
-        return;
-    }
-    let mut runs: Vec<u32> = shapes
-        .iter()
-        .filter(|s| s.start_pos == pos)
-        .map(|s| s.char_shape_id)
-        .collect();
-    if slot_follows {
-        runs.pop();
-    }
-    let before = shapes
-        .iter()
-        .take_while(|s| s.start_pos < pos)
-        .last()
-        .or(shapes.first())
-        .map_or(0, |s| s.char_shape_id);
-    for (k, &i) in controls.iter().rev().enumerate() {
-        ids[i] = runs.iter().rev().nth(k).copied().unwrap_or(before);
-    }
-}
-
-/// `pos` 를 덮는 마지막 글자모양 변경의 id (없으면 첫 변경).
-fn active_char_shape_at(shapes: &[CharShapeRef], pos: u32) -> u32 {
-    shapes
-        .iter()
-        .take_while(|s| s.start_pos <= pos)
-        .last()
-        .or(shapes.first())
-        .map_or(0, |s| s.char_shape_id)
-}
-
-/// HWPX parser 가 `\u{0002}` 자리표시를 남기는 컨트롤 (parser/hwpx/section.rs `parse_paragraph`).
-fn takes_text_slot(ctrl: &Control) -> bool {
-    matches!(
-        ctrl,
-        Control::Table(_)
-            | Control::Picture(_)
-            | Control::Shape(_)
-            | Control::Form(_)
-            | Control::CharOverlap(_)
-            | Control::Ruby(_)
-            | Control::Equation(_)
-    )
-}
-
-/// HWPX parser 의 글자 자리 폭 (parser/hwpx/section.rs `calc_utf16_len_from_parts`).
-fn hwpx_char_width(c: char) -> u32 {
-    if c == '\t' {
-        8
-    } else if (c as u32) > 0xFFFF {
-        2
-    } else {
-        1
-    }
 }
 
 /// Paragraph 하나를 (`<hp:t>` XML, lineseg XML, 다음 vert_cursor)로 변환.
@@ -897,60 +799,5 @@ mod tests {
         let xml = String::from_utf8(write_section(&section, &doc, 0, &mut ctx).unwrap()).unwrap();
         assert!(xml.contains(r#"<hp:run charPrIDRef="9"><hp:secPr "#));
         assert!(!xml.contains(r#"<hp:run charPrIDRef="0">"#));
-    }
-
-    #[test]
-    fn control_runs_take_the_char_shape_of_their_hwpx_slot() {
-        use crate::model::control::PageNumberPos;
-        use crate::model::page::ColumnDef;
-
-        // 한컴 원본 첫 문단 [9: secPr+colPr] [9: pageNum] [88: tbl+빈 t] → parser (24,9)(24,9)(24,88)
-        let mut p = Paragraph {
-            controls: vec![
-                Control::ColumnDef(ColumnDef::default()),
-                Control::PageNumberPos(PageNumberPos::default()),
-                Control::Table(Box::default()),
-            ],
-            char_shapes: vec![cs(24, 9), cs(24, 9), cs(24, 88)],
-            ..Default::default()
-        };
-        assert_eq!(control_char_shape_ids(&p), vec![9, 9, 88]);
-
-        // 이 writer 출력을 다시 읽은 모양 [9: secPr] [9: 빈 텍스트] [7: pageNum] [88: tbl]
-        p.char_shapes = vec![cs(24, 9), cs(24, 9), cs(24, 7), cs(24, 88)];
-        assert_eq!(control_char_shape_ids(&p)[1..], [7, 88]);
-
-        // 글자 뒤 컨트롤 [5: "a\tb"] [7: pageNum] [88: tbl] → 컨트롤 자리 16 + 10
-        let q = Paragraph {
-            text: "a\tb".to_string(),
-            controls: vec![
-                Control::PageNumberPos(PageNumberPos::default()),
-                Control::Table(Box::default()),
-            ],
-            char_shapes: vec![cs(16, 5), cs(26, 7), cs(26, 88)],
-            ..Default::default()
-        };
-        assert_eq!(control_char_shape_ids(&q), vec![7, 88]);
-
-        // 그 자리에서 시작한 run 이 없으면 직전 run (글자와 같은 run 안의 쪽 번호)
-        let r = Paragraph {
-            text: "abc".to_string(),
-            controls: vec![Control::PageNumberPos(PageNumberPos::default())],
-            char_shapes: vec![cs(8, 5)],
-            ..Default::default()
-        };
-        assert_eq!(control_char_shape_ids(&r), vec![5]);
-    }
-
-    #[test]
-    fn control_runs_keep_first_char_shape_outside_hwpx_coordinates() {
-        // 첫 변경이 컨트롤 영역(8×n) 앞 — HWP 바이너리 좌표는 종전대로 문단 첫 글자모양.
-        let p = Paragraph {
-            text: "abc".to_string(),
-            controls: vec![Control::Table(Box::default())],
-            char_shapes: vec![cs(0, 4), cs(8, 6)],
-            ..Default::default()
-        };
-        assert_eq!(control_char_shape_ids(&p), vec![4]);
     }
 }
