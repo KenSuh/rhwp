@@ -451,6 +451,12 @@ fn parse_para_shape(
         let mut buf = Vec::new();
         loop {
             match reader.read_event_into(&mut buf) {
+                Ok(Event::Start(ref ce)) if local_name(ce.name().as_ref()) == b"margin" => {
+                    // switch 밖 `<hh:margin>` 의 자식 요소(`<hh:left value=…/>` 등)를 default 척도로 읽는다.
+                    // switch 안 margin 은 parse_para_shape_switch 가 switch 째로 읽으므로 여기 오지 않는다.
+                    parse_para_shape_margin_attrs(ce, &mut ps);
+                    parse_para_shape_margin_children(reader, &mut ps)?;
+                }
                 Ok(Event::Empty(ref ce)) | Ok(Event::Start(ref ce)) => {
                     let cname = ce.name();
                     let local = local_name(cname.as_ref());
@@ -480,18 +486,7 @@ fn parse_para_shape(
                                 }
                             }
                         }
-                        b"margin" => {
-                            for attr in ce.attributes().flatten() {
-                                match attr.key.as_ref() {
-                                    b"left" => ps.margin_left = parse_i32(&attr),
-                                    b"right" => ps.margin_right = parse_i32(&attr),
-                                    b"indent" => ps.indent = parse_i32(&attr),
-                                    b"prev" => ps.spacing_before = parse_i32(&attr),
-                                    b"next" => ps.spacing_after = parse_i32(&attr),
-                                    _ => {}
-                                }
-                            }
-                        }
+                        b"margin" => parse_para_shape_margin_attrs(ce, &mut ps),
                         b"lineSpacing" => {
                             for attr in ce.attributes().flatten() {
                                 match attr.key.as_ref() {
@@ -591,6 +586,70 @@ fn parse_para_shape(
     }
 
     doc_info.para_shapes.push(ps);
+    Ok(())
+}
+
+/// `<hh:margin left=… indent=…/>` 속성 형태.
+fn parse_para_shape_margin_attrs(ce: &quick_xml::events::BytesStart, ps: &mut ParaShape) {
+    for attr in ce.attributes().flatten() {
+        match attr.key.as_ref() {
+            b"left" => ps.margin_left = parse_i32(&attr),
+            b"right" => ps.margin_right = parse_i32(&attr),
+            b"indent" => ps.indent = parse_i32(&attr),
+            b"prev" => ps.spacing_before = parse_i32(&attr),
+            b"next" => ps.spacing_after = parse_i32(&attr),
+            _ => {}
+        }
+    }
+}
+
+/// `<hh:margin>` 자식 하나(`intent`·`left`·`right`·`prev`·`next` · 접두어 무관)의 `value`.
+fn parse_para_shape_margin_value_child(ce: &quick_xml::events::BytesStart, ps: &mut ParaShape) {
+    let cname = ce.name();
+    let local = local_name(cname.as_ref());
+    if !matches!(local, b"intent" | b"left" | b"right" | b"prev" | b"next") {
+        return;
+    }
+
+    for attr in ce.attributes().flatten() {
+        if attr.key.as_ref() != b"value" {
+            continue;
+        }
+        let value = parse_i32(&attr);
+        match local {
+            b"intent" => ps.indent = value,
+            b"left" => ps.margin_left = value,
+            b"right" => ps.margin_right = value,
+            b"prev" => ps.spacing_before = value,
+            b"next" => ps.spacing_after = value,
+            _ => {}
+        }
+    }
+}
+
+/// switch 밖 `<hh:margin>` 의 자식 요소를 `</hh:margin>` 까지 읽는다.
+fn parse_para_shape_margin_children(
+    reader: &mut Reader<&[u8]>,
+    ps: &mut ParaShape,
+) -> Result<(), HwpxError> {
+    let mut buf = Vec::new();
+    loop {
+        match reader.read_event_into(&mut buf) {
+            Ok(Event::Empty(ref ce)) | Ok(Event::Start(ref ce)) => {
+                parse_para_shape_margin_value_child(ce, ps);
+            }
+            Ok(Event::End(ref ee)) => {
+                let ename = ee.name();
+                if local_name(ename.as_ref()) == b"margin" {
+                    break;
+                }
+            }
+            Ok(Event::Eof) => break,
+            Err(e) => return Err(HwpxError::XmlError(format!("paraPr margin: {}", e))),
+            _ => {}
+        }
+        buf.clear();
+    }
     Ok(())
 }
 

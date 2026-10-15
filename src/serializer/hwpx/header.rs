@@ -17,8 +17,8 @@ use quick_xml::Writer;
 
 use crate::model::document::{DocInfo, DocProperties, Document};
 use crate::model::style::{
-    Alignment, BorderFill, BorderLine, BorderLineType, CharShape, DiagonalLine, FillType, Font,
-    HeadType, LineSpacingType, Numbering, ParaShape, Style, TabDef,
+    Alignment, BorderFill, BorderLine, BorderLineType, CharShape, DiagonalLine, Fill, FillType,
+    Font, HeadType, LineSpacingType, Numbering, ParaShape, Style, TabDef,
 };
 use crate::model::ColorRef;
 
@@ -220,16 +220,49 @@ fn write_border_fill<W: Write>(
     write_border_line(w, "hh:bottomBorder", &bf.borders[3])?;
     write_diagonal(w, &bf.diagonal)?;
 
-    // fillBrush: Fill이 존재할 때만
-    if !matches!(bf.fill.fill_type, FillType::None) {
-        start_tag(w, "hc:fillBrush")?;
-        // Stage 1에서는 Fill 내부를 완전 직렬화하지 않고 빈 래퍼만 출력.
-        // (한컴 관찰: ref_empty의 borderFill id=2 에 빈 fillBrush 존재)
-        end_tag(w, "hc:fillBrush")?;
-    }
+    // fillBrush: Fill이 존재할 때만. 단색(winBrush)은 내용까지 쓴다 (업스트림 9ffc9f3 의 위임 자리).
+    write_fill_brush(w, &bf.fill)?;
 
     end_tag(w, "hh:borderFill")?;
     Ok(())
+}
+
+/// `<hc:fillBrush>` — 단색은 `<hc:winBrush faceColor hatchColor alpha/>` 로 쓴다.
+/// 그러데이션·이미지 채우기는 아직 내용을 쓰지 않고 빈 래퍼만 둔다.
+/// (한컴 관찰: ref_empty의 borderFill id=2 에 빈 fillBrush 존재)
+fn write_fill_brush<W: Write>(w: &mut Writer<W>, fill: &Fill) -> Result<(), SerializeError> {
+    if matches!(fill.fill_type, FillType::None) {
+        return Ok(());
+    }
+    start_tag(w, "hc:fillBrush")?;
+    if let (FillType::Solid, Some(solid)) = (fill.fill_type, fill.solid) {
+        empty_tag(
+            w,
+            "hc:winBrush",
+            &[
+                ("faceColor", &fill_color(solid.background_color)),
+                ("hatchColor", &fill_color(solid.pattern_color)),
+                ("alpha", &fill_alpha(fill.alpha)),
+            ],
+        )?;
+    }
+    end_tag(w, "hc:fillBrush")?;
+    Ok(())
+}
+
+/// 채우기 색. 파서는 `none` 을 0xFFFFFFFF 로 읽으므로 그 값은 `none` 으로 되쓴다
+/// (`#FFFFFF` 로 쓰면 투명이 흰색이 된다).
+fn fill_color(c: ColorRef) -> String {
+    if c == 0xFFFF_FFFF {
+        "none".to_string()
+    } else {
+        color_hex(c)
+    }
+}
+
+/// 채우기 alpha(0~255) → HWPX 실수 문자열. 파서의 `(f * 255) as u8` 가 같은 값을 돌려주며 0 은 "0" 이다.
+fn fill_alpha(alpha: u8) -> String {
+    (f64::from(alpha) / 255.0).to_string()
 }
 
 fn write_diag_line<W: Write>(w: &mut Writer<W>, name: &str) -> Result<(), SerializeError> {
@@ -971,5 +1004,63 @@ mod tests {
         let sm = snippet.find("symMark=").unwrap();
         let bf = snippet.find("borderFillIDRef=").unwrap();
         assert!(ip < hp && hp < tc && tc < sc && sc < uf && uf < uk && uk < sm && sm < bf);
+    }
+
+    #[test]
+    fn winbrush_alpha_and_none_roundtrip_through_parser() {
+        use crate::model::style::SolidFill;
+        use crate::parser::hwpx::header::parse_hwpx_header;
+
+        let solid = |face: ColorRef, alpha: u8| {
+            let mut bf = BorderFill::default();
+            bf.fill.fill_type = FillType::Solid;
+            bf.fill.solid = Some(SolidFill {
+                background_color: face,
+                pattern_color: 0x0099_9999,
+                pattern_type: 0,
+            });
+            bf.fill.alpha = alpha;
+            bf
+        };
+        let mut doc = Document::default();
+        // id 1..=256: alpha 0..=255 · id 257: faceColor none · id 258: 그러데이션(빈 래퍼 유지)
+        doc.doc_info.border_fills = (0..=255u8).map(|a| solid(0x00D8_E7FF, a)).collect();
+        doc.doc_info.border_fills.push(solid(0xFFFF_FFFF, 0));
+        let mut gradient = BorderFill::default();
+        gradient.fill.fill_type = FillType::Gradient;
+        doc.doc_info.border_fills.push(gradient);
+
+        let ctx = SerializeContext::collect_from_document(&doc);
+        let xml = String::from_utf8(write_header(&doc, &ctx).unwrap()).unwrap();
+        let (info, _) = parse_hwpx_header(&xml).expect("reparse header.xml");
+        assert_eq!(info.border_fills.len(), 258);
+
+        let alpha_roundtrip = (0..=255u8)
+            .filter(|&a| {
+                let fill = &info.border_fills[usize::from(a)].fill;
+                fill.fill_type == FillType::Solid && fill.alpha == a
+            })
+            .count();
+        let none_bf = &info.border_fills[256].fill;
+        let none_roundtrip = xml
+            .contains(r##"<hc:winBrush faceColor="none" hatchColor="#999999" alpha="0"/>"##)
+            && none_bf.fill_type == FillType::Solid
+            && none_bf.solid.map(|s| s.background_color) == Some(0xFFFF_FFFF);
+        println!(
+            "WINBRUSH_UNIT alpha_roundtrip={}/256 none_roundtrip={} ",
+            alpha_roundtrip, none_roundtrip
+        );
+
+        assert_eq!(alpha_roundtrip, 256, "alpha 0..=255 reparse");
+        assert!(none_roundtrip, "faceColor none is written and read back");
+        assert!(
+            xml.contains(r##"<hc:winBrush faceColor="#FFE7D8" hatchColor="#999999" alpha="0"/>"##),
+            "colored winBrush keeps #RRGGBB"
+        );
+        assert_eq!(
+            xml.matches("<hc:fillBrush></hc:fillBrush>").count(),
+            1,
+            "gradient keeps the empty wrapper"
+        );
     }
 }
