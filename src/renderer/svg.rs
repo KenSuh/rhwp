@@ -4,6 +4,7 @@
 //! 정적 출력(인쇄, PDF 변환 등)에 적합하다.
 
 use super::composer::{decode_pua_overlap_number, pua_to_display_text, CharOverlapInfo};
+use super::form_caption::display_form_caption;
 use super::layout::{compute_char_positions, split_into_clusters};
 use super::render_tree::{
     BoundingBox, FormObjectNode, ImageNode, PageRenderTree, RenderNode, RenderNodeType,
@@ -1795,10 +1796,11 @@ impl SvgRenderer {
                     x, y, w, h));
                 // 캡션 텍스트 (회색, 중앙)
                 if !form.caption.is_empty() {
+                    let caption = display_form_caption(&form.caption);
                     let font_size = (h * 0.55).min(12.0).max(7.0);
                     self.output.push_str(&format!(
                         "<text x=\"{}\" y=\"{}\" font-size=\"{:.1}\" fill=\"#808080\" text-anchor=\"middle\" dominant-baseline=\"central\" font-family=\"'맑은 고딕',sans-serif\">{}</text>\n",
-                        x + w / 2.0, y + h / 2.0, font_size, escape_xml(&form.caption)));
+                        x + w / 2.0, y + h / 2.0, font_size, escape_xml(caption.as_ref())));
                 }
             }
             FormType::CheckBox => {
@@ -1823,11 +1825,12 @@ impl SvgRenderer {
                 }
                 // 캡션
                 if !form.caption.is_empty() {
+                    let caption = display_form_caption(&form.caption);
                     let text_x = box_x + box_size + 3.0;
                     let font_size = (h * 0.55).min(12.0).max(7.0);
                     self.output.push_str(&format!(
                         "<text x=\"{}\" y=\"{}\" font-size=\"{:.1}\" fill=\"{}\" dominant-baseline=\"central\" font-family=\"'맑은 고딕',sans-serif\">{}</text>\n",
-                        text_x, y + h / 2.0, font_size, form.fore_color, escape_xml(&form.caption)));
+                        text_x, y + h / 2.0, font_size, form.fore_color, escape_xml(caption.as_ref())));
                 }
             }
             FormType::RadioButton => {
@@ -1848,11 +1851,12 @@ impl SvgRenderer {
                 }
                 // 캡션
                 if !form.caption.is_empty() {
+                    let caption = display_form_caption(&form.caption);
                     let text_x = cx + r + 3.0;
                     let font_size = (h * 0.55).min(12.0).max(7.0);
                     self.output.push_str(&format!(
                         "<text x=\"{}\" y=\"{}\" font-size=\"{:.1}\" fill=\"{}\" dominant-baseline=\"central\" font-family=\"'맑은 고딕',sans-serif\">{}</text>\n",
-                        text_x, y + h / 2.0, font_size, form.fore_color, escape_xml(&form.caption)));
+                        text_x, y + h / 2.0, font_size, form.fore_color, escape_xml(caption.as_ref())));
                 }
             }
             FormType::ComboBox => {
