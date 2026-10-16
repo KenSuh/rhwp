@@ -164,7 +164,7 @@ fn fixture_with_page_pr(page_pr: &str) -> Vec<u8> {
     let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
     for i in 0..archive.len() {
         let mut entry = archive.by_index(i).expect("fixture member");
-        if entry.name() == "Contents/section0.xml" {
+        if entry.name().expect("fixture filename") == "Contents/section0.xml" {
             let mut xml = String::new();
             entry.read_to_string(&mut xml).expect("section XML");
             let start = xml.find("<hp:pagePr ").expect("fixture pagePr");
@@ -173,7 +173,10 @@ fn fixture_with_page_pr(page_pr: &str) -> Vec<u8> {
                 + "</hp:pagePr>".len();
             xml.replace_range(start..end, page_pr);
             writer
-                .start_file(entry.name(), zip::write::SimpleFileOptions::default())
+                .start_file(
+                    entry.name().expect("fixture filename"),
+                    zip::write::SimpleFileOptions::default(),
+                )
                 .expect("write section");
             writer.write_all(xml.as_bytes()).expect("section contents");
         } else {

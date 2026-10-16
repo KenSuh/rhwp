@@ -826,9 +826,12 @@ fn v330_form_attribute_whitespace_survives_two_native_saves() {
         let mut bytes = Vec::new();
         entry.read_to_end(&mut bytes).unwrap();
         input
-            .start_file(entry.name(), zip::write::SimpleFileOptions::default())
+            .start_file(
+                entry.name().expect("fixture filename"),
+                zip::write::SimpleFileOptions::default(),
+            )
             .unwrap();
-        if entry.name() == "Contents/section0.xml" {
+        if entry.name().expect("fixture filename") == "Contents/section0.xml" {
             input.write_all(section_xml.as_bytes()).unwrap();
         } else {
             input.write_all(&bytes).unwrap();

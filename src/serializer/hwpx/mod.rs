@@ -498,7 +498,10 @@ mod tests {
         // ZIP 파일 목록에 한컴 필수 11개가 모두 있는지 확인
         let cursor = std::io::Cursor::new(&bytes);
         let archive = zip::ZipArchive::new(cursor).expect("valid zip");
-        let names: Vec<String> = archive.file_names().map(String::from).collect();
+        let names: Vec<String> = archive
+            .file_names()
+            .map(|name| name.expect("valid filename").into_owned())
+            .collect();
         let required = [
             "mimetype",
             "version.xml",
