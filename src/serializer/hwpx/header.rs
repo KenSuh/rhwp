@@ -740,7 +740,7 @@ fn write_para_pr<W: Write>(
             ("id", &id.to_string()),
             ("tabPrIDRef", &ps.tab_def_id.to_string()),
             ("condense", "0"),
-            ("fontLineHeight", "0"),
+            ("fontLineHeight", bool01(ps.attr1 & (1 << 22) != 0)),
             ("snapToGrid", "1"),
             ("suppressLineNumbers", "0"),
             ("checked", "0"),
@@ -754,7 +754,15 @@ fn write_para_pr<W: Write>(
         "hh:align",
         &[
             ("horizontal", alignment_str(ps.alignment)),
-            ("vertical", "BASELINE"),
+            (
+                "vertical",
+                match (ps.attr1 >> 20) & 3 {
+                    1 => "TOP",
+                    2 => "CENTER",
+                    3 => "BOTTOM",
+                    _ => "BASELINE",
+                },
+            ),
         ],
     )?;
     empty_tag(
@@ -770,23 +778,44 @@ fn write_para_pr<W: Write>(
         w,
         "hh:breakSetting",
         &[
-            ("breakLatinWord", "KEEP_WORD"),
-            ("breakNonLatinWord", "KEEP_WORD"),
-            ("widowOrphan", "0"),
-            ("keepWithNext", "0"),
-            ("keepLines", "0"),
-            ("pageBreakBefore", "0"),
-            ("lineWrap", "BREAK"),
+            (
+                "breakLatinWord",
+                match (ps.attr1 >> 5) & 3 {
+                    1 => "HYPHENATION",
+                    2 => "BREAK_WORD",
+                    _ => "KEEP_WORD",
+                },
+            ),
+            (
+                "breakNonLatinWord",
+                if ps.attr1 & (1 << 7) != 0 {
+                    "BREAK_WORD"
+                } else {
+                    "KEEP_WORD"
+                },
+            ),
+            ("widowOrphan", bool01(ps.attr1 & (1 << 16) != 0)),
+            ("keepWithNext", bool01(ps.attr1 & (1 << 17) != 0)),
+            ("keepLines", bool01(ps.attr1 & (1 << 18) != 0)),
+            ("pageBreakBefore", bool01(ps.attr1 & (1 << 19) != 0)),
+            (
+                "lineWrap",
+                if ps.attr2 & 3 == 1 {
+                    "SQUEEZE"
+                } else {
+                    "BREAK"
+                },
+            ),
         ],
     )?;
 
     // <hh:margin>: 자식 4개 (intent, left, right, prev, next) — 단위/값 지정
     super::utils::start_tag(w, "hh:margin")?;
-    write_margin_child(w, "hh:intent", ps.indent)?;
-    write_margin_child(w, "hh:left", ps.margin_left)?;
-    write_margin_child(w, "hh:right", ps.margin_right)?;
-    write_margin_child(w, "hh:prev", ps.spacing_before)?;
-    write_margin_child(w, "hh:next", ps.spacing_after)?;
+    write_margin_child(w, "hc:intent", ps.indent)?;
+    write_margin_child(w, "hc:left", ps.margin_left)?;
+    write_margin_child(w, "hc:right", ps.margin_right)?;
+    write_margin_child(w, "hc:prev", ps.spacing_before)?;
+    write_margin_child(w, "hc:next", ps.spacing_after)?;
     end_tag(w, "hh:margin")?;
 
     empty_tag(
@@ -816,7 +845,10 @@ fn write_para_pr<W: Write>(
     empty_tag(
         w,
         "hh:autoSpacing",
-        &[("eAsianEng", "0"), ("eAsianNum", "0")],
+        &[
+            ("eAsianEng", bool01(ps.attr2 & (1 << 4) != 0)),
+            ("eAsianNum", bool01(ps.attr2 & (1 << 5) != 0)),
+        ],
     )?;
 
     end_tag(w, "hh:paraPr")?;

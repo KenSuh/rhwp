@@ -459,8 +459,8 @@ fn parse_col_pr(e: &quick_xml::events::BytesStart) -> ColumnDef {
             b"type" => {
                 cd.column_type = match attr_str(&attr).as_str() {
                     "NEWSPAPER" => ColumnType::Normal,
-                    "BalancedNewspaper" => ColumnType::Distribute,
-                    "Parallel" => ColumnType::Parallel,
+                    "BALANCED_NEWSPAPER" | "BalancedNewspaper" => ColumnType::Distribute,
+                    "PARALLEL" | "Parallel" => ColumnType::Parallel,
                     _ => ColumnType::Normal,
                 };
             }
@@ -623,6 +623,13 @@ fn read_text_content_with_tabs(
 
 // ─── Table ───
 
+fn parse_table_offset(attr: &quick_xml::events::attributes::Attribute<'_>) -> u32 {
+    let value = attr_str(attr);
+    value.parse::<u32>().unwrap_or_else(|_| {
+        u32::from_ne_bytes(value.parse::<i32>().unwrap_or_default().to_ne_bytes())
+    })
+}
+
 fn parse_table(
     e: &quick_xml::events::BytesStart,
     reader: &mut Reader<&[u8]>,
@@ -640,7 +647,7 @@ fn parse_table(
                 let val = attr_str(&attr);
                 table.page_break = match val.as_str() {
                     "CELL" | "CELL_BREAK" => TablePageBreak::CellBreak,
-                    "ROW" | "ROW_BREAK" => TablePageBreak::RowBreak,
+                    "TABLE" | "ROW" | "ROW_BREAK" => TablePageBreak::RowBreak,
                     _ => TablePageBreak::None,
                 };
             }
@@ -745,10 +752,10 @@ fn parse_table(
                                     };
                                 }
                                 b"vertOffset" => {
-                                    table.common.vertical_offset = parse_i32(&attr) as u32;
+                                    table.common.vertical_offset = parse_table_offset(&attr);
                                 }
                                 b"horzOffset" => {
-                                    table.common.horizontal_offset = parse_i32(&attr) as u32;
+                                    table.common.horizontal_offset = parse_table_offset(&attr);
                                 }
                                 _ => {}
                             }
@@ -905,6 +912,7 @@ fn parse_table_cell(
         match attr.key.as_ref() {
             b"borderFillIDRef" => cell.border_fill_id = parse_u16(&attr),
             b"header" => cell.is_header = attr_str(&attr) == "1",
+            b"hasMargin" => cell.apply_inner_margin = parse_bool(&attr),
             _ => {}
         }
     }

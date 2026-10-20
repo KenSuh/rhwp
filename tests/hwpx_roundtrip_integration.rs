@@ -12,6 +12,606 @@
 
 use rhwp::serializer::hwpx::roundtrip::roundtrip_ir_diff;
 
+const C9_LINE: &str = r#"<hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="1000" textheight="1000" baseline="850" spacing="200" horzpos="0" horzsize="10000" flags="393216"/></hp:linesegarray>"#;
+const C9_FLOATING_PICTURE: &str = r#"<hp:pic id="17" instid="29" textWrap="TOP_AND_BOTTOM"><hp:orgSz width="3000" height="2000"/><hp:curSz width="3000" height="2000"/><hc:img binaryItemIDRef="image1"/><hp:sz width="3000" height="2000"/><hp:pos treatAsChar="0"/></hp:pic>"#;
+
+fn c9_paragraph(content: &str, lines: &str) -> String {
+    format!(
+        r#"<hp:p paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="0">{content}</hp:run>{lines}</hp:p>"#
+    )
+}
+
+fn c9_header_fixture(properties: &str) -> Vec<u8> {
+    use std::io::{Cursor, Read, Write};
+    let input = c8_fixture(&c9_paragraph("<hp:t>문단</hp:t>", C9_LINE), false);
+    let header = format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?><hh:head xmlns:hh="http://www.hancom.co.kr/hwpml/2011/head" xmlns:hc="http://www.hancom.co.kr/hwpml/2011/core"><hh:refList><hh:fontfaces itemCnt="1"><hh:fontface lang="HANGUL" fontCnt="1"><hh:font id="0" face="함초롬바탕" type="TTF"/></hh:fontface></hh:fontfaces><hh:charProperties itemCnt="1"><hh:charPr id="0" height="1000"/></hh:charProperties><hh:paraProperties itemCnt="{}">{properties}</hh:paraProperties><hh:styles itemCnt="1"><hh:style id="0" type="PARA" name="바탕글" engName="Normal" paraPrIDRef="0" charPrIDRef="0" nextStyleIDRef="0" langID="1042"/></hh:styles></hh:refList></hh:head>"#,
+        properties.matches("<hh:paraPr ").count()
+    );
+    let mut original = zip::ZipArchive::new(Cursor::new(input)).unwrap();
+    let mut output = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    for i in 0..original.len() {
+        let mut entry = original.by_index(i).unwrap();
+        let name = entry.name().unwrap().to_string();
+        let mut bytes = Vec::new();
+        entry.read_to_end(&mut bytes).unwrap();
+        output
+            .start_file(&name, zip::write::SimpleFileOptions::default())
+            .unwrap();
+        output
+            .write_all(if name == "Contents/header.xml" {
+                header.as_bytes()
+            } else {
+                &bytes
+            })
+            .unwrap();
+    }
+    output.finish().unwrap().into_inner()
+}
+
+fn c9_header_xml(hwpx: &[u8]) -> String {
+    use std::io::{Cursor, Read};
+    let mut archive = zip::ZipArchive::new(Cursor::new(hwpx)).unwrap();
+    let mut xml = String::new();
+    archive
+        .by_name("Contents/header.xml")
+        .unwrap()
+        .read_to_string(&mut xml)
+        .unwrap();
+    xml
+}
+
+fn c9_layout_events(xml: &str) -> Vec<(String, String, Vec<String>, Vec<(String, String)>)> {
+    use quick_xml::{events::Event, name::ResolveResult, NsReader};
+    let mut reader = NsReader::from_str(xml);
+    reader.config_mut().expand_empty_elements = true;
+    let mut owners = Vec::new();
+    let (mut paragraph, mut cell) = (0, 0);
+    let mut output = Vec::new();
+    loop {
+        let (resolved, event) = reader.read_resolved_event().unwrap();
+        let namespace = match resolved {
+            ResolveResult::Bound(ns) => String::from_utf8(ns.as_ref().to_vec()).unwrap(),
+            ResolveResult::Unbound => String::new(),
+            ResolveResult::Unknown(prefix) => panic!("unbound namespace: {prefix:?}"),
+        };
+        match event {
+            Event::Start(e) => {
+                let name = String::from_utf8(e.local_name().as_ref().to_vec()).unwrap();
+                match name.as_str() {
+                    "p" => {
+                        owners.push(format!("p{paragraph}"));
+                        paragraph += 1;
+                    }
+                    "tc" => {
+                        owners.push(format!("tc{cell}"));
+                        cell += 1;
+                    }
+                    _ => {}
+                }
+                if matches!(
+                    name.as_str(),
+                    "colPr" | "pageHiding" | "intent" | "left" | "right" | "prev" | "next"
+                ) {
+                    let mut attrs: Vec<_> = e
+                        .attributes()
+                        .map(|a| {
+                            let a = a.unwrap();
+                            (
+                                String::from_utf8(a.key.as_ref().to_vec()).unwrap(),
+                                a.decode_and_unescape_value(reader.decoder())
+                                    .unwrap()
+                                    .into_owned(),
+                            )
+                        })
+                        .collect();
+                    attrs.sort();
+                    output.push((namespace, name, owners.clone(), attrs));
+                }
+            }
+            Event::End(e) if matches!(e.local_name().as_ref(), b"p" | b"tc") => {
+                owners.pop().unwrap();
+            }
+            Event::Eof => break,
+            _ => {}
+        }
+    }
+    output
+}
+
+#[test]
+fn c9_table_cell_margin_flags_preserve_effective_padding() {
+    use rhwp::{model::control::Control, parser::hwpx::parse_hwpx, serializer::serialize_hwpx};
+    // Given: table defaults differ from every explicit cell margin; disabled sentinel inherits.
+    let mut cells = String::new();
+    for (col, (flag, margin)) in [
+        (" hasMargin=\"true\"", 425),
+        (" hasMargin=\"1\"", 426),
+        (" hasMargin=\"false\"", 427),
+        (" hasMargin=\"0\"", 4_294_967_295u32),
+        ("", 428),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        cells.push_str(&format!(r#"<hp:tc{flag} borderFillIDRef="1"><hp:subList>{}</hp:subList><hp:cellAddr colAddr="{col}" rowAddr="0"/><hp:cellSpan colSpan="1" rowSpan="1"/><hp:cellSz width="1000" height="3000"/><hp:cellMargin left="{margin}" right="{margin}" top="{margin}" bottom="{margin}"/></hp:tc>"#, c9_paragraph("<hp:t>셀</hp:t>", C9_LINE)));
+    }
+    let table = format!(
+        r#"<hp:tbl rowCnt="1" colCnt="5" pageBreak="CELL" borderFillIDRef="1"><hp:sz width="5000" height="3000"/><hp:inMargin left="510" right="511" top="141" bottom="142"/><hp:tr>{cells}</hp:tr></hp:tbl>"#
+    );
+    let input = c8_fixture(&c9_paragraph(&table, C9_LINE), false);
+    let mut doc = parse_hwpx(&input).unwrap();
+    // When/Then: both saves preserve current IR flags, emitted attrs and reopened effective margins.
+    for pass in 0..=2 {
+        let table = doc.sections[0].paragraphs[0]
+            .controls
+            .iter()
+            .find_map(|c| match c {
+                Control::Table(t) => Some(t),
+                _ => None,
+            })
+            .unwrap();
+        assert_eq!(table.cells.len(), 5);
+        for (i, cell) in table.cells.iter().enumerate() {
+            assert_eq!(cell.apply_inner_margin, i < 2, "pass {pass} cell {i}");
+            let p = if cell.apply_inner_margin {
+                &cell.padding
+            } else {
+                &table.padding
+            };
+            let actual = (p.left, p.right, p.top, p.bottom);
+            let expected = match i {
+                0 => (425, 425, 425, 425),
+                1 => (426, 426, 426, 426),
+                _ => (510, 511, 141, 142),
+            };
+            assert_eq!(actual, expected, "pass {pass} cell {i} effective margins");
+        }
+        if pass < 2 {
+            let saved = serialize_hwpx(&doc).unwrap();
+            let flags: Vec<_> = c8_elements(&hwpx_section_xml(&saved))
+                .into_iter()
+                .filter(|(n, _)| n == "tc")
+                .map(|(_, a)| a.into_iter().find(|(k, _)| k == "hasMargin").unwrap().1)
+                .collect();
+            assert_eq!(flags, ["1", "1", "0", "0", "0"]);
+            doc = parse_hwpx(&saved).unwrap();
+        }
+    }
+}
+
+#[test]
+fn c9_table_page_break_modes_and_legacy_aliases_survive() {
+    use rhwp::{
+        model::{control::Control, table::TablePageBreak},
+        parser::hwpx::parse_hwpx,
+        serializer::serialize_hwpx,
+    };
+    for (input_mode, expected, output_mode) in [
+        ("TABLE", TablePageBreak::RowBreak, "TABLE"),
+        ("CELL", TablePageBreak::CellBreak, "CELL"),
+        ("NONE", TablePageBreak::None, "NONE"),
+        ("ROW", TablePageBreak::RowBreak, "TABLE"),
+        ("ROW_BREAK", TablePageBreak::RowBreak, "TABLE"),
+        ("CELL_BREAK", TablePageBreak::CellBreak, "CELL"),
+    ] {
+        let input = c8_fixture(
+            &c8_table(&c9_paragraph("<hp:t>셀</hp:t>", C9_LINE))
+                .replace("<hp:tbl ", &format!("<hp:tbl pageBreak=\"{input_mode}\" ")),
+            false,
+        );
+        let mut doc = parse_hwpx(&input).unwrap();
+        for pass in 0..2 {
+            let table = doc.sections[0].paragraphs[0]
+                .controls
+                .iter()
+                .find_map(|c| match c {
+                    Control::Table(t) => Some(t),
+                    _ => None,
+                })
+                .unwrap();
+            assert_eq!(table.page_break, expected, "{input_mode} pass {pass}");
+            let saved = serialize_hwpx(&doc).unwrap();
+            assert!(c8_elements(&hwpx_section_xml(&saved))
+                .iter()
+                .any(|(n, a)| n == "tbl" && a.contains(&("pageBreak".into(), output_mode.into()))));
+            doc = parse_hwpx(&saved).unwrap();
+        }
+    }
+}
+
+#[test]
+fn c9_table_signed_and_unsigned_offsets_preserve_same_bits() {
+    use rhwp::{model::control::Control, parser::hwpx::parse_hwpx, serializer::serialize_hwpx};
+    for (vertical, horizontal) in [("4294967240", "-56"), ("-56", "4294967240")] {
+        let table = c8_table(&c9_paragraph("<hp:t>셀</hp:t>", C9_LINE)).replace(
+            "<hp:tr>",
+            &format!(r#"<hp:pos vertOffset="{vertical}" horzOffset="{horizontal}"/><hp:tr>"#),
+        );
+        let mut doc = parse_hwpx(&c8_fixture(&table, false)).unwrap();
+        for pass in 0..=2 {
+            let table = doc.sections[0].paragraphs[0]
+                .controls
+                .iter()
+                .find_map(|c| match c {
+                    Control::Table(t) => Some(t),
+                    _ => None,
+                })
+                .unwrap();
+            assert_eq!(
+                (table.common.vertical_offset, table.common.horizontal_offset),
+                (4_294_967_240, 4_294_967_240),
+                "pass {pass}"
+            );
+            if pass < 2 {
+                doc = parse_hwpx(&serialize_hwpx(&doc).unwrap()).unwrap();
+            }
+        }
+    }
+}
+
+fn c9_para_properties() -> String {
+    [("BREAK_WORD", "BREAK_WORD", "SQUEEZE", "1"), ("HYPHENATION", "KEEP_WORD", "BREAK", "0"), ("KEEP_WORD", "KEEP_WORD", "BREAK", "0")].into_iter().enumerate().map(|(id,(latin,korean,wrap,on))| format!(r#"<hh:paraPr id="{id}" fontLineHeight="{on}"><hh:align horizontal="LEFT" vertical="BASELINE"/><hh:breakSetting breakLatinWord="{latin}" breakNonLatinWord="{korean}" widowOrphan="{on}" keepWithNext="{on}" keepLines="{on}" pageBreakBefore="{on}" lineWrap="{wrap}"/><hh:autoSpacing eAsianEng="{on}" eAsianNum="{on}"/></hh:paraPr>"#)).collect()
+}
+
+#[test]
+fn c9_paragraph_supported_break_modes_use_canonical_bits() {
+    use rhwp::{parser::hwpx::parse_hwpx, serializer::serialize_hwpx};
+    let mut doc = parse_hwpx(&c9_header_fixture(&c9_para_properties())).unwrap();
+    for pass in 0..=2 {
+        for (i, (latin, korean, wrap, flags, font, spacing)) in
+            [(2, 1, 1, 15, 1, 3), (1, 0, 0, 0, 0, 0), (0, 0, 0, 0, 0, 0)]
+                .into_iter()
+                .enumerate()
+        {
+            let ps = &doc.doc_info.para_shapes[i];
+            assert_eq!(
+                (
+                    (ps.attr1 >> 5) & 3,
+                    (ps.attr1 >> 7) & 1,
+                    ps.attr2 & 3,
+                    (ps.attr1 >> 16) & 15,
+                    (ps.attr1 >> 22) & 1,
+                    (ps.attr2 >> 4) & 3
+                ),
+                (latin, korean, wrap, flags, font, spacing),
+                "pass {pass} paraPr {i}"
+            );
+            assert_eq!(
+                (ps.attr1 >> 20) & 3,
+                0,
+                "autoSpacing must not set vertical alignment"
+            );
+        }
+        if pass < 2 {
+            doc = parse_hwpx(&serialize_hwpx(&doc).unwrap()).unwrap();
+        }
+    }
+}
+
+#[test]
+fn c9_paragraph_current_modifications_win_across_two_saves() {
+    use rhwp::{model::style::ParaShapeMods, parser::hwpx::parse_hwpx, serializer::serialize_hwpx};
+    let mut doc = parse_hwpx(&c9_header_fixture(&c9_para_properties())).unwrap();
+    // Given/When: the current UI clears imported true flags and sets a different style true.
+    for (i, on) in [(0, false), (1, true)] {
+        doc.doc_info.para_shapes[i] = ParaShapeMods {
+            widow_orphan: Some(on),
+            keep_with_next: Some(on),
+            keep_lines: Some(on),
+            page_break_before: Some(on),
+            font_line_height: Some(on),
+            single_line: Some(on),
+            auto_space_kr_en: Some(on),
+            auto_space_kr_num: Some(on),
+            english_break_unit: Some(if on { 2 } else { 0 }),
+            korean_break_unit: Some(u8::from(on)),
+            vertical_align: Some(if on { 2 } else { 0 }),
+            ..Default::default()
+        }
+        .apply_to(&doc.doc_info.para_shapes[i]);
+    }
+    for pass in 1..=2 {
+        let saved = serialize_hwpx(&doc).unwrap();
+        doc = parse_hwpx(&saved).unwrap();
+        for (i, on) in [(0, false), (1, true)] {
+            let ps = &doc.doc_info.para_shapes[i];
+            let bit = u32::from(on);
+            assert_eq!(
+                (
+                    (ps.attr1 >> 16) & 15,
+                    (ps.attr1 >> 22) & 1,
+                    ps.attr2 & 3,
+                    (ps.attr2 >> 4) & 3,
+                    (ps.attr1 >> 20) & 3,
+                    (ps.attr1 >> 5) & 3,
+                    (ps.attr1 >> 7) & 1
+                ),
+                (bit * 15, bit, bit, bit * 3, bit * 2, bit * 2, bit),
+                "save {pass} paraPr {i}: current values beat imported aliases"
+            );
+        }
+    }
+}
+
+#[test]
+fn c9_paragraph_margin_2011_expanded_namespace_and_signed_values_survive() {
+    use rhwp::{parser::hwpx::parse_hwpx, serializer::serialize_hwpx};
+    let input = c9_header_fixture(
+        r#"<hh:paraPr id="0"><hh:margin><hc:intent value="-120" unit="HWPUNIT"/><hc:left value="321" unit="HWPUNIT"/><hc:right value="654" unit="HWPUNIT"/><hc:prev value="-45" unit="HWPUNIT"/><hc:next value="789" unit="HWPUNIT"/></hh:margin></hh:paraPr>"#,
+    );
+    let expected = c9_layout_events(&c9_header_xml(&input));
+    assert_eq!(expected.len(), 5);
+    assert!(expected
+        .iter()
+        .all(|(ns, _, _, _)| ns == "http://www.hancom.co.kr/hwpml/2011/core"));
+    let mut doc = parse_hwpx(&input).unwrap();
+    for pass in 1..=2 {
+        let saved = serialize_hwpx(&doc).unwrap();
+        assert_eq!(
+            c9_layout_events(&c9_header_xml(&saved)),
+            expected,
+            "save {pass} expanded namespace, units and numeric values"
+        );
+        doc = parse_hwpx(&saved).unwrap();
+        let ps = &doc.doc_info.para_shapes[0];
+        assert_eq!(
+            (
+                ps.indent,
+                ps.margin_left,
+                ps.margin_right,
+                ps.spacing_before,
+                ps.spacing_after
+            ),
+            (-120, 321, 654, -45, 789)
+        );
+    }
+}
+
+#[test]
+fn c9_columns_keep_body_cell_paragraph_ownership_and_control_order() {
+    use rhwp::{parser::hwpx::parse_hwpx, serializer::serialize_hwpx};
+    let column = |count, gap, direction| {
+        format!(
+            r#"<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="{direction}" colCount="{count}" sameSz="1" sameGap="{gap}"/></hp:ctrl>"#
+        )
+    };
+    let hide = r#"<hp:ctrl><hp:pageHiding hideHeader="1" hideFooter="0" hideMasterPage="0" hideBorder="0" hideFill="0" hidePageNum="0"/></hp:ctrl>"#;
+    let initial = c9_paragraph(
+        &(column(2, 300, "RIGHT") + hide + &column(1, 111, "LEFT") + hide),
+        C9_LINE,
+    )
+    .replace("type=\"NEWSPAPER\"", "type=\"BALANCED_NEWSPAPER\"");
+    let cell_paras = c9_paragraph(
+        &(column(1, 222, "RIGHT") + &column(2, 333, "LEFT")),
+        C9_LINE,
+    ) + &c9_paragraph(&column(1, 444, "LEFT"), C9_LINE);
+    let cell_paras = cell_paras.replace("type=\"NEWSPAPER\"", "type=\"PARALLEL\"");
+    let table = c8_table(&cell_paras);
+    let body =
+        initial + &table + &c9_paragraph(&(hide.to_string() + &column(2, 555, "RIGHT")), C9_LINE);
+    let input = c8_fixture(&body, false);
+    let expected = c9_layout_events(&hwpx_section_xml(&input));
+    assert_eq!(
+        expected.iter().filter(|(_, n, _, _)| n == "colPr").count(),
+        6
+    );
+    assert!(expected
+        .iter()
+        .filter(|(_, n, _, _)| n == "colPr")
+        .any(|(_, _, o, _)| o.iter().any(|x| x.starts_with("tc"))));
+    let mut doc = parse_hwpx(&input).unwrap();
+    for pass in 1..=2 {
+        let saved = serialize_hwpx(&doc).unwrap();
+        assert_eq!(
+            c9_layout_events(&hwpx_section_xml(&saved)),
+            expected,
+            "save {pass}: expanded names, attrs, owning cell/paragraph and control order"
+        );
+        doc = parse_hwpx(&saved).unwrap();
+    }
+}
+
+fn c9_body_geometry(
+    doc: &rhwp::model::document::Document,
+) -> Vec<Vec<(u32, i32, i32, i32, i32, i32, i32, i32, u32)>> {
+    doc.sections[0]
+        .paragraphs
+        .iter()
+        .map(|p| {
+            p.line_segs
+                .iter()
+                .map(|s| {
+                    (
+                        s.text_start,
+                        s.vertical_pos,
+                        s.line_height,
+                        s.text_height,
+                        s.baseline_distance,
+                        s.line_spacing,
+                        s.column_start,
+                        s.segment_width,
+                        s.tag,
+                    )
+                })
+                .collect()
+        })
+        .collect()
+}
+
+#[test]
+fn c9_document_computed_object_geometry_and_page_resets_survive_two_saves() {
+    use rhwp::{
+        document_core::DocumentCore,
+        model::{control::Control, shape::TextWrap},
+        parser::hwpx::parse_hwpx,
+    };
+    let inner = c9_paragraph("<hp:t>셀</hp:t>", C9_LINE);
+    let tac = c8_table(&inner).replace("<hp:tr>", r#"<hp:pos treatAsChar="1"/><hp:tr>"#);
+    let tac = tac.trim_end_matches("</hp:p>").to_string() + C9_LINE + "</hp:p>";
+    let floating = c8_table(&inner)
+        .replace("<hp:tbl ", "<hp:tbl textWrap=\"TOP_AND_BOTTOM\" ")
+        .replace("<hp:tr>", r#"<hp:pos treatAsChar="0"/><hp:tr>"#);
+    let floating = floating.trim_end_matches("</hp:p>").to_string() + C9_LINE + "</hp:p>";
+    let body =
+        tac + &c9_paragraph(
+            "<hp:t>다음</hp:t>",
+            &C9_LINE.replace("vertpos=\"0\"", "vertpos=\"4200\""),
+        ) + &floating
+            + &c9_paragraph(
+                "<hp:t>새 쪽 다음</hp:t>",
+                &C9_LINE.replace("vertpos=\"0\"", "vertpos=\"8000\""),
+            )
+            + &c9_paragraph(C9_FLOATING_PICTURE, C9_LINE)
+            + &c9_paragraph(
+                "<hp:t>그림 다음</hp:t>",
+                &C9_LINE.replace("vertpos=\"0\"", "vertpos=\"3300\""),
+            );
+    let input = c8_fixture(&body, true);
+    let parsed = parse_hwpx(&input).unwrap();
+    assert!(parsed.sections[0].paragraphs[4].controls.iter().any(|c| matches!(c, Control::Picture(p) if !p.common.treat_as_char && p.common.text_wrap == TextWrap::TopAndBottom && p.common.height == 2000)));
+    let expected = c9_body_geometry(&parsed);
+    assert_eq!(
+        expected.iter().map(|s| s[0].1).collect::<Vec<_>>(),
+        [0, 4200, 0, 8000, 0, 3300]
+    );
+    let mut core = DocumentCore::from_bytes(&input).unwrap();
+    assert_eq!(
+        c9_body_geometry(core.document()),
+        expected,
+        "load must preserve computed TAC height and page-local resets"
+    );
+    for pass in 1..=2 {
+        let saved = core.export_hwpx_native().unwrap();
+        assert_eq!(
+            c9_body_geometry(&parse_hwpx(&saved).unwrap()),
+            expected,
+            "save {pass}"
+        );
+        core = DocumentCore::from_bytes(&saved).unwrap();
+        assert_eq!(c9_body_geometry(core.document()), expected, "reopen {pass}");
+    }
+}
+
+#[test]
+fn c9_document_missing_geometry_synthesizes_without_rebasing_valid_paragraphs() {
+    use rhwp::{
+        document_core::{validation::WarningKind, DocumentCore},
+        parser::hwpx::parse_hwpx,
+    };
+    for missing in [
+        "",
+        r#"<hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="0"/></hp:linesegarray>"#,
+    ] {
+        let table = c8_table(&c9_paragraph("<hp:t>셀</hp:t>", ""))
+            .replace("<hp:tr>", r#"<hp:pos treatAsChar="1"/><hp:tr>"#);
+        let table = table.trim_end_matches("</hp:p>").to_string() + missing + "</hp:p>";
+        let input = c8_fixture(
+            &(c9_paragraph(
+                "<hp:t>원본 첫 쪽</hp:t>",
+                &C9_LINE.replace("vertpos=\"0\"", "vertpos=\"9000\""),
+            ) + &table
+                + &c9_paragraph("<hp:t>원본 새 쪽</hp:t>", C9_LINE)
+                + &c9_paragraph(
+                    C9_FLOATING_PICTURE,
+                    &C9_LINE.replace("vertpos=\"0\"", "vertpos=\"4400\""),
+                )),
+            true,
+        );
+        let original = c9_body_geometry(&parse_hwpx(&input).unwrap());
+        let mut core = DocumentCore::from_bytes(&input).unwrap();
+        assert!(
+            core.validation_report()
+                .warnings
+                .iter()
+                .any(|w| matches!(w.kind, WarningKind::LinesegUncomputed)),
+            "warnings precede synthesis"
+        );
+        let computed = c9_body_geometry(core.document());
+        assert_eq!(
+            computed[0], original[0],
+            "valid preceding imported geometry"
+        );
+        assert_eq!(computed[2], original[2], "valid later page reset");
+        assert_eq!(
+            computed[3], original[3],
+            "computed TopAndBottom Picture geometry"
+        );
+        assert!(
+            computed[1][0].2 >= 3000,
+            "missing TAC geometry still includes table height"
+        );
+        assert!(
+            computed[1][0].1 >= 10200,
+            "synthesized paragraph follows the imported predecessor"
+        );
+        assert!(
+            document_paragraphs(core.document())
+                .iter()
+                .all(|p| p.line_segs.iter().all(|s| s.line_height > 0)),
+            "cell missing geometry also synthesizes"
+        );
+        for pass in 1..=2 {
+            let saved = core.export_hwpx_native().unwrap();
+            core = DocumentCore::from_bytes(&saved).unwrap();
+            assert_eq!(
+                c9_body_geometry(core.document()),
+                computed,
+                "save/reopen {pass} does not synthesize a second time"
+            );
+        }
+    }
+}
+
+#[test]
+fn c9_document_missing_follower_clears_computed_floating_object_extent() {
+    use rhwp::{document_core::DocumentCore, parser::hwpx::parse_hwpx};
+    let lines = C9_LINE.replace("vertpos=\"0\"", "vertpos=\"4000\"");
+    let table = c8_table(&c9_paragraph("<hp:t>셀</hp:t>", C9_LINE))
+        .replace("<hp:tbl ", "<hp:tbl textWrap=\"TOP_AND_BOTTOM\" ")
+        .replace("<hp:tr>", r#"<hp:pos treatAsChar="0" vertOffset="300"/><hp:outMargin top="100" bottom="200"/><hp:tr>"#);
+    let table = table.trim_end_matches("</hp:p>").to_string() + &lines + "</hp:p>";
+    let picture = c9_paragraph(
+        &C9_FLOATING_PICTURE.replace("treatAsChar=\"0\"", "treatAsChar=\"0\" vertOffset=\"300\""),
+        &lines,
+    );
+    let mut observed = Vec::new();
+    for first in [table, picture] {
+        let input = c8_fixture(
+            &(first
+                + &c9_paragraph("<hp:t>미계산 후속</hp:t>", "")
+                + &c9_paragraph("<hp:t>새 쪽</hp:t>", C9_LINE)),
+            true,
+        );
+        let imported = c9_body_geometry(&parse_hwpx(&input).unwrap());
+        let mut core = DocumentCore::from_bytes(&input).unwrap();
+        let computed = c9_body_geometry(core.document());
+        assert_eq!(
+            computed[0], imported[0],
+            "computed floating predecessor remains unchanged"
+        );
+        assert_eq!(
+            computed[2], imported[2],
+            "later page-local reset remains unchanged"
+        );
+        observed.push(computed[1][0].1);
+        for pass in 1..=2 {
+            let saved = core.export_hwpx_native().unwrap();
+            core = DocumentCore::from_bytes(&saved).unwrap();
+            assert_eq!(
+                c9_body_geometry(core.document()),
+                computed,
+                "floating transition save/reopen {pass}"
+            );
+        }
+    }
+    assert_eq!(
+        observed,
+        [7600, 6300],
+        "synthesized followers clear table/picture height, offset and table margins"
+    );
+}
+
 // C8: 실제 native 저장 owner의 필드·그림·지원 도형 보존 회귀.
 fn c8_fixture(body: &str, image: bool) -> Vec<u8> {
     use std::io::{Cursor, Read, Write};

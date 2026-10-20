@@ -23,11 +23,13 @@
 //!   - `paragraph.line_segs[i]` → 각 `<hp:lineseg>` 속성 (6개 필드 그대로 출력)
 //!   - `section.section_def.page_def` → `<hp:pagePr>`/`<hp:margin>` (기본값뿐이면 템플릿)
 
+use std::io::Write;
+
 use quick_xml::Writer;
 
 use crate::model::control::{Control, PageHide, PageNumberPos};
 use crate::model::document::{Document, Section};
-use crate::model::page::{BindingMethod, PageDef};
+use crate::model::page::{BindingMethod, ColumnDef, ColumnDirection, ColumnType, PageDef};
 use crate::model::paragraph::{ColumnBreakType, LineSeg, Paragraph};
 use crate::model::shape::ShapeObject;
 
@@ -53,6 +55,7 @@ const TEMPLATE_FIRST_P_TAG: &str = r#"<hp:p id="3121190098" paraPrIDRef="0" styl
 const TEMPLATE_RUN_BEFORE_TEXT: &str = r#"<hp:run charPrIDRef="0"><hp:t/>"#;
 // 템플릿 첫 run(secPr/colPr 전용)의 여는 태그 + secPr 시작 — run id 정비용 anchor (#1378).
 const TEMPLATE_SECPR_RUN_OPEN: &str = r#"<hp:run charPrIDRef="0"><hp:secPr "#;
+const TEMPLATE_COLUMN_DEF: &str = r#"<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="LEFT" colCount="1" sameSz="1" sameGap="0"/></hp:ctrl>"#;
 
 /// 레퍼런스 기준 줄 레이아웃 파라미터.
 const VERT_STEP: u32 = 1600; // vertsize(1000) + spacing(600)
@@ -81,6 +84,15 @@ pub fn write_section(
     let template = match render_page_pr(&section.section_def.page_def) {
         Some(page_pr) => replace_page_pr(EMPTY_SECTION_XML, &page_pr),
         None => EMPTY_SECTION_XML.to_string(),
+    };
+    let template = if first_para.is_some_and(|p| {
+        p.controls
+            .iter()
+            .any(|c| matches!(c, Control::ColumnDef(_)))
+    }) {
+        template.replacen(TEMPLATE_COLUMN_DEF, "", 1)
+    } else {
+        template
     };
     let first_runs = match first_para {
         Some(p) => render_text_runs(p)?,
@@ -166,6 +178,10 @@ fn write_control_xml(
     ctx: &mut SerializeContext,
 ) -> Result<bool, SerializeError> {
     match ctrl {
+        Control::ColumnDef(column) => {
+            write_column_def(writer, column)?;
+            Ok(true)
+        }
         Control::Table(table) => {
             write_table(writer, table, ctx)?;
             Ok(true)
@@ -189,6 +205,39 @@ fn write_control_xml(
         }
         _ => Ok(false),
     }
+}
+
+pub(super) fn write_column_def<W: Write>(
+    writer: &mut Writer<W>,
+    column: &ColumnDef,
+) -> Result<(), SerializeError> {
+    start_tag(writer, "hp:ctrl")?;
+    empty_tag(
+        writer,
+        "hp:colPr",
+        &[
+            ("id", ""),
+            (
+                "type",
+                match column.column_type {
+                    ColumnType::Normal => "NEWSPAPER",
+                    ColumnType::Distribute => "BALANCED_NEWSPAPER",
+                    ColumnType::Parallel => "PARALLEL",
+                },
+            ),
+            (
+                "layout",
+                match column.direction {
+                    ColumnDirection::LeftToRight => "LEFT",
+                    ColumnDirection::RightToLeft => "RIGHT",
+                },
+            ),
+            ("colCount", &column.column_count.to_string()),
+            ("sameSz", bool01(column.same_width)),
+            ("sameGap", &column.spacing.to_string()),
+        ],
+    )?;
+    end_tag(writer, "hp:ctrl")
 }
 
 fn write_page_hide(

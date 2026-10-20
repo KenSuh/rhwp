@@ -443,6 +443,9 @@ fn parse_para_shape(
         match attr.key.as_ref() {
             b"tabPrIDRef" => ps.tab_def_id = parse_u16(&attr),
             b"condense" => {}
+            b"fontLineHeight" => {
+                ps.attr1 = (ps.attr1 & !(1 << 22)) | (u32::from(parse_bool(&attr)) << 22);
+            }
             _ => {}
         }
     }
@@ -463,8 +466,18 @@ fn parse_para_shape(
                     match local {
                         b"align" => {
                             for attr in ce.attributes().flatten() {
-                                if attr.key.as_ref() == b"horizontal" {
-                                    ps.alignment = parse_alignment(&attr);
+                                match attr.key.as_ref() {
+                                    b"horizontal" => ps.alignment = parse_alignment(&attr),
+                                    b"vertical" => {
+                                        let align = match attr_str(&attr).as_str() {
+                                            "TOP" => 1,
+                                            "CENTER" => 2,
+                                            "BOTTOM" => 3,
+                                            _ => 0,
+                                        };
+                                        ps.attr1 = (ps.attr1 & !(3 << 20)) | (align << 20);
+                                    }
+                                    _ => {}
                                 }
                             }
                         }
@@ -522,25 +535,39 @@ fn parse_para_shape(
                         b"breakSetting" => {
                             for attr in ce.attributes().flatten() {
                                 match attr.key.as_ref() {
+                                    b"breakLatinWord" => {
+                                        let unit = match attr_str(&attr).as_str() {
+                                            "HYPHENATION" => 1,
+                                            "BREAK_WORD" => 2,
+                                            _ => 0,
+                                        };
+                                        ps.attr1 = (ps.attr1 & !(3 << 5)) | (unit << 5);
+                                    }
+                                    b"breakNonLatinWord" => {
+                                        let by_char = attr_str(&attr) == "BREAK_WORD";
+                                        ps.attr1 =
+                                            (ps.attr1 & !(1 << 7)) | (u32::from(by_char) << 7);
+                                    }
                                     b"widowOrphan" => {
-                                        if parse_bool(&attr) {
-                                            ps.attr2 |= 1 << 5;
-                                        }
+                                        ps.attr1 = (ps.attr1 & !(1 << 16))
+                                            | (u32::from(parse_bool(&attr)) << 16);
                                     }
                                     b"keepWithNext" => {
-                                        if parse_bool(&attr) {
-                                            ps.attr2 |= 1 << 6;
-                                        }
+                                        ps.attr1 = (ps.attr1 & !(1 << 17))
+                                            | (u32::from(parse_bool(&attr)) << 17);
                                     }
                                     b"keepLines" => {
-                                        if parse_bool(&attr) {
-                                            ps.attr2 |= 1 << 7;
-                                        }
+                                        ps.attr1 = (ps.attr1 & !(1 << 18))
+                                            | (u32::from(parse_bool(&attr)) << 18);
                                     }
                                     b"pageBreakBefore" => {
-                                        if parse_bool(&attr) {
-                                            ps.attr2 |= 1 << 8;
-                                        }
+                                        ps.attr1 = (ps.attr1 & !(1 << 19))
+                                            | (u32::from(parse_bool(&attr)) << 19);
+                                    }
+                                    b"lineWrap" => {
+                                        // shortcut: KEEP의 ParaShape 비트는 정본 매핑을 확보한 뒤 지원한다.
+                                        ps.attr2 = (ps.attr2 & !3)
+                                            | u32::from(attr_str(&attr) == "SQUEEZE");
                                     }
                                     _ => {}
                                 }
@@ -550,14 +577,12 @@ fn parse_para_shape(
                             for attr in ce.attributes().flatten() {
                                 match attr.key.as_ref() {
                                     b"eAsianEng" => {
-                                        if parse_bool(&attr) {
-                                            ps.attr1 |= 1 << 20;
-                                        }
+                                        ps.attr2 = (ps.attr2 & !(1 << 4))
+                                            | (u32::from(parse_bool(&attr)) << 4);
                                     }
                                     b"eAsianNum" => {
-                                        if parse_bool(&attr) {
-                                            ps.attr1 |= 1 << 21;
-                                        }
+                                        ps.attr2 = (ps.attr2 & !(1 << 5))
+                                            | (u32::from(parse_bool(&attr)) << 5);
                                     }
                                     _ => {}
                                 }

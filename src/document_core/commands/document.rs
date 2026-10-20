@@ -255,9 +255,14 @@ impl DocumentCore {
                 .map(|a| a.width)
                 .unwrap_or(layout.body_area.width);
 
-            for para in &mut section.paragraphs {
+            let synthesized: Vec<bool> = section
+                .paragraphs
+                .iter()
+                .map(Self::needs_line_seg_reflow)
+                .collect();
+            for (para, &needs_synthesis) in section.paragraphs.iter_mut().zip(&synthesized) {
                 // 본문 문단 reflow
-                if Self::needs_line_seg_reflow(para) {
+                if needs_synthesis {
                     let para_style = styles.para_styles.get(para.para_shape_id as usize);
                     let margin_left = para_style.map(|s| s.margin_left).unwrap_or(0.0);
                     let margin_right = para_style.map(|s| s.margin_right).unwrap_or(0.0);
@@ -268,7 +273,7 @@ impl DocumentCore {
                 // HWPX: TAC 표가 있는 문단의 LINE_SEG lh 보정
                 // HWPX에서 linesegarray가 없으면 기본 lh=100이 생성되지만,
                 // HWP에서는 TAC 표 높이가 lh에 포함됨 → HWPX에서도 동일하게 확대
-                {
+                if needs_synthesis {
                     let mut max_tac_h: i32 = 0;
                     for ctrl in para.controls.iter() {
                         if let Control::Table(t) = ctrl {
@@ -304,63 +309,18 @@ impl DocumentCore {
                 }
             }
 
-            // HWPX: TAC 표 LINE_SEG 보정 후 문단 간 vpos 재계산
-            // 보정된 문단의 끝 vpos가 변하면 후속 문단들의 vpos도 연쇄 갱신
-            let mut need_vpos_recalc = false;
-            for para in section.paragraphs.iter() {
-                for ctrl in &para.controls {
-                    match ctrl {
-                        Control::Table(t)
-                            if t.common.treat_as_char
-                                && t.raw_ctrl_data.is_empty()
-                                && t.common.height > 0 =>
-                        {
-                            need_vpos_recalc = true;
-                            break;
-                        }
-                        // 비-TAC TopAndBottom Picture/Table: LINE_SEG에 개체 높이 미포함
-                        Control::Picture(p)
-                            if !p.common.treat_as_char
-                                && matches!(
-                                    p.common.text_wrap,
-                                    crate::model::shape::TextWrap::TopAndBottom
-                                )
-                                && p.common.height > 0 =>
-                        {
-                            need_vpos_recalc = true;
-                            break;
-                        }
-                        Control::Table(t)
-                            if !t.common.treat_as_char
-                                && matches!(
-                                    t.common.text_wrap,
-                                    crate::model::shape::TextWrap::TopAndBottom
-                                )
-                                && t.common.height > 0
-                                && t.raw_ctrl_data.is_empty() =>
-                        {
-                            need_vpos_recalc = true;
-                            break;
-                        }
-                        _ => {}
-                    }
-                }
-                if need_vpos_recalc {
-                    break;
-                }
-            }
-            if need_vpos_recalc {
+            if synthesized.iter().any(|&needed| needed) {
                 let mut running_vpos: i32 = 0;
-                for para in section.paragraphs.iter_mut() {
-                    // 문단의 첫 LINE_SEG vpos를 running_vpos로 갱신
-                    if let Some(first_seg) = para.line_segs.first_mut() {
-                        first_seg.vertical_pos = running_vpos;
-                    }
+                for (para, &needs_synthesis) in section.paragraphs.iter_mut().zip(&synthesized) {
                     // 문단 내 LINE_SEG vpos 재계산 (문단 내 누적)
                     // TAC 표가 lh에 포함된 경우: 다음 줄 vpos = th + ls (HWP 동작)
                     let mut inner_vpos = running_vpos;
                     for seg in para.line_segs.iter_mut() {
-                        seg.vertical_pos = inner_vpos;
+                        if needs_synthesis {
+                            seg.vertical_pos = inner_vpos;
+                        } else {
+                            inner_vpos = seg.vertical_pos;
+                        }
                         let advance = if seg.line_height > seg.text_height && seg.text_height > 0 {
                             // lh가 th보다 큼 = TAC 컨트롤 높이 포함 → th 기준 누적
                             seg.text_height + seg.line_spacing

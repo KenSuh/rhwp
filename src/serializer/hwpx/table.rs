@@ -39,6 +39,7 @@ use crate::model::table::{Cell, Table, TablePageBreak, VerticalAlign};
 use super::context::SerializeContext;
 use super::form::write_form;
 use super::picture::write_picture;
+use super::section::write_column_def;
 use super::shape::{write_container_close, write_container_open, write_line, write_rect};
 use super::utils::{empty_tag, end_tag, start_tag, start_tag_attrs};
 use super::SerializeError;
@@ -596,7 +597,7 @@ fn write_cell_control_run<W: Write>(
 
 fn control_supported(control: &Control) -> bool {
     match control {
-        Control::Table(_) | Control::Picture(_) | Control::Form(_) => true,
+        Control::Table(_) | Control::Picture(_) | Control::Form(_) | Control::ColumnDef(_) => true,
         Control::Shape(shape) => shape_supported(shape),
         _ => false,
     }
@@ -615,6 +616,7 @@ fn write_cell_control<W: Write>(
             Ok(())
         }
         Control::Form(form) => write_form(w, form),
+        Control::ColumnDef(column) => write_column_def(w, column),
         _ => Ok(()),
     }
 }
