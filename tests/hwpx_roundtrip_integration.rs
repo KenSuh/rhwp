@@ -12,6 +12,291 @@
 
 use rhwp::serializer::hwpx::roundtrip::roundtrip_ir_diff;
 
+const C10_COLUMN: &str = r#"<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="RIGHT" colCount="2" sameSz="1" sameGap="300"/></hp:ctrl>"#;
+const C10_PAGE_NUMBER: &str = r#"<hp:ctrl><hp:pageNum pos="BOTTOM_RIGHT" formatType="ROMAN_CAPITAL" sideChar="*"/></hp:ctrl>"#;
+
+fn c10_events(xml: &str) -> Vec<(String, String, Vec<String>, Vec<(String, String)>)> {
+    use quick_xml::{events::Event, name::ResolveResult, NsReader};
+    let mut reader = NsReader::from_str(xml);
+    reader.config_mut().expand_empty_elements = true;
+    let (mut paragraph, mut cell) = (0, 0);
+    let mut owners = Vec::new();
+    let mut output = Vec::new();
+    loop {
+        let (resolved, event) = reader.read_resolved_event().unwrap();
+        let namespace = match resolved {
+            ResolveResult::Bound(ns) => String::from_utf8(ns.as_ref().to_vec()).unwrap(),
+            ResolveResult::Unbound => String::new(),
+            ResolveResult::Unknown(prefix) => panic!("unbound namespace: {prefix:?}"),
+        };
+        match event {
+            Event::Start(e) => {
+                let name = String::from_utf8(e.local_name().as_ref().to_vec()).unwrap();
+                match name.as_str() {
+                    "p" => {
+                        owners.push(format!("p{paragraph}"));
+                        paragraph += 1;
+                    }
+                    "tc" => {
+                        owners.push(format!("tc{cell}"));
+                        cell += 1;
+                    }
+                    _ => {}
+                }
+                if matches!(
+                    name.as_str(),
+                    "run" | "secPr" | "colPr" | "pageNum" | "pageHiding" | "t" | "tbl" | "pic"
+                ) {
+                    assert_eq!(namespace, "http://www.hancom.co.kr/hwpml/2011/paragraph");
+                    let mut attrs: Vec<_> = e
+                        .attributes()
+                        .map(|a| {
+                            let a = a.unwrap();
+                            (
+                                String::from_utf8(a.key.as_ref().to_vec()).unwrap(),
+                                a.decode_and_unescape_value(reader.decoder())
+                                    .unwrap()
+                                    .into_owned(),
+                            )
+                        })
+                        .collect();
+                    attrs.sort();
+                    output.push((namespace, name, owners.clone(), attrs));
+                }
+            }
+            Event::End(e) if matches!(e.local_name().as_ref(), b"p" | b"tc") => {
+                owners.pop().unwrap();
+            }
+            Event::Eof => break,
+            _ => {}
+        }
+    }
+    output
+}
+
+fn c10_two_native_saves(input: &[u8], check: impl Fn(&rhwp::model::document::Document, &str)) {
+    use rhwp::{document_core::DocumentCore, parser::hwpx::parse_hwpx};
+    let mut core = DocumentCore::from_bytes(input).unwrap();
+    for _ in 0..2 {
+        let saved = core.export_hwpx_native().unwrap();
+        check(&parse_hwpx(&saved).unwrap(), &hwpx_section_xml(&saved));
+        core = DocumentCore::from_bytes(&saved).unwrap();
+    }
+}
+
+fn c10_inline_table() -> String {
+    let table = c8_table(&c9_paragraph(C10_COLUMN, C9_LINE));
+    let start = table.find("<hp:tbl ").unwrap();
+    let end = table.rfind("</hp:tbl>").unwrap() + "</hp:tbl>".len();
+    table[start..end].replace("<hp:tr>", r#"<hp:pos treatAsChar="1"/><hp:tr>"#)
+}
+
+#[test]
+fn c10_native_initial_column_page_number_prefix_precedes_text_once() {
+    let repeated = C10_COLUMN.replace("300", "777");
+    let controls = C10_COLUMN.to_string()
+        + C10_PAGE_NUMBER
+        + &c10_inline_table()
+        + &C9_FLOATING_PICTURE.replace(r#"treatAsChar="0""#, r#"treatAsChar="1""#)
+        + &repeated;
+    let body = c9_paragraph(&(controls + "<hp:t>초기 본문</hp:t>"), C9_LINE)
+        + &c9_paragraph(
+            &(C10_COLUMN.to_string() + "<hp:t>다음 문단</hp:t>"),
+            C9_LINE,
+        );
+    let input = c8_fixture(&body, true);
+    let expected_columns = c9_layout_events(&hwpx_section_xml(&input));
+    c10_two_native_saves(&input, |doc, xml| {
+        assert_eq!(doc.sections[0].paragraphs[0].text, "초기 본문");
+        let events = c10_events(xml);
+        let first: Vec<_> = events
+            .iter()
+            .filter(|(_, n, o, _)| o == &["p0"] && n != "run")
+            .map(|(_, n, _, _)| n.as_str())
+            .collect();
+        assert_eq!(
+            first,
+            ["secPr", "colPr", "pageNum", "t", "tbl", "pic", "colPr"]
+        );
+        let page_number = events.iter().find(|(_, n, _, _)| n == "pageNum").unwrap();
+        assert_eq!(page_number.2, ["p0"]);
+        assert_eq!(
+            page_number.3,
+            [
+                ("formatType".into(), "ROMAN_CAPITAL".into()),
+                ("pos".into(), "BOTTOM_RIGHT".into()),
+                ("sideChar".into(), "*".into())
+            ]
+        );
+        assert_eq!(c9_layout_events(xml), expected_columns);
+    });
+}
+
+#[test]
+fn c10_native_nonleading_vector_columns_and_inline_order_are_retained() {
+    let hide = r#"<hp:ctrl><hp:pageHiding hideHeader="1" hideFooter="0" hideMasterPage="0" hideBorder="0" hideFill="0" hidePageNum="0"/></hp:ctrl>"#;
+    let controls = hide.to_string()
+        + C10_COLUMN
+        + C10_PAGE_NUMBER
+        + &C10_COLUMN.replace("300", "888")
+        + &c10_inline_table()
+        + C9_FLOATING_PICTURE;
+    let input = c8_fixture(
+        &c9_paragraph(&(controls + "<hp:t>선두 아님</hp:t>"), C9_LINE),
+        true,
+    );
+    let expected_columns = c9_layout_events(&hwpx_section_xml(&input));
+    c10_two_native_saves(&input, |_, xml| {
+        let events = c10_events(xml);
+        let first: Vec<_> = events
+            .iter()
+            .filter(|(_, n, o, _)| o == &["p0"] && n != "run")
+            .map(|(_, n, _, _)| n.as_str())
+            .collect();
+        assert_eq!(
+            first,
+            [
+                "secPr",
+                "t",
+                "pageHiding",
+                "colPr",
+                "pageNum",
+                "colPr",
+                "tbl",
+                "pic"
+            ]
+        );
+        assert_eq!(c9_layout_events(xml), expected_columns);
+    });
+}
+
+#[test]
+fn c10_native_initial_column_moves_only_adjacent_page_number_prefix() {
+    let controls = C10_COLUMN.to_string()
+        + C9_FLOATING_PICTURE
+        + C10_PAGE_NUMBER
+        + &C10_COLUMN.replace("300", "999")
+        + &c10_inline_table();
+    let input = c8_fixture(
+        &c9_paragraph(&(controls + "<hp:t>사이 개체</hp:t>"), C9_LINE),
+        true,
+    );
+    c10_two_native_saves(&input, |_, xml| {
+        let events = c10_events(xml);
+        let first: Vec<_> = events
+            .iter()
+            .filter(|(_, n, o, _)| o == &["p0"] && n != "run")
+            .map(|(_, n, _, _)| n.as_str())
+            .collect();
+        assert_eq!(
+            first,
+            ["secPr", "colPr", "t", "pic", "pageNum", "colPr", "tbl"]
+        );
+    });
+}
+
+#[test]
+fn c10_native_empty_run_styles_keep_body_cell_ownership_two_saves() {
+    use rhwp::model::control::Control;
+    let empty =
+        |run: &str| format!(r#"<hp:p paraPrIDRef="0" styleIDRef="0">{run}{C9_LINE}</hp:p>"#);
+    let body = empty(r#"<hp:run charPrIDRef="1"/>"#)
+        + &empty(r#"<hp:run charPrIDRef="2"></hp:run>"#)
+        + &empty("<hp:run/>")
+        + &empty("<hp:run></hp:run>");
+    let cells = empty(r#"<hp:run charPrIDRef="3"/>"#)
+        + &empty(r#"<hp:run charPrIDRef="4"></hp:run>"#)
+        + &empty("<hp:run/>")
+        + &empty("<hp:run></hp:run>");
+    let input = c8_fixture(&(body + &c8_table(&cells)), false);
+    c10_two_native_saves(&input, |doc, xml| {
+        let paras = &doc.sections[0].paragraphs;
+        let table = paras[4]
+            .controls
+            .iter()
+            .find_map(|c| match c {
+                Control::Table(t) => Some(t),
+                _ => None,
+            })
+            .unwrap();
+        let styles: Vec<_> = paras[..4]
+            .iter()
+            .chain(table.cells[0].paragraphs.iter())
+            .map(|p| {
+                assert!(p.text.is_empty());
+                p.char_shapes.first().map_or(0, |s| s.char_shape_id)
+            })
+            .collect();
+        assert_eq!(styles, [1, 2, 0, 0, 3, 4, 0, 0]);
+        let events = c10_events(xml);
+        for (owner, expected) in [
+            (vec!["p0"], "1"),
+            (vec!["p1"], "2"),
+            (vec!["p2"], "0"),
+            (vec!["p3"], "0"),
+            (vec!["p4", "tc0", "p5"], "3"),
+            (vec!["p4", "tc0", "p6"], "4"),
+            (vec!["p4", "tc0", "p7"], "0"),
+            (vec!["p4", "tc0", "p8"], "0"),
+        ] {
+            let runs: Vec<_> = events
+                .iter()
+                .filter(|(_, n, o, _)| n == "run" && o == &owner)
+                .collect();
+            assert!(!runs.is_empty(), "missing owner {owner:?}");
+            assert!(
+                runs.iter().all(|(_, _, _, attrs)| attrs
+                    .iter()
+                    .any(|(k, v)| k == "charPrIDRef" && v == expected)),
+                "owner {owner:?}, runs {runs:?}"
+            );
+        }
+    });
+}
+
+#[test]
+fn c10_native_self_closing_run_transition_matches_explicit_empty_run() {
+    let content = r#"<hp:run charPrIDRef="1"><hp:t>A</hp:t></hp:run><hp:run charPrIDRef="2"/><hp:run><hp:t>B</hp:t></hp:run>"#;
+    let paragraph =
+        |runs: &str| format!(r#"<hp:p paraPrIDRef="0" styleIDRef="0">{runs}{C9_LINE}</hp:p>"#);
+    let body = paragraph(content)
+        + &paragraph(&content.replace(r#"charPrIDRef="2"/>"#, r#"charPrIDRef="2"></hp:run>"#));
+    let input = c8_fixture(&body, false);
+    c10_two_native_saves(&input, |doc, xml| {
+        for p in &doc.sections[0].paragraphs {
+            assert_eq!(p.text, "AB");
+            let active: Vec<_> = p
+                .char_offsets
+                .iter()
+                .map(|pos| {
+                    p.char_shapes
+                        .iter()
+                        .rev()
+                        .find(|s| s.start_pos <= *pos)
+                        .unwrap()
+                        .char_shape_id
+                })
+                .collect();
+            assert_eq!(active, [1, 2]);
+        }
+        let events = c10_events(xml);
+        for owner in [vec!["p0"], vec!["p1"]] {
+            let ids: Vec<_> = events
+                .iter()
+                .filter(|(_, n, o, _)| n == "run" && o == &owner)
+                .map(|(_, _, _, attrs)| {
+                    attrs
+                        .iter()
+                        .find(|(k, _)| k == "charPrIDRef")
+                        .unwrap()
+                        .1
+                        .as_str()
+                })
+                .collect();
+            assert!(ids.ends_with(&["1", "2"]), "owner {owner:?}, ids {ids:?}");
+        }
+    });
+}
 const C9_LINE: &str = r#"<hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="1000" textheight="1000" baseline="850" spacing="200" horzpos="0" horzsize="10000" flags="393216"/></hp:linesegarray>"#;
 const C9_FLOATING_PICTURE: &str = r#"<hp:pic id="17" instid="29" textWrap="TOP_AND_BOTTOM"><hp:orgSz width="3000" height="2000"/><hp:curSz width="3000" height="2000"/><hc:img binaryItemIDRef="image1"/><hp:sz width="3000" height="2000"/><hp:pos treatAsChar="0"/></hp:pic>"#;
 

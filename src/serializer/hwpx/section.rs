@@ -94,8 +94,17 @@ pub fn write_section(
     } else {
         template
     };
+    let initial_control_count = match first_para.map(|p| p.controls.as_slice()) {
+        Some([Control::ColumnDef(_), Control::PageNumberPos(_), ..]) => 2,
+        Some([Control::ColumnDef(_), ..]) => 1,
+        _ => 0,
+    };
     let first_runs = match first_para {
-        Some(p) => render_text_runs(p)?,
+        Some(p) => format!(
+            "{}{}",
+            render_controls_xml(p, &p.controls[..initial_control_count], ctx)?,
+            render_text_runs(p)?
+        ),
         None => format!(r#"<hp:run charPrIDRef="0">{first_t}</hp:run>"#),
     };
     let mut out = template.replacen(
@@ -114,7 +123,7 @@ pub fn write_section(
                 1,
             );
         }
-        let controls_xml = render_controls_xml(p, ctx)?;
+        let controls_xml = render_controls_xml(p, &p.controls[initial_control_count..], ctx)?;
         if !controls_xml.is_empty() {
             out = out.replacen(
                 "<hp:linesegarray>",
@@ -132,7 +141,7 @@ pub fn write_section(
             vert_cursor = advance;
             extra.push_str(&render_hp_p_open(p, idx as u32));
             extra.push_str(&render_text_runs(p)?);
-            extra.push_str(&render_controls_xml(p, ctx)?);
+            extra.push_str(&render_controls_xml(p, &p.controls, ctx)?);
             extra.push_str(r#"<hp:linesegarray>"#);
             extra.push_str(&linesegs);
             extra.push_str(r#"</hp:linesegarray></hp:p>"#);
@@ -151,10 +160,11 @@ fn render_text_runs(p: &Paragraph) -> Result<String, SerializeError> {
 
 fn render_controls_xml(
     p: &Paragraph,
+    controls: &[Control],
     ctx: &mut SerializeContext,
 ) -> Result<String, SerializeError> {
     let mut out = String::new();
-    for ctrl in &p.controls {
+    for ctrl in controls {
         let mut writer = Writer::new(Vec::new());
         if write_control_xml(&mut writer, ctrl, ctx)? {
             let bytes = writer.into_inner();

@@ -159,21 +159,21 @@ fn parse_paragraph(
 
     loop {
         match reader.read_event_into(&mut buf) {
+            Ok(Event::Start(ref ce)) | Ok(Event::Empty(ref ce))
+                if local_name(ce.name().as_ref()) == b"run" =>
+            {
+                for attr in ce.attributes().flatten() {
+                    if attr.key.as_ref() == b"charPrIDRef" {
+                        current_char_shape_id = parse_u32(&attr);
+                    }
+                }
+                let utf16_pos = calc_utf16_len_from_parts(&text_parts);
+                char_shape_changes.push((utf16_pos, current_char_shape_id));
+            }
             Ok(Event::Start(ref ce)) => {
                 let cname = ce.name();
                 let local = local_name(cname.as_ref());
                 match local {
-                    b"run" => {
-                        // 런 시작: charPrIDRef 읽기
-                        for attr in ce.attributes().flatten() {
-                            if attr.key.as_ref() == b"charPrIDRef" {
-                                current_char_shape_id = parse_u32(&attr);
-                            }
-                        }
-                        // 현재 UTF-16 위치에서 글자모양 변경 기록
-                        let utf16_pos = calc_utf16_len_from_parts(&text_parts);
-                        char_shape_changes.push((utf16_pos, current_char_shape_id));
-                    }
                     b"t" => {
                         // 텍스트 읽기 (탭 확장 데이터 포함)
                         let (text, tab_exts) = read_text_content_with_tabs(reader)?;
