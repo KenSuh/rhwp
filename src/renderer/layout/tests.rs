@@ -752,6 +752,110 @@ fn test_layout_table_basic() {
     );
 }
 
+fn c15_inline_tree(alignment: crate::model::style::Alignment, covered: bool, text: &str) -> PageRenderTree {
+    use crate::model::{control::Control, table::{Cell, Table}};
+    use crate::renderer::style_resolver::{ResolvedCharStyle, ResolvedParaStyle};
+    let cells = if covered { vec![(0, 1, 4000), (1, 1, 6000), (2, 1, 6000)] }
+        else { vec![(0, 1, 4000), (1, 2, 12000)] };
+    let table = Table {
+        row_count: 1,
+        col_count: 3,
+        row_sizes: vec![cells.len() as i16],
+        cells: cells.into_iter().map(|(col, col_span, width)| Cell {
+            col, col_span, row_span: 1, width, height: 2000,
+            ..Default::default()
+        }).collect(),
+        common: CommonObjAttr { treat_as_char: true, width: 16000, height: 2000, ..Default::default() },
+        ..Default::default()
+    };
+    let paragraphs = vec![Paragraph {
+        text: text.into(),
+        char_offsets: (8..8 + text.chars().count() as u32).collect(),
+        char_shapes: vec![CharShapeRef { start_pos: 0, char_shape_id: 0 }],
+        controls: vec![Control::Table(Box::new(table))],
+        line_segs: vec![LineSeg {
+            line_height: 2000, text_height: 1000, baseline_distance: 850,
+            segment_width: 48188, ..Default::default()
+        }],
+        ..Default::default()
+    }];
+    let mut page_def = a4_page_def();
+    page_def.margin_left = 5669;
+    page_def.margin_right = 5669;
+    let page = PageContent {
+        page_index: 0, page_number: 0, section_index: 0,
+        layout: PageLayoutInfo::from_page_def_default(&page_def, &ColumnDef::default()),
+        column_contents: vec![ColumnContent {
+            column_index: 0, items: vec![PageItem::FullParagraph { para_index: 0 }],
+            zone_layout: None, zone_y_offset: 0.0, wrap_around_paras: vec![],
+        }],
+        active_header: None, active_footer: None, page_number_pos: None, page_hide: None,
+        footnotes: vec![], active_master_page: None, extra_master_pages: vec![],
+    };
+    let composed: Vec<_> = paragraphs.iter().map(compose_paragraph).collect();
+    let styles = ResolvedStyleSet {
+        para_styles: vec![ResolvedParaStyle { alignment, ..Default::default() }],
+        char_styles: vec![ResolvedCharStyle { font_size: 12.0, ..Default::default() }],
+        ..Default::default()
+    };
+    let tree = LayoutEngine::with_default_dpi().build_render_tree(
+        &page, &paragraphs, &paragraphs, &paragraphs, &composed, &styles,
+        &FootnoteShape::default(), &[], None, &[], None, 0, &[],
+    );
+    if let Some(dir) = std::env::var_os("RHWP_C15_ARTIFACT_DIR") {
+        std::fs::write(std::path::Path::new(&dir).join(format!("unit-{alignment:?}-{covered}.json")), tree.root.to_json()).unwrap();
+    }
+    tree
+}
+
+fn c15_inline_bounds(tree: &PageRenderTree) -> (BoundingBox, BoundingBox, BoundingBox) {
+    let nodes = c13_nodes(&tree.root);
+    let body = nodes.iter().find(|n| matches!(n.node_type, RenderNodeType::Body { .. })).unwrap();
+    let tables: Vec<_> = nodes.iter().filter(|n| matches!(n.node_type, RenderNodeType::Table(_))).collect();
+    assert_eq!(tables.len(), 1, "the inline table must actually render");
+    let table = tables[0];
+    let text = nodes.iter().find(|n| matches!(&n.node_type, RenderNodeType::TextRun(t) if t.para_index == Some(0))).unwrap();
+    assert!((table.bbox.width - hwpunit_to_px(16000, DEFAULT_DPI)).abs() < 0.1);
+    for cell in table.children.iter().filter(|n| matches!(n.node_type, RenderNodeType::TableCell(_))) {
+        assert!(cell.bbox.x >= table.bbox.x - 0.1);
+        assert!(cell.bbox.x + cell.bbox.width <= table.bbox.x + table.bbox.width + 0.1);
+    }
+    eprintln!("C15 body={:?}, table={:?}, text={:?}", body.bbox, table.bbox, text.bbox);
+    (body.bbox, table.bbox, text.bbox)
+}
+
+#[test]
+fn c15_right_merged_inline_table_stays_inside_body() {
+    let (body, table, _) = c15_inline_bounds(&c15_inline_tree(crate::model::style::Alignment::Right, false, " "));
+    assert!(table.x + table.width <= body.x + body.width + 0.1, "actual table clips past body: {table:?}, {body:?}");
+}
+
+#[test]
+fn c15_center_merged_inline_table_uses_rendered_width() {
+    let (body, table, text) = c15_inline_bounds(&c15_inline_tree(crate::model::style::Alignment::Center, false, " "));
+    let content_center = table.x + (table.width + text.width) / 2.0;
+    assert!((content_center - (body.x + body.width / 2.0)).abs() < 0.1, "actual content is not centered: {table:?}, {text:?}");
+}
+
+#[test]
+fn c15_mixed_text_advances_past_merged_inline_table() {
+    let (_, table, text) = c15_inline_bounds(&c15_inline_tree(crate::model::style::Alignment::Left, false, "X"));
+    assert!((text.x - (table.x + table.width)).abs() < 0.1, "text overlaps or leaves a false gap after table: {table:?}, {text:?}");
+}
+
+#[test]
+fn c15_left_inline_table_keeps_its_origin() {
+    let (body, table, _) = c15_inline_bounds(&c15_inline_tree(crate::model::style::Alignment::Left, false, " "));
+    assert!((table.x - body.x).abs() < 0.1);
+}
+
+#[test]
+fn c15_fully_covered_inline_columns_keep_right_alignment() {
+    let (body, table, text) = c15_inline_bounds(&c15_inline_tree(crate::model::style::Alignment::Right, true, "X"));
+    assert!((table.x + table.width + text.width - (body.x + body.width)).abs() < 0.1);
+    assert!((text.x - (table.x + table.width)).abs() < 0.1);
+}
+
 fn c13_table(offset: u32) -> crate::model::table::Table {
     use crate::model::{shape::TextWrap, table::{Cell, Table}};
     Table {

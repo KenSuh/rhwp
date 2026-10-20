@@ -123,19 +123,7 @@ impl LayoutEngine {
                 // col_widths로부터 table_width 계산
                 let col_count = t.col_count as usize;
                 let cell_spacing = hwpunit_to_px(t.cell_spacing as i32, self.dpi);
-                let mut col_widths = vec![0.0f64; col_count];
-                for cell in &t.cells {
-                    let c = cell.col as usize;
-                    let span = cell.col_span.max(1) as usize;
-                    if c + span <= col_count {
-                        let w = hwpunit_to_px(cell.width as i32, self.dpi);
-                        if span == 1 {
-                            if w > col_widths[c] {
-                                col_widths[c] = w;
-                            }
-                        }
-                    }
-                }
+                let col_widths = self.resolve_column_widths(t, col_count);
                 let total: f64 = col_widths.iter().sum::<f64>()
                     + cell_spacing * (col_count.saturating_sub(1) as f64);
                 total

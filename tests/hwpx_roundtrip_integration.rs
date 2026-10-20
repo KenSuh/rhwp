@@ -823,6 +823,129 @@ fn c13_private_c6_target_actual_render_save_reopen_observation() {
     c13_roundtrip_flow(&input, 253, &[254, 255, 256], 11, 7, "c6");
 }
 
+fn c15_artifact(name: &str, bytes: &[u8]) {
+    if let Some(dir) = std::env::var_os("RHWP_C15_ARTIFACT_DIR") {
+        std::fs::write(std::path::Path::new(&dir).join(name), bytes).unwrap();
+    }
+}
+
+fn c15_check_horizontal_bounds(core: &rhwp::document_core::DocumentCore, host: usize, label: &str) {
+    use rhwp::{model::{control::Control, page::ColumnDef}, renderer::page_layout::PageLayoutInfo};
+    let doc = core.document();
+    let table = doc.sections[0].paragraphs[host].controls.iter().find_map(|control| {
+        if let Control::Table(table) = control { Some(table) } else { None }
+    }).expect("the specified host must own a table");
+    let layout = PageLayoutInfo::from_page_def_default(&doc.sections[0].section_def.page_def, &ColumnDef::default());
+    let right = layout.body_area.x + layout.body_area.width;
+    let first = c13_number(&core.get_page_of_position_native(0, host).unwrap(), "page") as u32;
+    let last = if host + 1 < doc.sections[0].paragraphs.len() {
+        c13_number(&core.get_page_of_position_native(0, host + 1).unwrap(), "page") as u32
+    } else { core.page_count() - 1 };
+    let mut observed = std::collections::BTreeSet::new();
+    let mut violations = Vec::new();
+    for page in first..=last {
+        let controls = core.get_page_control_layout_native(page).unwrap();
+        c15_artifact(&format!("{label}-host{host}-p{page}-controls.json"), controls.as_bytes());
+        for fragment in controls.split("{\"type\":\"table\",").skip(1) {
+            let (metadata, cells) = fragment.split_once("\"cells\":[").unwrap();
+            if !metadata.contains(&format!("\"paraIdx\":{host},")) { continue; }
+            assert_eq!(c13_number(metadata, "rowCount"), table.row_count as f64);
+            assert_eq!(c13_number(metadata, "colCount"), table.col_count as f64);
+            let x = c13_number(metadata, "x");
+            let end = x + c13_number(metadata, "w");
+            eprintln!("C15 {label}/host{host}/page{page}: table=[{x},{end}], body=[{},{}]", layout.body_area.x, right);
+            if x < layout.body_area.x - 0.11 || end > right + 0.11 {
+                violations.push(format!("table [{x},{end}] outside body [{},{}]", layout.body_area.x, right));
+            }
+            for cell in cells.split_once(']').unwrap().0.split('}').filter(|cell| cell.contains("\"row\":")) {
+                let row = c13_number(cell, "row") as u16;
+                let col = c13_number(cell, "col") as u16;
+                observed.insert((row, col));
+                let x = c13_number(cell, "x");
+                let end = x + c13_number(cell, "w");
+                if x < layout.body_area.x - 0.11 || end > right + 0.11 {
+                    violations.push(format!("cell({row},{col}) [{x},{end}] outside body"));
+                }
+            }
+        }
+    }
+    let expected: std::collections::BTreeSet<_> = table.cells.iter().map(|cell| (cell.row, cell.col)).collect();
+    assert_eq!(observed, expected, "{label}: every actual owning cell must render");
+    assert!(!observed.is_empty());
+    assert!(violations.is_empty(), "{label}/host{host}: {}", violations.join("; "));
+}
+
+fn c15_table_metadata(core: &rhwp::document_core::DocumentCore, host: usize) -> String {
+    use rhwp::model::control::Control;
+    let table = core.document().sections[0].paragraphs[host].controls.iter().find_map(|control| {
+        if let Control::Table(table) = control { Some(table) } else { None }
+    }).unwrap();
+    format!("{:?}/{:?}/{:?}/{:?}",
+        (table.row_count, table.col_count, table.cell_spacing, table.page_break, table.no_adjust),
+        (table.common.width, table.common.height, table.common.horizontal_offset, table.common.vertical_offset, table.common.treat_as_char),
+        (table.common.horz_rel_to, table.common.horz_align, table.common.vert_rel_to, table.common.vert_align),
+        table.cells.iter().map(|cell| (cell.row, cell.col, cell.row_span, cell.col_span, cell.width, cell.height)).collect::<Vec<_>>())
+}
+
+fn c15_two_save_bounds(input: &[u8], hosts: &[usize], label: &str) {
+    use rhwp::document_core::DocumentCore;
+    let mut core = DocumentCore::from_bytes(input).unwrap();
+    let expected_text = c11_layout(&hwpx_section_xml(input)).texts;
+    let expected_images = c13_images(input);
+    let expected_metadata: Vec<_> = hosts.iter().map(|&host| c15_table_metadata(&core, host)).collect();
+    c15_artifact(&format!("{label}-input.hwpx"), input);
+    for pass in 0..=2 {
+        for (&host, metadata) in hosts.iter().zip(&expected_metadata) {
+            assert_eq!(&c15_table_metadata(&core, host), metadata, "{label}: raw table geometry must survive");
+            c15_check_horizontal_bounds(&core, host, &format!("{label}-pass{pass}"));
+        }
+        if pass < 2 {
+            let saved = core.export_hwpx_native().unwrap();
+            assert_eq!(c11_layout(&hwpx_section_xml(&saved)).texts, expected_text, "{label}: all owned text, including hidden markers, must survive");
+            assert_eq!(c13_images(&saved), expected_images, "{label}: PNG bytes must survive");
+            c15_artifact(&format!("{label}-save{}.hwpx", pass + 1), &saved);
+            core = DocumentCore::from_bytes(&saved).unwrap();
+        }
+    }
+}
+
+#[test]
+fn c15_document_merged_inline_width_survives_two_native_saves() {
+    use std::io::{Cursor, Read, Write};
+    let cells = [(0, 1, 4000), (1, 2, 12000)].into_iter().map(|(col, span, width)| format!(
+        r#"<hp:tc borderFillIDRef="1"><hp:subList>{}</hp:subList><hp:cellAddr colAddr="{col}" rowAddr="0"/><hp:cellSpan colSpan="{span}" rowSpan="1"/><hp:cellSz width="{width}" height="2000"/></hp:tc>"#,
+        c9_paragraph("<hp:t>C15 cell</hp:t>", C9_LINE))).collect::<String>();
+    let body = format!(r#"<hp:p paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="0"><hp:secPr><hp:pagePr width="59528" height="84188"><hp:margin left="5669" right="5669" top="5669" bottom="4252" header="4252" footer="4252" gutter="0"/></hp:pagePr></hp:secPr><hp:tbl id="15" rowCnt="1" colCnt="3" borderFillIDRef="1" pageBreak="CELL" textWrap="TOP_AND_BOTTOM"><hp:sz width="16000" height="2000"/><hp:pos treatAsChar="1" vertOffset="0" horzOffset="0"/><hp:tr>{cells}</hp:tr></hp:tbl><hp:t> </hp:t></hp:run>{}</hp:p>"#,
+        C9_LINE.replace("vertsize=\"1000\"", "vertsize=\"2000\"").replace("horzsize=\"10000\"", "horzsize=\"48188\""));
+    let mut source = zip::ZipArchive::new(Cursor::new(c8_fixture(&body, false))).unwrap();
+    let mut output = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    for index in 0..source.len() {
+        let mut entry = source.by_index(index).unwrap();
+        let name = entry.name().unwrap().to_string();
+        let mut bytes = Vec::new();
+        entry.read_to_end(&mut bytes).unwrap();
+        if name == "Contents/header.xml" {
+            let header = String::from_utf8(bytes).unwrap();
+            assert!(header.contains(r#"horizontal="JUSTIFY""#));
+            bytes = header.replacen(r#"horizontal="JUSTIFY""#, r#"horizontal="RIGHT""#, 1).into_bytes();
+        }
+        output.start_file(&name, zip::write::SimpleFileOptions::default()).unwrap();
+        output.write_all(&bytes).unwrap();
+    }
+    c15_two_save_bounds(&output.finish().unwrap().into_inner(), &[0], "fixture");
+}
+
+#[test]
+fn c15_supplied_c14_inline_target_and_covered_control_two_native_saves() {
+    let Some(path) = std::env::var_os("RHWP_C15_C14_INPUT") else {
+        eprintln!("C15 private C14 observation not requested; the ordinary geometry regression remains active");
+        return;
+    };
+    let input = std::fs::read(path).unwrap();
+    assert_eq!(input.len(), 218909);
+    c15_two_save_bounds(&input, &[145, 74], "c14");
+}
+
 const C9_FLOATING_PICTURE: &str = r#"<hp:pic id="17" instid="29" textWrap="TOP_AND_BOTTOM"><hp:orgSz width="3000" height="2000"/><hp:curSz width="3000" height="2000"/><hc:img binaryItemIDRef="image1"/><hp:sz width="3000" height="2000"/><hp:pos treatAsChar="0"/></hp:pic>"#;
 
 fn c9_paragraph(content: &str, lines: &str) -> String {
