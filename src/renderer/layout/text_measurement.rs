@@ -73,6 +73,11 @@ fn style_params(style: &TextStyle) -> (f64, f64, f64) {
     (font_size, ratio, tab_w)
 }
 
+fn glyph_advance(base_width: f64, ratio: f64, style: &TextStyle) -> f64 {
+    base_width * ratio * (1.0 + style.hwp_letter_spacing_ratio)
+        + style.letter_spacing + style.extra_char_spacing
+}
+
 /// 현재 절대 위치에서 다음 탭 정지를 찾는다.
 ///
 /// Returns (position, tab_type, fill_type).
@@ -214,7 +219,7 @@ impl TextMeasurer for EmbeddedTextMeasurer {
         let char_width = |i: usize| -> f64 {
             let c = chars[i];
             if c == '\u{2007}' {
-                return font_size * 0.5 * ratio + style.letter_spacing + style.extra_char_spacing;
+                return glyph_advance(font_size * 0.5, ratio, style);
             }
             let base_w = if let Some(w) = measure_char_width_embedded(
                 &style.font_family,
@@ -229,7 +234,7 @@ impl TextMeasurer for EmbeddedTextMeasurer {
             } else {
                 font_size * 0.5
             };
-            let mut w = base_w * ratio + style.letter_spacing + style.extra_char_spacing;
+            let mut w = glyph_advance(base_w, ratio, style);
             if c == ' ' {
                 w += style.extra_word_spacing;
             }
@@ -326,7 +331,7 @@ impl TextMeasurer for EmbeddedTextMeasurer {
         let char_width = |i: usize| -> f64 {
             let c = chars[i];
             if c == '\u{2007}' {
-                return font_size * 0.5 * ratio + style.letter_spacing + style.extra_char_spacing;
+                return glyph_advance(font_size * 0.5, ratio, style);
             }
             let base_w = if let Some(w) = measure_char_width_embedded(
                 &style.font_family,
@@ -341,7 +346,7 @@ impl TextMeasurer for EmbeddedTextMeasurer {
             } else {
                 font_size * 0.5
             };
-            let mut w = base_w * ratio + style.letter_spacing + style.extra_char_spacing;
+            let mut w = glyph_advance(base_w, ratio, style);
             if c == ' ' {
                 w += style.extra_word_spacing;
             }
@@ -618,7 +623,7 @@ impl TextMeasurer for WasmTextMeasurer {
         let char_width = |i: usize| -> f64 {
             let c = chars[i];
             if c == '\u{2007}' {
-                return font_size * 0.5 * ratio + style.letter_spacing + style.extra_char_spacing;
+                return glyph_advance(font_size * 0.5, ratio, style);
             }
             let char_px = if cluster_len[i] > 1 {
                 hangul_hwp as f64 / 75.0
@@ -633,7 +638,7 @@ impl TextMeasurer for WasmTextMeasurer {
                     font_size,
                 )
             };
-            let mut w = char_px * ratio + style.letter_spacing + style.extra_char_spacing;
+            let mut w = glyph_advance(char_px, ratio, style);
             if c == ' ' {
                 w += style.extra_word_spacing;
             }
@@ -708,7 +713,7 @@ impl TextMeasurer for WasmTextMeasurer {
         let char_width = |i: usize| -> f64 {
             let c = chars[i];
             if c == '\u{2007}' {
-                return font_size * 0.5 * ratio + style.letter_spacing + style.extra_char_spacing;
+                return glyph_advance(font_size * 0.5, ratio, style);
             }
             let char_px = if cluster_len[i] > 1 {
                 hangul_hwp as f64 / 75.0
@@ -723,7 +728,7 @@ impl TextMeasurer for WasmTextMeasurer {
                     font_size,
                 )
             };
-            let mut w = char_px * ratio + style.letter_spacing + style.extra_char_spacing;
+            let mut w = glyph_advance(char_px, ratio, style);
             if c == ' ' {
                 w += style.extra_word_spacing;
             }
@@ -807,7 +812,8 @@ pub(crate) fn resolved_to_text_style(
             italic: cs.italic,
             underline: cs.underline,
             strikethrough: cs.strikethrough,
-            letter_spacing: cs.letter_spacing_for_lang(lang_index),
+            letter_spacing: cs.absolute_letter_spacing_for_lang(lang_index),
+            hwp_letter_spacing_ratio: cs.hwp_letter_spacing_ratio_for_lang(lang_index),
             ratio: cs.ratio_for_lang(lang_index),
             default_tab_width: 0.0,
             tab_stops: Vec::new(),
@@ -916,7 +922,7 @@ pub(crate) fn estimate_text_width_unrounded(text: &str, style: &TextStyle) -> f6
     let char_width = |i: usize| -> f64 {
         let c = chars[i];
         if c == '\u{2007}' {
-            return font_size * 0.5 * ratio + style.letter_spacing + style.extra_char_spacing;
+            return glyph_advance(font_size * 0.5, ratio, style);
         }
         let base_w = if let Some(w) =
             measure_char_width_embedded(&style.font_family, style.bold, style.italic, c, font_size)
@@ -927,7 +933,7 @@ pub(crate) fn estimate_text_width_unrounded(text: &str, style: &TextStyle) -> f6
         } else {
             font_size * 0.5
         };
-        let mut w = base_w * ratio + style.letter_spacing + style.extra_char_spacing;
+        let mut w = glyph_advance(base_w, ratio, style);
         if c == ' ' {
             w += style.extra_word_spacing;
         }
@@ -1111,6 +1117,91 @@ pub(crate) fn vertical_substitute_char(c: char) -> Option<char> {
 mod tests {
     use super::*;
 
+    fn c20_hwp_spacing_styles(spacings: [i8; 7], ratios: [u8; 7]) -> ResolvedStyleSet {
+        use crate::model::{document::DocInfo, style::{CharShape, Font}};
+        crate::renderer::style_resolver::resolve_styles(&DocInfo {
+            font_faces: (0..7).map(|_| vec![Font { name: "Arial".into(), ..Default::default() }]).collect(),
+            char_shapes: vec![
+                CharShape { base_size: 1000, spacings: [0; 7], ratios, ..Default::default() },
+                CharShape { base_size: 1000, spacings, ratios, ..Default::default() },
+            ],
+            ..Default::default()
+        }, 96.0)
+    }
+
+    fn c20_check_relative_advances(spacings: [i8; 7], ratios: [u8; 7], languages: &[usize]) {
+        let styles = c20_hwp_spacing_styles(spacings, ratios);
+        let text = "w.w한\u{2007}A";
+        for &lang in languages {
+            let base = resolved_to_text_style(&styles, 0, lang);
+            let spaced = resolved_to_text_style(&styles, 1, lang);
+            let base_x = compute_char_positions(text, &base);
+            let spaced_x = compute_char_positions(text, &spaced);
+            assert!(base_x[1] > base_x[2] - base_x[1], "fixture must distinguish wide w and narrow dot");
+            let factor = 1.0 + spacings[lang] as f64 / 100.0;
+            eprintln!("C20 spacing lang={lang} percent={} ratio={} base={base_x:?} actual={spaced_x:?}", spacings[lang], ratios[lang]);
+            for index in 0..base_x.len() - 1 {
+                let expected = (base_x[index + 1] - base_x[index]) * factor;
+                let actual = spaced_x[index + 1] - spaced_x[index];
+                assert!((actual - expected).abs() < 0.000001,
+                    "lang {lang}/glyph {index}: HWP {}% must scale glyph advance {expected}, got {actual}", spacings[lang]);
+                assert!(actual >= 0.0);
+            }
+            assert!((estimate_text_width_unrounded(text, &spaced) - spaced_x.last().unwrap()).abs() < 0.000001);
+        }
+    }
+
+    #[test]
+    fn c20_hwp_negative_spacing_scales_each_glyph_advance() {
+        c20_check_relative_advances([-19; 7], [100; 7], &[0, 1]);
+    }
+
+    #[test]
+    fn c20_hwp_positive_spacing_scales_each_glyph_advance() {
+        c20_check_relative_advances([20; 7], [100; 7], &[0, 1]);
+    }
+
+    #[test]
+    fn c20_hwp_language_spacing_and_width_ratio_apply_once() {
+        c20_check_relative_advances([0, -19, 20, -5, 10, 0, -10], [100, 80, 120, 90, 110, 100, 100], &[0, 1, 2, 3, 4, 5, 6]);
+    }
+
+    #[test]
+    fn c20_relative_spacing_keeps_absolute_additions_clusters_and_tabs() {
+        let text = "w.\u{2007} \u{1100}\u{1161}\u{11A8}";
+        let base = TextStyle { font_family: "Arial".into(), font_size: 16.0, ..Default::default() };
+        let base_x = compute_char_positions(text, &base);
+        for relative in [-0.19, 0.0, 0.20] {
+            let style = TextStyle {
+                ratio: 0.8, hwp_letter_spacing_ratio: relative,
+                letter_spacing: 1.5, extra_char_spacing: 0.5, extra_word_spacing: 3.0,
+                ..base.clone()
+            };
+            let positions = compute_char_positions(text, &style);
+            let chars: Vec<_> = text.chars().collect();
+            for index in [0, 1, 2, 3, 4] {
+                let expected = (base_x[index + 1] - base_x[index]) * 0.8 * (1.0 + relative)
+                    + 2.0 + if chars[index] == ' ' { 3.0 } else { 0.0 };
+                assert!((positions[index + 1] - positions[index] - expected).abs() < 0.000001);
+            }
+            assert_eq!(positions[5], positions[6]);
+            assert_eq!(positions[6], positions[7]);
+            assert!((estimate_text_width_unrounded(text, &style) - positions.last().unwrap()).abs() < 0.000001);
+            let tabbed = compute_char_positions("w\t.", &TextStyle { default_tab_width: 48.0, ..style });
+            assert_eq!(tabbed[2], 48.0, "relative glyph spacing must not scale a tab stop");
+        }
+        let direct = ResolvedStyleSet {
+            char_styles: vec![crate::renderer::style_resolver::ResolvedCharStyle {
+                letter_spacing: 1.5, hwp_letter_spacing_ratios: vec![-0.19; 7],
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let style = resolved_to_text_style(&direct, 0, 1);
+        assert_eq!(style.letter_spacing, 1.5, "a direct px caller remains additive with explicit relative spacing");
+        assert_eq!(style.hwp_letter_spacing_ratio, -0.19);
+    }
+
     /// 테스트용 고정 폭 텍스트 측정기
     ///
     /// 모든 문자를 동일한 폭으로 측정한다.
@@ -1133,7 +1224,7 @@ mod tests {
                     total = ((total / tab_w).floor() + 1.0) * tab_w;
                     continue;
                 }
-                total += self.char_width * ratio + style.letter_spacing + style.extra_char_spacing;
+                total += glyph_advance(self.char_width, ratio, style);
                 if chars[i] == ' ' {
                     total += style.extra_word_spacing;
                 }
@@ -1158,7 +1249,7 @@ mod tests {
                     positions.push(x);
                     continue;
                 }
-                x += self.char_width * ratio + style.letter_spacing + style.extra_char_spacing;
+                x += glyph_advance(self.char_width, ratio, style);
                 if chars[i] == ' ' {
                     x += style.extra_word_spacing;
                 }

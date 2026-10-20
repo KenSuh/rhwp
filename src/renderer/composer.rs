@@ -1115,6 +1115,7 @@ mod line_breaking;
 pub mod lineseg_compare;
 
 pub(crate) use line_breaking::{
+    invalid_cell_hanging_indent, reflow_horizontal_cell_line_segs,
     is_line_end_forbidden, is_line_start_forbidden, recalculate_section_vpos, reflow_line_segs,
     tokenize_paragraph, BreakToken,
 };

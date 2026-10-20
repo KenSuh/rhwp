@@ -41,6 +41,10 @@ pub struct ResolvedCharStyle {
     pub letter_spacing: f64,
     /// 7개 언어 카테고리별 자간 (px)
     pub letter_spacings: Vec<f64>,
+    /// 측정용 절대 자간(px). 비어 있으면 기존 px API, HWP는 CSS 투영과 분리해 0을 사용한다.
+    pub absolute_letter_spacings: Vec<f64>,
+    /// 7개 언어별 HWP 글리프 advance 대비 자간 비율 (px 자간과 별개)
+    pub hwp_letter_spacing_ratios: Vec<f64>,
     /// 장평 비율 (1.0 = 100%, 한국어 = 기본값, ratios[0]과 동일)
     pub ratio: f64,
     /// 7개 언어 카테고리별 장평 비율
@@ -92,6 +96,8 @@ impl Default for ResolvedCharStyle {
             strikethrough: false,
             letter_spacing: 0.0,
             letter_spacings: Vec::new(),
+            absolute_letter_spacings: Vec::new(),
+            hwp_letter_spacing_ratios: Vec::new(),
             ratio: 1.0,
             ratios: Vec::new(),
             border_fill_id: 0,
@@ -133,6 +139,18 @@ impl ResolvedCharStyle {
         } else {
             self.letter_spacing
         }
+    }
+
+    pub fn hwp_letter_spacing_ratio_for_lang(&self, lang_index: usize) -> f64 {
+        self.hwp_letter_spacing_ratios.get(lang_index)
+            .or_else(|| self.hwp_letter_spacing_ratios.first())
+            .copied().unwrap_or(0.0)
+    }
+
+    pub fn absolute_letter_spacing_for_lang(&self, lang_index: usize) -> f64 {
+        self.absolute_letter_spacings.get(lang_index)
+            .or_else(|| self.absolute_letter_spacings.first())
+            .copied().unwrap_or_else(|| self.letter_spacing_for_lang(lang_index))
     }
 
     /// 지정 언어 카테고리의 장평 비율을 반환한다.
@@ -314,6 +332,7 @@ fn resolve_single_char_style(cs: &CharShape, doc_info: &DocInfo, dpi: f64) -> Re
     // 7개 언어 카테고리별 폰트 이름, 자간, 장평 해소
     let mut font_families = Vec::with_capacity(LANG_COUNT);
     let mut letter_spacings = Vec::with_capacity(LANG_COUNT);
+    let mut hwp_letter_spacing_ratios = Vec::with_capacity(LANG_COUNT);
     let mut ratios = Vec::with_capacity(LANG_COUNT);
 
     for lang in 0..LANG_COUNT {
@@ -322,13 +341,13 @@ fn resolve_single_char_style(cs: &CharShape, doc_info: &DocInfo, dpi: f64) -> Re
 
         let spacing_percent = cs.spacings[lang] as f64;
         letter_spacings.push(font_size * spacing_percent / 100.0);
+        hwp_letter_spacing_ratios.push(spacing_percent / 100.0);
 
         ratios.push(cs.ratios[lang] as f64 / 100.0);
     }
 
     // 한국어(0번) 값을 기본값으로 사용
     let font_family = font_families[0].clone();
-    let letter_spacing = letter_spacings[0];
     let ratio = ratios[0];
 
     ResolvedCharStyle {
@@ -342,8 +361,10 @@ fn resolve_single_char_style(cs: &CharShape, doc_info: &DocInfo, dpi: f64) -> Re
         underline_color: cs.underline_color,
         strike_color: cs.strike_color,
         strikethrough: cs.strikethrough,
-        letter_spacing,
+        letter_spacing: letter_spacings[0],
         letter_spacings,
+        absolute_letter_spacings: vec![0.0; LANG_COUNT],
+        hwp_letter_spacing_ratios,
         ratio,
         ratios,
         border_fill_id: cs.border_fill_id,
@@ -957,9 +978,10 @@ mod tests {
         // 첫 번째: spacing=0 → 0.0 px
         assert!((styles.char_styles[0].letter_spacing - 0.0).abs() < 0.01);
 
-        // 두 번째: spacing=-5, font_size ≈ 13.33 → -5% * 13.33 ≈ -0.67
         let expected = styles.char_styles[1].font_size * -5.0 / 100.0;
         assert!((styles.char_styles[1].letter_spacing - expected).abs() < 0.01);
+        assert_eq!(styles.char_styles[1].absolute_letter_spacing_for_lang(0), 0.0);
+        assert!((styles.char_styles[1].hwp_letter_spacing_ratio_for_lang(0) + 0.05).abs() < 0.0001);
     }
 
     #[test]
@@ -1161,7 +1183,9 @@ mod tests {
         let cs = &styles.char_styles[0];
         assert!((cs.letter_spacings[0] - 0.0).abs() < 0.01); // 한국어 spacing=0
         let expected_en = cs.font_size * -5.0 / 100.0;
-        assert!((cs.letter_spacings[1] - expected_en).abs() < 0.01); // 영어 spacing=-5
+        assert!((cs.letter_spacings[1] - expected_en).abs() < 0.01);
+        assert_eq!(cs.absolute_letter_spacing_for_lang(1), 0.0);
+        assert!((cs.hwp_letter_spacing_ratio_for_lang(1) + 0.05).abs() < 0.0001);
     }
 
     // === TTF 폰트 치환 보완 테스트 ===

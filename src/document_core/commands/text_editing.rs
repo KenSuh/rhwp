@@ -7,7 +7,7 @@ use crate::model::control::Control;
 use crate::model::event::DocumentEvent;
 use crate::model::page::ColumnDef;
 use crate::model::paragraph::Paragraph;
-use crate::renderer::composer::{compose_paragraph, reflow_line_segs, ComposedParagraph};
+use crate::renderer::composer::{compose_paragraph, reflow_horizontal_cell_line_segs, reflow_line_segs, ComposedParagraph};
 use crate::renderer::page_layout::PageLayoutInfo;
 use crate::renderer::px_to_hwpunit;
 
@@ -647,7 +647,11 @@ impl DocumentCore {
                     }
                 } else if let Some(cell) = table.cells.get_mut(cell_idx) {
                     if let Some(cell_para) = cell.paragraphs.get_mut(cell_para_idx) {
-                        reflow_line_segs(cell_para, final_width, &self.styles, self.dpi);
+                        if cell.text_direction == 0 {
+                            reflow_horizontal_cell_line_segs(cell_para, final_width, &self.styles, self.dpi);
+                        } else {
+                            reflow_line_segs(cell_para, final_width, &self.styles, self.dpi);
+                        }
                     }
                 }
             }
@@ -1075,7 +1079,7 @@ impl DocumentCore {
                 let Some(cell_para) = cell.paragraphs.get_mut(cell_para_idx) else {
                     return false;
                 };
-                reflow_line_segs(cell_para, final_width, styles, dpi);
+                reflow_horizontal_cell_line_segs(cell_para, final_width, styles, dpi);
                 return true;
             }
             let Some(next_para) = cell.paragraphs.get_mut(cell_para_idx) else {
@@ -2651,6 +2655,156 @@ impl DocumentCore {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn c20_cell_core(direction: u8, nested: bool) -> (DocumentCore, Vec<(usize, usize, usize)>) {
+        use crate::model::{table::{Cell, Table}, Padding};
+        let mut core = DocumentCore::new_empty();
+        core.create_blank_document_native().unwrap();
+        let raw = &mut core.document.doc_info.para_shapes[0];
+        raw.indent = -41000;
+        raw.margin_left = 0;
+        raw.margin_right = 0;
+        raw.alignment = crate::model::style::Alignment::Center;
+        core.styles = crate::renderer::style_resolver::resolve_styles(&core.document.doc_info, core.dpi);
+        let mut paragraph = Paragraph::new_empty();
+        paragraph.insert_text_at(0, &"contact www.hometax.go.kr 문의 안내 ".repeat(4));
+        paragraph.char_shapes = vec![crate::model::paragraph::CharShapeRef::default()];
+        assert!(!core.document.doc_info.border_fills.is_empty());
+        let mut cell = Cell::new_empty(0, 0, 10000, 40000, 1);
+        cell.text_direction = direction;
+        cell.paragraphs = vec![paragraph];
+        let mut table = Table {
+            row_count: 1, col_count: 1, border_fill_id: 1, cells: vec![cell],
+            padding: Padding { left: 300, right: 450, top: 0, bottom: 0 },
+            ..Default::default()
+        };
+        table.update_ctrl_dimensions();
+        let mut path = vec![(0, 0, 0)];
+        if nested {
+            let mut outer = Cell::new_empty(0, 0, 16000, 50000, 1);
+            outer.paragraphs[0].controls = vec![Control::Table(Box::new(table))];
+            table = Table { row_count: 1, col_count: 1, border_fill_id: 1, cells: vec![outer], ..Default::default() };
+            table.update_ctrl_dimensions();
+            path.push((0, 0, 0));
+        }
+        core.document.sections[0].paragraphs[0].controls = vec![Control::Table(Box::new(table))];
+        core.recompose_section(0);
+        (core, path)
+    }
+
+    fn c20_assert_cell_wrap(subject: &DocumentCore, reference: &DocumentCore, parent: usize, path: &[(usize, usize, usize)], stage: &str) {
+        let subject = subject.get_cell_paragraph_ref_by_path(0, parent, path).unwrap();
+        let reference = reference.get_cell_paragraph_ref_by_path(0, parent, path).unwrap();
+        let starts = |paragraph: &Paragraph| paragraph.line_segs.iter().map(|line| line.text_start).collect::<Vec<_>>();
+        eprintln!("C20 caller {stage}: subject={:?}, full-width reference={:?}", starts(subject), starts(reference));
+        assert_eq!(subject.text, reference.text, "{stage}");
+        assert_eq!(starts(subject), starts(reference), "{stage}: current horizontal cell width must drive reflow");
+        assert!(subject.line_segs.iter().all(|line| line.segment_width > 1));
+    }
+
+    #[test]
+    fn c20_hwp_clipboard_keeps_legacy_nonzero_spacing_projection() {
+        let (mut core, _) = c20_cell_core(0, false);
+        core.document.doc_info.char_shapes[0].base_size = 1000;
+        core.document.doc_info.char_shapes[0].spacings = [-19; 7];
+        core.styles = crate::renderer::style_resolver::resolve_styles(&core.document.doc_info, core.dpi);
+        let css = core.char_style_to_css(0);
+        eprintln!("C20 actual clipboard CSS: {css}");
+        assert!(css.contains("letter-spacing:-2.5px;"), "the existing HWP clipboard CSS projection must survive");
+        let measured = crate::renderer::layout::resolved_to_text_style(&core.styles, 0, 1);
+        assert_eq!(measured.letter_spacing, 0.0, "legacy CSS projection must not be counted again in glyph advances");
+        assert_eq!(measured.hwp_letter_spacing_ratio, -0.19);
+    }
+
+    #[test]
+    fn c20_nested_horizontal_and_vertical_legacy_use_separate_reflow_entries() {
+        let (mut horizontal, path) = c20_cell_core(0, true);
+        let (mut reference, _) = c20_cell_core(0, true);
+        reference.apply_para_format_in_cell_by_path_native(0, 0, &path, "{\"indent\":0}").unwrap();
+        let end = horizontal.get_cell_paragraph_ref_by_path(0, 0, &path).unwrap().text.chars().count();
+        horizontal.insert_text_in_cell_by_path(0, 0, &path, end, "편😀").unwrap();
+        reference.insert_text_in_cell_by_path(0, 0, &path, end, "편😀").unwrap();
+        c20_assert_cell_wrap(&horizontal, &reference, 0, &path, "nested Unicode edit");
+        horizontal.apply_para_format_in_cell_by_path_native(0, 0, &path, "{\"lineSpacing\":180}").unwrap();
+        reference.apply_para_format_in_cell_by_path_native(0, 0, &path, "{\"lineSpacing\":180}").unwrap();
+        c20_assert_cell_wrap(&horizontal, &reference, 0, &path, "nested paragraph format");
+    }
+
+    #[test]
+    fn c20_vertical_cell_path_keeps_legacy_indent_reflow() {
+        let (mut core, path) = c20_cell_core(1, true);
+        let mut expected = core.get_cell_paragraph_ref_by_path(0, 0, &path).unwrap().clone();
+        reflow_line_segs(&mut expected, crate::renderer::hwpunit_to_px(9250, core.dpi), &core.styles, core.dpi);
+        assert!(core.reflow_cell_paragraph_by_path(0, 0, &path));
+        let actual = core.get_cell_paragraph_ref_by_path(0, 0, &path).unwrap();
+        assert_eq!(format!("{:?}", actual.line_segs), format!("{:?}", expected.line_segs));
+    }
+
+    #[test]
+    fn c20_document_load_synthesizes_uncomputed_horizontal_cell_geometry() {
+        let (mut subject, path) = c20_cell_core(0, true);
+        let (mut reference, _) = c20_cell_core(0, true);
+        reference.apply_para_format_in_cell_by_path_native(0, 0, &path, "{\"indent\":0}").unwrap();
+        subject.get_cell_paragraph_mut_by_path(0, 0, &path).unwrap().line_segs = vec![Default::default()];
+        reference.get_cell_paragraph_mut_by_path(0, 0, &path).unwrap().line_segs = vec![Default::default()];
+        let mut loaded = Vec::new();
+        for (name, mut core) in [("subject", subject), ("reference", reference)] {
+            core.document.sections[0].paragraphs.insert(0, Paragraph::new_empty());
+            let input = crate::serializer::serialize_hwpx(&core.document).unwrap();
+            if let Some(dir) = std::env::var_os("RHWP_C20_ARTIFACT_DIR") {
+                std::fs::write(std::path::Path::new(&dir).join(format!("uncomputed-{name}-input.hwpx")), &input).unwrap();
+            }
+            let parsed = crate::parser::hwpx::parse_hwpx(&input).unwrap();
+            assert_eq!(parsed.sections[0].paragraphs.len(), 2);
+            assert!(matches!(parsed.sections[0].paragraphs[0].controls[0], Control::ColumnDef(_)));
+            let mut paragraph = &parsed.sections[0].paragraphs[1];
+            for &(control, cell, para) in &path {
+                let Control::Table(table) = &paragraph.controls[control] else { panic!("the exact nested owner must remain a table") };
+                paragraph = &table.cells[cell].paragraphs[para];
+            }
+            assert!(paragraph.line_segs.iter().all(|line| line.line_height == 0), "serialized owner must actually lack computed geometry");
+            loaded.push(DocumentCore::from_bytes(&input).unwrap());
+        }
+        let subject = &loaded[0];
+        let reference = &loaded[1];
+        c20_assert_cell_wrap(subject, reference, 1, &path, "public load with uncomputed geometry");
+        let paragraph = subject.get_cell_paragraph_ref_by_path(0, 1, &path).unwrap();
+        assert!(paragraph.line_segs.iter().all(|line| line.line_height > 0));
+        assert_eq!(subject.document.doc_info.para_shapes[paragraph.para_shape_id as usize].indent, -41000);
+    }
+
+    #[test]
+    fn c20_horizontal_cell_format_resize_and_picture_delete_use_current_geometry() {
+        let (mut subject, path) = c20_cell_core(0, false);
+        let (mut reference, _) = c20_cell_core(0, false);
+        reference.apply_para_format_in_cell_native(0, 0, 0, 0, 0, "{\"indent\":0}").unwrap();
+        let end = subject.get_cell_paragraph_ref_by_path(0, 0, &path).unwrap().text.chars().count();
+        for core in [&mut subject, &mut reference] {
+            core.apply_char_format_in_cell_native(0, 0, 0, 0, 0, 0, end, "{\"fontSize\":1200}").unwrap();
+        }
+        c20_assert_cell_wrap(&subject, &reference, 0, &path, "character format");
+        for core in [&mut subject, &mut reference] {
+            core.apply_para_format_in_cell_native(0, 0, 0, 0, 0, "{\"lineSpacing\":180}").unwrap();
+        }
+        c20_assert_cell_wrap(&subject, &reference, 0, &path, "paragraph format");
+        for core in [&mut subject, &mut reference] {
+            core.resize_table_cells_native(0, 0, 0, "[{\"cellIdx\":0,\"widthDelta\":1500,\"heightDelta\":0}]").unwrap();
+        }
+        c20_assert_cell_wrap(&subject, &reference, 0, &path, "current resized width");
+        for core in [&mut subject, &mut reference] {
+            let paragraph = core.get_cell_paragraph_mut_by_path(0, 0, &path).unwrap();
+            paragraph.controls.push(Control::Picture(Box::new(crate::model::image::Picture::default())));
+            paragraph.char_count += 8;
+            for line in &mut paragraph.line_segs { line.segment_width = 1500; }
+            core.delete_picture_control_by_path_native(0, 0,
+                "[{\"controlIndex\":0,\"cellIndex\":0,\"cellParaIndex\":0}]", 0).unwrap();
+        }
+        c20_assert_cell_wrap(&subject, &reference, 0, &path, "delete ignores stale cached width");
+        let paragraph = subject.get_cell_paragraph_ref_by_path(0, 0, &path).unwrap();
+        assert!(paragraph.controls.is_empty());
+        assert!(paragraph.line_segs.iter().all(|line| line.segment_width == 10750));
+        assert_eq!(subject.document.doc_info.para_shapes[paragraph.para_shape_id as usize].indent, -41000);
+    }
 
     #[test]
     fn caption_sentinel_keeps_caption_reflow_with_a_vertical_physical_slot() {

@@ -1,6 +1,6 @@
 //! 문단 레이아웃 (인라인 표, 문단 전체/부분, composed/raw) + 번호 매기기
 
-use super::super::composer::{compose_paragraph, ComposedParagraph};
+use super::super::composer::{compose_paragraph, invalid_cell_hanging_indent, ComposedParagraph};
 use super::super::height_measurer::MeasuredTable;
 use super::super::page_layout::LayoutRect;
 use super::super::render_tree::*;
@@ -769,6 +769,15 @@ impl LayoutEngine {
         let tab_stops = para_style.map(|s| s.tab_stops.clone()).unwrap_or_default();
         let auto_tab_right = para_style.map(|s| s.auto_tab_right).unwrap_or(false);
 
+        let recover_cell_indent = matches!(&col_node.node_type, RenderNodeType::TableCell(_))
+            && cell_ctx.as_ref().and_then(|ctx| ctx.path.last())
+                .is_some_and(|entry| entry.text_direction == 0 && entry.cell_index < 65534)
+            && composed.numbering_text.is_none() && composed.tac_controls.is_empty()
+            && first_line_x_offset == 0.0
+            && para.is_some_and(|p| invalid_cell_hanging_indent(
+                p, col_area.width - margin_left - margin_right, styles,
+            ));
+
         // treat_as_char 컨트롤의 px 폭 목록 (절대 char 위치, px 폭, control_index) — 정렬 보장
         let tac_offsets_px: Vec<(usize, f64, usize)> = {
             let mut v: Vec<(usize, f64, usize)> = composed
@@ -925,7 +934,17 @@ impl LayoutEngine {
             } else {
                 0.0
             };
-            let effective_margin_left = margin_left + line_indent;
+            let saved_start = hwpunit_to_px(comp_line.column_start, self.dpi);
+            let saved_width = hwpunit_to_px(comp_line.segment_width, self.dpi);
+            let inner_width = col_area.width - margin_left - margin_right;
+            let recover_line = recover_cell_indent && line_idx > 0
+                && saved_start >= 0.0 && saved_width > 0.0
+                && (saved_start + saved_width - inner_width).abs() <= hwpunit_to_px(2, self.dpi);
+            let (effective_margin_left, line_width) = if recover_line {
+                (margin_left + saved_start, saved_width)
+            } else {
+                (margin_left + line_indent, inner_width - line_indent)
+            };
 
             // 인라인 Shape가 있는 줄: 텍스트 y를 Shape 하단 baseline에 맞춤
             let text_y = if has_tac_shape && raw_lh > max_fs * 1.5 {
@@ -961,7 +980,7 @@ impl LayoutEngine {
                 BoundingBox::new(
                     col_area.x + effective_margin_left,
                     text_y,
-                    col_area.width - effective_margin_left - margin_right,
+                    line_width,
                     line_height,
                 ),
             );
@@ -977,8 +996,7 @@ impl LayoutEngine {
             } else {
                 0.0
             };
-            let available_width =
-                col_area.width - effective_margin_left - margin_right - inline_offset - num_offset;
+            let available_width = line_width - inline_offset - num_offset;
 
             // 텍스트 정렬을 위한 전체 줄 폭 계산 (자연 폭, 추가 간격 미포함)
             // treat_as_char 이미지 폭도 포함하여 정확한 폭 산출

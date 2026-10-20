@@ -785,7 +785,7 @@ impl DocumentCore {
         }
 
         // line_segs 재계산: 그림 높이가 반영된 line_segs를 텍스트 기반으로 리셋
-        Self::reflow_paragraph_line_segs_after_control_delete(para, &self.styles, self.dpi);
+        Self::reflow_paragraph_line_segs_after_control_delete(para, &self.styles, self.dpi, None);
 
         section.raw_stream = None;
         self.recompose_section(section_idx);
@@ -834,9 +834,15 @@ impl DocumentCore {
                         )))
                     }
                 };
+                let table_padding = table.padding;
                 let cell = table.cells.get_mut(cell_idx).ok_or_else(|| {
                     HwpError::RenderError(format!("경로[{}]: 셀 {} 범위 초과", i, cell_idx))
                 })?;
+                let cell_geometry = if cell.text_direction == 0 {
+                    super::super::helpers::cell_reflow_geometry(cell, table_padding)
+                } else {
+                    None
+                };
                 let cell_para = cell.paragraphs.get_mut(cell_para_idx).ok_or_else(|| {
                     HwpError::RenderError(format!(
                         "경로[{}]: 셀문단 {} 범위 초과",
@@ -911,7 +917,14 @@ impl DocumentCore {
                     if cell_para.char_count >= 8 {
                         cell_para.char_count -= 8;
                     }
-                    Self::reflow_paragraph_line_segs_after_control_delete(cell_para, styles, dpi);
+                    let horizontal_width = cell_geometry.map(|(extent, before, after)| {
+                        let style = styles.para_styles.get(cell_para.para_shape_id as usize);
+                        crate::renderer::hwpunit_to_px(extent, dpi)
+                            - crate::renderer::hwpunit_to_px(before as i32, dpi)
+                            - crate::renderer::hwpunit_to_px(after as i32, dpi)
+                            - style.map(|s| s.margin_left + s.margin_right).unwrap_or(0.0)
+                    }).filter(|width| width.is_finite() && *width > 0.0);
+                    Self::reflow_paragraph_line_segs_after_control_delete(cell_para, styles, dpi, horizontal_width);
                     break;
                 }
 
@@ -938,6 +951,7 @@ impl DocumentCore {
         para: &mut Paragraph,
         styles: &crate::renderer::style_resolver::ResolvedStyleSet,
         dpi: f64,
+        horizontal_cell_width: Option<f64>,
     ) {
         // 남은 컨트롤 중 가장 큰 높이 계산
         let max_remaining_ctrl_height = para
@@ -968,9 +982,13 @@ impl DocumentCore {
             }
         } else {
             // 텍스트가 있으면 reflow_line_segs로 재계산
-            let seg_width = para.line_segs.first().map(|s| s.segment_width).unwrap_or(0);
-            let available_width_px = crate::renderer::hwpunit_to_px(seg_width, dpi);
-            crate::renderer::composer::reflow_line_segs(para, available_width_px, styles, dpi);
+            if let Some(width) = horizontal_cell_width {
+                crate::renderer::composer::reflow_horizontal_cell_line_segs(para, width, styles, dpi);
+            } else {
+                let seg_width = para.line_segs.first().map(|s| s.segment_width).unwrap_or(0);
+                let available_width_px = crate::renderer::hwpunit_to_px(seg_width, dpi);
+                crate::renderer::composer::reflow_line_segs(para, available_width_px, styles, dpi);
+            }
         }
     }
 
@@ -3007,7 +3025,7 @@ impl DocumentCore {
         }
 
         // line_segs 재계산: 도형 높이가 반영된 line_segs를 텍스트 기반으로 리셋
-        Self::reflow_paragraph_line_segs_after_control_delete(para, &self.styles, self.dpi);
+        Self::reflow_paragraph_line_segs_after_control_delete(para, &self.styles, self.dpi, None);
 
         section.raw_stream = None;
         self.recompose_section(section_idx);

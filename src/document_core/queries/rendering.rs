@@ -449,13 +449,14 @@ impl DocumentCore {
 
                 let escaped_font = super::super::helpers::json_escape(&text_run.style.font_family);
                 let font_info = format!(
-                    ",\"fontFamily\":\"{}\",\"fontSize\":{:.1},\"bold\":{},\"italic\":{},\"ratio\":{:.2},\"letterSpacing\":{:.1}",
+                    ",\"fontFamily\":\"{}\",\"fontSize\":{:.1},\"bold\":{},\"italic\":{},\"ratio\":{:.2},\"letterSpacing\":{:.1},\"hwpLetterSpacingRatio\":{:.4}",
                     escaped_font,
                     text_run.style.font_size,
                     text_run.style.bold,
                     text_run.style.italic,
                     text_run.style.ratio,
                     text_run.style.letter_spacing,
+                    text_run.style.hwp_letter_spacing_ratio,
                 );
 
                 // 서식 툴바용 추가 속성

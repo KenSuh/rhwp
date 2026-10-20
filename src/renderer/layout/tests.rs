@@ -24,6 +24,137 @@ fn a4_page_def() -> PageDef {
     }
 }
 
+fn c20_indent_paragraph(indent: f64, alignment: Alignment) -> (Paragraph, ResolvedStyleSet) {
+    let text = "contact www.hometax.go.kr 문의 안내 ".repeat(4);
+    let mut paragraph = Paragraph::new_empty();
+    paragraph.insert_text_at(0, &text);
+    paragraph.char_shapes = vec![CharShapeRef::default()];
+    paragraph.line_segs = [0, 8].into_iter().map(|text_start| LineSeg {
+        text_start, line_height: 1000, text_height: 1000, baseline_distance: 850,
+        column_start: 750, segment_width: 6750, ..Default::default()
+    }).collect();
+    let styles = ResolvedStyleSet {
+        para_styles: vec![super::super::style_resolver::ResolvedParaStyle {
+            indent, alignment, ..Default::default()
+        }],
+        char_styles: vec![super::super::style_resolver::ResolvedCharStyle::default()],
+        ..Default::default()
+    };
+    (paragraph, styles)
+}
+
+#[test]
+fn c20_cell_reflow_recovers_only_impossible_unoccupied_hanging_width() {
+    use crate::renderer::composer::{reflow_horizontal_cell_line_segs, reflow_line_segs};
+    for alignment in [Alignment::Left, Alignment::Right, Alignment::Center, Alignment::Justify] {
+        for indent in [-200.0, -20.0, 20.0] {
+            let (paragraph, styles) = c20_indent_paragraph(indent, alignment);
+            let mut cell = paragraph.clone();
+            let mut reference = paragraph.clone();
+            let expected_styles = c20_indent_paragraph(if indent == -200.0 { 0.0 } else { indent }, alignment).1;
+            reflow_line_segs(&mut reference, 100.0, &expected_styles, DEFAULT_DPI);
+            reflow_horizontal_cell_line_segs(&mut cell, 100.0, &styles, DEFAULT_DPI);
+            assert_eq!(format!("{:?}", cell.line_segs), format!("{:?}", reference.line_segs), "{alignment:?}/{indent}");
+            assert_eq!(cell.text, paragraph.text);
+            assert_eq!(styles.para_styles[0].indent, indent);
+        }
+    }
+    let (paragraph, styles) = c20_indent_paragraph(-200.0, Alignment::Center);
+    let mut body = paragraph.clone();
+    reflow_line_segs(&mut body, 100.0, &styles, DEFAULT_DPI);
+    let mut zero_indent = paragraph.clone();
+    let zero_styles = c20_indent_paragraph(0.0, Alignment::Center).1;
+    reflow_line_segs(&mut zero_indent, 100.0, &zero_styles, DEFAULT_DPI);
+    assert_ne!(body.line_segs.len(), zero_indent.line_segs.len(), "the global/body entry must retain its existing indentation behavior");
+    for excluded in ["tab", "number", "tac"] {
+        let mut subject = paragraph.clone();
+        let mut excluded_styles = c20_indent_paragraph(-200.0, Alignment::Center).1;
+        match excluded {
+            "tab" => subject.insert_text_at(0, "\t"),
+            "number" => excluded_styles.para_styles[0].head_type = crate::model::style::HeadType::Number,
+            "tac" => subject.controls.push(Control::Table(Box::new(crate::model::table::Table {
+                common: CommonObjAttr { treat_as_char: true, width: 1500, height: 1500, ..Default::default() },
+                ..Default::default()
+            }))),
+            _ => unreachable!(),
+        }
+        let mut reference = subject.clone();
+        reflow_line_segs(&mut reference, 100.0, &excluded_styles, DEFAULT_DPI);
+        reflow_horizontal_cell_line_segs(&mut subject, 100.0, &excluded_styles, DEFAULT_DPI);
+        assert_eq!(format!("{:?}", subject.line_segs), format!("{:?}", reference.line_segs), "{excluded}");
+    }
+    let mut no_cache = paragraph.clone();
+    no_cache.line_segs.clear();
+    let mut reference = no_cache.clone();
+    let zero = c20_indent_paragraph(0.0, Alignment::Center).1;
+    reflow_line_segs(&mut reference, 100.0, &zero, DEFAULT_DPI);
+    reflow_horizontal_cell_line_segs(&mut no_cache, 100.0, &styles, DEFAULT_DPI);
+    assert_eq!(format!("{:?}", no_cache.line_segs), format!("{:?}", reference.line_segs));
+    assert!(no_cache.line_segs.iter().all(|line| line.segment_width == 7500));
+}
+
+fn c20_painted_lines(paragraph: &Paragraph, styles: &ResolvedStyleSet, kind: &str) -> RenderNode {
+    let mut composed = compose_paragraph(paragraph);
+    if kind == "marker" { composed.numbering_text = Some("1.".into()); }
+    let mut tree = PageRenderTree::new(0, 400.0, 400.0);
+    let mut node = RenderNode::new(1000, if kind == "body" {
+        RenderNodeType::Body { clip_rect: None }
+    } else {
+        RenderNodeType::TableCell(TableCellNode {
+            col: 0, row: 0, col_span: 1, row_span: 1, border_fill_id: 0,
+            text_direction: 0, clip: true, model_cell_index: Some(0),
+        })
+    }, BoundingBox::new(30.0, 20.0, 100.0, 300.0));
+    let context = (kind != "body").then_some(CellContext {
+        parent_para_index: 0,
+        path: vec![CellPathEntry {
+            control_index: 0, cell_index: if kind == "caption" { 65534 } else { 0 },
+            cell_para_index: 0, text_direction: if kind == "vertical" { 1 } else { 0 },
+        }],
+    });
+    LayoutEngine::with_default_dpi().layout_composed_paragraph(
+        &mut tree, &mut node, &composed, styles,
+        &LayoutRect { x: 30.0, y: 20.0, width: 100.0, height: 300.0 },
+        20.0, 0, composed.lines.len(), 0, 0, context, true, 0.0, None, Some(paragraph), None,
+    );
+    node
+}
+
+#[test]
+fn c20_cell_paint_recovers_matching_origin_and_width_together() {
+    for alignment in [Alignment::Left, Alignment::Right, Alignment::Center, Alignment::Justify] {
+        let (mut paragraph, styles) = c20_indent_paragraph(-200.0, alignment);
+        paragraph.text = "first\nlast".into();
+        paragraph.char_offsets = (0..10).collect();
+        paragraph.line_segs[1].text_start = 6;
+        let node = c20_painted_lines(&paragraph, &styles, "cell");
+        let lines: Vec<_> = node.children.iter().filter(|node| matches!(node.node_type, RenderNodeType::TextLine(_))).collect();
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0].bbox.x, 30.0, "first-line origin must not use the continuation cache");
+        assert_eq!(lines[1].bbox.x, 40.0);
+        assert_eq!(lines[1].bbox.width, 90.0);
+        for run in &lines[1].children {
+            if let RenderNodeType::TextRun(text) = &run.node_type {
+                assert!(run.bbox.width >= 0.0 && run.bbox.x >= 40.0);
+                let positions = super::text_measurement::compute_char_positions(&text.text, &text.style);
+                assert!(positions.windows(2).all(|pair| pair[1] >= pair[0]));
+                assert!(run.bbox.x + positions.last().unwrap() <= 130.01);
+            }
+        }
+        for kind in ["body", "caption", "vertical", "marker"] {
+            let excluded = c20_painted_lines(&paragraph, &styles, kind);
+            let second = excluded.children.iter().filter(|node| matches!(node.node_type, RenderNodeType::TextLine(_))).nth(1).unwrap();
+            assert_eq!(second.bbox.x, 230.0, "{kind} must keep its existing indentation");
+        }
+        for width in [0, 6600] {
+            paragraph.line_segs[1].segment_width = width;
+            let excluded = c20_painted_lines(&paragraph, &styles, "cell");
+            let second = excluded.children.iter().filter(|node| matches!(node.node_type, RenderNodeType::TextLine(_))).nth(1).unwrap();
+            assert_eq!(second.bbox.x, 230.0, "nonpositive or stale cache must not recover");
+        }
+    }
+}
+
 #[test]
 fn test_build_empty_page() {
     let engine = LayoutEngine::with_default_dpi();

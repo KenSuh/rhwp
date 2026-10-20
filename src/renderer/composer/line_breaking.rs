@@ -905,6 +905,49 @@ pub(crate) fn reflow_line_segs(
     styles: &ResolvedStyleSet,
     dpi: f64,
 ) {
+    reflow_line_segs_with_indent(para, available_width_px, styles, dpi, false);
+}
+
+pub(crate) fn invalid_cell_hanging_indent(
+    para: &Paragraph,
+    available_width_px: f64,
+    styles: &ResolvedStyleSet,
+) -> bool {
+    use crate::model::{control::Control, style::HeadType};
+    let Some(style) = styles.para_styles.get(para.para_shape_id as usize) else {
+        return false;
+    };
+    available_width_px.is_finite() && available_width_px > 0.0
+        && style.indent.is_finite() && style.indent < 0.0
+        && available_width_px + style.indent <= 0.0
+        && style.head_type == HeadType::None && !para.text.contains('\t')
+        && !para.controls.iter().any(|ctrl| match ctrl {
+            Control::Table(t) => t.common.treat_as_char,
+            Control::Picture(p) => p.common.treat_as_char,
+            Control::Shape(s) => s.common().treat_as_char,
+            Control::Equation(e) => e.common.treat_as_char,
+            Control::AutoNumber(_) => true,
+            _ => false,
+        })
+}
+
+pub(crate) fn reflow_horizontal_cell_line_segs(
+    para: &mut Paragraph,
+    available_width_px: f64,
+    styles: &ResolvedStyleSet,
+    dpi: f64,
+) {
+    let recover = invalid_cell_hanging_indent(para, available_width_px, styles);
+    reflow_line_segs_with_indent(para, available_width_px, styles, dpi, recover);
+}
+
+fn reflow_line_segs_with_indent(
+    para: &mut Paragraph,
+    available_width_px: f64,
+    styles: &ResolvedStyleSet,
+    dpi: f64,
+    recover_cell_indent: bool,
+) {
     // 기존 LineSeg에서 dimension 값 보존 (원본 HWP 호환성 유지)
     let seg_width_hwp = px_to_hwpunit(available_width_px, dpi);
     let orig = para.line_segs.first().cloned();
@@ -952,7 +995,9 @@ pub(crate) fn reflow_line_segs(
 
     // 문단 스타일에서 들여쓰기 및 줄 나눔 설정 조회
     let para_style = styles.para_styles.get(para.para_shape_id as usize);
-    let indent_px = para_style.map(|s| s.indent).unwrap_or(0.0);
+    let indent_px = if recover_cell_indent { 0.0 } else {
+        para_style.map(|s| s.indent).unwrap_or(0.0)
+    };
     let english_break_unit = para_style.map(|s| s.english_break_unit).unwrap_or(0);
     let korean_break_unit = para_style.map(|s| s.korean_break_unit).unwrap_or(0);
     let tab_width = para_style.map(|s| s.default_tab_width).unwrap_or(0.0);

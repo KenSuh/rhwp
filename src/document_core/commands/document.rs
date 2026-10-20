@@ -8,7 +8,7 @@ use crate::error::HwpError;
 use crate::model::control::Control;
 use crate::model::document::Document;
 use crate::model::paragraph::Paragraph;
-use crate::renderer::composer::{compose_section, reflow_line_segs};
+use crate::renderer::composer::{compose_section, reflow_horizontal_cell_line_segs, reflow_line_segs};
 use crate::renderer::layout::LayoutEngine;
 use crate::renderer::page_layout::PageLayoutInfo;
 use crate::renderer::style_resolver::{resolve_styles, ResolvedStyleSet};
@@ -505,7 +505,11 @@ impl DocumentCore {
                     })
                 };
                 if let Some(cell_width_px) = cell_width_px.filter(|_| should_reflow(cell_para)) {
-                    reflow_line_segs(cell_para, cell_width_px, styles, dpi);
+                    if cell.text_direction == 0 {
+                        reflow_horizontal_cell_line_segs(cell_para, cell_width_px, styles, dpi);
+                    } else {
+                        reflow_line_segs(cell_para, cell_width_px, styles, dpi);
+                    }
                     reflowed += 1;
                 }
                 for ctrl in &mut cell_para.controls {

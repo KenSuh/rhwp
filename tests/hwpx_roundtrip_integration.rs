@@ -946,6 +946,182 @@ fn c15_supplied_c14_inline_target_and_covered_control_two_native_saves() {
     c15_two_save_bounds(&input, &[145, 74], "c14");
 }
 
+fn c20_artifact(name: &str, bytes: &[u8]) {
+    if let Some(dir) = std::env::var_os("RHWP_C20_ARTIFACT_DIR") {
+        std::fs::write(std::path::Path::new(&dir).join(name), bytes).unwrap();
+    }
+}
+
+fn c20_contact(core: &rhwp::document_core::DocumentCore, host: usize, cell: usize, para: usize) -> &rhwp::model::paragraph::Paragraph {
+    let rhwp::model::control::Control::Table(table) = &core.document().sections[0].paragraphs[host].controls[0] else { panic!("contact host must own table0") };
+    &table.cells[cell].paragraphs[para]
+}
+
+fn c20_contact_line_breaks(p: &rhwp::model::paragraph::Paragraph) -> (Vec<u32>, Vec<String>) {
+    let chars: Vec<_> = p.text.chars().collect();
+    assert_eq!(p.char_offsets.len(), chars.len());
+    let starts: Vec<_> = p.line_segs.iter().map(|line| line.text_start).collect();
+    let lines: Vec<String> = starts.iter().enumerate().map(|(index, start)| {
+        let from = p.char_offsets.partition_point(|offset| offset < start);
+        let to = starts.get(index + 1).map(|end| p.char_offsets.partition_point(|offset| offset < end)).unwrap_or(chars.len());
+        chars[from..to].iter().collect()
+    }).collect();
+    assert_eq!(lines.concat(), p.text, "line slices must retain the complete Unicode contact");
+    (starts, lines)
+}
+
+fn c20_contact_identity(core: &rhwp::document_core::DocumentCore, host: usize, cell: usize, para: usize) -> String {
+    let p = c20_contact(core, host, cell, para);
+    let doc = core.document();
+    let character_styles: Vec<_> = p.char_offsets.iter().map(|offset| {
+        let reference = p.char_shapes.iter().rev().find(|s| s.start_pos <= *offset).expect("every visible character has a charPr reference");
+        let cs = &doc.doc_info.char_shapes[reference.char_shape_id as usize];
+        (reference.char_shape_id, cs.spacings, cs.ratios, cs.base_size)
+    }).collect();
+    format!("{:?}\n{:?}\n{:?}\n{:?}\n{:?}", p.text, p.char_offsets, p.field_ranges, p.controls,
+        (doc.doc_info.para_shapes[p.para_shape_id as usize].indent,
+         character_styles))
+}
+
+fn c20_observe_contact(core: &rhwp::document_core::DocumentCore, host: usize, cell: usize, para: usize, label: &str, violations: &mut Vec<String>) {
+    let p = c20_contact(core, host, cell, para);
+    c20_artifact(&format!("{label}-model.txt"), format!("{p:#?}\n{}", c20_contact_identity(core, host, cell, para)).as_bytes());
+    let first = c13_number(&core.get_page_of_position_native(0, host).unwrap(), "page") as u32;
+    let last = if host + 1 < core.document().sections[0].paragraphs.len() {
+        c13_number(&core.get_page_of_position_native(0, host + 1).unwrap(), "page") as u32
+    } else { core.page_count() - 1 };
+    let mut rendered = String::new();
+    for page in first..=last {
+        let controls = core.get_page_control_layout_native(page).unwrap();
+        let text = core.get_page_text_layout_native(page).unwrap();
+        c20_artifact(&format!("{label}-p{page}-controls.json"), controls.as_bytes());
+        c20_artifact(&format!("{label}-p{page}-text.json"), text.as_bytes());
+        c20_artifact(&format!("{label}-p{page}.svg"), core.render_page_svg_native(page).unwrap().as_bytes());
+        let bounds = controls.split("{\"type\":\"table\",").skip(1).find_map(|table| {
+            let (meta, cells) = table.split_once("\"cells\":[")?;
+            if !meta.contains(&format!("\"paraIdx\":{host},")) || c13_number(meta, "controlIdx") != 0.0 { return None; }
+            cells.split_once(']').unwrap().0.split('}').find(|s| s.contains("\"cellIdx\":") && c13_number(s, "cellIdx") == cell as f64)
+                .map(|s| (c13_number(s, "x"), c13_number(s, "y"), c13_number(s, "w"), c13_number(s, "h")))
+        });
+        for fragment in text.split("{\"text\":\"").skip(1) {
+            let (value, meta) = fragment.split_once("\",\"x\":").unwrap();
+            if !meta.contains(&format!("\"parentParaIdx\":{host},"))
+                || c13_number(meta, "controlIdx") != 0.0
+                || c13_number(meta, "cellIdx") != cell as f64
+                || c13_number(meta, "cellParaIdx") != para as f64 { continue; }
+            rendered.push_str(value);
+            let (left, top, width, height) = bounds.expect("owned contact text needs its actual table cell");
+            let x = c13_number(&format!("\"x\":{meta}"), "x");
+            let y = c13_number(meta, "y");
+            let w = c13_number(meta, "w");
+            let h = c13_number(meta, "h");
+            let positions: Vec<f64> = meta.split_once("\"charX\":[").unwrap().1.split_once(']').unwrap().0.split(',').map(|s| s.parse().unwrap()).collect();
+            eprintln!("C20 {label}/p{page}: text={value:?} run=({x},{y},{w},{h}) cell=({left},{top},{width},{height}) charX={positions:?}");
+            if w < 0.0 || positions.windows(2).any(|a| a[1] < a[0])
+                || positions.iter().any(|&v| v < 0.0 || x + v < left - 0.11 || x + v > left + width + 0.11)
+                || y < top - 0.11 || y + h > top + height + 0.11 {
+                violations.push(format!("{label}/p{page}: {value:?} run=({x},{y},{w},{h}) outside cell=({left},{top},{width},{height}), charX={positions:?}"));
+            }
+        }
+    }
+    if rendered != p.text { violations.push(format!("{label}: rendered {rendered:?}, expected complete contact {:?}", p.text)); }
+}
+
+fn c20_contact_two_save_scenarios(input: &[u8], host: usize, cell: usize, para: usize, label: &str) {
+    use rhwp::document_core::DocumentCore;
+    c20_artifact(&format!("{label}-input.hwpx"), input);
+    let images = c13_images(input);
+    let mut violations = Vec::new();
+    for edited in [false, true] {
+        let mut core = DocumentCore::from_bytes(input).unwrap();
+        let mut reference = None;
+        let original = c20_contact(&core, host, cell, para).text.clone();
+        if label == "actual" {
+            assert_eq!(original, "(www.hometax.go.kr) 국번없이 126 문의", "bind the supplied actual contact owner");
+        }
+        if edited {
+            let offset = original.chars().count();
+            let mut zero_indent = DocumentCore::from_bytes(input).unwrap();
+            zero_indent.apply_para_format_in_cell_native(0, host, 0, cell, para, "{\"indent\":0}").unwrap();
+            let reference_para = c20_contact(&zero_indent, host, cell, para);
+            assert_eq!(zero_indent.document().doc_info.para_shapes[reference_para.para_shape_id as usize].indent, 0);
+            zero_indent.insert_text_in_cell_native(0, host, 0, cell, para, offset, "편😀").unwrap();
+            reference = Some(zero_indent);
+            core.insert_text_in_cell_native(0, host, 0, cell, para, offset, "편😀").unwrap();
+            assert!(c20_contact(&core, host, cell, para).text.contains("편😀"));
+        }
+        let expected = c20_contact_identity(&core, host, cell, para);
+        let reference_expected = reference.as_ref().map(|other| c20_contact_identity(other, host, cell, para));
+        for pass in 0..=2 {
+            let stage = format!("{label}-{}-pass{pass}", if edited { "edit" } else { "noedit" });
+            if c20_contact_identity(&core, host, cell, para) != expected {
+                violations.push(format!("{stage}: owned text/fields/char refs/spacing/indent changed across save"));
+            }
+            c20_observe_contact(&core, host, cell, para, &stage, &mut violations);
+            if let Some(other) = reference.as_ref() {
+                let subject_breaks = c20_contact_line_breaks(c20_contact(&core, host, cell, para));
+                let reference_breaks = c20_contact_line_breaks(c20_contact(other, host, cell, para));
+                eprintln!("C20 {stage} wrap: subject={subject_breaks:?}, public-zero-indent-reference={reference_breaks:?}");
+                c20_artifact(&format!("{stage}-wrap.txt"), format!("subject={subject_breaks:#?}\npublic-zero-indent-reference={reference_breaks:#?}").as_bytes());
+                if subject_breaks != reference_breaks {
+                    violations.push(format!("{stage}: invalid-indent reflow differs from public zero-indent full-width reference: {subject_breaks:?} != {reference_breaks:?}"));
+                }
+                if c20_contact_identity(other, host, cell, para) != reference_expected.as_ref().unwrap().as_str() {
+                    violations.push(format!("{stage}: reference text/fields/char refs/spacing changed across save"));
+                }
+                c20_observe_contact(other, host, cell, para, &format!("{stage}-reference"), &mut violations);
+            }
+            if pass < 2 {
+                let saved = core.export_hwpx_native().unwrap();
+                if c13_images(&saved) != images { violations.push(format!("{stage}: PNG bytes changed")); }
+                c20_artifact(&format!("{stage}-save.hwpx"), &saved);
+                core = DocumentCore::from_bytes(&saved).unwrap();
+                if let Some(other) = reference.as_mut() {
+                    let saved = other.export_hwpx_native().unwrap();
+                    if c13_images(&saved) != images { violations.push(format!("{stage}: reference PNG bytes changed")); }
+                    c20_artifact(&format!("{stage}-reference-save.hwpx"), &saved);
+                    *other = DocumentCore::from_bytes(&saved).unwrap();
+                }
+            }
+        }
+    }
+    c20_artifact(&format!("{label}-violations.txt"), violations.join("\n").as_bytes());
+    assert!(violations.is_empty(), "{label}: {}", violations.join("\n"));
+}
+
+#[test]
+fn c20_document_cached_contact_edit_and_two_native_saves_stay_visible() {
+    use rhwp::{model::{control::Control, paragraph::LineSeg, style::Alignment}, parser::hwpx::parse_hwpx, serializer::serialize_hwpx};
+    let contact = c8_field_paragraph(2020).replace("<hp:t>뒤</hp:t>", "<hp:t>뒤 연락처 안내</hp:t>");
+    let body = c9_paragraph("<hp:t>C20 host</hp:t>", C9_LINE) + &c8_table(&contact);
+    let mut doc = parse_hwpx(&c8_fixture(&body, false)).unwrap();
+    while doc.doc_info.char_shapes.len() < 3 {
+        doc.doc_info.char_shapes.push(doc.doc_info.char_shapes[0].clone());
+    }
+    doc.doc_info.char_shapes[1].bold = true;
+    doc.doc_info.char_shapes[2].italic = true;
+    doc.doc_info.para_shapes[0].alignment = Alignment::Center;
+    doc.doc_info.para_shapes[0].indent = -20500;
+    let Control::Table(table) = &mut doc.sections[0].paragraphs[1].controls[0] else { unreachable!() };
+    let p = &mut table.cells[0].paragraphs[0];
+    let second = p.char_offsets[2];
+    p.line_segs = [0, second].into_iter().enumerate().map(|(i, text_start)| LineSeg {
+        text_start, vertical_pos: i as i32 * 1200, line_height: 1000, text_height: 1000,
+        baseline_distance: 850, line_spacing: 200, segment_width: 10000, tag: 393216,
+        ..Default::default()
+    }).collect();
+    c20_contact_two_save_scenarios(&serialize_hwpx(&doc).unwrap(), 1, 0, 0, "fixture");
+}
+
+#[test]
+#[ignore = "requires the explicitly supplied immutable C16 input"]
+fn c20_supplied_actual_contact_edit_and_two_native_saves_stay_visible() {
+    let path = std::env::var_os("RHWP_C20_C16_INPUT").expect("C20 actual input must be supplied explicitly");
+    let input = std::fs::read(path).unwrap();
+    assert_eq!(input.len(), 218909);
+    c20_contact_two_save_scenarios(&input, 74, 9, 2, "actual");
+}
+
 const C9_FLOATING_PICTURE: &str = r#"<hp:pic id="17" instid="29" textWrap="TOP_AND_BOTTOM"><hp:orgSz width="3000" height="2000"/><hp:curSz width="3000" height="2000"/><hc:img binaryItemIDRef="image1"/><hp:sz width="3000" height="2000"/><hp:pos treatAsChar="0"/></hp:pic>"#;
 
 fn c9_paragraph(content: &str, lines: &str) -> String {
