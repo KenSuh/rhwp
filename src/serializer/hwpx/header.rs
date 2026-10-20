@@ -391,7 +391,7 @@ fn write_char_pr<W: Write>(
     let shade = if cs.shade_color == 0 {
         "none".to_string()
     } else {
-        color_hex(cs.shade_color)
+        fill_color(cs.shade_color)
     };
     start_tag_attrs(
         w,
@@ -1036,6 +1036,30 @@ mod tests {
         let sm = snippet.find("symMark=").unwrap();
         let bf = snippet.find("borderFillIDRef=").unwrap();
         assert!(ip < hp && hp < tc && tc < sc && sc < uf && uf < uk && uk < sm && sm < bf);
+    }
+
+    #[test]
+    fn c12_shade_preserves_real_colors_legacy_zero_and_no_shade_sentinel() {
+        for (shade_color, expected) in [
+            (0, "none"),
+            (0x00FF_FFFF, "#FFFFFF"),
+            (0x0056_3412, "#123456"),
+            (0xFFFF_FFFF, "none"),
+        ] {
+            let mut doc = Document::default();
+            doc.doc_info.char_shapes = vec![CharShape {
+                text_color: 0x00FF_FFFF,
+                shade_color,
+                ..CharShape::default()
+            }];
+            let ctx = SerializeContext::collect_from_document(&doc);
+            let xml = String::from_utf8(write_header(&doc, &ctx).unwrap()).unwrap();
+            assert!(xml.contains(r##"textColor="#FFFFFF""##));
+            assert!(
+                xml.contains(&format!(r#"shadeColor="{expected}""#)),
+                "shade {shade_color:#010x} must emit {expected}: {xml}"
+            );
+        }
     }
 
     #[test]

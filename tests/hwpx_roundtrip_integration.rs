@@ -12,6 +12,182 @@
 
 use rhwp::serializer::hwpx::roundtrip::roundtrip_ir_diff;
 
+fn c12_fixture() -> Vec<u8> {
+    use std::io::{Cursor, Read, Write};
+    let mut body = c9_paragraph("<hp:t>본문</hp:t>", C9_LINE);
+    for index in 0..4 {
+        let label = format!(
+            r#"<hp:p paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="{index}"><hp:t>{}단계</hp:t></hp:run>{C9_LINE}</hp:p>"#,
+            index + 1
+        );
+        let shape = format!(
+            r##"<hp:rect instid="{}" ratio="20"><hp:orgSz width="3635" height="1566"/><hp:curSz width="3635" height="1566"/><hp:lineShape color="#BD3D3D" width="20" style="SOLID"/><hc:fillBrush><hc:winBrush faceColor="#BD3D3D" hatchColor="#000000" alpha="0"/></hc:fillBrush><hp:drawText lastWidth="3635"><hp:subList vertAlign="CENTER">{label}</hp:subList><hp:textMargin left="283" right="283" top="283" bottom="283"/></hp:drawText><hc:pt0 x="0" y="0"/><hc:pt1 x="3635" y="0"/><hc:pt2 x="3635" y="1566"/><hc:pt3 x="0" y="1566"/><hp:sz width="3635" height="1566"/><hp:pos treatAsChar="1"/></hp:rect>"##,
+            index + 101
+        );
+        body.push_str(&c9_paragraph(&shape, C9_LINE));
+    }
+    let mut header = c9_header_xml(&c9_header_fixture(
+        r#"<hh:paraPr id="0"><hh:align horizontal="LEFT" vertical="BASELINE"/><hh:lineSpacing type="PERCENT" value="160"/></hh:paraPr>"#,
+    ));
+    let char_properties = [
+        r##"<hh:charPr id="0" height="1000" textColor="#FFFFFF" shadeColor="none">"##,
+        r##"<hh:charPr id="1" height="1000" textColor="#FFFFFF" shadeColor="#FFFFFF">"##,
+        r##"<hh:charPr id="2" height="1000" textColor="#FFFFFF" shadeColor="#123456">"##,
+        r##"<hh:charPr id="3" height="1000" textColor="#FFFFFF">"##,
+    ]
+    .iter()
+    .map(|opening| format!(r#"{opening}<hh:fontRef hangul="0" latin="0" hanja="0" japanese="0" other="0" symbol="0" user="0"/><hh:ratio hangul="100" latin="100" hanja="100" japanese="100" other="100" symbol="100" user="100"/><hh:relSz hangul="100" latin="100" hanja="100" japanese="100" other="100" symbol="100" user="100"/></hh:charPr>"#))
+    .collect::<String>();
+    let start = header.find("<hh:charProperties").unwrap();
+    let end = header.find("</hh:charProperties>").unwrap() + "</hh:charProperties>".len();
+    header.replace_range(
+        start..end,
+        &format!(r#"<hh:charProperties itemCnt="4">{char_properties}</hh:charProperties>"#),
+    );
+    let mut input = zip::ZipArchive::new(Cursor::new(c8_fixture(&body, false))).unwrap();
+    let mut output = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    for index in 0..input.len() {
+        let mut entry = input.by_index(index).unwrap();
+        let name = entry.name().unwrap().to_string();
+        let mut bytes = Vec::new();
+        entry.read_to_end(&mut bytes).unwrap();
+        output
+            .start_file(&name, zip::write::SimpleFileOptions::default())
+            .unwrap();
+        output
+            .write_all(if name == "Contents/header.xml" {
+                header.as_bytes()
+            } else {
+                &bytes
+            })
+            .unwrap();
+    }
+    output.finish().unwrap().into_inner()
+}
+
+fn c12_shade_properties(hwpx: &[u8]) -> Vec<(String, String, String)> {
+    use quick_xml::{events::Event, name::ResolveResult, NsReader};
+    let xml = c9_header_xml(hwpx);
+    let mut reader = NsReader::from_str(&xml);
+    let mut properties = Vec::new();
+    loop {
+        let (namespace, event) = reader.read_resolved_event().unwrap();
+        match event {
+            Event::Start(e) | Event::Empty(e) if e.local_name().as_ref() == b"charPr" => {
+                let ResolveResult::Bound(namespace) = namespace else {
+                    panic!("charPr must have a bound namespace")
+                };
+                assert_eq!(
+                    namespace.as_ref(),
+                    b"http://www.hancom.co.kr/hwpml/2011/head"
+                );
+                let attrs: std::collections::BTreeMap<_, _> = e
+                    .attributes()
+                    .map(|attr| {
+                        let attr = attr.unwrap();
+                        (
+                            String::from_utf8(attr.key.as_ref().to_vec()).unwrap(),
+                            attr.decode_and_unescape_value(reader.decoder())
+                                .unwrap()
+                                .into_owned(),
+                        )
+                    })
+                    .collect();
+                properties.push((
+                    attrs["id"].clone(),
+                    attrs["textColor"].clone(),
+                    attrs["shadeColor"].clone(),
+                ));
+            }
+            Event::Eof => break,
+            _ => {}
+        }
+    }
+    properties
+}
+
+fn c12_artifact(name: &str, bytes: &[u8]) {
+    use std::io::Write;
+    if let Some(directory) = std::env::var_os("RHWP_C12_ARTIFACT_DIR") {
+        std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(std::path::PathBuf::from(directory).join(name))
+            .unwrap()
+            .write_all(bytes)
+            .unwrap();
+    }
+}
+
+fn c12_native_shade_roundtrip(edit: bool) {
+    use rhwp::{
+        document_core::DocumentCore,
+        model::{control::Control, shape::ShapeObject},
+    };
+    let input = c12_fixture();
+    let case = if edit { "edit" } else { "no-edit" };
+    c12_artifact(&format!("{case}-input.hwpx"), &input);
+    let mut core = DocumentCore::from_bytes(&input).unwrap();
+    assert_eq!(core.document().doc_info.char_shapes.len(), 4);
+    assert_eq!(core.document().doc_info.char_shapes[0].shade_color, 0xFFFF_FFFF);
+    assert_eq!(core.document().doc_info.char_shapes[1].shade_color, 0x00FF_FFFF);
+    assert_eq!(core.document().doc_info.char_shapes[2].shade_color, 0x0056_3412);
+    assert_eq!(core.document().doc_info.char_shapes[3].shade_color, 0);
+    let mut expected_texts = c11_layout(&hwpx_section_xml(&input)).texts;
+    for save in 1..=2 {
+        let saved = core.export_hwpx_native().unwrap();
+        c12_artifact(&format!("{case}-save-{save}.hwpx"), &saved);
+        let reopened = DocumentCore::from_bytes(&saved).unwrap();
+        let doc = reopened.document();
+        assert_eq!(doc.sections[0].paragraphs.len(), 5);
+        for (index, paragraph) in doc.sections[0].paragraphs[1..].iter().enumerate() {
+            let shapes: Vec<_> = paragraph
+                .controls
+                .iter()
+                .filter_map(|control| match control {
+                    Control::Shape(shape) => Some(shape),
+                    _ => None,
+                })
+                .collect();
+            assert_eq!(shapes.len(), 1);
+            let ShapeObject::Rectangle(rect) = shapes[0].as_ref() else {
+                panic!("owning rectangle")
+            };
+            let text_box = rect.drawing.text_box.as_ref().unwrap();
+            assert_eq!(text_box.paragraphs.len(), 1);
+            let label = &text_box.paragraphs[0];
+            assert_eq!(label.text, format!("{}단계", index + 1));
+            assert_eq!(label.para_shape_id, 0);
+            assert_eq!(label.char_shapes.len(), 1);
+            assert_eq!(usize::try_from(label.char_shapes[0].char_shape_id).unwrap(), index);
+            assert_eq!(doc.doc_info.char_shapes[index].text_color, 0x00FF_FFFF);
+        }
+        assert_eq!(c11_layout(&hwpx_section_xml(&saved)).texts, expected_texts);
+        let expected: Vec<_> = ["none", "#FFFFFF", "#123456", "none"]
+            .iter()
+            .enumerate()
+            .map(|(id, shade)| (id.to_string(), "#FFFFFF".into(), (*shade).into()))
+            .collect();
+        assert_eq!(c12_shade_properties(&saved), expected, "{case} save {save}");
+        core = reopened;
+        if edit && save == 1 {
+            core.insert_text_native(0, 0, 2, "편😀").unwrap();
+            assert_eq!(core.document().sections[0].paragraphs[0].text, "본문편😀");
+            expected_texts[0].1 = "본문편😀".into();
+        }
+    }
+}
+
+#[test]
+fn c12_native_shape_label_shades_survive_two_no_edit_saves() {
+    c12_native_shade_roundtrip(false);
+}
+
+#[test]
+fn c12_native_shape_label_shades_survive_text_edit_between_saves() {
+    c12_native_shade_roundtrip(true);
+}
+
 #[derive(Debug, Default)]
 struct C11Layout {
     flags: Vec<(String, Option<bool>)>,
