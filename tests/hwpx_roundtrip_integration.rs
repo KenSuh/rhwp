@@ -682,6 +682,147 @@ fn c10_native_self_closing_run_transition_matches_explicit_empty_run() {
     });
 }
 const C9_LINE: &str = r#"<hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="1000" textheight="1000" baseline="850" spacing="200" horzpos="0" horzsize="10000" flags="393216"/></hp:linesegarray>"#;
+
+fn c13_number(json: &str, key: &str) -> f64 {
+    json.split_once(&format!("\"{key}\":"))
+        .unwrap_or_else(|| panic!("missing numeric field {key} in {json}"))
+        .1.split([',', '}', ']']).next().unwrap().trim().parse().unwrap()
+}
+
+fn c13_artifact(name: &str, bytes: &[u8]) {
+    if let Some(dir) = std::env::var_os("RHWP_C13_ARTIFACT_DIR") {
+        std::fs::write(std::path::Path::new(&dir).join(name), bytes).unwrap();
+    }
+}
+
+fn c13_check_rendered_flow(
+    core: &rhwp::document_core::DocumentCore,
+    host: usize,
+    following: &[usize],
+    rows: usize,
+    cols: usize,
+    label: &str,
+) {
+    use rhwp::renderer::page_layout::PageLayoutInfo;
+    use rhwp::model::page::ColumnDef;
+    let pages: Vec<_> = std::iter::once(host).chain(following.iter().copied())
+        .map(|p| c13_number(&core.get_page_of_position_native(0, p).unwrap(), "page") as u32)
+        .collect();
+    let layout = PageLayoutInfo::from_page_def_default(
+        &core.document().sections[0].section_def.page_def, &ColumnDef::default());
+    let body_bottom = layout.body_area.y + layout.body_area.height;
+    let mut last_row_end: Option<(u32, f64)> = None;
+    let mut instructions = std::collections::BTreeMap::<usize, (u32, f64)>::new();
+    for page in *pages.iter().min().unwrap()..=*pages.iter().max().unwrap() {
+        let controls = core.get_page_control_layout_native(page).unwrap();
+        let text = core.get_page_text_layout_native(page).unwrap();
+        c13_artifact(&format!("{label}-p{page}-controls.json"), controls.as_bytes());
+        c13_artifact(&format!("{label}-p{page}-text.json"), text.as_bytes());
+        c13_artifact(&format!("{label}-p{page}.svg"), core.render_page_svg_native(page).unwrap().as_bytes());
+        for table in controls.split("{\"type\":\"table\",").skip(1) {
+            let (metadata, cells) = table.split_once("\"cells\":[").unwrap();
+            if !metadata.contains(&format!("\"paraIdx\":{host},"))
+                || c13_number(metadata, "rowCount") != rows as f64
+                || c13_number(metadata, "colCount") != cols as f64 { continue; }
+            let table_bottom = c13_number(metadata, "y") + c13_number(metadata, "h");
+            assert!(table_bottom <= body_bottom + 0.11,
+                "{label}/page{page}: table bottom {table_bottom} clips below body {body_bottom}");
+            for cell in cells.split_once(']').unwrap().0.split('}').filter(|s| s.contains("\"row\":")) {
+                let bottom = c13_number(cell, "y") + c13_number(cell, "h");
+                assert!(bottom <= body_bottom + 0.11, "{label}: cell clips below body");
+                if c13_number(cell, "row") + c13_number(cell, "rowSpan") == rows as f64 {
+                    let candidate = (page, bottom);
+                    last_row_end = Some(last_row_end.map_or(candidate, |old| if old > candidate { old } else { candidate }));
+                }
+            }
+        }
+        for run in text.split("{\"text\":").skip(1).filter(|s| !s.contains("\"parentParaIdx\":")) {
+            for &para in following {
+                if run.contains(&format!("\"paraIdx\":{para},")) {
+                    let top = c13_number(run, "y");
+                    assert!(top >= layout.body_area.y - 0.11 && top + c13_number(run, "h") <= body_bottom + 0.11,
+                        "{label}/page{page}: instruction{para} clips outside body");
+                    let candidate = (page, top);
+                    instructions.entry(para).and_modify(|old| { if candidate < *old { *old = candidate; } }).or_insert(candidate);
+                }
+            }
+        }
+    }
+    let (last_page, bottom) = last_row_end.expect("actual final-row geometry must exist");
+    assert_eq!(instructions.len(), following.len(), "{label}: all following instructions must render");
+    for (&para, &(page, top)) in &instructions {
+        assert!(page > last_page || (page == last_page && top + 0.11 >= bottom),
+            "{label}: final row page{last_page}/bottom{bottom} overlaps instruction{para} page{page}/y{top}");
+    }
+    eprintln!("C13 {label}: final_row=({last_page},{bottom}), instructions={instructions:?}, body_bottom={body_bottom}");
+}
+
+fn c13_roundtrip_flow(input: &[u8], host: usize, following: &[usize], rows: usize, cols: usize, label: &str) {
+    use rhwp::{document_core::DocumentCore, model::control::Control};
+    let mut core = DocumentCore::from_bytes(input).unwrap();
+    let expected_images = c13_images(input);
+    let expected_text: Vec<_> = core.document().sections[0].paragraphs.iter().map(|p| p.text.clone()).collect();
+    let expected_cells: Vec<_> = core.document().sections[0].paragraphs[host].controls.iter().find_map(|c| {
+        if let Control::Table(t) = c { Some(t.cells.iter().flat_map(|c| c.paragraphs.iter().map(|p| p.text.clone())).collect()) } else { None }
+    }).unwrap();
+    c13_artifact(&format!("{label}-input.hwpx"), input);
+    for pass in 0..=2 {
+        let doc = core.document();
+        assert_eq!(doc.sections[0].paragraphs.iter().map(|p| p.text.clone()).collect::<Vec<_>>(), expected_text);
+        let table = doc.sections[0].paragraphs[host].controls.iter().find_map(|c| {
+            if let Control::Table(t) = c { Some(t) } else { None }
+        }).unwrap();
+        assert!(table.common.treat_as_char);
+        assert_eq!(table.common.vertical_offset, 19986, "rendering must not erase raw floating metadata");
+        assert_eq!(table.cells.iter().flat_map(|c| c.paragraphs.iter().map(|p| p.text.clone())).collect::<Vec<_>>(), expected_cells);
+        c13_check_rendered_flow(&core, host, following, rows, cols, &format!("{label}-pass{pass}"));
+        if pass < 2 {
+            let saved = core.export_hwpx_native().unwrap();
+            assert_eq!(c13_images(&saved), expected_images, "{label}: BinData PNG bytes must survive save");
+            c13_artifact(&format!("{label}-save{}.hwpx", pass + 1), &saved);
+            core = DocumentCore::from_bytes(&saved).unwrap();
+        }
+    }
+}
+
+fn c13_images(hwpx: &[u8]) -> std::collections::BTreeMap<String, Vec<u8>> {
+    use std::io::{Cursor, Read};
+    let mut zip = zip::ZipArchive::new(Cursor::new(hwpx)).unwrap();
+    let mut images = std::collections::BTreeMap::new();
+    for index in 0..zip.len() {
+        let mut entry = zip.by_index(index).unwrap();
+        let name = entry.name().unwrap().to_string();
+        if name.starts_with("BinData/") && name.ends_with(".png") {
+            let mut data = Vec::new();
+            entry.read_to_end(&mut data).unwrap();
+            images.insert(name, data);
+        }
+    }
+    images
+}
+
+#[test]
+fn c13_document_inline_table_geometry_survives_two_native_saves() {
+    let rows = (0..2).map(|row| format!(
+        r#"<hp:tr><hp:tc borderFillIDRef="1"><hp:subList>{}</hp:subList><hp:cellAddr colAddr="0" rowAddr="{row}"/><hp:cellSpan colSpan="1" rowSpan="1"/><hp:cellSz width="47409" height="{}"/></hp:tc></hp:tr>"#,
+        c9_paragraph(&format!("<hp:t>C13 row {row}</hp:t>"), C9_LINE), if row == 0 { 13400 } else { 13401 })).collect::<String>();
+    let body = format!(r#"<hp:p paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="0"><hp:secPr><hp:pagePr width="59528" height="50000"><hp:margin left="5669" right="5669" top="5669" bottom="4252" header="4252" footer="4252" gutter="0"/></hp:pagePr></hp:secPr><hp:tbl id="13" rowCnt="2" colCnt="1" borderFillIDRef="1" textWrap="TOP_AND_BOTTOM" pageBreak="CELL" noAdjust="0"><hp:sz width="47409" height="26801"/><hp:pos treatAsChar="1" vertRelTo="PARA" vertAlign="TOP" vertOffset="19986"/>{rows}</hp:tbl></hp:run>{}</hp:p>{}"#,
+        C9_LINE.replace("vertsize=\"1000\"", "vertsize=\"26801\"").replace("textheight=\"1000\"", "textheight=\"26801\""),
+        c9_paragraph("<hp:t>C13 following instructions</hp:t>", &C9_LINE.replace("vertpos=\"0\"", "vertpos=\"26801\"")));
+    c13_roundtrip_flow(&c8_fixture(&body, false), 0, &[1], 2, 1, "fixture");
+}
+
+#[test]
+fn c13_private_c6_target_actual_render_save_reopen_observation() {
+    let Some(path) = std::env::var_os("RHWP_C13_C6_INPUT") else {
+        eprintln!("C13 private C6 observation not requested; ordinary fixture regression remains active");
+        return;
+    };
+    let input = std::fs::read(path).unwrap();
+    assert_eq!(input.len(), 217029);
+    c13_roundtrip_flow(&input, 253, &[254, 255, 256], 11, 7, "c6");
+}
+
 const C9_FLOATING_PICTURE: &str = r#"<hp:pic id="17" instid="29" textWrap="TOP_AND_BOTTOM"><hp:orgSz width="3000" height="2000"/><hp:curSz width="3000" height="2000"/><hc:img binaryItemIDRef="image1"/><hp:sz width="3000" height="2000"/><hp:pos treatAsChar="0"/></hp:pic>"#;
 
 fn c9_paragraph(content: &str, lines: &str) -> String {

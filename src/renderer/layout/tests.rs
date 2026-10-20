@@ -752,6 +752,187 @@ fn test_layout_table_basic() {
     );
 }
 
+fn c13_table(offset: u32) -> crate::model::table::Table {
+    use crate::model::{shape::TextWrap, table::{Cell, Table}};
+    Table {
+        common: CommonObjAttr {
+            treat_as_char: true,
+            vertical_offset: offset,
+            width: 47409,
+            height: 26801,
+            vert_rel_to: VertRelTo::Para,
+            text_wrap: TextWrap::TopAndBottom,
+            ..Default::default()
+        },
+        row_count: 2,
+        col_count: 1,
+        row_sizes: vec![1, 1],
+        cells: (0..2).map(|row| Cell {
+            row,
+            col: 0,
+            row_span: 1,
+            col_span: 1,
+            width: 47409,
+            height: if row == 0 { 13400 } else { 13401 },
+            paragraphs: vec![Paragraph {
+                text: format!("C13 row {row}"),
+                line_segs: vec![LineSeg {
+                    line_height: 1000,
+                    text_height: 1000,
+                    baseline_distance: 850,
+                    segment_width: 47409,
+                    ..Default::default()
+                }],
+                ..Default::default()
+            }],
+            ..Default::default()
+        }).collect(),
+        ..Default::default()
+    }
+}
+
+fn c13_tree(name: &str, table: crate::model::table::Table) -> PageRenderTree {
+    let mut page_def = a4_page_def();
+    page_def.height = 50000;
+    page_def.margin_left = 5669;
+    page_def.margin_right = 5669;
+    let layout = PageLayoutInfo::from_page_def_default(&page_def, &ColumnDef::default());
+    let paragraphs = vec![
+        Paragraph {
+            controls: vec![crate::model::control::Control::Table(Box::new(table))],
+            line_segs: vec![LineSeg { line_height: 26801, ..Default::default() }],
+            ..Default::default()
+        },
+        Paragraph {
+            text: "C13 following instructions".into(),
+            line_segs: vec![LineSeg {
+                line_height: 1000,
+                text_height: 1000,
+                baseline_distance: 850,
+                segment_width: 47409,
+                ..Default::default()
+            }],
+            ..Default::default()
+        },
+    ];
+    let composed: Vec<_> = paragraphs.iter().map(compose_paragraph).collect();
+    let page = PageContent {
+        page_index: 0,
+        page_number: 0,
+        section_index: 0,
+        layout,
+        column_contents: vec![ColumnContent {
+            column_index: 0,
+            items: vec![PageItem::Table { para_index: 0, control_index: 0 }, PageItem::FullParagraph { para_index: 1 }],
+            zone_layout: None,
+            zone_y_offset: 0.0,
+            wrap_around_paras: vec![],
+        }],
+        active_header: None,
+        active_footer: None,
+        page_number_pos: None,
+        page_hide: None,
+        footnotes: vec![],
+        active_master_page: None,
+        extra_master_pages: vec![],
+    };
+    let tree = LayoutEngine::with_default_dpi().build_render_tree(
+        &page, &paragraphs, &paragraphs, &paragraphs, &composed,
+        &ResolvedStyleSet::default(), &FootnoteShape::default(), &[], None, &[], None, 0, &[],
+    );
+    if let Some(dir) = std::env::var_os("RHWP_C13_ARTIFACT_DIR") {
+        std::fs::write(std::path::Path::new(&dir).join(format!("{name}.json")), tree.root.to_json()).unwrap();
+    }
+    tree
+}
+
+fn c13_nodes(node: &RenderNode) -> Vec<&RenderNode> {
+    let mut nodes = vec![node];
+    for child in &node.children {
+        nodes.extend(c13_nodes(child));
+    }
+    nodes
+}
+
+#[test]
+fn c13_inline_table_rows_clear_following_text_and_body_with_raw_offset() {
+    for (name, offset) in [("zero", 0), ("positive", 19986), ("negative", (-56_i32) as u32)] {
+        let tree = c13_tree(name, c13_table(offset));
+        let nodes = c13_nodes(&tree.root);
+        let table = nodes.iter().find(|n| matches!(n.node_type, RenderNodeType::Table(_))).unwrap();
+        let body = nodes.iter().find(|n| matches!(n.node_type, RenderNodeType::Body { .. })).unwrap();
+        let following = nodes.iter().find(|n| matches!(&n.node_type, RenderNodeType::TextRun(t) if t.text == "C13 following instructions")).unwrap();
+        let cells: Vec<_> = table.children.iter().filter(|n| matches!(n.node_type, RenderNodeType::TableCell(_))).collect();
+        assert_eq!(cells.len(), 2);
+        let bottom = cells.last().unwrap().bbox.y + cells.last().unwrap().bbox.height;
+        assert!(bottom <= following.bbox.y + 0.1, "{name}: last row bottom {bottom} overlaps following text {:?}, table {:?}", following.bbox, table.bbox);
+        assert!(bottom <= body.bbox.y + body.bbox.height + 0.1, "{name}: last row {bottom} clips outside body {:?}", body.bbox);
+        assert!(following.bbox.y + following.bbox.height <= body.bbox.y + body.bbox.height + 0.1);
+    }
+}
+
+#[test]
+fn c13_floating_table_keeps_its_real_vertical_offset() {
+    let mut positions = Vec::new();
+    for offset in [0, 1500] {
+        let mut table = c13_table(offset);
+        table.common.treat_as_char = false;
+        table.common.vert_rel_to = VertRelTo::Paper;
+        let tree = c13_tree(&format!("floating-{offset}"), table);
+        positions.push(c13_nodes(&tree.root).iter().find(|n| matches!(n.node_type, RenderNodeType::Table(_))).unwrap().bbox.y);
+    }
+    assert!((positions[1] - positions[0] - hwpunit_to_px(1500, DEFAULT_DPI)).abs() < 0.1, "floating offset was flattened: {positions:?}");
+}
+
+#[test]
+fn c13_inline_top_and_bottom_captions_stay_in_reserved_flow() {
+    for direction in [CaptionDirection::Top, CaptionDirection::Bottom] {
+        let mut boxes = Vec::new();
+        for offset in [0, 19986] {
+            let mut table = c13_table(offset);
+            table.caption = Some(Caption {
+                direction,
+                spacing: 300,
+                paragraphs: vec![Paragraph {
+                    text: "C13 caption".into(),
+                    line_segs: vec![LineSeg { line_height: 1000, text_height: 1000, baseline_distance: 850, ..Default::default() }],
+                    ..Default::default()
+                }],
+                ..Default::default()
+            });
+            let tree = c13_tree(&format!("caption-{direction:?}-{offset}"), table);
+            let nodes = c13_nodes(&tree.root);
+            let table = nodes.iter().find(|n| matches!(n.node_type, RenderNodeType::Table(_))).unwrap();
+            let caption = nodes.iter().find(|n| matches!(&n.node_type, RenderNodeType::TextRun(t) if t.text == "C13 caption")).unwrap();
+            let following = nodes.iter().find(|n| matches!(&n.node_type, RenderNodeType::TextRun(t) if t.text == "C13 following instructions")).unwrap();
+            let occupied_bottom = (table.bbox.y + table.bbox.height).max(caption.bbox.y + caption.bbox.height);
+            assert!(occupied_bottom <= following.bbox.y + 0.1, "{direction:?}/{offset}: caption/table bottom {occupied_bottom} overlaps following {:?}", following.bbox);
+            boxes.push((table.bbox.y, caption.bbox.y));
+        }
+        assert_eq!(boxes[0], boxes[1], "{direction:?}: raw TAC offset moved the caption/table");
+    }
+}
+
+#[test]
+fn c13_nested_tables_keep_cell_margin_positioning() {
+    let mut positions = Vec::new();
+    for offset in [0, 19986] {
+        let mut outer = c13_table(0);
+        let mut nested = c13_table(offset);
+        nested.common.treat_as_char = false;
+        nested.cells.iter_mut().for_each(|cell| cell.height = 1500);
+        nested.outer_margin_top = 300;
+        outer.cells[0].paragraphs[0].controls.push(crate::model::control::Control::Table(Box::new(nested)));
+        let tree = c13_tree(&format!("nested-{offset}"), outer);
+        let nodes = c13_nodes(&tree.root);
+        let tables: Vec<_> = nodes.iter().filter(|n| matches!(n.node_type, RenderNodeType::Table(_))).collect();
+        assert_eq!(tables.len(), 2);
+        positions.push((tables[1].bbox.x, tables[1].bbox.y, tables[1].bbox.height));
+        assert!(tables[1].bbox.y >= tables[0].bbox.y + hwpunit_to_px(300, DEFAULT_DPI));
+    }
+    assert_eq!(positions[0], positions[1], "nested raw offset must not replace cell-flow positioning");
+}
+
 #[test]
 fn test_layout_table_cell_positions() {
     use crate::model::control::Control;

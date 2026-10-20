@@ -1154,20 +1154,16 @@ impl LayoutEngine {
                 raw_y
             }
         } else if depth == 0 {
-            let v_offset = if table_treat_as_char {
-                hwpunit_to_px(table.common.vertical_offset as i32, self.dpi)
-            } else {
-                0.0
-            };
+            // TAC 표는 예약된 텍스트 흐름 위치를 사용하므로 floating offset을 더하지 않는다.
             if let Some(ref caption) = table.caption {
                 use crate::model::shape::CaptionDirection;
                 if matches!(caption.direction, CaptionDirection::Top) {
-                    y_start + caption_height + caption_spacing + v_offset
+                    y_start + caption_height + caption_spacing
                 } else {
-                    y_start + v_offset
+                    y_start
                 }
             } else {
-                y_start + v_offset
+                y_start
             }
         } else {
             // 중첩 표: outer_margin_top 적용
