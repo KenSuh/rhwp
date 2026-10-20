@@ -12,6 +12,214 @@
 
 use rhwp::serializer::hwpx::roundtrip::roundtrip_ir_diff;
 
+#[derive(Debug, Default)]
+struct C11Layout {
+    flags: Vec<(String, Option<bool>)>,
+    geometry: Vec<(String, Vec<(String, String)>)>,
+    objects: Vec<String>,
+    texts: Vec<(String, String)>,
+}
+
+fn c11_layout(xml: &str) -> C11Layout {
+    use quick_xml::{events::Event, name::ResolveResult, NsReader};
+    use std::collections::BTreeMap;
+    let mut reader = NsReader::from_str(xml);
+    reader.config_mut().expand_empty_elements = true;
+    let mut stack = vec![(
+        String::new(),
+        String::new(),
+        BTreeMap::<String, usize>::new(),
+    )];
+    let mut wrappers = Vec::new();
+    let mut paragraphs = Vec::new();
+    let mut in_text = false;
+    let mut output = C11Layout::default();
+    loop {
+        let (resolved, event) = reader.read_resolved_event().unwrap();
+        let namespace = match resolved {
+            ResolveResult::Bound(ns) => String::from_utf8(ns.as_ref().to_vec()).unwrap(),
+            ResolveResult::Unbound => String::new(),
+            ResolveResult::Unknown(prefix) => panic!("unbound namespace: {prefix:?}"),
+        };
+        let hp = namespace == "http://www.hancom.co.kr/hwpml/2011/paragraph";
+        match event {
+            Event::Start(e) => {
+                let name = String::from_utf8(e.local_name().as_ref().to_vec()).unwrap();
+                let wrapper = hp && matches!(name.as_str(), "run" | "ctrl");
+                wrappers.push(wrapper);
+                if wrapper {
+                    continue;
+                }
+                let expanded = format!("{{{namespace}}}{name}");
+                let parent = stack.last_mut().unwrap();
+                let count = parent.2.entry(expanded.clone()).or_default();
+                let owner = format!("{}/{expanded}[{count}]", parent.0);
+                *count += 1;
+                let mut attrs: Vec<_> = e
+                    .attributes()
+                    .map(|a| {
+                        let a = a.unwrap();
+                        (
+                            String::from_utf8(a.key.as_ref().to_vec()).unwrap(),
+                            a.decode_and_unescape_value(reader.decoder())
+                                .unwrap()
+                                .into_owned(),
+                        )
+                    })
+                    .collect();
+                attrs.sort();
+                if name == "tbl" {
+                    assert!(hp, "table must use the expanded HWPX paragraph namespace");
+                    let flag = attrs
+                        .iter()
+                        .find(|(key, _)| key == "noAdjust")
+                        .map(|(_, value)| matches!(value.as_str(), "1" | "true"));
+                    output.flags.push((owner.clone(), flag));
+                }
+                if hp
+                    && (name == "lineseg"
+                        || matches!(name.as_str(), "cellAddr" | "cellSpan" | "cellSz")
+                        || (parent.1 == "tbl"
+                            && matches!(name.as_str(), "sz" | "pos" | "inMargin" | "outMargin")))
+                {
+                    output.geometry.push((owner.clone(), attrs));
+                }
+                if hp && matches!(name.as_str(), "tbl" | "pic") {
+                    output.objects.push(owner.clone());
+                }
+                if hp && name == "p" {
+                    paragraphs.push(output.texts.len());
+                    output.texts.push((owner.clone(), String::new()));
+                }
+                if hp && name == "t" {
+                    in_text = true;
+                }
+                if hp && in_text {
+                    let special = match name.as_str() {
+                        "fwSpace" => "\u{2007}",
+                        "nbSpace" => "\u{a0}",
+                        "lineBreak" => "\n",
+                        "tab" => "\t",
+                        _ => "",
+                    };
+                    output.texts[*paragraphs.last().unwrap()]
+                        .1
+                        .push_str(special);
+                }
+                stack.push((owner, name, BTreeMap::new()));
+            }
+            Event::Text(e) if in_text => {
+                let value = quick_xml::escape::unescape(&e.decode().unwrap())
+                    .unwrap()
+                    .into_owned();
+                output.texts[*paragraphs.last().unwrap()].1.push_str(&value);
+            }
+            Event::GeneralRef(e) if in_text => {
+                let reference = format!("&{};", e.decode().unwrap());
+                let value = quick_xml::escape::unescape(&reference).unwrap();
+                output.texts[*paragraphs.last().unwrap()].1.push_str(&value);
+            }
+            Event::End(e) => {
+                if hp && e.local_name().as_ref() == b"t" {
+                    in_text = false;
+                }
+                if hp && e.local_name().as_ref() == b"p" {
+                    paragraphs.pop().unwrap();
+                }
+                if !wrappers.pop().unwrap() {
+                    stack.pop().unwrap();
+                }
+            }
+            Event::Eof => break,
+            _ => {}
+        }
+    }
+    assert_eq!(stack.len(), 1);
+    output
+}
+
+#[test]
+fn c11_native_true_table_flags_keep_nested_owners_two_saves() {
+    let inner = c8_table(&c9_paragraph("<hp:t>nested true</hp:t>", C9_LINE)).replacen(
+        "<hp:tbl ",
+        r#"<hp:tbl noAdjust="true" "#,
+        1,
+    );
+    let outer = c8_table(&inner).replacen("<hp:tbl ", r#"<hp:tbl noAdjust="false" "#, 1);
+    let first = c8_table(&c9_paragraph("<hp:t>body true</hp:t>", C9_LINE)).replacen(
+        "<hp:tbl ",
+        r#"<hp:tbl noAdjust="1" "#,
+        1,
+    );
+    let input = c8_fixture(&(first + &outer), false);
+    let expected = c11_layout(&hwpx_section_xml(&input));
+    assert_eq!(
+        expected.flags.iter().map(|(_, v)| *v).collect::<Vec<_>>(),
+        [Some(true), Some(false), Some(true)]
+    );
+    c10_two_native_saves(&input, |_, xml| {
+        let actual = c11_layout(xml);
+        assert_eq!(actual.objects, expected.objects);
+        assert_eq!(actual.texts, expected.texts);
+        assert_eq!(actual.flags, expected.flags);
+    });
+}
+
+#[test]
+fn c11_native_false_and_missing_table_flags_default_false_two_saves() {
+    let body: String = [Some("0"), Some("false"), None]
+        .into_iter()
+        .map(|flag| {
+            let table = c8_table(&c9_paragraph("<hp:t>false default</hp:t>", C9_LINE));
+            match flag {
+                Some(value) => {
+                    table.replacen("<hp:tbl ", &format!(r#"<hp:tbl noAdjust="{value}" "#), 1)
+                }
+                None => table,
+            }
+        })
+        .collect();
+    let input = c8_fixture(&body, false);
+    let mut expected = c11_layout(&hwpx_section_xml(&input)).flags;
+    assert_eq!(
+        expected.iter().map(|(_, v)| *v).collect::<Vec<_>>(),
+        [Some(false), Some(false), None]
+    );
+    for (_, flag) in &mut expected {
+        *flag = Some(false);
+    }
+    c10_two_native_saves(&input, |_, xml| assert_eq!(c11_layout(xml).flags, expected));
+}
+
+#[test]
+#[ignore = "requires immutable C6 fixture in RHWP_C11_C6_INPUT"]
+fn c11_real_c6_table_flags_and_layout_survive_two_native_saves() {
+    let path = std::env::var_os("RHWP_C11_C6_INPUT").expect("explicit immutable C6 input");
+    let input = std::fs::read(path).unwrap();
+    assert_eq!(input.len(), 217029);
+    let xml = hwpx_section_xml(&input);
+    let expected = c11_layout(&xml);
+    assert_eq!(expected.flags.len(), 82);
+    assert_eq!(
+        expected
+            .flags
+            .iter()
+            .filter(|(_, flag)| *flag == Some(true))
+            .count(),
+        12
+    );
+    assert_eq!(expected.texts.len(), 2050);
+    let columns = c9_layout_events(&xml);
+    c10_two_native_saves(&input, |_, xml| {
+        let actual = c11_layout(xml);
+        assert_eq!(actual.objects, expected.objects);
+        assert_eq!(actual.texts, expected.texts);
+        assert_eq!(actual.geometry, expected.geometry);
+        assert_eq!(c9_layout_events(xml), columns);
+        assert_eq!(actual.flags, expected.flags);
+    });
+    eprintln!("C11 C6: 82 owner flags / 12 true / 2050 paragraph texts and geometry preserved across two public native saves");
+}
 const C10_COLUMN: &str = r#"<hp:ctrl><hp:colPr id="" type="NEWSPAPER" layout="RIGHT" colCount="2" sameSz="1" sameGap="300"/></hp:ctrl>"#;
 const C10_PAGE_NUMBER: &str = r#"<hp:ctrl><hp:pageNum pos="BOTTOM_RIGHT" formatType="ROMAN_CAPITAL" sideChar="*"/></hp:ctrl>"#;
 

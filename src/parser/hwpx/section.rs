@@ -654,6 +654,7 @@ fn parse_table(
             b"repeatHeader" => {
                 table.repeat_header = attr_str(&attr) == "1";
             }
+            b"noAdjust" => table.no_adjust = parse_bool(&attr),
             b"textWrap" => {
                 table.common.text_wrap = match attr_str(&attr).as_str() {
                     "TOP_AND_BOTTOM" => crate::model::shape::TextWrap::TopAndBottom,

@@ -595,6 +595,7 @@ impl DocumentCore {
             cell_grid: Vec::new(),
             page_break: TablePageBreak::None,
             repeat_header: has_header_row,
+            no_adjust: false,
             caption: None,
             common: Default::default(),
             outer_margin_left: outer_margin,

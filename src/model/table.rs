@@ -32,6 +32,8 @@ pub struct Table {
     pub page_break: TablePageBreak,
     /// 제목 줄 자동 반복
     pub repeat_header: bool,
+    /// HWPX 표의 noAdjust 플래그 (기본값 false).
+    pub no_adjust: bool,
     /// 캡션 정보
     pub caption: Option<Caption>,
     /// 공통 객체 속성 (위치, 배치, 크기 등)

@@ -67,6 +67,7 @@ pub fn write_table<W: Write>(
     let lock = bool01(false);
     let page_break = table_page_break_str(table.page_break);
     let repeat_header = bool01(table.repeat_header);
+    let no_adjust = bool01(table.no_adjust);
     let row_cnt = table.row_count.to_string();
     let col_cnt = table.col_count.to_string();
     let cell_spacing = table.cell_spacing.to_string();
@@ -89,7 +90,7 @@ pub fn write_table<W: Write>(
             ("colCnt", &col_cnt),
             ("cellSpacing", &cell_spacing),
             ("borderFillIDRef", &border_fill_id_ref),
-            ("noAdjust", "0"),
+            ("noAdjust", no_adjust),
         ],
     )?;
 

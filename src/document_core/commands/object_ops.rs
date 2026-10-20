@@ -1169,6 +1169,7 @@ impl DocumentCore {
             cell_grid: Vec::new(),
             page_break: TablePageBreak::None,
             repeat_header: false,
+            no_adjust: false,
             caption: None,
             common: crate::model::shape::CommonObjAttr {
                 treat_as_char: false,
@@ -1516,6 +1517,7 @@ impl DocumentCore {
             cell_grid: Vec::new(),
             page_break: TablePageBreak::RowBreak,
             repeat_header: false,
+            no_adjust: false,
             caption: None,
             common: crate::model::shape::CommonObjAttr {
                 treat_as_char: true,
@@ -2197,6 +2199,7 @@ impl DocumentCore {
             cell_grid: Vec::new(),
             page_break: TablePageBreak::RowBreak,
             repeat_header: false,
+            no_adjust: false,
             caption: None,
             common: crate::model::shape::CommonObjAttr {
                 treat_as_char: true,
