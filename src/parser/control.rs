@@ -132,6 +132,7 @@ fn parse_field_control(ctrl_id: u32, ctrl_data: &[u8]) -> Control {
         ctrl_id,
         ctrl_data_name: None,
         memo_index,
+        hwpx: None,
     })
 }
 

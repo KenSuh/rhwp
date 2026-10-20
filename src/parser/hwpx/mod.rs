@@ -85,13 +85,9 @@ pub fn parse_hwpx(data: &[u8]) -> Result<Document, HwpxError> {
     let mut sections = Vec::new();
     for section_href in &package_info.section_files {
         let section_xml = reader.read_file(section_href)?;
-        match section::parse_hwpx_section(&section_xml) {
-            Ok(section) => sections.push(section),
-            Err(e) => {
-                eprintln!("경고: {} 파싱 실패: {}", section_href, e);
-                sections.push(Section::default());
-            }
-        }
+        let section = section::parse_hwpx_section(&section_xml)
+            .map_err(|e| HwpxError::XmlError(format!("{} 파싱 실패: {}", section_href, e)))?;
+        sections.push(section);
     }
 
     // 5. BinData 이미지 로딩

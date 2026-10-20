@@ -223,6 +223,43 @@ pub struct Field {
     pub ctrl_data_name: Option<String>,
     /// 메모 인덱스 (hwplib: memoIndex)
     pub memo_index: u32,
+    /// HWPX의 시작/끝 ID와 매개변수. 바이너리 HWP 필드는 기존 기본값을 사용한다.
+    pub hwpx: Option<HwpxField>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct HwpxField {
+    pub begin_attributes: Vec<(String, String)>,
+    pub end_attributes: Option<Vec<(String, String)>>,
+    pub parameters: Option<FieldParameters>,
+    pub begin_char_shape_id: u32,
+    pub end_char_shape_id: u32,
+    /// 같은 문자 위치에 있는 중첩/빈 필드 경계의 원래 순서.
+    pub begin_order: usize,
+    pub end_order: usize,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct FieldParameters {
+    pub name: String,
+    pub items: Vec<FieldParameter>,
+}
+
+#[derive(Debug, Clone)]
+pub struct FieldParameter {
+    pub kind: FieldParameterKind,
+    pub name: String,
+    pub value: String,
+    pub items: Vec<FieldParameter>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum FieldParameterKind {
+    Boolean,
+    Integer,
+    Float,
+    String,
+    List,
 }
 
 impl Field {

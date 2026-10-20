@@ -35,12 +35,11 @@ use super::context::SerializeContext;
 use super::form::write_form;
 use super::picture::write_picture;
 use super::shape::{write_container_close, write_container_open, write_line, write_rect};
-use super::table::write_table;
+use super::table::{write_paragraph_text_runs, write_table};
 use super::utils::{empty_tag, end_tag, start_tag, xml_escape};
 use super::SerializeError;
 
 const EMPTY_SECTION_XML: &str = include_str!("templates/empty_section0.xml");
-const TEXT_SLOT: &str = "<hp:t/>";
 const LINESEG_SLOT_OPEN: &str = "<hp:linesegarray>";
 const LINESEG_SLOT_CLOSE: &str = "</hp:linesegarray>";
 const PAGE_PR_OPEN: &str = "<hp:pagePr ";
@@ -83,39 +82,31 @@ pub fn write_section(
         Some(page_pr) => replace_page_pr(EMPTY_SECTION_XML, &page_pr),
         None => EMPTY_SECTION_XML.to_string(),
     };
-    let mut out = template.replacen(TEXT_SLOT, &first_t, 1);
+    let first_runs = match first_para {
+        Some(p) => render_text_runs(p)?,
+        None => format!(r#"<hp:run charPrIDRef="0">{first_t}</hp:run>"#),
+    };
+    let mut out = template.replacen(
+        &format!("{TEMPLATE_RUN_BEFORE_TEXT}</hp:run>"),
+        &first_runs,
+        1,
+    );
     out = replace_first_linesegs(&out, &first_linesegs);
-
-    // 첫 문단 `<hp:p>` 태그를 IR 기반 속성으로 교체
     if let Some(p) = first_para {
-        let new_p_tag = render_hp_p_open(p, 0);
-        out = out.replacen(TEMPLATE_FIRST_P_TAG, &new_p_tag, 1);
-
-        // 섹션 첫 run(secPr/colPr 전용)의 charPrIDRef 를 첫 텍스트 run id 와 일치시킨다.
-        // 파서는 이 run 시작에서도 (0, id) 를 기록하므로, id 가 다르면 재파싱 시
-        // 가짜 (0, 0) entry 가 생긴다 (#1378 stage1 양상 ②).
+        out = out.replacen(TEMPLATE_FIRST_P_TAG, &render_hp_p_open(p, 0), 1);
         let first_cs = first_run_char_shape_id(p);
         if first_cs != 0 {
-            let new_secpr_run = format!(r#"<hp:run charPrIDRef="{}"><hp:secPr "#, first_cs);
-            out = out.replacen(TEMPLATE_SECPR_RUN_OPEN, &new_secpr_run, 1);
+            out = out.replacen(
+                TEMPLATE_SECPR_RUN_OPEN,
+                &format!(r#"<hp:run charPrIDRef="{}"><hp:secPr "#, first_cs),
+                1,
+            );
         }
-
-        // 첫 문단의 텍스트용 <hp:run> 의 charPrIDRef 를 IR 기반으로 교체
-        // 템플릿에서 TEXT_SLOT 이 있던 자리 바로 앞의 <hp:run charPrIDRef="0"> 패턴.
-        let first_run_cs = first_run_char_shape_id(p);
-        let new_run = format!(r#"<hp:run charPrIDRef="{}">"#, first_run_cs);
-        let replacement = format!("{}{}", new_run, first_t);
-        // 이미 first_t 는 out 에 들어갔으므로 그 직전의 <hp:run charPrIDRef="0"> 만 변경
-        let anchor = format!("{}{}", r#"<hp:run charPrIDRef="0">"#, first_t);
-        if out.contains(&anchor) {
-            out = out.replacen(&anchor, &replacement, 1);
-        }
-
         let controls_xml = render_controls_xml(p, ctx)?;
         if !controls_xml.is_empty() {
             out = out.replacen(
-                "</hp:run><hp:linesegarray>",
-                &format!("</hp:run>{}<hp:linesegarray>", controls_xml),
+                "<hp:linesegarray>",
+                &format!("{}<hp:linesegarray>", controls_xml),
                 1,
             );
         }
@@ -125,13 +116,10 @@ pub fn write_section(
     if section.paragraphs.len() > 1 {
         let mut extra = String::new();
         for (idx, p) in section.paragraphs.iter().enumerate().skip(1) {
-            let (t, linesegs, advance) = render_paragraph_parts(p, vert_cursor);
+            let (_, linesegs, advance) = render_paragraph_parts(p, vert_cursor);
             vert_cursor = advance;
-            let cs = first_run_char_shape_id(p);
             extra.push_str(&render_hp_p_open(p, idx as u32));
-            extra.push_str(&format!(r#"<hp:run charPrIDRef="{}">"#, cs));
-            extra.push_str(&t);
-            extra.push_str("</hp:run>");
+            extra.push_str(&render_text_runs(p)?);
             extra.push_str(&render_controls_xml(p, ctx)?);
             extra.push_str(r#"<hp:linesegarray>"#);
             extra.push_str(&linesegs);
@@ -141,6 +129,12 @@ pub fn write_section(
     }
 
     Ok(out.into_bytes())
+}
+
+fn render_text_runs(p: &Paragraph) -> Result<String, SerializeError> {
+    let mut writer = Writer::new(Vec::new());
+    write_paragraph_text_runs(&mut writer, p)?;
+    String::from_utf8(writer.into_inner()).map_err(|e| SerializeError::XmlError(e.to_string()))
 }
 
 fn render_controls_xml(
@@ -283,23 +277,23 @@ fn page_number_format_str(format: u8) -> &'static str {
 fn write_shape_xml(
     writer: &mut Writer<Vec<u8>>,
     shape: &ShapeObject,
-    ctx: &SerializeContext,
+    ctx: &mut SerializeContext,
 ) -> Result<bool, SerializeError> {
     match shape {
         ShapeObject::Line(line) => {
-            write_line(writer, line)?;
+            write_line(writer, line, ctx)?;
             Ok(true)
         }
         ShapeObject::Rectangle(rect) => {
-            write_rect(writer, rect)?;
+            write_rect(writer, rect, ctx)?;
             Ok(true)
         }
         ShapeObject::Group(group) => {
-            write_container_open(writer, &group.common)?;
+            write_container_open(writer, group)?;
             for child in &group.children {
                 let _ = write_shape_xml(writer, child, ctx)?;
             }
-            write_container_close(writer)?;
+            write_container_close(writer, group, ctx)?;
             Ok(true)
         }
         ShapeObject::Picture(pic) => {

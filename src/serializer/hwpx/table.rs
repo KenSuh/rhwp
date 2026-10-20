@@ -28,8 +28,9 @@ use std::io::Write;
 
 use quick_xml::Writer;
 
+use super::field::{write_field_begin, write_field_end_for_field};
 use crate::model::control::Control;
-use crate::model::paragraph::{CharShapeRef, LineSeg};
+use crate::model::paragraph::{CharShapeRef, LineSeg, Paragraph};
 use crate::model::shape::{
     CommonObjAttr, HorzAlign, HorzRelTo, ShapeObject, TextWrap, VertAlign, VertRelTo,
 };
@@ -95,6 +96,9 @@ pub fn write_table<W: Write>(
     write_sz(w, &table.common)?;
     write_pos(w, &table.common)?;
     write_out_margin(w, table)?;
+    if let Some(caption) = &table.caption {
+        super::shape::write_caption(w, caption, ctx)?;
+    }
     write_in_margin(w, table)?;
 
     // tr[]: 행 단위 반복. 각 행에 속한 셀 (cell.row == r) 을 col 오름차순으로 출력.
@@ -249,46 +253,55 @@ fn write_sub_list<W: Write>(
         ],
     )?;
 
-    // 셀 내부 문단 재귀 — 각 문단은 간단한 <hp:p><hp:run><hp:t>텍스트</hp:t></hp:run></hp:p> 구조
     for (pi, para) in cell.paragraphs.iter().enumerate() {
-        ctx.para_shape_ids.reference(para.para_shape_id);
-        ctx.style_ids.reference(para.style_id as u16);
-        for cs_ref in &para.char_shapes {
-            ctx.char_shape_ids.reference(cs_ref.char_shape_id);
-        }
-
-        let pi_str = pi.to_string();
-        let ppr = para.para_shape_id.to_string();
-        let sp = para.style_id.to_string();
-        start_tag_attrs(
-            w,
-            "hp:p",
-            &[
-                ("id", &pi_str),
-                ("paraPrIDRef", &ppr),
-                ("styleIDRef", &sp),
-                ("pageBreak", "0"),
-                ("columnBreak", "0"),
-                ("merged", "0"),
-            ],
-        )?;
-
-        let first_cs = para
-            .char_shapes
-            .first()
-            .map(|r| r.char_shape_id)
-            .unwrap_or(0);
-        write_cell_text_runs(w, &para.text, &para.char_offsets, &para.char_shapes)?;
-        for control in &para.controls {
-            write_cell_control_run(w, control, ctx, first_cs)?;
-        }
-
-        write_cell_linesegs(w, &para.line_segs)?;
-
-        end_tag(w, "hp:p")?;
+        write_paragraph(w, para, pi, ctx)?;
     }
 
     end_tag(w, "hp:subList")?;
+    Ok(())
+}
+
+pub(super) fn write_paragraph<W: Write>(
+    w: &mut Writer<W>,
+    para: &Paragraph,
+    id: usize,
+    ctx: &mut SerializeContext,
+) -> Result<(), SerializeError> {
+    ctx.para_shape_ids.reference(para.para_shape_id);
+    ctx.style_ids.reference(para.style_id as u16);
+    for cs_ref in &para.char_shapes {
+        ctx.char_shape_ids.reference(cs_ref.char_shape_id);
+    }
+
+    let pi_str = id.to_string();
+    let ppr = para.para_shape_id.to_string();
+    let sp = para.style_id.to_string();
+    start_tag_attrs(
+        w,
+        "hp:p",
+        &[
+            ("id", &pi_str),
+            ("paraPrIDRef", &ppr),
+            ("styleIDRef", &sp),
+            ("pageBreak", "0"),
+            ("columnBreak", "0"),
+            ("merged", "0"),
+        ],
+    )?;
+
+    let first_cs = para
+        .char_shapes
+        .first()
+        .map(|r| r.char_shape_id)
+        .unwrap_or(0);
+    write_paragraph_text_runs(w, para)?;
+    for control in &para.controls {
+        write_cell_control_run(w, control, ctx, first_cs)?;
+    }
+
+    write_cell_linesegs(w, &para.line_segs)?;
+
+    end_tag(w, "hp:p")?;
     Ok(())
 }
 
@@ -349,43 +362,148 @@ fn write_cell_fallback_lineseg<W: Write>(w: &mut Writer<W>) -> Result<(), Serial
     )
 }
 
-fn write_cell_text_runs<W: Write>(
+pub(super) fn write_paragraph_text_runs<W: Write>(
     w: &mut Writer<W>,
-    text: &str,
-    char_offsets: &[u32],
-    char_shapes: &[CharShapeRef],
+    para: &Paragraph,
 ) -> Result<(), SerializeError> {
-    if text.is_empty() {
-        let cs = first_char_shape_id(char_shapes).to_string();
-        start_tag_attrs(w, "hp:run", &[("charPrIDRef", &cs)])?;
-        write_cell_text(w, "")?;
-        end_tag(w, "hp:run")?;
-        return Ok(());
+    let chars: Vec<char> = para.text.chars().collect();
+    for range in &para.field_ranges {
+        if range.start_char_idx > range.end_char_idx
+            || range.end_char_idx > chars.len()
+            || !matches!(
+                para.controls.get(range.control_idx),
+                Some(Control::Field(_))
+            )
+        {
+            return Err(SerializeError::XmlError("잘못된 field range".into()));
+        }
     }
-
-    let mut current_shape: Option<u32> = None;
+    for (ci, ctrl) in para.controls.iter().enumerate() {
+        if matches!(ctrl, Control::Field(_))
+            && !para.field_ranges.iter().any(|r| r.control_idx == ci)
+        {
+            return Err(SerializeError::XmlError("위치 없는 field 컨트롤".into()));
+        }
+    }
+    let mut events = Vec::with_capacity(para.field_ranges.len() * 2);
+    let mut binary_ranges = Vec::new();
+    for range in &para.field_ranges {
+        let Some(Control::Field(field)) = para.controls.get(range.control_idx) else {
+            return Err(SerializeError::XmlError("field 컨트롤 누락".into()));
+        };
+        if let Some(h) = &field.hwpx {
+            events.push((range.start_char_idx, h.begin_order, range.control_idx, true));
+            events.push((range.end_char_idx, h.end_order, range.control_idx, false));
+        } else {
+            binary_ranges.push(range);
+        }
+    }
+    let mut boundaries: Vec<_> = binary_ranges
+        .iter()
+        .flat_map(|r| [r.start_char_idx, r.end_char_idx])
+        .collect();
+    boundaries.sort_unstable();
+    boundaries.dedup();
+    for pos in boundaries {
+        let mut starts: Vec<_> = binary_ranges
+            .iter()
+            .filter(|r| r.start_char_idx == pos)
+            .collect();
+        // Binary controls retain begin order; field_ranges retain end order.
+        starts.sort_by_key(|r| r.control_idx);
+        let mut starts = starts.into_iter().peekable();
+        let mut order = 0;
+        for end in binary_ranges.iter().filter(|r| r.end_char_idx == pos) {
+            while starts
+                .peek()
+                .is_some_and(|r| r.control_idx <= end.control_idx)
+            {
+                let start = starts.next().unwrap();
+                events.push((pos, order, start.control_idx, true));
+                order += 1;
+            }
+            events.push((pos, order, end.control_idx, false));
+            order += 1;
+        }
+        for start in starts {
+            events.push((pos, order, start.control_idx, true));
+            order += 1;
+        }
+    }
+    events.sort_by_key(|(pos, order, _, _)| (*pos, *order));
+    let mut current_shape = None;
     let mut current_text = String::new();
-    let mut fallback_utf16_pos = 0u32;
-
-    for (idx, ch) in text.chars().enumerate() {
-        let utf16_pos = char_offsets.get(idx).copied().unwrap_or(fallback_utf16_pos);
-        let shape_id = active_char_shape_id(char_shapes, utf16_pos);
+    let mut fallback_utf16_pos = 0;
+    for idx in 0..=chars.len() {
+        if events.iter().any(|(pos, _, _, _)| *pos == idx) {
+            if !current_text.is_empty() {
+                write_cell_text_run(w, current_shape.unwrap_or(0), &current_text)?;
+                current_text.clear();
+            }
+            for &(_, _, ci, begin) in events.iter().filter(|(pos, _, _, _)| *pos == idx) {
+                write_field_run(w, para, ci, begin, fallback_utf16_pos)?;
+            }
+        }
+        let Some(&ch) = chars.get(idx) else {
+            break;
+        };
+        let utf16_pos = para
+            .char_offsets
+            .get(idx)
+            .copied()
+            .unwrap_or(fallback_utf16_pos);
+        let shape_id = active_char_shape_id(&para.char_shapes, utf16_pos);
         fallback_utf16_pos = utf16_pos + char_utf16_len(ch);
-
-        if current_shape.is_some_and(|existing| existing != shape_id) {
+        if current_shape.is_some_and(|id| id != shape_id) && !current_text.is_empty() {
             write_cell_text_run(w, current_shape.unwrap_or(0), &current_text)?;
             current_text.clear();
         }
-
         current_shape = Some(shape_id);
         current_text.push(ch);
     }
+    if !current_text.is_empty() || (chars.is_empty() && para.field_ranges.is_empty()) {
+        write_cell_text_run(
+            w,
+            current_shape.unwrap_or_else(|| first_char_shape_id(&para.char_shapes)),
+            &current_text,
+        )?;
+    }
+    Ok(())
+}
 
-    write_cell_text_run(
-        w,
-        current_shape.unwrap_or_else(|| first_char_shape_id(char_shapes)),
-        &current_text,
-    )
+fn write_field_run<W: Write>(
+    w: &mut Writer<W>,
+    para: &Paragraph,
+    control_idx: usize,
+    begin: bool,
+    utf16_pos: u32,
+) -> Result<(), SerializeError> {
+    let Some(Control::Field(field)) = para.controls.get(control_idx) else {
+        return Err(SerializeError::XmlError(
+            "field range의 컨트롤이 Field가 아님".into(),
+        ));
+    };
+    let shape = field
+        .hwpx
+        .as_ref()
+        .map(|h| {
+            if begin {
+                h.begin_char_shape_id
+            } else {
+                h.end_char_shape_id
+            }
+        })
+        .unwrap_or_else(|| active_char_shape_id(&para.char_shapes, utf16_pos))
+        .to_string();
+    start_tag_attrs(w, "hp:run", &[("charPrIDRef", &shape)])?;
+    start_tag(w, "hp:ctrl")?;
+    if begin {
+        write_field_begin(w, field)?;
+    } else {
+        write_field_end_for_field(w, field)?;
+    }
+    end_tag(w, "hp:ctrl")?;
+    end_tag(w, "hp:run")
 }
 
 fn write_cell_text_run<W: Write>(
@@ -424,17 +542,39 @@ fn char_utf16_len(ch: char) -> u32 {
 }
 
 fn write_cell_text<W: Write>(w: &mut Writer<W>, text: &str) -> Result<(), SerializeError> {
-    use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
-    // <hp:t>text</hp:t>
-    w.write_event(Event::Start(BytesStart::new("hp:t")))
-        .map_err(|e| SerializeError::XmlError(e.to_string()))?;
-    if !text.is_empty() {
-        w.write_event(Event::Text(BytesText::new(text)))
-            .map_err(|e| SerializeError::XmlError(e.to_string()))?;
+    use super::utils::text as write_text;
+    start_tag(w, "hp:t")?;
+    let mut pending = String::new();
+    for ch in text.chars() {
+        match ch {
+            '\t' | '\n' => {
+                if !pending.is_empty() {
+                    write_text(w, &pending)?;
+                    pending.clear();
+                }
+                if ch == '\n' {
+                    empty_tag(w, "hp:lineBreak", &[])?;
+                } else {
+                    empty_tag(
+                        w,
+                        "hp:tab",
+                        &[("width", "4000"), ("leader", "0"), ("type", "1")],
+                    )?;
+                }
+            }
+            c if c < ' ' => {
+                return Err(SerializeError::XmlError(format!(
+                    "XML 1.0에서 허용하지 않는 문자: U+{:04X}",
+                    u32::from(c)
+                )))
+            }
+            c => pending.push(c),
+        }
     }
-    w.write_event(Event::End(BytesEnd::new("hp:t")))
-        .map_err(|e| SerializeError::XmlError(e.to_string()))?;
-    Ok(())
+    if !pending.is_empty() {
+        write_text(w, &pending)?;
+    }
+    end_tag(w, "hp:t")
 }
 
 fn write_cell_control_run<W: Write>(
@@ -490,23 +630,23 @@ fn shape_supported(shape: &ShapeObject) -> bool {
 fn write_cell_shape<W: Write>(
     w: &mut Writer<W>,
     shape: &ShapeObject,
-    ctx: &SerializeContext,
+    ctx: &mut SerializeContext,
 ) -> Result<bool, SerializeError> {
     match shape {
         ShapeObject::Line(line) => {
-            write_line(w, line)?;
+            write_line(w, line, ctx)?;
             Ok(true)
         }
         ShapeObject::Rectangle(rect) => {
-            write_rect(w, rect)?;
+            write_rect(w, rect, ctx)?;
             Ok(true)
         }
         ShapeObject::Group(group) => {
-            write_container_open(w, &group.common)?;
+            write_container_open(w, group)?;
             for child in &group.children {
                 let _ = write_cell_shape(w, child, ctx)?;
             }
-            write_container_close(w)?;
+            write_container_close(w, group, ctx)?;
             Ok(true)
         }
         ShapeObject::Picture(pic) => {

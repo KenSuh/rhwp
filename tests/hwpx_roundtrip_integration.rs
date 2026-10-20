@@ -12,6 +12,657 @@
 
 use rhwp::serializer::hwpx::roundtrip::roundtrip_ir_diff;
 
+// C8: 실제 native 저장 owner의 필드·그림·지원 도형 보존 회귀.
+fn c8_fixture(body: &str, image: bool) -> Vec<u8> {
+    use std::io::{Cursor, Read, Write};
+    let fixture = include_bytes!("../samples/hwpx/ref/ref_empty.hwpx");
+    let mut original = zip::ZipArchive::new(Cursor::new(fixture)).unwrap();
+    let mut output = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    let section = format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?><hs:sec xmlns:hp="http://www.hancom.co.kr/hwpml/2011/paragraph" xmlns:hs="http://www.hancom.co.kr/hwpml/2011/section" xmlns:hc="http://www.hancom.co.kr/hwpml/2011/core">{body}</hs:sec>"#
+    );
+    for i in 0..original.len() {
+        let mut entry = original.by_index(i).unwrap();
+        let name = entry.name().unwrap().to_string();
+        let mut bytes = Vec::new();
+        entry.read_to_end(&mut bytes).unwrap();
+        if name == "Contents/section0.xml" {
+            bytes = section.as_bytes().to_vec();
+        } else if image && name == "Contents/content.hpf" {
+            bytes = String::from_utf8(bytes).unwrap().replace("</opf:manifest>", r#"<opf:item id="image1" href="BinData/image1.png" media-type="image/png" isEmbeded="1"/></opf:manifest>"#).into_bytes();
+        }
+        output
+            .start_file(name, zip::write::SimpleFileOptions::default())
+            .unwrap();
+        output.write_all(&bytes).unwrap();
+    }
+    if image {
+        output
+            .start_file(
+                "BinData/image1.png",
+                zip::write::SimpleFileOptions::default(),
+            )
+            .unwrap();
+        output
+            .write_all(rhwp::serializer::hwpx::static_assets::PRV_IMAGE_PNG)
+            .unwrap();
+    }
+    output.finish().unwrap().into_inner()
+}
+
+fn c8_field_paragraph(id: u32) -> String {
+    format!(
+        r#"<hp:p paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="0"><hp:t>앞😀</hp:t><hp:ctrl><hp:fieldBegin id="{id}" type="HYPERLINK" name="이름&amp;값" editable="0" dirty="1" zorder="-1" fieldid="{}"><hp:parameters cnt="4" name="파라미터"><hp:integerParam name="Prop">7</hp:integerParam><hp:stringParam name="Command">https://example.test/a?x=1&amp;y=2;</hp:stringParam><hp:booleanParam name="Enabled">true</hp:booleanParam><hp:floatParam name="Ratio">1.25</hp:floatParam></hp:parameters></hp:fieldBegin></hp:ctrl></hp:run><hp:run charPrIDRef="1"><hp:t>링😀크</hp:t></hp:run><hp:run charPrIDRef="2"><hp:ctrl><hp:fieldEnd beginIDRef="{id}"/></hp:ctrl><hp:t>뒤</hp:t></hp:run></hp:p>"#,
+        id + 1000
+    )
+}
+
+fn c8_table(inner: &str) -> String {
+    format!(
+        r#"<hp:p paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="0"><hp:tbl rowCnt="1" colCnt="1" borderFillIDRef="1"><hp:sz width="10000" height="3000"/><hp:tr><hp:tc borderFillIDRef="1"><hp:subList>{inner}</hp:subList><hp:cellAddr colAddr="0" rowAddr="0"/><hp:cellSpan colSpan="1" rowSpan="1"/><hp:cellSz width="10000" height="3000"/></hp:tc></hp:tr></hp:tbl></hp:run></hp:p>"#
+    )
+}
+
+/// XML 이벤트로 필드 경계와 표시 문자별 run 서식을 함께 비교한다.
+fn c8_inline_events(xml: &str) -> Vec<(String, Vec<(String, String)>, String)> {
+    use quick_xml::{events::Event, Reader};
+    let mut reader = Reader::from_str(xml);
+    reader.config_mut().expand_empty_elements = true;
+    let mut output: Vec<(String, Vec<(String, String)>, String)> = Vec::new();
+    let mut shape = String::from("0");
+    let mut field_depth = 0usize;
+    let mut in_text = false;
+    loop {
+        match reader.read_event().unwrap() {
+            Event::Start(e) => {
+                let name = String::from_utf8(e.local_name().as_ref().to_vec()).unwrap();
+                let mut attrs: Vec<_> = e
+                    .attributes()
+                    .map(|a| {
+                        let a = a.unwrap();
+                        (
+                            String::from_utf8(a.key.as_ref().to_vec()).unwrap(),
+                            a.decode_and_unescape_value(reader.decoder())
+                                .unwrap()
+                                .into_owned(),
+                        )
+                    })
+                    .collect();
+                attrs.sort();
+                if name == "run" {
+                    shape = attrs
+                        .iter()
+                        .find(|(k, _)| k == "charPrIDRef")
+                        .unwrap()
+                        .1
+                        .clone();
+                }
+                if name == "fieldBegin" || name == "fieldEnd" || field_depth > 0 {
+                    if field_depth == 0 {
+                        attrs.push(("run".into(), shape.clone()));
+                    }
+                    output.push((name.clone(), attrs, String::new()));
+                    field_depth += 1;
+                } else if name == "t" {
+                    in_text = true;
+                }
+            }
+            Event::Text(e) => {
+                let value = quick_xml::escape::unescape(&e.decode().unwrap())
+                    .unwrap()
+                    .into_owned();
+                if field_depth > 0 {
+                    output.last_mut().unwrap().2.push_str(&value);
+                } else if in_text {
+                    for ch in value.chars() {
+                        output.push((
+                            "char".into(),
+                            vec![("run".into(), shape.clone())],
+                            ch.to_string(),
+                        ));
+                    }
+                }
+            }
+            Event::GeneralRef(e) => {
+                let reference = format!("&{};", e.decode().unwrap());
+                let value = quick_xml::escape::unescape(&reference).unwrap();
+                if field_depth > 0 {
+                    output.last_mut().unwrap().2.push_str(&value);
+                } else if in_text {
+                    for ch in value.chars() {
+                        output.push((
+                            "char".into(),
+                            vec![("run".into(), shape.clone())],
+                            ch.to_string(),
+                        ));
+                    }
+                }
+            }
+            Event::End(e) => {
+                if field_depth > 0 {
+                    field_depth -= 1;
+                }
+                if e.local_name().as_ref() == b"t" {
+                    in_text = false;
+                }
+            }
+            Event::Eof => break,
+            _ => {}
+        }
+    }
+    output
+}
+
+#[test]
+fn c8_native_fields_preserve_metadata_positions_and_styled_text() {
+    use rhwp::document_core::DocumentCore;
+    let input = c8_fixture(
+        &(c8_field_paragraph(101) + &c8_table(&c8_field_paragraph(303))),
+        false,
+    );
+    let expected = c8_inline_events(&hwpx_section_xml(&input));
+    let mut core = DocumentCore::from_bytes(&input).unwrap();
+    for pass in 0..2 {
+        let saved = core.export_hwpx_native().unwrap();
+        let xml = hwpx_section_xml(&saved);
+        assert!(
+            !xml.chars()
+                .any(|c| c < ' ' && !matches!(c, '\t' | '\n' | '\r')),
+            "XML 1.0 forbids field marker bytes"
+        );
+        assert_eq!(
+            c8_inline_events(&xml),
+            expected,
+            "save {pass}: field metadata/positions/run styles"
+        );
+        core = DocumentCore::from_bytes(&saved).unwrap();
+    }
+}
+
+#[test]
+fn c8_native_field_ranges_follow_unicode_edits_in_body_and_cell() {
+    use rhwp::document_core::DocumentCore;
+    let input = c8_fixture(
+        &(c8_field_paragraph(101) + &c8_table(&c8_field_paragraph(303))),
+        false,
+    );
+    let mut core = DocumentCore::from_bytes(&input).unwrap();
+    let para = &core.document().sections[0].paragraphs[0];
+    assert_eq!(para.text, "앞😀링😀크뒤");
+    assert_eq!(para.field_ranges.len(), 1);
+    assert_eq!(
+        (
+            para.field_ranges[0].start_char_idx,
+            para.field_ranges[0].end_char_idx
+        ),
+        (2, 5)
+    );
+    assert_eq!(para.char_offsets[3] - para.char_offsets[2], 1);
+    assert_eq!(para.char_offsets[4] - para.char_offsets[3], 2);
+    core.insert_text_native(0, 0, 3, "편😀").unwrap();
+    core.insert_text_in_cell_native(0, 1, 0, 0, 0, 3, "편😀")
+        .unwrap();
+    let saved = core.export_hwpx_native().unwrap();
+    let reopened = DocumentCore::from_bytes(&saved).unwrap();
+    let body = &reopened.document().sections[0].paragraphs[0];
+    assert_eq!(body.text, "앞😀링편😀😀크뒤");
+    assert_eq!(
+        (
+            body.field_ranges[0].start_char_idx,
+            body.field_ranges[0].end_char_idx
+        ),
+        (2, 7)
+    );
+    assert!(table_cell_texts(reopened.document()).contains(&body.text));
+    let expected_xml = hwpx_section_xml(&input).replace("링😀크", "링편😀😀크");
+    assert_eq!(
+        c8_inline_events(&hwpx_section_xml(&saved)),
+        c8_inline_events(&expected_xml)
+    );
+}
+
+#[test]
+fn c8_native_empty_nested_fields_and_current_property_edits_survive() {
+    use rhwp::{
+        model::control::{Control, Field},
+        parser::hwpx::parse_hwpx,
+        serializer::serialize_hwpx,
+    };
+    let inner = r#"<hp:p paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="0"><hp:ctrl><hp:fieldBegin id="1" fieldid="101" type="CLICK_HERE" name="old" editable="1"><hp:parameters cnt="2" name=""><hp:stringParam name="Command">old</hp:stringParam><hp:listParam name="Nested" cnt="2"><hp:integerParam name="Value">42</hp:integerParam><hp:stringParam name="Value">a&amp;b</hp:stringParam></hp:listParam></hp:parameters></hp:fieldBegin><hp:fieldBegin id="2" type="VENDOR_FIELD" name="inner"/><hp:fieldEnd beginIDRef="2"/><hp:fieldEnd beginIDRef="1" fieldid="101"/></hp:ctrl><hp:t>끝😀</hp:t></hp:run></hp:p>"#;
+    let input = c8_fixture(inner, false);
+    let mut doc = parse_hwpx(&input).unwrap();
+    assert_eq!(doc.sections[0].paragraphs[0].field_ranges.len(), 2);
+    let saved = serialize_hwpx(&doc).unwrap();
+    assert_eq!(
+        c8_inline_events(&hwpx_section_xml(&saved)),
+        c8_inline_events(&hwpx_section_xml(&input))
+    );
+
+    let field = doc.sections[0].paragraphs[0]
+        .controls
+        .iter_mut()
+        .find_map(|c| {
+            if let Control::Field(f) = c {
+                Some(f)
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    assert!(field.is_editable_in_form());
+    field.command = Field::build_clickhere_command("새 안내😀", "메모", "");
+    field.properties &= !1;
+    field.ctrl_data_name = None;
+    let expected_command = field.command.clone();
+    let saved = serialize_hwpx(&doc).unwrap();
+    let reopened = parse_hwpx(&saved).unwrap();
+    let field = reopened.sections[0].paragraphs[0]
+        .controls
+        .iter()
+        .find_map(|c| {
+            if let Control::Field(f) = c {
+                Some(f)
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    assert_eq!(field.command, expected_command);
+    assert_eq!(field.field_name(), Some("새 안내😀"));
+    assert!(!field.is_editable_in_form());
+    assert_eq!(field.ctrl_data_name.as_deref(), Some(""));
+
+    let absent_name = c8_fixture(&inner.replace(" name=\"old\"", ""), false);
+    let mut doc = parse_hwpx(&absent_name).unwrap();
+    let field = doc.sections[0].paragraphs[0]
+        .controls
+        .iter_mut()
+        .find_map(|c| {
+            if let Control::Field(f) = c {
+                Some(f)
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    field.ctrl_data_name = Some("새 이름😀".into());
+    let saved = serialize_hwpx(&doc).unwrap();
+    let reopened = parse_hwpx(&saved).unwrap();
+    let field = reopened.sections[0].paragraphs[0]
+        .controls
+        .iter()
+        .find_map(|c| {
+            if let Control::Field(f) = c {
+                Some(f)
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    assert_eq!(field.ctrl_data_name.as_deref(), Some("새 이름😀"));
+}
+
+#[test]
+fn c8_native_field_binary_defaults_and_invalid_references_are_explicit() {
+    use rhwp::{model::control::Control, parser::hwpx::parse_hwpx, serializer::serialize_hwpx};
+    let input = c8_fixture(&c8_field_paragraph(101), false);
+    let mut doc = parse_hwpx(&input).unwrap();
+    let field = doc.sections[0].paragraphs[0]
+        .controls
+        .iter_mut()
+        .find_map(|c| {
+            if let Control::Field(f) = c {
+                Some(f)
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    field.hwpx = None;
+    field.field_id = 909;
+    field.command = "binary&command😀".into();
+    field.properties |= 1;
+    let saved = serialize_hwpx(&doc).unwrap();
+    let reopened = parse_hwpx(&saved).unwrap();
+    let field = reopened.sections[0].paragraphs[0]
+        .controls
+        .iter()
+        .find_map(|c| {
+            if let Control::Field(f) = c {
+                Some(f)
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    assert_eq!(
+        (
+            field.field_id,
+            field.command.as_str(),
+            field.is_editable_in_form()
+        ),
+        (909, "binary&command😀", true)
+    );
+    doc.sections[0].paragraphs[0].delete_text_at(2, 3);
+    let empty_saved = serialize_hwpx(&doc).unwrap();
+    let empty = parse_hwpx(&empty_saved).expect("empty binary field begin must precede end");
+    assert_eq!(
+        (
+            empty.sections[0].paragraphs[0].field_ranges[0].start_char_idx,
+            empty.sections[0].paragraphs[0].field_ranges[0].end_char_idx
+        ),
+        (2, 2)
+    );
+    for (body, nested, expected) in [
+        (
+            r#"<hp:ctrl><hp:fieldBegin id="1" type="CLICK_HERE"/><hp:fieldBegin id="2" type="CLICK_HERE"/><hp:fieldEnd beginIDRef="2"/><hp:fieldEnd beginIDRef="1"/></hp:ctrl>"#,
+            true,
+            ["B10", "B11", "E11", "E10"],
+        ),
+        (
+            r#"<hp:ctrl><hp:fieldBegin id="1" type="CLICK_HERE"/><hp:fieldBegin id="2" type="CLICK_HERE"/></hp:ctrl><hp:t>가😀</hp:t><hp:ctrl><hp:fieldEnd beginIDRef="2"/><hp:fieldEnd beginIDRef="1"/></hp:ctrl>"#,
+            true,
+            ["B10", "B11", "E11", "E10"],
+        ),
+        (
+            r#"<hp:ctrl><hp:fieldBegin id="1" type="CLICK_HERE"/><hp:fieldEnd beginIDRef="1"/><hp:fieldBegin id="2" type="CLICK_HERE"/><hp:fieldEnd beginIDRef="2"/></hp:ctrl>"#,
+            false,
+            ["B10", "E10", "B11", "E11"],
+        ),
+    ] {
+        let input = c8_fixture(
+            &format!(
+                r#"<hp:p paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="0">{body}</hp:run></hp:p>"#
+            ),
+            false,
+        );
+        let mut binary = parse_hwpx(&input).unwrap();
+        let para = &mut binary.sections[0].paragraphs[0];
+        for (ci, control) in para.controls.iter_mut().enumerate() {
+            if let Control::Field(field) = control {
+                field.hwpx = None;
+                field.field_id = 10 + ci as u32;
+            }
+        }
+        // Binary parsing records controls at begin and field ranges at end.
+        if nested {
+            para.field_ranges.reverse();
+        }
+        let saved = serialize_hwpx(&binary).unwrap();
+        let boundaries: Vec<_> = c8_inline_events(&hwpx_section_xml(&saved))
+            .into_iter()
+            .filter_map(|(name, attrs, _)| match name.as_str() {
+                "fieldBegin" => Some(format!(
+                    "B{}",
+                    attrs.iter().find(|(k, _)| k == "id").unwrap().1
+                )),
+                "fieldEnd" => Some(format!(
+                    "E{}",
+                    attrs.iter().find(|(k, _)| k == "beginIDRef").unwrap().1
+                )),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(boundaries, expected);
+        assert_eq!(
+            parse_hwpx(&saved).unwrap().sections[0].paragraphs[0]
+                .field_ranges
+                .len(),
+            2
+        );
+    }
+    let malformed = c8_fixture(
+        &c8_field_paragraph(101).replace("beginIDRef=\"101\"", "beginIDRef=\"999\""),
+        false,
+    );
+    assert!(
+        parse_hwpx(&malformed).is_err(),
+        "unmatched fieldEnd must not silently pair with another ID"
+    );
+    let field = doc.sections[0].paragraphs[0]
+        .controls
+        .iter_mut()
+        .find_map(|c| {
+            if let Control::Field(f) = c {
+                Some(f)
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    field.command.push('\u{0003}');
+    assert!(
+        serialize_hwpx(&doc).is_err(),
+        "edited field values must not create forbidden XML controls"
+    );
+}
+
+#[test]
+fn c8_native_picture_preserves_original_displayed_geometry_identity_and_png() {
+    use rhwp::document_core::DocumentCore;
+    use std::io::{Cursor, Read};
+    let body = r#"<hp:p paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="0"><hp:pic id="17" instid="29"><hp:orgSz width="12000" height="8000"/><hp:curSz width="6000" height="4000"/><hc:img binaryItemIDRef="image1"/><hp:sz width="3000" height="2000"/><hp:pos treatAsChar="1"/></hp:pic><hp:t>그림 캡션과 편집 가능한 글</hp:t></hp:run></hp:p>"#;
+    let input = c8_fixture(body, true);
+    let core = DocumentCore::from_bytes(&input).unwrap();
+    let saved = core.export_hwpx_native().unwrap();
+    let mut archive = zip::ZipArchive::new(Cursor::new(&saved)).unwrap();
+    let mut png = Vec::new();
+    archive
+        .by_name("BinData/image1.png")
+        .unwrap()
+        .read_to_end(&mut png)
+        .unwrap();
+    assert_eq!(png, rhwp::serializer::hwpx::static_assets::PRV_IMAGE_PNG);
+    let xml = hwpx_section_xml(&saved);
+    let elements = c8_elements(&xml);
+    for (tag, attrs) in [
+        ("pic", vec![("id", "17"), ("instid", "29")]),
+        ("orgSz", vec![("width", "12000"), ("height", "8000")]),
+        ("curSz", vec![("width", "6000"), ("height", "4000")]),
+        ("sz", vec![("width", "3000"), ("height", "2000")]),
+    ] {
+        let actual = &elements.iter().find(|(name, _)| name == tag).unwrap().1;
+        for (key, value) in attrs {
+            assert!(
+                actual.contains(&(key.to_string(), value.to_string())),
+                "{tag}.{key}={value}, actual={actual:?}"
+            );
+        }
+    }
+    let mut manifest = String::new();
+    archive
+        .by_name("Contents/content.hpf")
+        .unwrap()
+        .read_to_string(&mut manifest)
+        .unwrap();
+    assert!(c8_elements(&manifest)
+        .iter()
+        .any(|(tag, attrs)| tag == "item"
+            && attrs.contains(&("id".into(), "image1".into()))
+            && attrs.contains(&("isEmbeded".into(), "1".into()))));
+    assert_eq!(
+        DocumentCore::from_bytes(&saved)
+            .unwrap()
+            .document()
+            .sections[0]
+            .paragraphs[0]
+            .text,
+        "그림 캡션과 편집 가능한 글"
+    );
+}
+
+fn c8_elements(xml: &str) -> Vec<(String, Vec<(String, String)>)> {
+    use quick_xml::{events::Event, Reader};
+    let mut reader = Reader::from_str(xml);
+    let mut result = Vec::new();
+    loop {
+        match reader.read_event().unwrap() {
+            Event::Start(e) | Event::Empty(e) => {
+                let name = String::from_utf8(e.local_name().as_ref().to_vec()).unwrap();
+                let attrs = e
+                    .attributes()
+                    .map(|a| {
+                        let a = a.unwrap();
+                        (
+                            String::from_utf8(a.key.as_ref().to_vec()).unwrap(),
+                            a.decode_and_unescape_value(reader.decoder())
+                                .unwrap()
+                                .into_owned(),
+                        )
+                    })
+                    .collect();
+                result.push((name, attrs));
+            }
+            Event::Eof => break,
+            _ => {}
+        }
+    }
+    result
+}
+
+#[test]
+fn c8_native_supported_shape_preserves_geometry_styles_and_textbox() {
+    use rhwp::document_core::DocumentCore;
+    let shape = format!(
+        r##"<hp:rect instid="51" ratio="12"><hp:offset x="12" y="34"/><hp:orgSz width="12000" height="8000"/><hp:curSz width="6000" height="0"/><hp:flip horizontal="1" vertical="0"/><hp:rotationInfo angle="30" centerX="3000" centerY="2000"/><hp:renderingInfo><hc:transMatrix e1="2" e2="0.25" e3="12" e4="0.5" e5="3" e6="34"/><hc:scaMatrix e1="1" e2="0" e3="0" e4="0" e5="1" e6="0"/><hc:rotMatrix e1="1" e2="0" e3="0" e4="0" e5="1" e6="0"/></hp:renderingInfo><hp:lineShape color="#112233" width="77" style="DASH" outlineStyle="OUTER"/><hc:fillBrush><hc:winBrush faceColor="#ABCDEF" hatchColor="#102030" alpha="1"/></hc:fillBrush><hc:pt0 x="0" y="0"/><hc:pt1 x="6000" y="0"/><hc:pt2 x="6000" y="4000"/><hc:pt3 x="0" y="4000"/><hp:drawText><hp:subList vertAlign="CENTER">{}</hp:subList><hp:textMargin left="10" right="20" top="30" bottom="40"/></hp:drawText><hp:sz width="6000" height="4000"/></hp:rect>"##,
+        c8_field_paragraph(505)
+    );
+    let input = c8_fixture(
+        &format!(
+            r#"<hp:p paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="0">{shape}</hp:run></hp:p>"#
+        ),
+        false,
+    );
+    let core = DocumentCore::from_bytes(&input).unwrap();
+    let saved = core.export_hwpx_native().unwrap();
+    let saved2 = DocumentCore::from_bytes(&saved)
+        .unwrap()
+        .export_hwpx_native()
+        .unwrap();
+    for bytes in [&saved, &saved2] {
+        let elements = c8_elements(&hwpx_section_xml(bytes));
+        let brush = &elements
+            .iter()
+            .find(|(name, _)| name == "winBrush")
+            .unwrap()
+            .1;
+        assert!(
+            brush.contains(&("faceColor".into(), "#ABCDEF".into())),
+            "faceColor must remain RGB"
+        );
+        assert!(
+            brush.contains(&("hatchColor".into(), "#102030".into())),
+            "hatchColor must remain RGB"
+        );
+    }
+    let xml = hwpx_section_xml(&saved);
+    for tag in [
+        "rect",
+        "offset",
+        "orgSz",
+        "curSz",
+        "flip",
+        "rotationInfo",
+        "renderingInfo",
+        "lineShape",
+        "fillBrush",
+        "drawText",
+        "textMargin",
+    ] {
+        assert!(
+            c8_elements(&xml).iter().any(|(name, _)| name == tag),
+            "missing supported shape child {tag}"
+        );
+    }
+    assert_eq!(
+        c8_inline_events(&xml),
+        c8_inline_events(&hwpx_section_xml(&input))
+    );
+    let reopened = DocumentCore::from_bytes(&saved).unwrap();
+    use rhwp::model::{control::Control, shape::ShapeObject};
+    let Control::Shape(shape) = &reopened.document().sections[0].paragraphs[0].controls[1] else {
+        panic!("shape control")
+    };
+    let ShapeObject::Rectangle(rect) = shape.as_ref() else {
+        panic!("rectangle")
+    };
+    assert_eq!(rect.drawing.shape_attr.original_width, 12000);
+    assert_eq!(rect.drawing.shape_attr.current_width, 6000);
+    assert_eq!(rect.drawing.shape_attr.current_height, 0);
+    assert_eq!(rect.common.height, 4000);
+    assert!(rect.drawing.shape_attr.horz_flip);
+    assert_eq!(rect.drawing.shape_attr.rotation_angle, 30);
+    assert_eq!(rect.drawing.border_line.width, 77);
+    assert_eq!(rect.drawing.fill.solid.unwrap().background_color, 0xEFCDAB);
+    assert_eq!(rect.drawing.fill.solid.unwrap().pattern_color, 0x302010);
+    assert_eq!(
+        rect.drawing.text_box.as_ref().unwrap().paragraphs[0].text,
+        "앞😀링😀크뒤"
+    );
+    assert_eq!(
+        (
+            rect.drawing.text_box.as_ref().unwrap().margin_left,
+            rect.drawing.text_box.as_ref().unwrap().margin_bottom
+        ),
+        (10, 40)
+    );
+}
+
+#[test]
+fn c8_native_group_line_and_table_caption_keep_text_and_child_order() {
+    use rhwp::document_core::DocumentCore;
+    let group = r#"<hp:container instid="70" groupLevel="1"><hp:orgSz width="8000" height="6000"/><hp:curSz width="4000" height="3000"/><hp:line instid="71" startX="11" startY="22" endX="333" endY="444"><hp:orgSz width="8000" height="6000"/><hp:curSz width="4000" height="3000"/><hp:sz width="4000" height="3000"/></hp:line><hp:sz width="4000" height="3000"/></hp:container>"#;
+    let body = format!(
+        r#"<hp:p paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="0">{group}</hp:run></hp:p>"#
+    );
+    let caption = format!(
+        r#"<hp:caption side="TOP" fullSz="1" width="8504" gap="283" lastWidth="47625"><hp:subList vertAlign="CENTER">{}</hp:subList></hp:caption>"#,
+        c8_field_paragraph(707)
+    );
+    let table = c8_table(&c8_field_paragraph(808)).replace("<hp:tr>", &format!("{caption}<hp:tr>"));
+    let input = c8_fixture(&(body + &table), false);
+    let core = DocumentCore::from_bytes(&input).unwrap();
+    let saved = core.export_hwpx_native().unwrap();
+    assert_eq!(
+        c8_inline_events(&hwpx_section_xml(&saved)),
+        c8_inline_events(&hwpx_section_xml(&input))
+    );
+    let elements = c8_elements(&hwpx_section_xml(&saved));
+    let container = elements
+        .iter()
+        .position(|(name, _)| name == "container")
+        .unwrap();
+    let line = elements
+        .iter()
+        .position(|(name, _)| name == "line")
+        .unwrap();
+    let group_sz = elements
+        .iter()
+        .enumerate()
+        .skip(line)
+        .filter(|(_, (name, _))| name == "sz")
+        .nth(1)
+        .unwrap()
+        .0;
+    assert!(container < line && line < group_sz);
+    let line_attrs = &elements[line].1;
+    for (key, value) in [
+        ("startX", "11"),
+        ("startY", "22"),
+        ("endX", "333"),
+        ("endY", "444"),
+    ] {
+        assert!(line_attrs.contains(&(key.into(), value.into())));
+    }
+    let caption_attrs = &elements
+        .iter()
+        .find(|(name, _)| name == "caption")
+        .unwrap()
+        .1;
+    assert!(caption_attrs.contains(&("side".into(), "TOP".into())));
+    assert!(caption_attrs.contains(&("gap".into(), "283".into())));
+}
+
 fn section_texts(doc: &rhwp::model::document::Document) -> Vec<String> {
     doc.sections
         .iter()
