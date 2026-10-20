@@ -1766,6 +1766,647 @@ fn c8_field_paragraph(id: u32) -> String {
     )
 }
 
+#[derive(Debug, PartialEq)]
+struct C23FieldState {
+    text: String,
+    offsets: Vec<u32>,
+    count: u32,
+    ranges: Vec<(usize, usize)>,
+    styles: Vec<u32>,
+}
+
+fn c23_field_state(para: &rhwp::model::paragraph::Paragraph) -> C23FieldState {
+    C23FieldState {
+        text: para.text.clone(),
+        offsets: para.char_offsets.clone(),
+        count: para.char_count,
+        ranges: para
+            .field_ranges
+            .iter()
+            .map(|range| (range.start_char_idx, range.end_char_idx))
+            .collect(),
+        styles: para
+            .char_offsets
+            .iter()
+            .map(|offset| {
+                para.char_shapes
+                    .iter()
+                    .rev()
+                    .find(|style| style.start_pos <= *offset)
+                    .unwrap()
+                    .char_shape_id
+            })
+            .collect(),
+    }
+}
+
+fn c23_artifact(name: &str, bytes: &[u8]) {
+    if let Some(dir) = std::env::var_os("RHWP_C23_ARTIFACT_DIR") {
+        std::fs::write(std::path::Path::new(&dir).join(name), bytes).unwrap();
+    }
+}
+
+fn c23_field_fixture(body: &str, cell: &str) -> Vec<u8> {
+    let prologue = c9_paragraph(
+        r#"<hp:secPr><hp:pagePr width="59528" height="84188"><hp:margin left="1000" right="1000" top="1000" bottom="1000" header="0" footer="0" gutter="0"/></hp:pagePr></hp:secPr>"#,
+        C9_LINE,
+    );
+    c8_fixture(&(prologue + body + &c8_table(cell)), false)
+}
+
+#[test]
+fn c23_public_field_end_insert_keeps_utf16_styles_and_count_two_saves() {
+    use rhwp::document_core::DocumentCore;
+    // Given: input XML places an eight-unit field-end gap before the trailing 뒤.
+    let input = c23_field_fixture(&c8_field_paragraph(101), &c8_field_paragraph(303));
+    let expected_xml = hwpx_section_xml(&input).replace("링😀크", "링😀크편😀");
+    let expected_events = c8_inline_events(&expected_xml);
+    let expected = C23FieldState {
+        text: "앞😀링😀크편😀뒤".into(),
+        offsets: vec![0, 1, 11, 12, 14, 15, 16, 26],
+        count: 28,
+        ranges: vec![(2, 7)],
+        styles: vec![0, 0, 1, 1, 1, 1, 1, 2],
+    };
+    c23_artifact("field-end-input.hwpx", &input);
+    let mut core = DocumentCore::from_bytes(&input).unwrap();
+    assert_eq!(
+        core.document().sections[0].paragraphs[1].char_offsets,
+        [0, 1, 11, 12, 14, 23]
+    );
+    // When: insert at the inclusive field-end boundary through both public edit paths.
+    core.insert_text_native(0, 1, 5, "편😀").unwrap();
+    core.insert_text_in_cell_native(0, 2, 0, 0, 0, 5, "편😀")
+        .unwrap();
+    let mut states = Vec::new();
+    let mut events = Vec::new();
+    for pass in 0..=2 {
+        states.push(vec![
+            c23_field_state(&core.document().sections[0].paragraphs[1]),
+            c23_field_state(c20_contact(&core, 2, 0, 0)),
+        ]);
+        c23_artifact(
+            &format!("field-end-pass{pass}-model.txt"),
+            format!("{:#?}", states.last().unwrap()).as_bytes(),
+        );
+        if pass < 2 {
+            let saved = core.export_hwpx_native().unwrap();
+            events.push(c8_inline_events(&hwpx_section_xml(&saved)));
+            c23_artifact(&format!("field-end-save{}.hwpx", pass + 1), &saved);
+            core = DocumentCore::from_bytes(&saved).unwrap();
+        }
+    }
+    // Then: independently specified raw positions, membership and original styles agree before/after save.
+    println!("C23_FIELD_END expected={expected:?} actual={states:?}");
+    assert!(
+        states.iter().flatten().all(|state| state == &expected),
+        "in-memory and reopened state must match the raw UTF16 field layout: {states:?}"
+    );
+    assert_eq!(events, vec![expected_events.clone(), expected_events]);
+}
+
+#[test]
+fn c23_public_insert_delete_preserves_retained_field_gaps_two_saves() {
+    use rhwp::document_core::DocumentCore;
+    // Given: original raw XML independently specifies retained field controls and run styles.
+    let input = c23_field_fixture(&c8_field_paragraph(101), &c8_field_paragraph(303));
+    let original_xml = hwpx_section_xml(&input);
+    let cases = [
+        (
+            "inverse",
+            5,
+            2,
+            original_xml.clone(),
+            C23FieldState {
+                text: "앞😀링😀크뒤".into(),
+                offsets: vec![0, 1, 11, 12, 14, 23],
+                count: 25,
+                ranges: vec![(2, 5)],
+                styles: vec![0, 0, 1, 1, 1, 2],
+            },
+        ),
+        (
+            "empty-field",
+            2,
+            5,
+            original_xml.replace("링😀크", ""),
+            C23FieldState {
+                text: "앞😀뒤".into(),
+                offsets: vec![0, 1, 19],
+                count: 21,
+                ranges: vec![(2, 2)],
+                styles: vec![0, 0, 2],
+            },
+        ),
+        (
+            "across-begin",
+            1,
+            5,
+            original_xml.replace("앞😀", "앞").replace("링😀크", "😀"),
+            C23FieldState {
+                text: "앞😀뒤".into(),
+                offsets: vec![0, 9, 19],
+                count: 21,
+                ranges: vec![(1, 2)],
+                styles: vec![0, 1, 2],
+            },
+        ),
+    ];
+    let mut failures = Vec::new();
+    // When: public body/cell insertion is followed by deletion, then two native save/reopens.
+    for (label, at, count, expected_xml, expected) in cases {
+        let mut core = DocumentCore::from_bytes(&input).unwrap();
+        core.insert_text_native(0, 1, 5, "편😀").unwrap();
+        core.insert_text_in_cell_native(0, 2, 0, 0, 0, 5, "편😀")
+            .unwrap();
+        core.delete_text_native(0, 1, at, count).unwrap();
+        core.delete_text_in_cell_native(0, 2, 0, 0, 0, at, count)
+            .unwrap();
+        let expected_events = c8_inline_events(&expected_xml);
+        for pass in 0..=2 {
+            let actual = vec![
+                c23_field_state(&core.document().sections[0].paragraphs[1]),
+                c23_field_state(c20_contact(&core, 2, 0, 0)),
+            ];
+            println!("C23_DELETE {label} pass{pass} expected={expected:?} actual={actual:?}");
+            c23_artifact(
+                &format!("delete-{label}-pass{pass}-model.txt"),
+                format!("{actual:#?}").as_bytes(),
+            );
+            if actual.iter().any(|state| state != &expected) {
+                failures.push(format!("{label}/pass{pass}: {actual:?}"));
+            }
+            if pass < 2 {
+                let saved = core.export_hwpx_native().unwrap();
+                c23_artifact(&format!("delete-{label}-save{}.hwpx", pass + 1), &saved);
+                if c8_inline_events(&hwpx_section_xml(&saved)) != expected_events {
+                    failures.push(format!(
+                        "{label}/save{}: field metadata/order/styles differ",
+                        pass + 1
+                    ));
+                }
+                core = DocumentCore::from_bytes(&saved).unwrap();
+            }
+        }
+    }
+    // Then: deleting visible text never consumes the retained controls or their UTF16 gaps.
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn c23_public_tab_delete_removes_eight_units_and_keeps_field_gaps_two_saves() {
+    use rhwp::document_core::DocumentCore;
+    // Given: raw TAB occupies eight units, independently of retained field controls.
+    let plain = r#"<hp:p paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="0"><hp:t>A<hp:tab width="2400" leader="0" type="1"/>B</hp:t></hp:run></hp:p>"#;
+    let original = c23_field_fixture(&c8_field_paragraph(101), &c8_field_paragraph(303));
+    let field = |id| {
+        c8_field_paragraph(id).replace(
+            "<hp:t>뒤</hp:t>",
+            r#"<hp:t><hp:tab width="2400" leader="0" type="1"/>뒤</hp:t>"#,
+        )
+    };
+    let cases = [
+        (
+            "nonfield",
+            c23_field_fixture(plain, plain),
+            hwpx_section_xml(&c23_field_fixture(
+                &plain.replace(r#"<hp:tab width="2400" leader="0" type="1"/>"#, ""),
+                &plain.replace(r#"<hp:tab width="2400" leader="0" type="1"/>"#, ""),
+            )),
+            1,
+            C23FieldState {
+                text: "A\tB".into(),
+                offsets: vec![0, 1, 9],
+                count: 11,
+                ranges: vec![],
+                styles: vec![0, 0, 0],
+            },
+            C23FieldState {
+                text: "AB".into(),
+                offsets: vec![0, 1],
+                count: 3,
+                ranges: vec![],
+                styles: vec![0, 0],
+            },
+        ),
+        (
+            "field-adjacent",
+            c23_field_fixture(&field(101), &field(303)),
+            hwpx_section_xml(&original),
+            5,
+            C23FieldState {
+                text: "앞😀링😀크\t뒤".into(),
+                offsets: vec![0, 1, 11, 12, 14, 23, 31],
+                count: 33,
+                ranges: vec![(2, 5)],
+                styles: vec![0, 0, 1, 1, 1, 2, 2],
+            },
+            C23FieldState {
+                text: "앞😀링😀크뒤".into(),
+                offsets: vec![0, 1, 11, 12, 14, 23],
+                count: 25,
+                ranges: vec![(2, 5)],
+                styles: vec![0, 0, 1, 1, 1, 2],
+            },
+        ),
+    ];
+    let mut failures = Vec::new();
+    // When: only the visible TAB is deleted through public body and cell methods.
+    for (label, input, expected_xml, at, before, expected) in cases {
+        let mut core = DocumentCore::from_bytes(&input).unwrap();
+        c23_artifact(&format!("tab-{label}-input.hwpx"), &input);
+        assert_eq!(
+            c23_field_state(&core.document().sections[0].paragraphs[1]),
+            before
+        );
+        assert_eq!(c23_field_state(c20_contact(&core, 2, 0, 0)), before);
+        core.delete_text_native(0, 1, at, 1).unwrap();
+        core.delete_text_in_cell_native(0, 2, 0, 0, 0, at, 1)
+            .unwrap();
+        let expected_events = c8_inline_events(&expected_xml);
+        for pass in 0..=2 {
+            let actual = vec![
+                c23_field_state(&core.document().sections[0].paragraphs[1]),
+                c23_field_state(c20_contact(&core, 2, 0, 0)),
+            ];
+            println!("C23_TAB {label} pass{pass} expected={expected:?} actual={actual:?}");
+            c23_artifact(
+                &format!("tab-{label}-pass{pass}-model.txt"),
+                format!("{actual:#?}").as_bytes(),
+            );
+            if actual.iter().any(|state| state != &expected) {
+                failures.push(format!("{label}/pass{pass}: {actual:?}"));
+            }
+            if pass < 2 {
+                let saved = core.export_hwpx_native().unwrap();
+                c23_artifact(&format!("tab-{label}-save{}.hwpx", pass + 1), &saved);
+                if c8_inline_events(&hwpx_section_xml(&saved)) != expected_events {
+                    failures.push(format!(
+                        "{label}/save{}: retained metadata/styles differ",
+                        pass + 1
+                    ));
+                }
+                core = DocumentCore::from_bytes(&saved).unwrap();
+            }
+        }
+    }
+    // Then: original field gaps remain and all eight units of the deleted TAB disappear.
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn c23_public_tab_insert_delete_uses_consistent_local_units_two_saves() {
+    use rhwp::document_core::DocumentCore;
+    // Given: independent raw text layouts require an eight-unit TAB, including at paragraph end.
+    let paragraph = |text: &str| {
+        format!(
+            r#"<hp:p paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="0"><hp:t>{text}</hp:t></hp:run></hp:p>"#
+        )
+    };
+    let cases = [
+        ("middle", "AB", "A\tB", vec![0, 1, 9], 11, None, "AB"),
+        (
+            "end-followed-by-BMP",
+            "A",
+            "A\t",
+            vec![0, 1],
+            10,
+            Some("끝"),
+            "A끝",
+        ),
+    ];
+    let mut failures = Vec::new();
+    // When: each public body/cell path inserts TAB, optionally appends BMP, then deletes TAB.
+    for (label, initial, inserted, offsets, count, following, final_text) in cases {
+        let input = c23_field_fixture(&paragraph(initial), &paragraph(initial));
+        for cell in [false, true] {
+            let owner = if cell { "cell" } else { "body" };
+            let mut core = DocumentCore::from_bytes(&input).unwrap();
+            c23_artifact(&format!("tab-edit-{label}-{owner}-input.hwpx"), &input);
+            let expected_initial = C23FieldState {
+                text: initial.into(),
+                offsets: (0..initial.len() as u32).collect(),
+                count: initial.len() as u32 + 1,
+                ranges: vec![],
+                styles: vec![0; initial.len()],
+            };
+            let state = |core: &DocumentCore| {
+                if cell {
+                    c23_field_state(c20_contact(core, 2, 0, 0))
+                } else {
+                    c23_field_state(&core.document().sections[0].paragraphs[1])
+                }
+            };
+            assert_eq!(state(&core), expected_initial);
+            if cell {
+                core.insert_text_in_cell_native(0, 2, 0, 0, 0, 1, "\t")
+                    .unwrap();
+            } else {
+                core.insert_text_native(0, 1, 1, "\t").unwrap();
+            }
+            let expected_insert = C23FieldState {
+                text: inserted.into(),
+                styles: vec![0; offsets.len()],
+                offsets: offsets.clone(),
+                count,
+                ranges: vec![],
+            };
+            let actual = state(&core);
+            println!("C23_TAB_EDIT {label}/{owner} inserted expected={expected_insert:?} actual={actual:?}");
+            c23_artifact(
+                &format!("tab-edit-{label}-{owner}-inserted.txt"),
+                format!("{actual:#?}").as_bytes(),
+            );
+            if actual != expected_insert {
+                failures.push(format!("{label}/{owner}/inserted: {actual:?}"));
+            }
+            if let Some(text) = following {
+                if cell {
+                    core.insert_text_in_cell_native(0, 2, 0, 0, 0, 2, text)
+                        .unwrap();
+                } else {
+                    core.insert_text_native(0, 1, 2, text).unwrap();
+                }
+                let expected_following = C23FieldState {
+                    text: "A\t끝".into(),
+                    offsets: vec![0, 1, 9],
+                    count: 11,
+                    ranges: vec![],
+                    styles: vec![0, 0, 0],
+                };
+                let actual = state(&core);
+                println!("C23_TAB_EDIT {label}/{owner} following expected={expected_following:?} actual={actual:?}");
+                c23_artifact(
+                    &format!("tab-edit-{label}-{owner}-following.txt"),
+                    format!("{actual:#?}").as_bytes(),
+                );
+                if actual != expected_following {
+                    failures.push(format!("{label}/{owner}/following: {actual:?}"));
+                }
+            }
+            let deletion = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                if cell {
+                    core.delete_text_in_cell_native(0, 2, 0, 0, 0, 1, 1)
+                } else {
+                    core.delete_text_native(0, 1, 1, 1)
+                }
+            }));
+            match deletion {
+                Ok(Ok(_)) => {}
+                Ok(Err(error)) => {
+                    failures.push(format!("{label}/{owner}/delete error: {error}"));
+                    continue;
+                }
+                Err(error) => {
+                    let message = error
+                        .downcast_ref::<&str>()
+                        .copied()
+                        .or_else(|| error.downcast_ref::<String>().map(String::as_str))
+                        .unwrap_or("non-string panic");
+                    c23_artifact(
+                        &format!("tab-edit-{label}-{owner}-delete-panic.txt"),
+                        message.as_bytes(),
+                    );
+                    failures.push(format!("{label}/{owner}/delete panic: {message}"));
+                    continue;
+                }
+            }
+            let expected = C23FieldState {
+                text: final_text.into(),
+                offsets: vec![0, 1],
+                count: 3,
+                ranges: vec![],
+                styles: vec![0, 0],
+            };
+            let expected_xml = if cell {
+                c23_field_fixture(&paragraph(initial), &paragraph(final_text))
+            } else {
+                c23_field_fixture(&paragraph(final_text), &paragraph(initial))
+            };
+            let expected_events = c8_inline_events(&hwpx_section_xml(&expected_xml));
+            for pass in 0..=2 {
+                let actual = state(&core);
+                println!("C23_TAB_EDIT {label}/{owner} pass{pass} expected={expected:?} actual={actual:?}");
+                c23_artifact(
+                    &format!("tab-edit-{label}-{owner}-pass{pass}.txt"),
+                    format!("{actual:#?}").as_bytes(),
+                );
+                if actual != expected {
+                    failures.push(format!("{label}/{owner}/pass{pass}: {actual:?}"));
+                }
+                if pass < 2 {
+                    let saved = core.export_hwpx_native().unwrap();
+                    c23_artifact(
+                        &format!("tab-edit-{label}-{owner}-save{}.hwpx", pass + 1),
+                        &saved,
+                    );
+                    if c8_inline_events(&hwpx_section_xml(&saved)) != expected_events {
+                        failures.push(format!(
+                            "{label}/{owner}/save{}: raw text/styles differ",
+                            pass + 1
+                        ));
+                    }
+                    core = DocumentCore::from_bytes(&saved).unwrap();
+                }
+            }
+        }
+    }
+    // Then: edits use consistent units and return to the independently specified visible layout.
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn c23_public_field_boundary_matrix_matches_raw_utf16_two_saves() {
+    use rhwp::document_core::DocumentCore;
+    // Given: independent raw marker layouts specify start/end/empty/nested/adjacent membership.
+    let begin = |id| {
+        format!(
+            r#"<hp:ctrl><hp:fieldBegin id="{id}" type="HYPERLINK" name="경계&amp;이름" editable="1" fieldid="100{id}"><hp:parameters cnt="1" name="경계"><hp:stringParam name="Command">https://example.test/{id};</hp:stringParam></hp:parameters></hp:fieldBegin></hp:ctrl>"#
+        )
+    };
+    let (b1, b2) = (begin(1), begin(2));
+    let e1 = r#"<hp:ctrl><hp:fieldEnd beginIDRef="1"/></hp:ctrl>"#;
+    let e2 = r#"<hp:ctrl><hp:fieldEnd beginIDRef="2"/></hp:ctrl>"#;
+    let text = |s| format!("<hp:t>{s}</hp:t>");
+    let (a, b, c, d, z, new) = (
+        text("A"),
+        text("B"),
+        text("C"),
+        text("D"),
+        text("Z"),
+        text("편😀"),
+    );
+    let single = format!("{a}{b1}{b}{e1}{z}");
+    let cases = [
+        (
+            "start",
+            single.clone(),
+            format!("{a}{b1}{new}{b}{e1}{z}"),
+            1,
+            "편😀",
+            vec![0, 9, 10, 12, 21],
+            23,
+            vec![(1, 4)],
+        ),
+        (
+            "end",
+            single.clone(),
+            format!("{a}{b1}{b}{new}{e1}{z}"),
+            2,
+            "편😀",
+            vec![0, 9, 10, 11, 21],
+            23,
+            vec![(1, 4)],
+        ),
+        (
+            "interior",
+            format!("{a}{b1}{b}{c}{e1}{z}"),
+            format!("{a}{b1}{b}{new}{c}{e1}{z}"),
+            2,
+            "편😀",
+            vec![0, 9, 10, 11, 13, 22],
+            24,
+            vec![(1, 5)],
+        ),
+        (
+            "empty",
+            format!("{a}{b1}{e1}{z}"),
+            format!("{a}{b1}{new}{e1}{z}"),
+            1,
+            "편😀",
+            vec![0, 9, 10, 20],
+            22,
+            vec![(1, 3)],
+        ),
+        (
+            "nested-ends",
+            format!("{a}{b1}{b2}{b}{e2}{e1}{z}"),
+            format!("{a}{b1}{b2}{b}{new}{e2}{e1}{z}"),
+            2,
+            "편😀",
+            vec![0, 17, 18, 19, 37],
+            39,
+            vec![(1, 4), (1, 4)],
+        ),
+        (
+            "inner-end",
+            format!("{a}{b1}{b}{b2}{c}{e2}{d}{e1}{z}"),
+            format!("{a}{b1}{b}{b2}{c}{new}{e2}{d}{e1}{z}"),
+            3,
+            "편😀",
+            vec![0, 9, 18, 19, 20, 30, 39],
+            41,
+            vec![(1, 6), (2, 5)],
+        ),
+        (
+            "adjacent",
+            format!("{a}{b1}{b}{e1}{b2}{c}{e2}{z}"),
+            format!("{a}{b1}{b}{b2}{new}{e1}{c}{e2}{z}"),
+            2,
+            "편😀",
+            vec![0, 9, 18, 19, 29, 38],
+            40,
+            vec![(1, 4), (2, 5)],
+        ),
+        (
+            "outside",
+            single,
+            format!("{a}{b1}{b}{e1}{z}{}", text("편")),
+            3,
+            "편",
+            vec![0, 9, 18, 19],
+            21,
+            vec![(1, 2)],
+        ),
+        (
+            "trailing-end",
+            format!("{a}{b1}{b}{e1}"),
+            format!("{a}{b1}{b}{new}{e1}"),
+            2,
+            "편😀",
+            vec![0, 9, 10, 11],
+            22,
+            vec![(1, 4)],
+        ),
+        (
+            "empty-only",
+            format!("{b1}{e1}"),
+            format!("{b1}{new}{e1}"),
+            0,
+            "편😀",
+            vec![8, 9],
+            20,
+            vec![(0, 2)],
+        ),
+    ];
+    let paragraph = |content: &str| {
+        format!(
+            r#"<hp:p paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="0">{content}</hp:run></hp:p>"#
+        )
+    };
+    let cell_ids = |s: &str| {
+        s.replace("id=\"1\"", "id=\"101\"")
+            .replace("id=\"2\"", "id=\"102\"")
+            .replace("beginIDRef=\"1\"", "beginIDRef=\"101\"")
+            .replace("beginIDRef=\"2\"", "beginIDRef=\"102\"")
+    };
+    let mut failures = Vec::new();
+    // When: identical public body/cell edits and two genuine export/reopen cycles are performed.
+    for (label, before, after, at, insertion, offsets, count, ranges) in cases {
+        let input = c23_field_fixture(&paragraph(&before), &paragraph(&cell_ids(&before)));
+        let expected_xml = hwpx_section_xml(&c23_field_fixture(
+            &paragraph(&after),
+            &paragraph(&cell_ids(&after)),
+        ));
+        let expected_events = c8_inline_events(&expected_xml);
+        let expected_text = expected_events
+            .iter()
+            .filter(|(name, _, _)| name == "char")
+            .take(offsets.len())
+            .map(|(_, _, text)| text.as_str())
+            .collect::<String>();
+        let expected = C23FieldState {
+            styles: vec![0; offsets.len()],
+            text: expected_text,
+            offsets,
+            count,
+            ranges,
+        };
+        let mut core = DocumentCore::from_bytes(&input).unwrap();
+        c23_artifact(&format!("matrix-{label}-input.hwpx"), &input);
+        core.insert_text_native(0, 1, at, insertion).unwrap();
+        core.insert_text_in_cell_native(0, 2, 0, 0, 0, at, insertion)
+            .unwrap();
+        for pass in 0..=2 {
+            let actual = vec![
+                c23_field_state(&core.document().sections[0].paragraphs[1]),
+                c23_field_state(c20_contact(&core, 2, 0, 0)),
+            ];
+            println!("C23_BOUNDARY {label} pass{pass} expected={expected:?} actual={actual:?}");
+            c23_artifact(
+                &format!("matrix-{label}-pass{pass}-model.txt"),
+                format!("{actual:#?}").as_bytes(),
+            );
+            if actual.iter().any(|state| state != &expected) {
+                failures.push(format!("{label}/pass{pass}: {actual:?}"));
+            }
+            if pass < 2 {
+                let saved = core.export_hwpx_native().unwrap();
+                c23_artifact(&format!("matrix-{label}-save{}.hwpx", pass + 1), &saved);
+                if c8_inline_events(&hwpx_section_xml(&saved)) != expected_events {
+                    failures.push(format!(
+                        "{label}/save{}: raw field metadata/order/styles differ",
+                        pass + 1
+                    ));
+                }
+                core = DocumentCore::from_bytes(&saved).unwrap();
+            }
+        }
+    }
+    // Then: all independent UTF16/range/text expectations hold, including the outside-field control.
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
 fn c8_table(inner: &str) -> String {
     format!(
         r#"<hp:p paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="0"><hp:tbl rowCnt="1" colCnt="1" borderFillIDRef="1"><hp:sz width="10000" height="3000"/><hp:tr><hp:tc borderFillIDRef="1"><hp:subList>{inner}</hp:subList><hp:cellAddr colAddr="0" rowAddr="0"/><hp:cellSpan colSpan="1" rowSpan="1"/><hp:cellSz width="10000" height="3000"/></hp:tc></hp:tr></hp:tbl></hp:run></hp:p>"#

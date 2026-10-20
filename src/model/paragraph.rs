@@ -223,6 +223,13 @@ impl Paragraph {
             return;
         }
 
+        let utf16_width = |ch: char| {
+            if ch == '\t' {
+                8
+            } else {
+                Self::char_utf16_len(ch)
+            }
+        };
         let text_chars: Vec<char> = self.text.chars().collect();
         let text_len = text_chars.len();
 
@@ -242,16 +249,36 @@ impl Paragraph {
         let utf16_insert_pos: u32 = if char_offset > text_len && !self.char_offsets.is_empty() {
             // 텍스트 끝 이후 (인라인 컨트롤 뒤): 마지막 문자의 UTF-16 위치 + 폭 + 후행 갭
             let last_idx = self.char_offsets.len() - 1;
-            let last_char_end =
-                self.char_offsets[last_idx] + Self::char_utf16_len(text_chars[last_idx]);
+            let last_char_end = self.char_offsets[last_idx] + utf16_width(text_chars[last_idx]);
             // 후행 컨트롤 수 = char_offset - text_len
             let trailing_ctrl_count = (char_offset - text_len) as u32;
             last_char_end + trailing_ctrl_count * 8
         } else if effective_char_offset < self.char_offsets.len() {
-            self.char_offsets[effective_char_offset]
+            let next_pos = self.char_offsets[effective_char_offset];
+            let previous_end = effective_char_offset.checked_sub(1).map_or(0, |idx| {
+                self.char_offsets[idx] + utf16_width(text_chars[idx])
+            });
+            let field_end_gap = self
+                .field_ranges
+                .iter()
+                .filter(|range| {
+                    range.end_char_idx == effective_char_offset
+                        && matches!(
+                            self.controls.get(range.control_idx),
+                            Some(Control::Field(_))
+                        )
+                })
+                .count() as u32
+                * 8;
+            // 끝 경계 삽입은 필드 안에 속하므로 끝 컨트롤 갭보다 앞에 둔다.
+            if next_pos.saturating_sub(previous_end) >= field_end_gap {
+                next_pos - field_end_gap
+            } else {
+                next_pos
+            }
         } else if !self.char_offsets.is_empty() {
             let last_idx = self.char_offsets.len() - 1;
-            self.char_offsets[last_idx] + Self::char_utf16_len(text_chars[last_idx])
+            self.char_offsets[last_idx] + utf16_width(text_chars[last_idx])
         } else {
             // 텍스트가 비어있을 때: 기존 컨트롤 뒤에 삽입 (각 컨트롤 = 8 code units)
             (self.controls.len() as u32) * 8
@@ -260,7 +287,7 @@ impl Paragraph {
 
         // 새 텍스트의 UTF-16 총 길이
         let new_chars: Vec<char> = new_text.chars().collect();
-        let utf16_delta: u32 = new_chars.iter().map(|c| Self::char_utf16_len(*c)).sum();
+        let utf16_delta: u32 = new_chars.iter().map(|c| utf16_width(*c)).sum();
 
         // 1. 텍스트 삽입
         self.text.insert_str(byte_offset, new_text);
@@ -275,7 +302,7 @@ impl Paragraph {
         let mut pos = utf16_insert_pos;
         for c in &new_chars {
             new_offsets.push(pos);
-            pos += Self::char_utf16_len(*c);
+            pos += utf16_width(*c);
         }
         // char_offset 위치에 새 오프셋 삽입
         let mut updated_offsets = Vec::with_capacity(self.char_offsets.len() + new_offsets.len());
@@ -325,7 +352,7 @@ impl Paragraph {
         }
 
         // 6. char_count 갱신
-        self.char_count += new_chars.len() as u32;
+        self.char_count += utf16_delta;
     }
 
     /// char_offset 위치에서 count개의 문자를 삭제한다.
@@ -353,21 +380,31 @@ impl Paragraph {
         let byte_start: usize = text_chars[..char_offset].iter().map(|c| c.len_utf8()).sum();
         let byte_end: usize = text_chars[..del_end].iter().map(|c| c.len_utf8()).sum();
 
-        // 삭제 범위의 UTF-16 시작/끝 위치 결정
-        let utf16_start: u32 = if char_offset < self.char_offsets.len() {
-            self.char_offsets[char_offset]
-        } else {
-            0
+        let mut utf16_delta = 0;
+        let deleted_spans: Vec<_> = self.char_offsets[char_offset..del_end]
+            .iter()
+            .zip(&text_chars[char_offset..del_end])
+            .map(|(&start, &ch)| {
+                let removed_before = utf16_delta;
+                let width = if ch == '\t' {
+                    8
+                } else {
+                    Self::char_utf16_len(ch)
+                };
+                utf16_delta += width;
+                (start, removed_before, width)
+            })
+            .collect();
+        // 텍스트만 지우므로 컨트롤 갭은 남기고 각 위치 앞에서 지운 UTF-16만 차감한다.
+        let shift_position = |position: u32| {
+            let count = deleted_spans.partition_point(|(start, _, _)| *start < position);
+            if count == 0 {
+                position
+            } else {
+                let (start, removed_before, width) = deleted_spans[count - 1];
+                position - removed_before - (position - start).min(width)
+            }
         };
-        let utf16_end: u32 = if del_end < self.char_offsets.len() {
-            self.char_offsets[del_end]
-        } else if !self.char_offsets.is_empty() {
-            let last_idx = self.char_offsets.len() - 1;
-            self.char_offsets[last_idx] + Self::char_utf16_len(text_chars[last_idx])
-        } else {
-            0
-        };
-        let utf16_delta = utf16_end - utf16_start;
 
         // 1. 텍스트 삭제
         self.text.drain(byte_start..byte_end);
@@ -383,35 +420,18 @@ impl Paragraph {
 
         // 3. char_shapes: 삭제 범위 이후 → utf16_delta만큼 감소
         for cs in &mut self.char_shapes {
-            if cs.start_pos >= utf16_end {
-                cs.start_pos -= utf16_delta;
-            } else if cs.start_pos > utf16_start {
-                // 삭제 범위 내 → 삭제 시작으로 클램핑
-                cs.start_pos = utf16_start;
-            }
+            cs.start_pos = shift_position(cs.start_pos);
         }
 
         // 4. line_segs: 삭제 범위 이후 → utf16_delta만큼 감소
         for ls in &mut self.line_segs {
-            if ls.text_start >= utf16_end {
-                ls.text_start -= utf16_delta;
-            } else if ls.text_start > utf16_start {
-                ls.text_start = utf16_start;
-            }
+            ls.text_start = shift_position(ls.text_start);
         }
 
         // 5. range_tags: 삭제 범위에 따라 축소/조정
         for rt in &mut self.range_tags {
-            if rt.start >= utf16_end {
-                rt.start -= utf16_delta;
-            } else if rt.start > utf16_start {
-                rt.start = utf16_start;
-            }
-            if rt.end >= utf16_end {
-                rt.end -= utf16_delta;
-            } else if rt.end > utf16_start {
-                rt.end = utf16_start;
-            }
+            rt.start = shift_position(rt.start);
+            rt.end = shift_position(rt.end);
         }
 
         // 5-1. field_ranges: 삭제 범위에 따라 축소/조정
@@ -433,7 +453,7 @@ impl Paragraph {
             .retain(|fr| fr.start_char_idx <= fr.end_char_idx);
 
         // 6. char_count 갱신
-        self.char_count -= actual_count as u32;
+        self.char_count -= utf16_delta;
 
         actual_count
     }

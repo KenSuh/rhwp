@@ -31,6 +31,122 @@ fn zip_text(hwpx: &[u8], name: &str) -> String {
     String::from_utf8(zip_bytes(hwpx, name)).expect("utf-8 XML")
 }
 
+const C23_BORDER_WIDTHS: [&str; 16] = [
+    "0.1", "0.12", "0.15", "0.2", "0.25", "0.3", "0.4", "0.5", "0.6", "0.7", "1.0", "1.5", "2.0",
+    "3.0", "4.0", "5.0",
+];
+
+fn c23_border_widths(xml: &str) -> Vec<(String, String, String)> {
+    let tree = Tree::parse(xml);
+    tree.descendants_named(0, "borderFill")
+        .into_iter()
+        .flat_map(|bf| {
+            tree.nodes[bf]
+                .children
+                .iter()
+                .filter_map(|&side| {
+                    tree.attr(side, "width").map(|width| {
+                        (
+                            tree.attr(bf, "id").unwrap().to_string(),
+                            tree.name(side).to_string(),
+                            width
+                                .split_whitespace()
+                                .next()
+                                .unwrap()
+                                .parse::<f64>()
+                                .unwrap()
+                                .to_string(),
+                        )
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect()
+}
+
+#[test]
+fn c23_all_canonical_border_widths_survive_two_public_saves() {
+    use std::io::{Cursor, Read, Write};
+    // Given: raw XML covers every canonical width on all four sides and the diagonal.
+    let mut header = zip_text(FORM_002, "Contents/header.xml");
+    let count = Tree::parse(&header)
+        .descendants_named(0, "borderFill")
+        .len();
+    let sides = [
+        "leftBorder",
+        "rightBorder",
+        "topBorder",
+        "bottomBorder",
+        "diagonal",
+    ];
+    let extra = C23_BORDER_WIDTHS
+        .iter()
+        .enumerate()
+        .map(|(index, _)| {
+            let borders = sides
+                .iter()
+                .enumerate()
+                .map(|(side, name)| {
+                    format!(
+                        r##"<hh:{name} type="SOLID" width="{} mm" color="#123456"/>"##,
+                        C23_BORDER_WIDTHS[(index + side) % 16],
+                    )
+                })
+                .collect::<String>();
+            format!(
+                r#"<hh:borderFill id="{}">{borders}</hh:borderFill>"#,
+                count + index + 1
+            )
+        })
+        .collect::<String>();
+    header.insert_str(header.find("</hh:borderFills>").unwrap(), &extra);
+    let start = header.find("<hh:borderFills ").unwrap();
+    let end = start + header[start..].find('>').unwrap() + 1;
+    header.replace_range(
+        start..end,
+        &format!(r#"<hh:borderFills itemCnt="{}">"#, count + 16),
+    );
+    let expected = c23_border_widths(&header);
+    assert_eq!(expected.len(), (count + 16) * 5);
+    let mut original = zip::ZipArchive::new(Cursor::new(FORM_002)).unwrap();
+    let mut output = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    for index in 0..original.len() {
+        let mut entry = original.by_index(index).unwrap();
+        let name = entry.name().unwrap().to_string();
+        let mut bytes = Vec::new();
+        entry.read_to_end(&mut bytes).unwrap();
+        output
+            .start_file(&name, zip::write::SimpleFileOptions::default())
+            .unwrap();
+        output
+            .write_all(if name == "Contents/header.xml" {
+                header.as_bytes()
+            } else {
+                &bytes
+            })
+            .unwrap();
+    }
+    let input = output.finish().unwrap().into_inner();
+    let artifacts = std::env::var_os("RHWP_C23_ARTIFACT_DIR").map(std::path::PathBuf::from);
+    if let Some(dir) = &artifacts {
+        std::fs::write(dir.join("borders-input.hwpx"), &input).unwrap();
+    }
+    // When: the public editor loads, saves, reopens and saves the same document again.
+    let mut core = DocumentCore::from_bytes(&input).unwrap();
+    let mut observed = Vec::new();
+    for pass in 1..=2 {
+        let saved = core.export_hwpx_native().unwrap();
+        observed.push(c23_border_widths(&zip_text(&saved, "Contents/header.xml")));
+        if let Some(dir) = &artifacts {
+            std::fs::write(dir.join(format!("borders-save{pass}.hwpx")), &saved).unwrap();
+        }
+        core = DocumentCore::from_bytes(&saved).unwrap();
+    }
+    // Then: expectations come from input XML, including widths unused by the body.
+    println!("C23_BORDER_WIDTHS expected={expected:?} actual={observed:?}");
+    assert_eq!(observed, vec![expected.clone(), expected]);
+}
+
 /// 이 시험의 작은 XML 트리. 요소·속성 이름은 접두어를 뗀 local 이름, 속성 값은 원문 그대로다.
 struct Node {
     name: String,

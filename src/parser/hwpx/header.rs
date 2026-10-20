@@ -1292,12 +1292,20 @@ fn parse_border_line_type(attr: &quick_xml::events::attributes::Attribute) -> Bo
 fn parse_border_width(attr: &quick_xml::events::attributes::Attribute) -> u8 {
     let s = attr_str(attr);
     // "0.12 mm", "0.4 mm" 등의 형식에서 두께 인덱스 추출
-    let mm: f64 = s
+    let Some(mm) = s
         .split_whitespace()
         .next()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(0.12);
-    // 대략적인 HWP 두께 인덱스 매핑
+        .and_then(|v| v.parse::<f64>().ok())
+    else {
+        return 0;
+    };
+    let widths = [
+        0.1, 0.12, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0,
+    ];
+    if let Some(index) = widths.iter().position(|width| *width == mm) {
+        return index as u8;
+    }
+    // 비표준 두께는 기존 근사 매핑을 유지한다.
     if mm <= 0.12 {
         0
     } else if mm <= 0.3 {
@@ -1316,6 +1324,29 @@ fn parse_border_width(attr: &quick_xml::events::attributes::Attribute) -> u8 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_parse_border_width_keeps_noncanonical_and_invalid_fallbacks() {
+        // Given: noncanonical/invalid values already have a supported fallback contract.
+        for (value, expected) in [
+            ("", 0),
+            ("bad", 0),
+            ("0.12mm", 0),
+            ("-1 mm", 0),
+            ("0.13 mm", 1),
+            ("0.31 mm", 2),
+            ("0.75 mm", 3),
+            ("1.25 mm", 4),
+            ("2.5 mm", 5),
+            ("NaN", 5),
+            ("inf", 5),
+        ] {
+            // When: the same parser handles values outside the canonical sixteen widths.
+            let attr = quick_xml::events::attributes::Attribute::from(("width", value));
+            // Then: their historical interpretation remains unchanged.
+            assert_eq!(parse_border_width(&attr), expected, "{value:?}");
+        }
+    }
 
     #[test]
     fn test_parse_color_rgb() {
