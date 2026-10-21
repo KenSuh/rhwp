@@ -2407,6 +2407,700 @@ fn c23_public_field_boundary_matrix_matches_raw_utf16_two_saves() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
+// P47: 원 XML의 Table run 소유권을 실제 native 저장 결과와 비교한다.
+#[derive(Debug)]
+struct P47XmlState {
+    tables: Vec<(String, u32)>,
+    text_styles: Vec<(String, u32)>,
+}
+
+fn p47_paragraph(runs: &str) -> String {
+    format!(r#"<hp:p paraPrIDRef="0" styleIDRef="0">{runs}{C9_LINE}</hp:p>"#)
+}
+
+fn p47_table(label: &str) -> String {
+    let cell = p47_paragraph(&format!(
+        r#"<hp:run charPrIDRef="0"><hp:t>{label}</hp:t></hp:run>"#
+    ));
+    let wrapped = c8_table(&cell);
+    let start = wrapped.find("<hp:tbl ").unwrap();
+    let end = wrapped.rfind("</hp:tbl>").unwrap() + "</hp:tbl>".len();
+    wrapped[start..end].replace("<hp:tr>", r#"<hp:pos treatAsChar="1"/><hp:tr>"#)
+}
+
+fn p47_mixed(label: &str, owner: u32, control_first: bool) -> String {
+    let text = format!(r#"<hp:run charPrIDRef="1"><hp:t>text-{label}</hp:t></hp:run>"#);
+    let table = format!(
+        r#"<hp:run charPrIDRef="{owner}">{}</hp:run>"#,
+        p47_table(label)
+    );
+    p47_paragraph(&if control_first {
+        table + &text
+    } else {
+        text + &table
+    })
+}
+
+fn p47_xml_state(xml: &str) -> P47XmlState {
+    use quick_xml::{events::Event, name::ResolveResult, NsReader};
+    let mut reader = NsReader::from_str(xml);
+    reader.config_mut().expand_empty_elements = true;
+    let mut state = P47XmlState {
+        tables: Vec::new(),
+        text_styles: Vec::new(),
+    };
+    let (mut runs, mut tables) = (Vec::new(), Vec::new());
+    let mut in_text = false;
+    loop {
+        let (namespace, event) = reader.read_resolved_event().unwrap();
+        let value = match event {
+            Event::Start(e) => {
+                let name = e.local_name();
+                if matches!(name.as_ref(), b"run" | b"tbl" | b"t") {
+                    let ResolveResult::Bound(ns) = namespace else {
+                        panic!("P47 XML namespace must be bound")
+                    };
+                    assert_eq!(ns.as_ref(), b"http://www.hancom.co.kr/hwpml/2011/paragraph");
+                }
+                match name.as_ref() {
+                    b"run" => {
+                        let owner = e
+                            .attributes()
+                            .map(Result::unwrap)
+                            .find(|a| a.key.as_ref() == b"charPrIDRef")
+                            .unwrap()
+                            .decode_and_unescape_value(reader.decoder())
+                            .unwrap()
+                            .parse::<u32>()
+                            .unwrap();
+                        runs.push(owner);
+                    }
+                    b"tbl" => {
+                        tables.push(state.tables.len());
+                        state.tables.push((String::new(), *runs.last().unwrap()));
+                    }
+                    b"t" => in_text = true,
+                    _ => {}
+                }
+                None
+            }
+            Event::Text(e) if in_text => Some(
+                quick_xml::escape::unescape(&e.decode().unwrap())
+                    .unwrap()
+                    .into_owned(),
+            ),
+            Event::GeneralRef(e) if in_text => Some(
+                quick_xml::escape::unescape(&format!("&{};", e.decode().unwrap()))
+                    .unwrap()
+                    .into_owned(),
+            ),
+            Event::End(e) => {
+                match e.local_name().as_ref() {
+                    b"run" => {
+                        runs.pop().unwrap();
+                    }
+                    b"tbl" => {
+                        tables.pop().unwrap();
+                    }
+                    b"t" => in_text = false,
+                    _ => {}
+                }
+                None
+            }
+            Event::Eof => break,
+            _ => None,
+        };
+        if let Some(value) = value {
+            if let Some(&index) = tables.last() {
+                state.tables[index].0.push_str(&value);
+            }
+            state.text_styles.push((value, *runs.last().unwrap()));
+        }
+    }
+    state.tables.sort();
+    state.text_styles.sort();
+    state
+}
+
+fn p47_open_case(
+    case: &str,
+    input: &[u8],
+) -> (rhwp::document_core::DocumentCore, std::path::PathBuf) {
+    let dir = std::path::PathBuf::from("target/v342-g0-p47-correction")
+        .join(format!("native-{}", std::process::id()))
+        .join(case);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("input.hwpx"), input).unwrap();
+    std::fs::write(dir.join("input.section.xml"), hwpx_section_xml(input)).unwrap();
+    (
+        rhwp::document_core::DocumentCore::from_bytes(input).expect("valid P47 fixture"),
+        dir,
+    )
+}
+
+fn p47_text_state(doc: &rhwp::model::document::Document) -> Vec<(String, Vec<u32>, u32)> {
+    use rhwp::model::control::Control;
+    let mut paragraphs: Vec<_> = doc
+        .sections
+        .iter()
+        .flat_map(|section| &section.paragraphs)
+        .collect();
+    let mut output = Vec::new();
+    let mut index = 0;
+    while index < paragraphs.len() {
+        let para = paragraphs[index];
+        output.push((
+            para.text.clone(),
+            para.char_offsets.clone(),
+            para.char_count,
+        ));
+        for control in &para.controls {
+            if let Control::Table(table) = control {
+                paragraphs.extend(table.cells.iter().flat_map(|cell| &cell.paragraphs));
+            }
+        }
+        index += 1;
+    }
+    output
+}
+
+fn p47_two_saves(
+    mut core: rhwp::document_core::DocumentCore,
+    dir: &std::path::Path,
+) -> (Vec<P47XmlState>, Vec<String>) {
+    use rhwp::document_core::DocumentCore;
+    let before = p47_text_state(core.document());
+    std::fs::write(dir.join("before.ir.txt"), format!("{before:#?}\n")).unwrap();
+    let mut states = Vec::new();
+    let mut failures = Vec::new();
+    let mut observations = String::new();
+    // c10_two_native_saves does not expose saved bytes; retain the same native loop plus actual artifacts.
+    for cycle in 1..=2 {
+        let saved = match core.export_hwpx_native() {
+            Ok(saved) => saved,
+            Err(error) => {
+                failures.push(format!("{} save{cycle}: {error}", dir.display()));
+                break;
+            }
+        };
+        std::fs::write(dir.join(format!("save{cycle}.hwpx")), &saved).unwrap();
+        let xml = hwpx_section_xml(&saved);
+        std::fs::write(dir.join(format!("save{cycle}.section.xml")), &xml).unwrap();
+        let state = p47_xml_state(&xml);
+        let reopened = match DocumentCore::from_bytes(&saved) {
+            Ok(reopened) => reopened,
+            Err(error) => {
+                failures.push(format!("{} reopen{cycle}: {error}", dir.display()));
+                break;
+            }
+        };
+        let after = p47_text_state(reopened.document());
+        std::fs::write(
+            dir.join(format!("open{cycle}.ir.txt")),
+            format!("{after:#?}\n"),
+        )
+        .unwrap();
+        if after != before {
+            failures.push(format!(
+                "{} save{cycle}: text/offset/count changed",
+                dir.display()
+            ));
+        }
+        let line = format!(
+            "save{cycle} tables={:?} text_styles={:?}\n",
+            state.tables, state.text_styles
+        );
+        println!("P47_OBSERVATION case={} {line}", dir.display());
+        observations.push_str(&line);
+        states.push(state);
+        core = reopened;
+    }
+    std::fs::write(dir.join("observations.txt"), observations).unwrap();
+    (states, failures)
+}
+
+fn p47_find_body_table(
+    core: &rhwp::document_core::DocumentCore,
+    label: &str,
+) -> Result<(usize, usize), String> {
+    use rhwp::model::control::Control;
+    for (p, para) in core.document().sections[0]
+        .paragraphs
+        .iter()
+        .enumerate()
+        .rev()
+    {
+        for (c, control) in para.controls.iter().enumerate() {
+            if let Control::Table(table) = control {
+                if table
+                    .cells
+                    .iter()
+                    .flat_map(|cell| &cell.paragraphs)
+                    .any(|p| p.text == label)
+                {
+                    return Ok((p, c));
+                }
+            }
+        }
+    }
+    Err(format!("missing body Table label {label}"))
+}
+
+fn p47_set_label(table: &mut rhwp::model::table::Table, label: &str) {
+    let para = &mut table.cells[0].paragraphs[0];
+    para.delete_text_at(0, para.text.chars().count());
+    para.insert_text_at(0, label);
+}
+
+fn p47_operation(
+    name: &str,
+    result: Result<String, rhwp::HwpError>,
+    replies: &mut Vec<String>,
+) -> Result<(), String> {
+    let reply = result.map_err(|e| format!("{name}: {e}"))?;
+    replies.push(format!("{name}: {reply}"));
+    if !reply.contains(r#""ok":true"#) {
+        return Err(format!("{name}: {reply}"));
+    }
+    Ok(())
+}
+
+#[test]
+fn p47_table_owner_styles_survive_mixed_run_order_two_saves() {
+    // Given: independent body/cell fixtures, differing text/Table IDs, Some(0), and multiple Tables.
+    let mut failures = Vec::new();
+    let mut summary = Vec::new();
+    for nested in [false, true] {
+        for control_first in [false, true] {
+            for owner in [0, 3] {
+                let case =
+                    format!("mixed/cell-{nested}-control-first-{control_first}-owner-{owner}");
+                let inner = p47_mixed("owned-table", owner, control_first);
+                let body = if nested {
+                    let carrier =
+                        p47_paragraph(r#"<hp:run charPrIDRef="0"><hp:t>carrier</hp:t></hp:run>"#);
+                    c8_table(&(carrier + &inner))
+                } else {
+                    inner
+                };
+                let body = c9_paragraph(C10_COLUMN, C9_LINE) + &body;
+                let input = c8_fixture(&body, false);
+                let expected = p47_xml_state(&hwpx_section_xml(&input));
+                let (core, dir) = p47_open_case(&case, &input);
+                // When: the actual public native export/reopen path runs twice.
+                let (states, errors) = p47_two_saves(core, &dir);
+                failures.extend(errors);
+                let equal = states.len() == 2
+                    && states.iter().all(|s| {
+                        s.tables == expected.tables && s.text_styles == expected.text_styles
+                    });
+                summary.push(format!("{case}: equal={equal} expected={expected:?}"));
+                if !equal {
+                    failures.push(format!("{case}: expected={expected:?}, actual={states:?}"));
+                }
+            }
+        }
+        let case = format!("mixed/multiple-cell-{nested}");
+        let inner = p47_paragraph(&format!(
+            r#"<hp:run charPrIDRef="1"><hp:t>multiple-text</hp:t></hp:run><hp:run charPrIDRef="3">{}</hp:run><hp:run charPrIDRef="4">{}</hp:run>"#,
+            p47_table("first-table"),
+            p47_table("second-table")
+        ));
+        let body = if nested {
+            let carrier = p47_paragraph(r#"<hp:run charPrIDRef="0"><hp:t>carrier</hp:t></hp:run>"#);
+            c8_table(&(carrier + &inner))
+        } else {
+            inner
+        };
+        let body = c9_paragraph(C10_COLUMN, C9_LINE) + &body;
+        let input = c8_fixture(&body, false);
+        let expected = p47_xml_state(&hwpx_section_xml(&input));
+        let (core, dir) = p47_open_case(&case, &input);
+        let (states, errors) = p47_two_saves(core, &dir);
+        failures.extend(errors);
+        let equal = states.len() == 2
+            && states
+                .iter()
+                .all(|s| s.tables == expected.tables && s.text_styles == expected.text_styles);
+        summary.push(format!("{case}: equal={equal} expected={expected:?}"));
+        if !equal {
+            failures.push(format!("{case}: expected={expected:?}, actual={states:?}"));
+        }
+    }
+    // Then: collect every case before the aggregate assertion, including legitimate baseline passes.
+    let dir = std::path::PathBuf::from("target/v342-g0-p47-correction")
+        .join(format!("native-{}", std::process::id()))
+        .join("mixed");
+    std::fs::write(dir.join("summary.txt"), summary.join("\n")).unwrap();
+    println!("P47_MIXED_SUMMARY\n{}", summary.join("\n"));
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn p47_table_owner_styles_follow_control_lifecycle_two_saves() {
+    use rhwp::model::control::Control;
+    // Given: each public mutation/style scenario starts from its own fixture.
+    let mut failures = Vec::new();
+    let mut summary = Vec::new();
+    for case in [
+        "move-index",
+        "copy-body-delete",
+        "copy-cell",
+        "split",
+        "new-body",
+        "new-cell",
+        "style-body",
+        "style-cell",
+    ] {
+        let blank = p47_paragraph(r#"<hp:run charPrIDRef="2"><hp:t/></hp:run>"#);
+        let host = p47_paragraph(r#"<hp:run charPrIDRef="2"><hp:t>cell-host</hp:t></hp:run>"#);
+        let body = match case {
+            "move-index" => p47_paragraph(&format!(
+                r#"<hp:run charPrIDRef="1"><hp:t>move-text</hp:t></hp:run><hp:run charPrIDRef="3">{}</hp:run><hp:run charPrIDRef="4">{}</hp:run>"#,
+                p47_table("move-a"),
+                p47_table("move-b")
+            )),
+            "copy-body-delete" => p47_mixed("source", 3, false) + &blank,
+            "copy-cell" => p47_mixed("source", 3, false) + &c8_table(&host),
+            "split" => p47_mixed("split", 3, false),
+            "new-body" => blank,
+            "new-cell" => c8_table(&host),
+            "style-body" => p47_mixed("style-body", 3, false),
+            "style-cell" => {
+                let carrier =
+                    p47_paragraph(r#"<hp:run charPrIDRef="0"><hp:t>carrier</hp:t></hp:run>"#);
+                c8_table(&(carrier + &p47_mixed("style-cell", 3, false)))
+            }
+            _ => unreachable!(),
+        };
+        let body = c9_paragraph(C10_COLUMN, C9_LINE) + &body;
+        let input = c8_fixture(&body, false);
+        let original = p47_xml_state(&hwpx_section_xml(&input));
+        let source_owner = |label: &str| {
+            original
+                .tables
+                .iter()
+                .find(|(text, _)| text == label)
+                .unwrap()
+                .1
+        };
+        let (mut core, dir) = p47_open_case(&format!("lifecycle/{case}"), &input);
+        let mut replies = Vec::new();
+        let operation = (|| -> Result<Vec<(String, u32)>, String> {
+            // When: mutate real Control payloads and call existing public native commands.
+            let expected = match case {
+                "move-index" => {
+                    let (p, a) = p47_find_body_table(&core, "move-a")?;
+                    let (_, b) = p47_find_body_table(&core, "move-b")?;
+                    let mut doc = core.document().clone();
+                    let moved = doc.sections[0].paragraphs[p].controls.remove(a);
+                    doc.sections[0].paragraphs[p].controls.insert(b, moved);
+                    core.set_document(doc);
+                    p47_operation(
+                        "bookmark-insert",
+                        core.add_bookmark_native(0, p, 0, "p47-shift"),
+                        &mut replies,
+                    )?;
+                    let bookmark = core.document().sections[0].paragraphs[p]
+                        .controls
+                        .iter()
+                        .position(|c| matches!(c, Control::Bookmark(_)))
+                        .ok_or("bookmark missing")?;
+                    p47_operation(
+                        "bookmark-remove",
+                        core.delete_bookmark_native(0, p, bookmark),
+                        &mut replies,
+                    )?;
+                    original.tables.clone()
+                }
+                "copy-body-delete" | "copy-cell" => {
+                    let (p, c) = p47_find_body_table(&core, "source")?;
+                    p47_operation("copy", core.copy_control_native(0, p, c), &mut replies)?;
+                    if case == "copy-body-delete" {
+                        p47_operation(
+                            "paste-body",
+                            core.paste_control_native(0, 2, 0),
+                            &mut replies,
+                        )?;
+                        let copied = p47_find_body_table(&core, "source")?;
+                        let mut doc = core.document().clone();
+                        let Control::Table(table) =
+                            &mut doc.sections[0].paragraphs[copied.0].controls[copied.1]
+                        else {
+                            unreachable!()
+                        };
+                        p47_set_label(table, "body-pasted");
+                        core.set_document(doc);
+                        let source = p47_find_body_table(&core, "source")?;
+                        p47_operation(
+                            "delete-source",
+                            core.delete_table_control_native(0, source.0, source.1),
+                            &mut replies,
+                        )?;
+                        vec![("body-pasted".into(), source_owner("source"))]
+                    } else {
+                        let outer = p47_find_body_table(&core, "cell-host")?;
+                        let path = format!(
+                            r#"[{{"controlIndex":{},"cellIndex":0,"cellParaIndex":0}}]"#,
+                            outer.1
+                        );
+                        p47_operation(
+                            "paste-cell",
+                            core.paste_control_in_cell_by_path_native(0, outer.0, &path, 0),
+                            &mut replies,
+                        )?;
+                        let mut doc = core.document().clone();
+                        let Control::Table(table) =
+                            &mut doc.sections[0].paragraphs[outer.0].controls[outer.1]
+                        else {
+                            unreachable!()
+                        };
+                        let inner = table.cells[0].paragraphs[0]
+                            .controls
+                            .iter_mut()
+                            .find_map(|c| match c {
+                                Control::Table(t) => Some(t),
+                                _ => None,
+                            })
+                            .ok_or("nested paste missing")?;
+                        p47_set_label(inner, "cell-pasted");
+                        core.set_document(doc);
+                        let mut expected = original.tables.clone();
+                        expected.push(("cell-pasted".into(), source_owner("source")));
+                        expected
+                    }
+                }
+                "split" => {
+                    let (p, c) = p47_find_body_table(&core, "split")?;
+                    p47_operation(
+                        "split-cell",
+                        core.split_table_cell_into_native(0, p, c, 0, 0, 1, 2, true, false),
+                        &mut replies,
+                    )?;
+                    let Control::Table(table) =
+                        &core.document().sections[0].paragraphs[p].controls[c]
+                    else {
+                        unreachable!()
+                    };
+                    if table.cells.len() != 2 {
+                        return Err(format!("split returned {} cells", table.cells.len()));
+                    }
+                    original.tables.clone()
+                }
+                "new-body" => {
+                    p47_operation(
+                        "create-inline-table",
+                        core.create_table_ex_native(0, 1, 0, 1, 1, true, None),
+                        &mut replies,
+                    )?;
+                    let mut doc = core.document().clone();
+                    let table = doc.sections[0].paragraphs[1]
+                        .controls
+                        .iter_mut()
+                        .find_map(|c| match c {
+                            Control::Table(t) => Some(t),
+                            _ => None,
+                        })
+                        .ok_or("new Table missing")?;
+                    p47_set_label(table, "new-body");
+                    core.set_document(doc);
+                    vec![("new-body".into(), 2)]
+                }
+                "new-cell" => {
+                    let outer = p47_find_body_table(&core, "cell-host")?;
+                    let path = format!(
+                        r#"[{{"controlIndex":{},"cellIndex":0,"cellParaIndex":0}}]"#,
+                        outer.1
+                    );
+                    p47_operation(
+                        "create-cell-table",
+                        core.create_table_in_cell_by_path_native(0, outer.0, &path, 0, 1, 1),
+                        &mut replies,
+                    )?;
+                    let mut doc = core.document().clone();
+                    let Control::Table(table) =
+                        &mut doc.sections[0].paragraphs[outer.0].controls[outer.1]
+                    else {
+                        unreachable!()
+                    };
+                    let inner = table.cells[0].paragraphs[0]
+                        .controls
+                        .iter_mut()
+                        .find_map(|c| match c {
+                            Control::Table(t) => Some(t),
+                            _ => None,
+                        })
+                        .ok_or("new nested Table missing")?;
+                    p47_set_label(inner, "new-cell");
+                    core.set_document(doc);
+                    let mut expected = original.tables.clone();
+                    expected.push(("new-cell".into(), 2));
+                    expected
+                }
+                "style-body" | "style-cell" => {
+                    let mut doc = core.document().clone();
+                    let mut style = doc.doc_info.styles[0].clone();
+                    style.char_shape_id = 4;
+                    let style_id = doc.doc_info.styles.len();
+                    doc.doc_info.styles.push(style);
+                    core.set_document(doc);
+                    if case == "style-body" {
+                        p47_operation(
+                            "apply-body-style",
+                            core.apply_style_native(0, 1, style_id),
+                            &mut replies,
+                        )?;
+                        vec![("style-body".into(), 4)]
+                    } else {
+                        let outer = p47_find_body_table(&core, "carrier")?;
+                        p47_operation(
+                            "apply-cell-style",
+                            core.apply_cell_style_native(0, outer.0, outer.1, 0, 1, style_id),
+                            &mut replies,
+                        )?;
+                        let mut expected = original.tables.clone();
+                        expected
+                            .iter_mut()
+                            .find(|(text, _)| text == "style-cell")
+                            .unwrap()
+                            .1 = 4;
+                        expected
+                    }
+                }
+                _ => unreachable!(),
+            };
+            Ok(expected)
+        })();
+        std::fs::write(dir.join("operations.txt"), replies.join("\n")).unwrap();
+        let mut expected = match operation {
+            Ok(expected) => expected,
+            Err(error) => {
+                failures.push(format!("{case}: public operation/fixture error: {error}"));
+                summary.push(format!("{case}: operation_error={error}"));
+                std::fs::write(dir.join("operation-error.txt"), error).unwrap();
+                continue;
+            }
+        };
+        expected.sort();
+        let (states, errors) = p47_two_saves(core, &dir);
+        failures.extend(errors);
+        let equal = states.len() == 2 && states.iter().all(|s| s.tables == expected);
+        summary.push(format!("{case}: equal={equal} expected={expected:?}"));
+        if !equal {
+            failures.push(format!("{case}: expected={expected:?}, actual={states:?}"));
+        }
+    }
+    // Then: baseline style/fallback passes remain visible beside owner-preservation failures.
+    let dir = std::path::PathBuf::from("target/v342-g0-p47-correction")
+        .join(format!("native-{}", std::process::id()))
+        .join("lifecycle");
+    std::fs::write(dir.join("summary.txt"), summary.join("\n")).unwrap();
+    println!("P47_LIFECYCLE_SUMMARY\n{}", summary.join("\n"));
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn p47_table_owner_unknown_reference_is_rejected() {
+    use rhwp::model::{control::Control, paragraph::Paragraph};
+    fn strip_owner_refs(paragraphs: &mut [Paragraph], observed: &mut Vec<(String, Vec<u32>)>) {
+        for para in paragraphs {
+            para.char_shapes.retain(|style| style.char_shape_id != 4);
+            observed.push((
+                para.text.clone(),
+                para.char_shapes
+                    .iter()
+                    .map(|style| style.char_shape_id)
+                    .collect(),
+            ));
+            for control in &mut para.controls {
+                if let Control::Table(table) = control {
+                    for cell in &mut table.cells {
+                        strip_owner_refs(&mut cell.paragraphs, observed);
+                    }
+                }
+            }
+        }
+    }
+    // Given: ID4 belongs only to the Table owner; all visible text uses valid ID0.
+    let mut failures = Vec::new();
+    let mut summary = Vec::new();
+    for nested in [false, true] {
+        let inner = p47_paragraph(&format!(
+            r#"<hp:run charPrIDRef="0"><hp:t>valid-text</hp:t></hp:run><hp:run charPrIDRef="4">{}</hp:run>"#,
+            p47_table("unknown-owner")
+        ));
+        let body = if nested {
+            let carrier = p47_paragraph(r#"<hp:run charPrIDRef="0"><hp:t>carrier</hp:t></hp:run>"#);
+            c8_table(&(carrier + &inner))
+        } else {
+            inner
+        };
+        let body = c9_paragraph(C10_COLUMN, C9_LINE) + &body;
+        let input = c8_fixture(&body, false);
+        let (mut core, dir) = p47_open_case(&format!("unknown/cell-{nested}"), &input);
+        let mut doc = core.document().clone();
+        doc.doc_info.char_shapes.truncate(4);
+        for style in &mut doc.doc_info.styles {
+            if style.char_shape_id >= 4 {
+                style.char_shape_id = 0;
+            }
+        }
+        let mut paragraph_refs = Vec::new();
+        for section in &mut doc.sections {
+            strip_owner_refs(&mut section.paragraphs, &mut paragraph_refs);
+        }
+        core.set_document(doc);
+        std::fs::write(
+            dir.join("reference-input.txt"),
+            format!(
+                "char_shape_count={}\nparagraph_char_shape_ids={paragraph_refs:#?}\nstyle_char_shape_ids={:?}\n",
+                core.document().doc_info.char_shapes.len(),
+                core.document().doc_info.styles.iter().map(|style| style.char_shape_id).collect::<Vec<_>>()
+            ),
+        ).unwrap();
+        std::fs::write(
+            dir.join("before.ir.txt"),
+            format!("{:#?}\n", p47_text_state(core.document())),
+        )
+        .unwrap();
+        // When: export must validate the attached ID even after Paragraph references were removed.
+        let result = match core.export_hwpx_native() {
+            Err(error) => {
+                let message = error.to_string();
+                std::fs::write(dir.join("export-error.txt"), &message).unwrap();
+                let rejected_owner = message.contains("charPrIDRef: [4]");
+                if !rejected_owner {
+                    failures.push(format!("cell-{nested}: unrelated export error: {message}"));
+                }
+                format!("cell-{nested}: rejected_owner={rejected_owner} error={message}")
+            }
+            Ok(saved) => {
+                std::fs::write(dir.join("unexpected-save.hwpx"), &saved).unwrap();
+                let xml = hwpx_section_xml(&saved);
+                std::fs::write(dir.join("unexpected-save.section.xml"), &xml).unwrap();
+                let state = p47_xml_state(&xml);
+                failures.push(format!(
+                    "cell-{nested}: missing owner ID4 was accepted: {:?}",
+                    state.tables
+                ));
+                format!(
+                    "cell-{nested}: rejected_owner=false accepted_tables={:?}",
+                    state.tables
+                )
+            }
+        };
+        std::fs::write(dir.join("observations.txt"), &result).unwrap();
+        summary.push(result);
+    }
+    // Then: both body and cell observations exist before the aggregate RED assertion.
+    let dir = std::path::PathBuf::from("target/v342-g0-p47-correction")
+        .join(format!("native-{}", std::process::id()))
+        .join("unknown");
+    std::fs::write(dir.join("summary.txt"), summary.join("\n")).unwrap();
+    println!("P47_UNKNOWN_SUMMARY\n{}", summary.join("\n"));
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
 fn c8_table(inner: &str) -> String {
     format!(
         r#"<hp:p paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="0"><hp:tbl rowCnt="1" colCnt="1" borderFillIDRef="1"><hp:sz width="10000" height="3000"/><hp:tr><hp:tc borderFillIDRef="1"><hp:subList>{inner}</hp:subList><hp:cellAddr colAddr="0" rowAddr="0"/><hp:cellSpan colSpan="1" rowSpan="1"/><hp:cellSz width="10000" height="3000"/></hp:tc></hp:tr></hp:tbl></hp:run></hp:p>"#

@@ -1188,6 +1188,7 @@ impl DocumentCore {
             page_break: TablePageBreak::None,
             repeat_header: false,
             no_adjust: false,
+            hwpx_owner_char_shape_id: None,
             caption: None,
             common: crate::model::shape::CommonObjAttr {
                 treat_as_char: false,
@@ -1536,6 +1537,7 @@ impl DocumentCore {
             page_break: TablePageBreak::RowBreak,
             repeat_header: false,
             no_adjust: false,
+            hwpx_owner_char_shape_id: None,
             caption: None,
             common: crate::model::shape::CommonObjAttr {
                 treat_as_char: true,
@@ -2218,6 +2220,7 @@ impl DocumentCore {
             page_break: TablePageBreak::RowBreak,
             repeat_header: false,
             no_adjust: false,
+            hwpx_owner_char_shape_id: None,
             caption: None,
             common: crate::model::shape::CommonObjAttr {
                 treat_as_char: true,

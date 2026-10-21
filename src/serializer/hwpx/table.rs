@@ -589,6 +589,13 @@ fn write_cell_control_run<W: Write>(
         return Ok(());
     }
 
+    let mut char_shape_id = char_shape_id;
+    if let Control::Table(table) = control {
+        if let Some(id) = table.hwpx_owner_char_shape_id {
+            ctx.char_shape_ids.reference(id);
+            char_shape_id = id;
+        }
+    }
     let cs_str = char_shape_id.to_string();
     start_tag_attrs(w, "hp:run", &[("charPrIDRef", &cs_str)])?;
     write_cell_control(w, control, ctx)?;

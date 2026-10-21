@@ -34,6 +34,8 @@ pub struct Table {
     pub repeat_header: bool,
     /// HWPX 표의 noAdjust 플래그 (기본값 false).
     pub no_adjust: bool,
+    /// HWPX에서 표를 소유한 run의 글자모양 ID (None이면 문단 기본값 사용).
+    pub hwpx_owner_char_shape_id: Option<u32>,
     /// 캡션 정보
     pub caption: Option<Caption>,
     /// 공통 객체 속성 (위치, 배치, 크기 등)

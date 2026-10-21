@@ -746,7 +746,7 @@ fn form_002_header_survives_two_save_reopen_cycles() {
         assert_eq!(*fill, fills, "cycle {}: winBrush fills", k);
         assert_eq!(
             runs,
-            if k == 0 { "9,9,88" } else { "9,9,9" },
+            "9,9,88",
             "cycle {}: first paragraph run charPrIDRef",
             k
         );

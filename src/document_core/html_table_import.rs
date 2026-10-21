@@ -596,6 +596,7 @@ impl DocumentCore {
             page_break: TablePageBreak::None,
             repeat_header: has_header_row,
             no_adjust: false,
+            hwpx_owner_char_shape_id: None,
             caption: None,
             common: Default::default(),
             outer_margin_left: outer_margin,

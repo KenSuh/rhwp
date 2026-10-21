@@ -171,9 +171,16 @@ fn render_controls_xml(
             let xml = String::from_utf8(bytes).map_err(|e| {
                 SerializeError::XmlError(format!("control XML UTF-8 변환 실패: {}", e))
             })?;
+            let mut char_shape_id = first_run_char_shape_id(p);
+            if let Control::Table(table) = ctrl {
+                if let Some(id) = table.hwpx_owner_char_shape_id {
+                    ctx.char_shape_ids.reference(id);
+                    char_shape_id = id;
+                }
+            }
             out.push_str(&format!(
                 r#"<hp:run charPrIDRef="{}">"#,
-                first_run_char_shape_id(p)
+                char_shape_id
             ));
             out.push_str(&xml);
             out.push_str("</hp:run>");

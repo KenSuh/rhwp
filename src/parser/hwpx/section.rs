@@ -182,7 +182,8 @@ fn parse_paragraph(
                     }
                     b"tbl" => {
                         // 표 파싱
-                        let table = parse_table(ce, reader)?;
+                        let mut table = parse_table(ce, reader)?;
+                        table.hwpx_owner_char_shape_id = Some(current_char_shape_id);
                         // 표 위치에 제어 문자(0x0002) 삽입
                         text_parts.push("\u{0002}".to_string());
                         para.controls.push(Control::Table(Box::new(table)));

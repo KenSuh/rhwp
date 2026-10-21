@@ -1577,6 +1577,11 @@ impl DocumentCore {
                 start_pos: 0,
                 char_shape_id: new_char_shape_id,
             });
+        for control in &mut para.controls {
+            if let Control::Table(table) = control {
+                table.hwpx_owner_char_shape_id = None;
+            }
+        }
 
         self.document.sections[sec_idx].raw_stream = None;
         self.rebuild_section(sec_idx);
@@ -1637,6 +1642,11 @@ impl DocumentCore {
                     start_pos: 0,
                     char_shape_id: new_char_shape_id,
                 });
+            for control in &mut cell_para.controls {
+                if let Control::Table(table) = control {
+                    table.hwpx_owner_char_shape_id = None;
+                }
+            }
         }
 
         self.document.sections[sec_idx].raw_stream = None;
