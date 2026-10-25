@@ -284,6 +284,12 @@ impl DocumentCore {
             cell_para_idx,
         )?;
         let new_chars_count = text.chars().count();
+        if new_chars_count == 0 {
+            return Ok(super::super::helpers::json_ok_with(&format!(
+                "\"charOffset\":{}",
+                char_offset
+            )));
+        }
         cell_para.insert_text_at(char_offset, text);
 
         // 부모 컨트롤 dirty 마킹 (표 또는 글상자)
@@ -335,7 +341,12 @@ impl DocumentCore {
             cell_idx,
             cell_para_idx,
         )?;
-        cell_para.delete_text_at(char_offset, count);
+        if cell_para.delete_text_at(char_offset, count) == 0 {
+            return Ok(super::super::helpers::json_ok_with(&format!(
+                "\"charOffset\":{}",
+                char_offset
+            )));
+        }
 
         // 부모 컨트롤 dirty 마킹 (표 또는 글상자)
         self.mark_cell_control_dirty(section_idx, parent_para_idx, control_idx);
@@ -3358,6 +3369,12 @@ impl DocumentCore {
     ) -> Result<String, HwpError> {
         let new_chars_count = text.chars().count();
         let cell_para = self.get_cell_paragraph_mut_by_path(section_idx, parent_para_idx, path)?;
+        if new_chars_count == 0 {
+            return Ok(super::super::helpers::json_ok_with(&format!(
+                "\"charOffset\":{}",
+                char_offset
+            )));
+        }
         cell_para.insert_text_at(char_offset, text);
 
         let outer_ctrl = path[0].0;
@@ -3390,7 +3407,12 @@ impl DocumentCore {
         count: usize,
     ) -> Result<String, HwpError> {
         let cell_para = self.get_cell_paragraph_mut_by_path(section_idx, parent_para_idx, path)?;
-        cell_para.delete_text_at(char_offset, count);
+        if cell_para.delete_text_at(char_offset, count) == 0 {
+            return Ok(super::super::helpers::json_ok_with(&format!(
+                "\"charOffset\":{}",
+                char_offset
+            )));
+        }
 
         let outer_ctrl = path[0].0;
         self.reflow_cell_paragraph_by_path(section_idx, parent_para_idx, path);

@@ -1002,3 +1002,107 @@ fn width_formula_uses_assigned_widths_when_all_columns_are_merged() {
     assert_eq!(table.cells[0].width, 3100);
     assert_eq!(table.common.width, 3300);
 }
+
+// ---------- R2 무변경 텍스트 요청 회귀 (C2) ----------
+
+enum NoopCellEdit {
+    InsertEmpty,
+    DeleteZero,
+    DeleteEnd,
+}
+
+fn assert_noop_text_keeps_display_height(by_path: bool, cell_idx: usize, edit: NoopCellEdit) {
+    // Given: 셀 합 200100과 별도 표시 높이 1000을 가진 표. 셀 0은 reflow 우회, 셀 1은 가능하다.
+    let (mut core, loc) = irregular_grid_document();
+    let mut doc = core.document().clone();
+    let Control::Table(table) = &mut doc.sections[loc.0].paragraphs[loc.1].controls[loc.2] else {
+        panic!("표가 아니다");
+    };
+    for cell in &mut table.cells {
+        cell.height = 100_050;
+    }
+    table.common.height = 1000;
+    table.dirty = false;
+    core.set_document(doc);
+    let before = table_at(core.document(), loc).clone();
+    let text = &before.cells[cell_idx].paragraphs[0].text;
+    let saved_before = core.export_hwpx_native().unwrap();
+
+    // When: 빈 삽입·0개 삭제·문단 끝 삭제 중 하나를 일반 또는 path API로 요청한다.
+    let path = [(loc.2, cell_idx, 0)];
+    match edit {
+        NoopCellEdit::InsertEmpty => {
+            if by_path {
+                core.insert_text_in_cell_by_path(loc.0, loc.1, &path, 0, "")
+                    .unwrap();
+            } else {
+                core.insert_text_in_cell_native(loc.0, loc.1, loc.2, cell_idx, 0, 0, "")
+                    .unwrap();
+            }
+        }
+        NoopCellEdit::DeleteZero | NoopCellEdit::DeleteEnd => {
+            let (offset, count) = match edit {
+                NoopCellEdit::DeleteZero => (0, 0),
+                NoopCellEdit::DeleteEnd => (text.chars().count(), 1),
+                NoopCellEdit::InsertEmpty => unreachable!(),
+            };
+            if by_path {
+                core.delete_text_in_cell_by_path(loc.0, loc.1, &path, offset, count)
+                    .unwrap();
+            } else {
+                core.delete_text_in_cell_native(loc.0, loc.1, loc.2, cell_idx, 0, offset, count)
+                    .unwrap();
+            }
+        }
+    }
+
+    // Then: 텍스트·행 높이뿐 아니라 표시 높이와 실제 HWPX 저장 바이트도 그대로다.
+    let after = table_at(core.document(), loc);
+    assert_eq!(after.cells[cell_idx].paragraphs[0].text, *text);
+    assert_eq!(after.get_row_heights(), before.get_row_heights());
+    assert_eq!(after.common.height, 1000);
+    assert_eq!(after.dirty, before.dirty);
+    let saved_after = core.export_hwpx_native().unwrap();
+    assert_eq!(exported_top_level_sz(&saved_after, 0)["height"], "1000");
+    assert!(saved_after == saved_before, "무변경 요청은 HWPX 바이트를 보존해야 한다");
+}
+
+#[test]
+fn display_height_noop_insert_without_reflow() {
+    assert_noop_text_keeps_display_height(false, 0, NoopCellEdit::InsertEmpty);
+}
+
+#[test]
+fn display_height_noop_insert_with_reflow() {
+    assert_noop_text_keeps_display_height(false, 1, NoopCellEdit::InsertEmpty);
+}
+
+#[test]
+fn display_height_noop_insert_by_path() {
+    assert_noop_text_keeps_display_height(true, 0, NoopCellEdit::InsertEmpty);
+}
+
+#[test]
+fn display_height_noop_delete_zero_without_reflow() {
+    assert_noop_text_keeps_display_height(false, 0, NoopCellEdit::DeleteZero);
+}
+
+#[test]
+fn display_height_noop_delete_zero_with_reflow() {
+    assert_noop_text_keeps_display_height(false, 1, NoopCellEdit::DeleteZero);
+}
+
+#[test]
+fn display_height_noop_delete_zero_by_path() {
+    assert_noop_text_keeps_display_height(true, 0, NoopCellEdit::DeleteZero);
+}
+
+#[test]
+fn display_height_noop_delete_end_without_reflow() {
+    assert_noop_text_keeps_display_height(false, 0, NoopCellEdit::DeleteEnd);
+}
+
+#[test]
+fn display_height_noop_delete_end_by_path() {
+    assert_noop_text_keeps_display_height(true, 0, NoopCellEdit::DeleteEnd);
+}
