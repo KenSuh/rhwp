@@ -1,0 +1,50 @@
+{
+  "source_head": "00cb7458986b089110c153c787c1c7b121db93ea",
+  "entry_head": "1e87b0e5507ff3204f9729e9de800e8163ae267c",
+  "full_cargo_test": {
+    "passed": 1162,
+    "failed": 0,
+    "ignored": 3,
+    "result_groups": 16
+  },
+  "focused": {
+    "passed": 29,
+    "failed": 0,
+    "ignored": 1
+  },
+  "serializer_tests_in_full_suite": 29,
+  "red_failures_now_green": [
+    "width_formula_includes_new_spacing_after_column_split",
+    "display_height_grows_by_path_when_fitting_text_exceeds_declared_height",
+    "display_height_grows_after_reflow_when_fitting_text_exceeds_declaration",
+    "display_height_grows_when_fitting_text_exceeds_declared_height",
+    "width_formula_preserves_declaration_when_absolute_widths_are_unchanged",
+    "width_formula_preserves_declaration_when_resize_keeps_columns",
+    "width_formula_preserves_declaration_when_path_resize_keeps_columns",
+    "width_formula_updates_when_row_delete_changes_columns"
+  ],
+  "source_sha256": {
+    "src/model/table.rs": "187973bbb15e634cf9034e14c515027e96e30d7e67b68d73f535a10e9eb25c6f",
+    "src/document_core/commands/table_ops.rs": "8a0e9d088b2bc0942567324b43bbd5f5d21a9dd401723109546315e42c8558d0",
+    "src/document_core/commands/text_editing.rs": "9e1bc87d6e1d1b244f2de6b0bf077c7923e5dad0361cbaeb5c980733915fe43e",
+    "tests/hwpx_table_fidelity.rs": "c67a13b797813604e21fba636d66093f2847862807fe793c65f1f43b3a46e840"
+  },
+  "gates_rerun": [
+    2,
+    4,
+    5,
+    6,
+    8,
+    9,
+    10,
+    11,
+    12
+  ],
+  "gates_carried": [
+    1,
+    3,
+    7
+  ],
+  "gate_result": "ALL MET (12 met)",
+  "source_dirty": false
+}

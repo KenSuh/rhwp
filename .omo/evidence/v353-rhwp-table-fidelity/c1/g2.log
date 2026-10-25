@@ -1,0 +1,28 @@
+CASE T1 file=T1_press_release_cell_logo.hwpx probe=OK tables=100->100 cells=10953->10953 pics=44->42 loss=0 info=6096
+  info pic.count=2
+  info pic.curSz.height=39
+  info pic.curSz.width=39
+  info pic.orgSz.height=42
+  info pic.orgSz.width=42
+  info tbl.id=100
+  info tbl.zOrder=99
+  info tc.hasMargin=5722
+  info tc.name=11
+CASE T2 file=T2_2026_oss_rst.hwpx probe=OK tables=10->10 cells=126->126 pics=0->0 loss=0 info=42
+  info tbl.id=10
+  info tbl.zOrder=9
+  info tc.hasMargin=23
+CASE T6 file=T6_table_giant_cell_overfill.hwpx probe=OK tables=22->22 cells=635->635 pics=13->13 loss=0 info=652
+  info pic.curSz.height=2
+  info pic.curSz.width=2
+  info pic.orgSz.height=13
+  info pic.orgSz.width=13
+  info tbl.id=22
+  info tbl.zOrder=21
+  info tc.hasMargin=579
+CASE T7 file=T7_nested_row_first_line_height.hwpx probe=OK tables=5->5 cells=110->110 pics=2->2 loss=0 info=13
+  info pic.orgSz.height=2
+  info pic.orgSz.width=2
+  info tbl.id=5
+  info tbl.zOrder=4
+ATTR_LOSS_TOTAL=0

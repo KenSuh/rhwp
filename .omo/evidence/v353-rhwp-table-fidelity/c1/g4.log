@@ -1,0 +1,11 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.18s
+     Running tests/hwpx_table_fidelity.rs (target/debug/deps/hwpx_table_fidelity-8fba4dff0113d046)
+
+running 4 tests
+test page_break_writes_hancom_hwp5_bits ... ok
+test page_break_strings_survive_hwpx_hwp5_hwpx ... ok
+test page_break_row_alias_normalizes_to_cell_in_both_paths ... ok
+test page_break_strings_survive_hwpx_ir_hwpx ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 26 filtered out; finished in 0.92s
+
