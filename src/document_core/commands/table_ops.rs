@@ -1067,6 +1067,7 @@ impl DocumentCore {
 
         // 셀 업데이트 적용
         let table = self.get_table_mut(section_idx, parent_para_idx, control_idx)?;
+        let columns_before = table.get_column_widths();
         for upd in &updates {
             if let Some(cell) = table.cells.get_mut(upd.cell_idx) {
                 if upd.width_delta != 0 {
@@ -1082,7 +1083,7 @@ impl DocumentCore {
             }
         }
         // 행 수는 그대로다: 열 폭이 바뀐 경우에만 표 폭을 다시 계산하고, 표시 높이는 줄이지 않는다.
-        let columns_changed = updates.iter().any(|upd| upd.width_delta != 0);
+        let columns_changed = table.get_column_widths() != columns_before;
         table.refresh_ctrl_dimensions_after_content_edit(columns_changed);
         table.dirty = true;
 
@@ -1450,6 +1451,7 @@ impl DocumentCore {
 
         let path = Self::parse_cell_path(path_json)?;
         let table = self.get_table_mut_by_cell_path(section_idx, parent_para_idx, &path)?;
+        let columns_before = table.get_column_widths();
         for upd in &updates {
             if let Some(cell) = table.cells.get_mut(upd.cell_idx) {
                 if upd.width_delta != 0 {
@@ -1463,7 +1465,7 @@ impl DocumentCore {
             }
         }
         // 행 수는 그대로다: 열 폭이 바뀐 경우에만 표 폭을 다시 계산하고, 표시 높이는 줄이지 않는다.
-        let columns_changed = updates.iter().any(|upd| upd.width_delta != 0);
+        let columns_changed = table.get_column_widths() != columns_before;
         table.refresh_ctrl_dimensions_after_content_edit(columns_changed);
         table.dirty = true;
 

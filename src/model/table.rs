@@ -439,8 +439,8 @@ impl Table {
     /// 열별 폭(HWPUNIT)을 절대값으로 설정한다.
     ///
     /// `widths.len()` 은 `col_count` 와 같아야 한다. 병합 셀은 걸친 열 폭의 합에
-    /// (걸친 열 수 − 1) × 셀 간격을 더한 값이 된다. 표 폭은 열 폭 공식으로 다시 계산하고,
-    /// 표시 높이는 줄이지 않는다.
+    /// (걸친 열 수 − 1) × 셀 간격을 더한 값이 된다. 실제 폭 변경이 있으면 표 폭을
+    /// 열 폭 공식으로 다시 계산하고, 표시 높이는 줄이지 않는다.
     pub fn set_column_widths(&mut self, widths: &[HwpUnit]) -> Result<(), String> {
         if widths.len() != self.col_count as usize {
             return Err(format!(
@@ -450,6 +450,8 @@ impl Table {
             ));
         }
         let spacing = HwpUnit::try_from(self.cell_spacing.max(0)).unwrap_or(0);
+        let width_before = self.common.width;
+        let mut widths_changed = false;
         for cell in &mut self.cells {
             let start = cell.col as usize;
             if start >= widths.len() {
@@ -458,7 +460,9 @@ impl Table {
             let end = (start + cell.col_span.max(1) as usize).min(widths.len());
             let covered: HwpUnit = widths[start..end].iter().sum();
             let inner_gaps = (end - start).saturating_sub(1) as HwpUnit;
-            cell.width = covered.saturating_add(inner_gaps.saturating_mul(spacing));
+            let width = covered.saturating_add(inner_gaps.saturating_mul(spacing));
+            widths_changed |= cell.width != width;
+            cell.width = width;
         }
         // 폭은 입력 열 폭에서 바로 낸다. get_column_widths() 는 병합 셀만 덮는 열을 1800 으로 채운다.
         let gaps = HwpUnit::from(self.col_count) + 1;
@@ -466,11 +470,10 @@ impl Table {
             .iter()
             .fold(0, |sum: HwpUnit, w| sum.saturating_add(*w))
             .saturating_add(gaps.saturating_mul(spacing));
-        let height_before = self.common.height;
-        self.update_ctrl_dimensions();
-        self.sync_ctrl_width(total_width);
-        let cell_sum = self.common.height;
-        self.sync_ctrl_height(height_before.max(cell_sum));
+        self.refresh_ctrl_dimensions_after_content_edit(false);
+        if widths_changed || width_before == 0 {
+            self.sync_ctrl_width(total_width);
+        }
         self.rebuild_grid();
         Ok(())
     }
@@ -777,6 +780,7 @@ impl Table {
 
         // 표시 높이는 편집 전 값에서 삭제 행의 표시 기준 높이를 뺀다.
         let width_before = self.common.width;
+        let columns_before = self.get_column_widths();
         let height_before = self.common.height;
         let removed_display_height = self
             .display_row_heights()
@@ -816,10 +820,10 @@ impl Table {
         // 행 우선 순서 정렬
         self.cells.sort_by_key(|c| (c.row, c.col));
 
-        // CommonObjAttr 크기 갱신: 열 폭은 그대로라 선언 폭을 지키고,
+        // CommonObjAttr 크기 갱신: 실제 열 폭이 그대로면 선언 폭을 지키고,
         // 표시 높이 = max(편집 전 표시 높이 − 삭제 행의 표시 기준 높이, 셀 합).
         self.update_ctrl_dimensions();
-        if width_before > 0 {
+        if width_before > 0 && self.get_column_widths() == columns_before {
             self.sync_ctrl_width(width_before);
         }
         if height_before > 0 {
@@ -1184,6 +1188,7 @@ impl Table {
         if n_rows == 1 && m_cols == 1 {
             return Ok(()); // no-op
         }
+        let columns_before = self.get_column_widths();
 
         // 대상 셀 찾기
         let cell_idx = self
@@ -1334,8 +1339,9 @@ impl Table {
 
         self.cells.sort_by_key(|c| (c.row, c.col));
         self.rebuild_row_sizes();
-        // 셀을 나누어도 표 바깥 크기는 그대로다: 선언 폭을 지키고, 표시 높이는 셀 합을 넘을 때만 늘린다.
-        self.refresh_ctrl_dimensions_after_content_edit(false);
+        // 열 수·폭이 실제로 바뀌면 새 간격을 포함하고, 표시 높이는 줄이지 않는다.
+        let columns_changed = self.get_column_widths() != columns_before;
+        self.refresh_ctrl_dimensions_after_content_edit(columns_changed);
         self.rebuild_grid();
 
         Ok(())

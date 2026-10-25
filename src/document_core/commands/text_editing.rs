@@ -503,19 +503,29 @@ impl DocumentCore {
             );
             return;
         }
-        if !self.reflow_cell_paragraph_lines(
+        let lines_reflowed = self.reflow_cell_paragraph_lines(
             section_idx,
             parent_para_idx,
             control_idx,
             cell_idx,
             cell_para_idx,
-        ) {
-            return;
-        }
+        );
 
-        if cell_idx != 65534
-            && self.grow_table_rows_to_fit_content(section_idx, parent_para_idx, control_idx)
-        {
+        let mut table_changed = false;
+        if cell_idx != 65534 {
+            if lines_reflowed {
+                table_changed =
+                    self.grow_table_rows_to_fit_content(section_idx, parent_para_idx, control_idx);
+            } else if let Ok(table) = self.get_table_mut(section_idx, parent_para_idx, control_idx)
+            {
+                // 줄 진행 용량이 없어도 텍스트 편집 뒤 표시 높이는 동기화한다.
+                let dimensions_before = (table.common.width, table.common.height);
+                table.refresh_ctrl_dimensions_after_content_edit(false);
+                table_changed = dimensions_before != (table.common.width, table.common.height);
+                table.dirty |= table_changed;
+            }
+        }
+        if table_changed {
             self.reflow_paragraph(section_idx, parent_para_idx);
             self.recompose_paragraph(section_idx, parent_para_idx);
             self.mark_section_dirty_full(section_idx);
@@ -974,9 +984,11 @@ impl DocumentCore {
             }
         }
 
+        // 셀 크기가 그대로여도 기존 셀 합이 표시 높이를 넘을 수 있다.
+        let dimensions_before = (table.common.width, table.common.height);
+        table.refresh_ctrl_dimensions_after_content_edit(false);
+        changed |= dimensions_before != (table.common.width, table.common.height);
         if changed {
-            // 행 수는 그대로다: 선언 폭을 지키고, 셀 높이 합이 표시 높이를 넘을 때만 늘린다.
-            table.refresh_ctrl_dimensions_after_content_edit(false);
             table.dirty = true;
         }
 
@@ -1173,9 +1185,11 @@ impl DocumentCore {
             }
         }
 
+        // 셀 크기가 그대로여도 기존 셀 합이 표시 높이를 넘을 수 있다.
+        let dimensions_before = (table.common.width, table.common.height);
+        table.refresh_ctrl_dimensions_after_content_edit(false);
+        changed |= dimensions_before != (table.common.width, table.common.height);
         if changed {
-            // 행 수는 그대로다: 선언 폭을 지키고, 셀 높이 합이 표시 높이를 넘을 때만 늘린다.
-            table.refresh_ctrl_dimensions_after_content_edit(false);
             table.dirty = true;
         }
 

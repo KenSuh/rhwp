@@ -685,3 +685,320 @@ fn width_formula_matches_unmerged_fixture_tables() {
     }
     assert!(checked > 0, "병합 없는 표가 하나도 없다");
 }
+
+// ---------- R1 수정 회귀 (C1) ----------
+
+fn irregular_grid_document() -> (rhwp::wasm_api::HwpDocument, (usize, usize, usize)) {
+    let mut core = rhwp::wasm_api::HwpDocument::from_bytes(T6).unwrap();
+    let mut doc = core.document().clone();
+    let loc = top_level_tables(&doc)[0];
+    let Control::Table(table) = &mut doc.sections[loc.0].paragraphs[loc.1].controls[loc.2] else {
+        panic!("표가 아니다");
+    };
+    let template = table.cells[0].clone();
+    table.cells.clear();
+    for (idx, width) in [200, 4800, 4800, 200].into_iter().enumerate() {
+        let mut cell = template.clone();
+        cell.row = u16::try_from(idx / 2).unwrap();
+        cell.col = u16::try_from(idx % 2).unwrap();
+        cell.row_span = 1;
+        cell.col_span = 1;
+        cell.width = width;
+        cell.height = 1000;
+        table.cells.push(cell);
+    }
+    table.row_count = 2;
+    table.col_count = 2;
+    table.row_sizes = vec![2, 2];
+    table.cell_spacing = 0;
+    table.common.width = 5000;
+    table.common.height = 5000;
+    table.raw_ctrl_data.clear();
+    table.rebuild_grid();
+    core.set_document(doc);
+    (core, loc)
+}
+
+fn assert_fitting_text_edit_height(display: u32, by_path: bool, cell_idx: usize) {
+    // Given: 셀 합이 크고 한 글자가 들어간다. path는 px 올림이 없는 75-HU 배수를 쓴다.
+    let (mut core, loc) = irregular_grid_document();
+    let mut doc = core.document().clone();
+    let Control::Table(table) = &mut doc.sections[loc.0].paragraphs[loc.1].controls[loc.2] else {
+        panic!("표가 아니다");
+    };
+    let row_height = if by_path || cell_idx != 0 {
+        100_050
+    } else {
+        100_000
+    };
+    for cell in &mut table.cells {
+        cell.height = row_height;
+    }
+    table.common.height = display;
+    core.set_document(doc);
+
+    // When: 일반 API 또는 cell-path API로 셀 안에 들어가는 한 글자를 삽입한다.
+    if by_path {
+        core.insert_text_in_cell_by_path(loc.0, loc.1, &[(loc.2, cell_idx, 0)], 0, "가")
+            .unwrap();
+    } else {
+        core.insert_text_in_cell_native(loc.0, loc.1, loc.2, cell_idx, 0, 0, "가")
+            .unwrap();
+    }
+
+    // Then: 셀 크기와 무관하게 표시 높이는 max(이전 표시 높이, 셀 합)이다.
+    let after = table_at(core.document(), loc);
+    assert_eq!(after.get_row_heights(), [row_height, row_height]);
+    assert_eq!(after.common.height, display.max(2 * row_height));
+    assert_eq!(
+        after.common.width, 5000,
+        "열 폭이 그대로면 선언 폭을 지킨다"
+    );
+    let saved = core.export_hwpx_native().unwrap();
+    assert_eq!(
+        exported_top_level_sz(&saved, 0)["height"],
+        display.max(2 * row_height).to_string()
+    );
+}
+
+#[test]
+fn display_height_grows_when_fitting_text_exceeds_declared_height() {
+    assert_fitting_text_edit_height(1000, false, 0);
+}
+
+#[test]
+fn display_height_grows_after_reflow_when_fitting_text_exceeds_declaration() {
+    assert_fitting_text_edit_height(1000, false, 1);
+}
+
+#[test]
+fn display_height_grows_by_path_when_fitting_text_exceeds_declared_height() {
+    assert_fitting_text_edit_height(1000, true, 0);
+}
+
+#[test]
+fn display_height_keeps_larger_declaration_when_text_fits() {
+    for by_path in [false, true] {
+        assert_fitting_text_edit_height(300_000, by_path, 0);
+    }
+}
+
+fn assert_ineffective_resize_preserves_width(by_path: bool) {
+    for updates in [
+        r#"[{"cellIdx":0,"widthDelta":-283}]"#,
+        r#"[{"cellIdx":99,"widthDelta":500}]"#,
+        r#"[{"cellIdx":0,"widthDelta":500},{"cellIdx":0,"widthDelta":-500}]"#,
+        r#"[{"cellIdx":0,"widthDelta":500}]"#,
+    ] {
+        // Given: 행마다 경계가 다르고, 선언 폭 5000은 열별 최대 폭의 합 9600과 다르다.
+        let (mut core, loc) = irregular_grid_document();
+        let columns = table_at(core.document(), loc).get_column_widths();
+
+        // When: clamp·무효 인덱스·상쇄 또는 열 최대 폭보다 작은 셀만의 크기 변경을 요청한다.
+        if by_path {
+            let path = format!(
+                r#"[{{"controlIndex":{},"cellIndex":0,"cellParaIndex":0}}]"#,
+                loc.2
+            );
+            core.resize_table_cells_by_path(
+                u32::try_from(loc.0).unwrap(),
+                u32::try_from(loc.1).unwrap(),
+                &path,
+                updates,
+            )
+            .unwrap();
+        } else {
+            core.resize_table_cells(
+                u32::try_from(loc.0).unwrap(),
+                u32::try_from(loc.1).unwrap(),
+                u32::try_from(loc.2).unwrap(),
+                updates,
+            )
+            .unwrap();
+        }
+
+        // Then: 실제 열 폭이 그대로면 선언 폭과 저장된 sz.width도 그대로다.
+        let after = table_at(core.document(), loc);
+        assert_eq!(
+            after.get_column_widths(),
+            columns,
+            "{updates}, by_path={by_path}"
+        );
+        assert_eq!(after.common.width, 5000, "{updates}, by_path={by_path}");
+        let saved = core.export_hwpx_native().unwrap();
+        assert_eq!(exported_top_level_sz(&saved, 0)["width"], "5000");
+    }
+}
+
+#[test]
+fn width_formula_preserves_declaration_when_resize_keeps_columns() {
+    assert_ineffective_resize_preserves_width(false);
+}
+
+#[test]
+fn width_formula_preserves_declaration_when_path_resize_keeps_columns() {
+    assert_ineffective_resize_preserves_width(true);
+}
+
+#[test]
+fn width_formula_updates_when_resize_changes_columns() {
+    for by_path in [false, true] {
+        // Given: 첫 셀의 폭을 늘리면 해당 열의 최대 폭도 4800에서 5200으로 바뀐다.
+        let (mut core, loc) = irregular_grid_document();
+        let updates = r#"[{"cellIdx":0,"widthDelta":5000}]"#;
+
+        // When: 열 폭을 실제로 바꾸는 resize를 적용한다.
+        if by_path {
+            let path = format!(
+                r#"[{{"controlIndex":{},"cellIndex":0,"cellParaIndex":0}}]"#,
+                loc.2
+            );
+            core.resize_table_cells_by_path(
+                u32::try_from(loc.0).unwrap(),
+                u32::try_from(loc.1).unwrap(),
+                &path,
+                updates,
+            )
+            .unwrap();
+        } else {
+            core.resize_table_cells(
+                u32::try_from(loc.0).unwrap(),
+                u32::try_from(loc.1).unwrap(),
+                u32::try_from(loc.2).unwrap(),
+                updates,
+            )
+            .unwrap();
+        }
+
+        // Then: 바뀐 열 폭의 합을 선언 폭과 HWPX 출력에 반영한다.
+        let after = table_at(core.document(), loc);
+        assert_eq!(after.get_column_widths(), [5200, 4800]);
+        assert_eq!(after.common.width, 10_000);
+        let saved = core.export_hwpx_native().unwrap();
+        assert_eq!(exported_top_level_sz(&saved, 0)["width"], "10000");
+    }
+}
+
+#[test]
+fn width_formula_includes_new_spacing_after_column_split() {
+    // Given: 셀 폭 1000과 간격 100을 포함한 선언 폭 1200의 1×1 표.
+    let mut table = Table {
+        row_count: 1,
+        col_count: 1,
+        cell_spacing: 100,
+        cells: vec![rhwp::model::table::Cell::new_empty(0, 0, 1000, 1000, 1)],
+        ..Default::default()
+    };
+    table.common.width = 1200;
+    table.common.height = 1000;
+    table.rebuild_grid();
+
+    // When: 두 열로 나눈다.
+    table.split_cell_into(0, 0, 1, 2, false, false).unwrap();
+
+    // Then: 셀 폭 [500,500]과 세 간격을 포함해 선언 폭은 1300이다.
+    assert_eq!(table.get_column_widths(), [500, 500]);
+    assert_eq!(table.common.width, 1300);
+}
+
+#[test]
+fn width_formula_updates_when_row_delete_changes_columns() {
+    // Given: 첫 행을 삭제하면 둘째 열의 최대 폭이 4800에서 200으로 줄어든다.
+    let (core, loc) = irregular_grid_document();
+    let mut table = table_at(core.document(), loc).clone();
+    table.common.width = 7000;
+
+    // When: 열별 최대 폭을 제공하던 행을 삭제한다.
+    table.delete_row(0).unwrap();
+
+    // Then: 실제로 바뀐 열 폭의 합 5000으로 갱신한다.
+    assert_eq!(table.get_column_widths(), [4800, 200]);
+    assert_eq!(table.common.width, 5000);
+}
+
+#[test]
+fn width_formula_preserves_declaration_when_absolute_widths_are_unchanged() {
+    // Given: 모든 행의 열 폭이 같지만 선언 폭은 별도 값이다.
+    let (core, loc) = irregular_grid_document();
+    let mut table = table_at(core.document(), loc).clone();
+    for cell in &mut table.cells {
+        cell.width = if cell.col == 0 { 1000 } else { 2000 };
+    }
+    table.common.width = 7000;
+
+    // When: 기존과 같은 열 폭을 절대값으로 설정한다.
+    table.set_column_widths(&[1000, 2000]).unwrap();
+
+    // Then: 실제 열 폭이 바뀌지 않았으므로 선언 폭을 지킨다.
+    assert_eq!(table.get_column_widths(), [1000, 2000]);
+    assert_eq!(table.common.width, 7000);
+}
+
+#[test]
+fn width_formula_preserves_declaration_when_row_delete_keeps_columns() {
+    // Given: 두 행이 같은 열 폭을 공유하지만 선언 폭은 셀 합과 다르다.
+    let (core, loc) = irregular_grid_document();
+    let mut table = table_at(core.document(), loc).clone();
+    for cell in &mut table.cells {
+        cell.width = if cell.col == 0 { 1000 } else { 2000 };
+    }
+    table.common.width = 7000;
+
+    // When: 열 폭을 바꾸지 않는 행 삭제를 한다.
+    table.delete_row(0).unwrap();
+
+    // Then: 기존의 별도 선언 폭을 지킨다.
+    assert_eq!(table.get_column_widths(), [1000, 2000]);
+    assert_eq!(table.common.width, 7000);
+}
+
+#[test]
+fn width_formula_preserves_declaration_when_row_insert_keeps_columns() {
+    // Given: 열별 최대 폭 합 9600과 다른 선언 폭 5000의 표.
+    let (core, loc) = irregular_grid_document();
+    let mut table = table_at(core.document(), loc).clone();
+
+    // When: 기존 열 폭을 복제하는 행을 삽입한다.
+    table.insert_row(0, true).unwrap();
+
+    // Then: 열 폭과 선언 폭을 그대로 둔다.
+    assert_eq!(table.get_column_widths(), [4800, 4800]);
+    assert_eq!(table.common.width, 5000);
+}
+
+#[test]
+fn width_formula_preserves_declaration_when_row_split_keeps_columns() {
+    // Given: 열 최대 폭과 다른 별도 선언 폭을 가진 표.
+    let (core, loc) = irregular_grid_document();
+    let mut table = table_at(core.document(), loc).clone();
+
+    // When: 열 수·폭이 바뀌지 않게 행 방향으로만 분할한다.
+    table.split_cell_into(0, 0, 2, 1, false, false).unwrap();
+
+    // Then: 무조건 재계산하지 않고 실제 열 변화가 없음을 반영한다.
+    assert_eq!(table.get_column_widths(), [4800, 4800]);
+    assert_eq!(table.common.width, 5000);
+}
+
+#[test]
+fn width_formula_uses_assigned_widths_when_all_columns_are_merged() {
+    // Given: 열별 폭 추출은 기본값 1800을 쓰는 병합 셀뿐인 표.
+    let mut cell = rhwp::model::table::Cell::new_empty(0, 0, 7000, 1000, 1);
+    cell.col_span = 2;
+    let mut table = Table {
+        row_count: 1,
+        col_count: 2,
+        cell_spacing: 100,
+        cells: vec![cell],
+        ..Default::default()
+    };
+    table.common.width = 7200;
+    table.rebuild_grid();
+
+    // When: 절대 열 폭을 새 값으로 설정한다.
+    table.set_column_widths(&[1000, 2000]).unwrap();
+
+    // Then: 기본값이 아닌 실제 적용 폭과 새 간격으로 선언 폭을 계산한다.
+    assert_eq!(table.cells[0].width, 3100);
+    assert_eq!(table.common.width, 3300);
+}
