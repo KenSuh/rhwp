@@ -1,0 +1,62 @@
+IMPACT at=code:e6e5850ee07c952f2908df8e5845124c224c2f90@e6e5850ee07c query="tests/hwpx_table_fidelity.rs" mode=path jev=used(cache) jev_threshold=0.45 files=20 rows=66 det_ms=287 total_ms=289 jev_requests=0 jev_http_attempts=0 jev_input_tokens=0
+- [code] .omo/evidence/v353-rhwp-table-fidelity/negative_control.py  channel=other binding=pin jev=0.70★ rows=2
+    :15 [path/pin] sha = hashlib.sha256(open(os.path.join(base, 'tests/hwpx_table_fidelity.rs'), 'rb').read()).hexdigest()
+    :5 [stem/stem_weak] p = subprocess.run([cargo, 'test', '--locked', '--test', 'hwpx_table_fidelity', filt],
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/red-1e87b0e-initial.log  channel=other binding=mention jev=0.64★ rows=9
+    :3 [path/mention] Running tests/hwpx_table_fidelity.rs (target/debug/deps/hwpx_table_fidelity-8fba4dff0113d046)
+    :36 [path/mention] thread 'width_formula_includes_new_spacing_after_column_split' (672733559) panicked at tests/hwpx_table_fidelity.rs:869:5:
+    :44 [path/mention] thread 'display_height_grows_when_fitting_text_exceeds_declared_height' (672733537) panicked at tests/hwpx_table_fidelity.rs:748:5:
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/C1_REPORT.md  channel=doc binding=mention jev=0.57★ rows=4
+    :15 [path/mention] 회귀 시험 위치: `tests/hwpx_table_fidelity.rs:765,770,775,780`(F1), `:834,839,844`(F2), `:883`(F3). 테스트 API·원본 시험 prefix는 유지했다. reviewer legacy 파일의 HTML pro
+    :21 [path/mention] | `Table::delete_row`, `src/model/table.rs:779,822` | 추가 결함 수정: 열 최대 폭을 제공하던 행 삭제에서 실제 열 폭이 달라지면 공식 적용, 그대로면 선언 폭 유지; `tests/hwpx_table_fidelity.rs:90
+    :22 [path/mention] | `Table::set_column_widths`, `src/model/table.rs:449,460,469` | 추가 결함 수정: 검증된 절대 폭을 셀에 실제 적용할 때 값이 달라졌는지 판정; 아무 셀 폭도 바뀌지 않으면 유효 선언 폭 보존; `tests/hwpx_
+- [code] gates/V353_RHWP_TABLE_FIDELITY_GATES.md  channel=ledger_check binding=pin jev=0.53★ rows=5
+    :67 [path/mention] - C1 승인 기준: F1 일반/cell-path 텍스트 편집의 max(표시 높이, 셀 합), F2 실제 열 폭이 같은 resize의 선언 폭 보존, F3 열 분할 뒤 새 간격을 포함한 폭 공식. R1 실패 사례를 `tests/hwpx_table_fidelity.rs`
+    :19 [stem/pin] CHECK: bash -o pipefail -c 'cargo test --offline --locked --test hwpx_table_fidelity page_break 2>&1 | tee .omo/evidence/v353-rhwp-table-fidelity/c1/g
+    :24 [stem/pin] CHECK: bash -o pipefail -c 'cargo test --offline --locked --test hwpx_table_fidelity display_height 2>&1 | tee .omo/evidence/v353-rhwp-table-fidelity/
+- [code] .omo/evidence/v353-rhwp-table-fidelity/REPORT.md  channel=doc binding=mention jev=0.53★ rows=3
+    :33 [path/mention] - AC2: met (Parent 처분 2 의 ROW 해석) — `tests/hwpx_table_fidelity.rs:282·295·308·341` (G4 `4 passed`; TABLE·CELL·NONE 두 경로 원 문자열 보존, ROW→CELL 정규화, HWP5 비
+    :34 [path/mention] - AC3: met — 표시 높이 `tests/hwpx_table_fidelity.rs:455·469·490·511·537` (G5 `5 passed`), 폭 공식 `:581·593·608·675` (G6 `4 passed`); a34d88ff 사본에서 page_bre
+    :95 [stem/stem_weak] cargo test --test hwpx_table_fidelity
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/impact-summary.json  channel=other binding=pin jev=0.49★ rows=4
+    :34 [path/mention] "path": "tests/hwpx_table_fidelity.rs",
+    :37 [path/mention] "summary": "IMPACT at=code:00cb7458986b089110c153c787c1c7b121db93ea@00cb7458986b query=\"tests/hwpx_table_fidelity.rs\" mode=path jev=used jev_thresho
+    :39 [path/pin] "- [code] .omo/evidence/v353-rhwp-table-fidelity/negative_control.py  channel=other binding=pin jev=0.73★ rows=2\n    :15 [path/pin] sha = hashlib.sha
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/gate-run.log  channel=other binding=pin jev=0.39 rows=4
+    :9 [stem/pin] CHECK: bash -o pipefail -c 'cargo test --offline --locked --test hwpx_table_fidelity page_break 2>&1 | tee .omo/evidence/v353-rhwp-table-fidelity/c1/g
+    :16 [stem/pin] CHECK: bash -o pipefail -c 'cargo test --offline --locked --test hwpx_table_fidelity display_height 2>&1 | tee .omo/evidence/v353-rhwp-table-fidelity/
+    :23 [stem/pin] CHECK: bash -o pipefail -c 'cargo test --offline --locked --test hwpx_table_fidelity width_formula 2>&1 | tee .omo/evidence/v353-rhwp-table-fidelity/c
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/red-precondition.log  channel=other binding=mention jev=0.36 rows=10
+    :3 [path/mention] Running tests/hwpx_table_fidelity.rs (target/debug/deps/hwpx_table_fidelity-8fba4dff0113d046)
+    :36 [path/mention] thread 'width_formula_includes_new_spacing_after_column_split' (672696780) panicked at tests/hwpx_table_fidelity.rs:868:5:
+    :44 [path/mention] thread 'display_height_grows_when_fitting_text_exceeds_declared_height' (672696745) panicked at tests/hwpx_table_fidelity.rs:747:5:
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/red-source.json  channel=other binding=mention jev=0.34 rows=1
+    :10 [stem/stem_weak] "command": "CARGO_NET_OFFLINE=true cargo test --offline --locked --test hwpx_table_fidelity",
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/green-attempt-reflow-bypass.log  channel=other binding=mention jev=0.29 rows=3
+    :3 [path/mention] Running tests/hwpx_table_fidelity.rs (target/debug/deps/hwpx_table_fidelity-8fba4dff0113d046)
+    :36 [path/mention] thread 'display_height_grows_when_fitting_text_exceeds_declared_height' (672782892) panicked at tests/hwpx_table_fidelity.rs:748:5:
+    :48 [stem/stem_weak] error: test failed, to rerun pass `--test hwpx_table_fidelity`
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/red-1e87b0e.log  channel=other binding=mention jev=0.28 rows=10
+    :3 [path/mention] Running tests/hwpx_table_fidelity.rs (target/debug/deps/hwpx_table_fidelity-8fba4dff0113d046)
+    :41 [path/mention] thread 'width_formula_includes_new_spacing_after_column_split' (673007519) panicked at tests/hwpx_table_fidelity.rs:901:5:
+    :49 [path/mention] thread 'display_height_grows_by_path_when_fitting_text_exceeds_declared_height' (673007497) panicked at tests/hwpx_table_fidelity.rs:752:5:
+- [code] .omo/evidence/v353-rhwp-table-fidelity/hancom/README.md  channel=doc binding=mention jev=0.28 rows=3
+    :3 [path/mention] Parent 가 한컴오피스로 열어 표 배치를 눈으로 확인할 HWPX 다. 모두 `tests/hwpx_table_fidelity.rs` 의
+    :9 [stem/stem_weak] cargo test --test hwpx_table_fidelity write_hancom_review_files -- --ignored --nocapture
+    :12 [stem/stem_weak] cargo test --test hwpx_table_fidelity write_hancom_review_files -- --ignored --nocapture
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/hancom-regenerated.log  channel=other binding=mention jev=0.27 rows=1
+    :2 [path/mention] Running tests/hwpx_table_fidelity.rs (target/debug/deps/hwpx_table_fidelity-8fba4dff0113d046)
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/g6.log  channel=other binding=mention jev=0.23 rows=1
+    :2 [path/mention] Running tests/hwpx_table_fidelity.rs (target/debug/deps/hwpx_table_fidelity-8fba4dff0113d046)
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/g5.log  channel=other binding=mention jev=0.22 rows=1
+    :2 [path/mention] Running tests/hwpx_table_fidelity.rs (target/debug/deps/hwpx_table_fidelity-8fba4dff0113d046)
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/green-focused.log  channel=other binding=mention jev=0.21 rows=1
+    :3 [path/mention] Running tests/hwpx_table_fidelity.rs (target/debug/deps/hwpx_table_fidelity-8fba4dff0113d046)
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/g8.log  channel=other binding=mention jev=0.20 rows=1
+    :1222 [path/mention] Running tests/hwpx_table_fidelity.rs (target/debug/deps/hwpx_table_fidelity-8fba4dff0113d046)
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/g4.log  channel=other binding=mention jev=0.18 rows=1
+    :2 [path/mention] Running tests/hwpx_table_fidelity.rs (target/debug/deps/hwpx_table_fidelity-8fba4dff0113d046)
+- [code] tests/fixtures/table-fidelity/README.md  channel=doc binding=mention jev=0.11 rows=1
+    :3 [path/mention] `tools/roundtrip_diff.py` 와 `tests/hwpx_table_fidelity.rs` 가 쓰는 표본이다.
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/verification.json  channel=other binding=mention jev=0.10 rows=1
+    :30 [path/mention] "tests/hwpx_table_fidelity.rs": "c67a13b797813604e21fba636d66093f2847862807fe793c65f1f43b3a46e840"

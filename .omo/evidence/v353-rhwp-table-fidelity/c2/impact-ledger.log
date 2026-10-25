@@ -1,0 +1,14 @@
+IMPACT at=code:e6e5850ee07c952f2908df8e5845124c224c2f90@e6e5850ee07c query="gates/V353_RHWP_TABLE_FIDELITY_GATES.md" mode=path jev=used(cache) jev_threshold=0.45 files=4 rows=38 det_ms=391 total_ms=393 jev_requests=0 jev_http_attempts=0 jev_input_tokens=0
+- [code] .omo/evidence/v353-rhwp-table-fidelity/REPORT.md  channel=doc binding=exec jev=0.64★ rows=2
+    :12 [path/exec] `gates/V353_RHWP_TABLE_FIDELITY_GATES.md` 를 unlazy `gate-check.mjs --approve --cwd <worktree> --timeout 3600` 으로 source HEAD `45d4f16` 에서 돌렸다 → `ALL M
+    :97 [path/exec] node "<unlazy>/scripts/gate-check.mjs" --status gates/V353_RHWP_TABLE_FIDELITY_GATES.md
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/C1_REPORT.md  channel=doc binding=exec jev=0.53★ rows=1
+    :31 [path/exec] `gates/V353_RHWP_TABLE_FIDELITY_GATES.md`: **12/12 met**, unmet 0, abandoned/deferred 0. G2·G4·G5·G6·G8·G9·G10·G11·G12를 source checkpoint에서 재실행했다. G1·
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/gate-run.log  channel=other binding=pin jev=0.42 rows=29
+    :91 [basename/mention] V353_RHWP_TABLE_FIDELITY_GATES.md: 12 gates
+    :1 [stem/stem_weak] APPROVAL REQUIRED V353_RHWP_TABLE_FIDELITY_GATES:G2
+    :8 [stem/stem_weak] APPROVAL REQUIRED V353_RHWP_TABLE_FIDELITY_GATES:G4
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/impact-summary.json  channel=other binding=pin jev=0.40 rows=6
+    :17 [path/pin] "- [code] gates/V353_RHWP_TABLE_FIDELITY_GATES.md  channel=ledger_check binding=pin jev=0.39 rows=1\n    :54 [stem/pin] CHECK: git diff --name-only a3
+    :28 [path/pin] "- [code] gates/V353_RHWP_TABLE_FIDELITY_GATES.md  channel=ledger_check binding=pin jev=0.36 rows=1\n    :54 [stem/pin] CHECK: git diff --name-only a3
+    :40 [path/pin] "- [code] gates/V353_RHWP_TABLE_FIDELITY_GATES.md  channel=ledger_check binding=pin jev=0.52★ rows=4\n    :19 [stem/pin] CHECK: cargo test --test hwpx

@@ -1,0 +1,24 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running tests/hwpx_table_fidelity.rs (target/debug/deps/hwpx_table_fidelity-8fba4dff0113d046)
+
+running 17 tests
+test display_height_grows_when_fitting_text_exceeds_declared_height ... ok
+test display_height_grows_by_path_when_fitting_text_exceeds_declared_height ... ok
+test display_height_grows_after_reflow_when_fitting_text_exceeds_declaration ... ok
+test display_height_follows_text_edit_rule_on_overfilled_cell ... ok
+test display_height_grows_by_display_row_height_on_row_insert ... ok
+test display_height_shrinks_by_display_row_height_on_row_delete ... ok
+test display_height_noop_insert_by_path ... ok
+test display_height_noop_insert_without_reflow ... ok
+test display_height_noop_insert_with_reflow ... ok
+test display_height_noop_delete_end_without_reflow ... ok
+test display_height_noop_delete_zero_without_reflow ... ok
+test display_height_noop_delete_zero_with_reflow ... ok
+test display_height_noop_delete_end_by_path ... ok
+test display_height_noop_delete_zero_by_path ... ok
+test display_height_keeps_larger_declaration_when_text_fits ... ok
+test display_height_survives_column_insert ... ok
+test display_height_survives_cell_text_edit ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 3.99s
+

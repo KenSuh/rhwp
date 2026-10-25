@@ -1,0 +1,87 @@
+   Compiling rhwp v0.7.3 (/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.92s
+     Running tests/hwpx_table_fidelity.rs (target/debug/deps/hwpx_table_fidelity-8fba4dff0113d046)
+
+running 8 tests
+test display_height_noop_delete_zero_without_reflow ... FAILED
+test display_height_noop_delete_end_without_reflow ... FAILED
+test display_height_noop_delete_zero_by_path ... FAILED
+test display_height_noop_delete_end_by_path ... FAILED
+test display_height_noop_insert_by_path ... FAILED
+test display_height_noop_insert_with_reflow ... FAILED
+test display_height_noop_insert_without_reflow ... FAILED
+test display_height_noop_delete_zero_with_reflow ... FAILED
+
+failures:
+
+---- display_height_noop_delete_zero_without_reflow stdout ----
+
+thread 'display_height_noop_delete_zero_without_reflow' (674779914) panicked at tests/hwpx_table_fidelity.rs:1063:5:
+assertion `left == right` failed
+  left: 200100
+ right: 1000
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- display_height_noop_delete_end_without_reflow stdout ----
+
+thread 'display_height_noop_delete_end_without_reflow' (674779911) panicked at tests/hwpx_table_fidelity.rs:1063:5:
+assertion `left == right` failed
+  left: 200100
+ right: 1000
+
+---- display_height_noop_delete_zero_by_path stdout ----
+
+thread 'display_height_noop_delete_zero_by_path' (674779912) panicked at tests/hwpx_table_fidelity.rs:1063:5:
+assertion `left == right` failed
+  left: 200100
+ right: 1000
+
+---- display_height_noop_delete_end_by_path stdout ----
+
+thread 'display_height_noop_delete_end_by_path' (674779910) panicked at tests/hwpx_table_fidelity.rs:1063:5:
+assertion `left == right` failed
+  left: 200100
+ right: 1000
+
+---- display_height_noop_insert_by_path stdout ----
+
+thread 'display_height_noop_insert_by_path' (674779915) panicked at tests/hwpx_table_fidelity.rs:1063:5:
+assertion `left == right` failed
+  left: 200100
+ right: 1000
+
+---- display_height_noop_insert_with_reflow stdout ----
+
+thread 'display_height_noop_insert_with_reflow' (674779916) panicked at tests/hwpx_table_fidelity.rs:1063:5:
+assertion `left == right` failed
+  left: 200100
+ right: 1000
+
+---- display_height_noop_insert_without_reflow stdout ----
+
+thread 'display_height_noop_insert_without_reflow' (674779917) panicked at tests/hwpx_table_fidelity.rs:1063:5:
+assertion `left == right` failed
+  left: 200100
+ right: 1000
+
+---- display_height_noop_delete_zero_with_reflow stdout ----
+
+thread 'display_height_noop_delete_zero_with_reflow' (674779913) panicked at tests/hwpx_table_fidelity.rs:1063:5:
+assertion `left == right` failed
+  left: 200100
+ right: 1000
+
+
+failures:
+    display_height_noop_delete_end_by_path
+    display_height_noop_delete_end_without_reflow
+    display_height_noop_delete_zero_by_path
+    display_height_noop_delete_zero_with_reflow
+    display_height_noop_delete_zero_without_reflow
+    display_height_noop_insert_by_path
+    display_height_noop_insert_with_reflow
+    display_height_noop_insert_without_reflow
+
+test result: FAILED. 0 passed; 8 failed; 0 ignored; 0 measured; 30 filtered out; finished in 1.64s
+
+error: test failed, to rerun pass `--test hwpx_table_fidelity`

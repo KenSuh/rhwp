@@ -1,0 +1,91 @@
+IMPACT at=code:e6e5850ee07c952f2908df8e5845124c224c2f90@e6e5850ee07c query="src/document_core/commands/text_editing.rs" mode=path jev=used(cache) jev_threshold=0.45 files=107 rows=162 det_ms=364 total_ms=366 jev_requests=0 jev_http_attempts=0 jev_input_tokens=0
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/verification.json  channel=other binding=mention jev=0.65★ rows=1
+    :29 [path/mention] "src/document_core/commands/text_editing.rs": "9e1bc87d6e1d1b244f2de6b0bf077c7923e5dad0361cbaeb5c980733915fe43e",
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/red-source.json  channel=other binding=mention jev=0.52★ rows=1
+    :7 [path/mention] "src/document_core/commands/text_editing.rs": "01041a91eafaa05bf28e37690e07212876b93a6e32a27dd03a116779efe8fa9d"
+- [code] gates/V353_RHWP_TABLE_FIDELITY_GATES.md  channel=ledger_check binding=pin jev=0.51★ rows=1
+    :54 [stem/pin] CHECK: git diff --name-only a34d88ff3bae317ad08d8f0b99504e4395278e6a HEAD | grep -vE '^(src/model/table\.rs|src/model/table/tests\.rs|src/model/shape\
+- [code] .omo/evidence/v318-engine-clippy-correction/candidate-clippy.json  channel=other binding=mention jev=0.49★ rows=1
+    :27 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] mydocs/eng/tech/incremental_relayout_design.md  channel=doc binding=mention jev=0.49★ rows=7
+    :42 [basename/mention] | `para_column_map` comparison | text_editing.rs:57-70 | Detect multi-column rearrangement and iterate |
+    :43 [basename/mention] | Maximum 3 iterations | text_editing.rs:57 | Cascade stabilization |
+    :58 [basename/mention] **Location**: `text_editing.rs:57-70` (insert), `144-157` (delete)
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-7.json  channel=other binding=mention jev=0.47★ rows=1
+    :31 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/cli-output-parity.json  channel=other binding=mention jev=0.44 rows=1
+    :22 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/final-source-diff.json  channel=other binding=mention jev=0.44 rows=1
+    :26 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/baseline-clippy.json  channel=other binding=mention jev=0.41 rows=1
+    :27 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/diff-check.json  channel=other binding=mention jev=0.41 rows=1
+    :22 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/source-diff.json  channel=other binding=mention jev=0.41 rows=1
+    :24 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/source-doc-diff-check.json  channel=other binding=mention jev=0.41 rows=1
+    :30 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/cli-before.json  channel=other binding=mention jev=0.40 rows=1
+    :24 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/cli-build.json  channel=other binding=mention jev=0.40 rows=1
+    :26 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/cli-rustfmt.json  channel=other binding=mention jev=0.40 rows=1
+    :27 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/final-integrity.json  channel=other binding=mention jev=0.40 rows=1
+    :22 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] mydocs/tech/incremental_relayout_design.md  channel=doc binding=mention jev=0.40 rows=7
+    :42 [basename/mention] | `para_column_map` 비교 | text_editing.rs:57-70 | 다단 컬럼 재배치 감지 및 반복 처리 |
+    :43 [basename/mention] | 최대 3회 반복 | text_editing.rs:57 | cascade 안정화 |
+    :58 [basename/mention] **위치**: `text_editing.rs:57-70` (insert), `144-157` (delete)
+- [code] .omo/evidence/v318-engine-clippy-correction/source-input-check.json  channel=other binding=mention jev=0.38 rows=1
+    :22 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/staged-diff-check.json  channel=other binding=mention jev=0.38 rows=1
+    :23 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/pagedef13.json  channel=other binding=mention jev=0.37 rows=1
+    :26 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-1.json  channel=other binding=mention jev=0.36 rows=1
+    :31 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/strict-clippy-final.json  channel=other binding=mention jev=0.36 rows=1
+    :27 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] mydocs/eng/report/issue2_context.md  channel=doc binding=mention jev=0.36 rows=5
+    :94 [basename/mention] - **Location**: `text_editing.rs:57-70`
+    :99 [basename/mention] - **Location**: `text_editing.rs:715-727`
+    :104 [basename/mention] - **Location**: `text_editing.rs:946-956`
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/C1_REPORT.md  channel=doc binding=mention jev=0.35 rows=2
+    :11 [path/mention] | F1 표시 높이 | `src/document_core/commands/text_editing.rs:984,1185` — 셀 높이 증가 여부와 무관하게 치수를 동기화하고 common 크기 변경을 changed/dirty에 반영; `:505,520` — 줄 진행 용량 
+    :50 [path/mention] 제품 소스 변경은 `src/model/table.rs`, `src/document_core/commands/table_ops.rs`, `src/document_core/commands/text_editing.rs` 세 파일뿐이고 시험·원장·이 C1 증거는 §3.1 안이
+- [code] .omo/evidence/v318-engine-clippy-correction/command-batch.json  channel=other binding=mention jev=0.34 rows=1
+    :28 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-5.json  channel=other binding=mention jev=0.34 rows=1
+    :31 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-6.json  channel=other binding=mention jev=0.34 rows=1
+    :31 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/record-integrity.json  channel=other binding=mention jev=0.34 rows=1
+    :22 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/cli-after.json  channel=other binding=mention jev=0.33 rows=1
+    :24 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/final-gate-status.json  channel=other binding=mention jev=0.33 rows=1
+    :23 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-11.json  channel=other binding=mention jev=0.33 rows=1
+    :31 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/rustfmt-final.json  channel=other binding=mention jev=0.33 rows=1
+    :37 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] mydocs/report/issue2_context.md  channel=doc binding=mention jev=0.33 rows=5
+    :96 [basename/mention] - **위치**: `text_editing.rs:57-70`
+    :101 [basename/mention] - **위치**: `text_editing.rs:715-727`
+    :106 [basename/mention] - **위치**: `text_editing.rs:946-956`
+- [code] .omo/evidence/v318-engine-clippy-correction/executor-lock.json  channel=other binding=mention jev=0.31 rows=1
+    :23 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/final-input-check.json  channel=other binding=mention jev=0.31 rows=1
+    :22 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-2.json  channel=other binding=mention jev=0.31 rows=1
+    :31 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-4.json  channel=other binding=mention jev=0.31 rows=1
+    :31 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-8.json  channel=other binding=mention jev=0.31 rows=1
+    :31 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/metadata-online.json  channel=other binding=mention jev=0.31 rows=1
+    :24 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/nested-table.json  channel=other binding=mention jev=0.31 rows=1
+    :28 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+  … 67 more files (--top 0 으로 전부)
