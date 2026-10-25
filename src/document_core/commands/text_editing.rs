@@ -1243,22 +1243,23 @@ impl DocumentCore {
         end_offset: usize,
         cell_ctx: Option<(usize, usize, usize)>,
     ) -> Result<String, HwpError> {
-        // Section raw 스트림 무효화 (재직렬화 유도)
-        self.document.sections[section_idx].raw_stream = None;
-        // DocInfo raw_stream은 유지 (전체 재직렬화 시 FIX-4 문제 발생)
-
         if let Some((ppi, ci, cei)) = cell_ctx {
             // ─── 셀 내 deleteRange ───
             if start_para == end_para {
                 // 같은 문단 내 삭제
                 let count = end_offset - start_offset;
-                if count > 0 {
-                    let cell_para =
-                        self.get_cell_paragraph_mut(section_idx, ppi, ci, cei, start_para)?;
-                    cell_para.delete_text_at(start_offset, count);
-                    self.reflow_cell_paragraph(section_idx, ppi, ci, cei, start_para);
+                let cell_para =
+                    self.get_cell_paragraph_mut(section_idx, ppi, ci, cei, start_para)?;
+                if cell_para.delete_text_at(start_offset, count) == 0 {
+                    return Ok(super::super::helpers::json_ok_with(&format!(
+                        "\"paraIdx\":{},\"charOffset\":{}",
+                        start_para, start_offset
+                    )));
                 }
+                self.document.sections[section_idx].raw_stream = None;
+                self.reflow_cell_paragraph(section_idx, ppi, ci, cei, start_para);
             } else {
+                self.document.sections[section_idx].raw_stream = None;
                 // 다중 문단 셀 내 삭제
                 // 1) 마지막 문단 앞부분 삭제
                 if end_offset > 0 {
@@ -1306,6 +1307,8 @@ impl DocumentCore {
                 start_para, start_offset
             )))
         } else {
+            // Section raw 스트림만 무효화하고 DocInfo raw_stream은 유지한다.
+            self.document.sections[section_idx].raw_stream = None;
             // ─── 본문 deleteRange ───
             if start_para == end_para {
                 // 같은 문단 내 삭제

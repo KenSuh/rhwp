@@ -1106,3 +1106,44 @@ fn display_height_noop_delete_end_without_reflow() {
 fn display_height_noop_delete_end_by_path() {
     assert_noop_text_keeps_display_height(true, 0, NoopCellEdit::DeleteEnd);
 }
+
+#[test]
+fn display_height_noop_cell_range_delete() {
+    for cell_idx in [0, 1] {
+        for count in [0, 1] {
+            // Given: 실제 셀 텍스트 끝에서 삭제할 문자가 없는 표.
+            let (mut core, loc) = irregular_grid_document();
+            let mut doc = core.document().clone();
+            let Control::Table(table) = &mut doc.sections[loc.0].paragraphs[loc.1].controls[loc.2]
+            else {
+                panic!("표가 아니다");
+            };
+            for cell in &mut table.cells {
+                cell.height = 100_050;
+            }
+            table.common.height = 1000;
+            table.dirty = false;
+            let end = u32::try_from(table.cells[cell_idx].paragraphs[0].text.chars().count()).unwrap();
+            core.set_document(doc);
+            let saved_before = core.export_hwpx_native().unwrap();
+
+            // When: 선택 영역 삭제 API로 길이 0 또는 텍스트 끝 뒤의 범위를 삭제한다.
+            core.delete_range_in_cell(
+                u32::try_from(loc.0).unwrap(),
+                u32::try_from(loc.1).unwrap(),
+                u32::try_from(loc.2).unwrap(),
+                u32::try_from(cell_idx).unwrap(),
+                0,
+                end,
+                0,
+                end + count,
+            )
+            .unwrap();
+
+            // Then: 별도 표시 높이와 HWPX 저장 바이트를 보존한다.
+            assert_eq!(table_at(core.document(), loc).common.height, 1000);
+            let saved_after = core.export_hwpx_native().unwrap();
+            assert!(saved_after == saved_before, "cell={cell_idx}, count={count}");
+        }
+    }
+}
