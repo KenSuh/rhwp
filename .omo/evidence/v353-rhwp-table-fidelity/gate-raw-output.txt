@@ -1,0 +1,32 @@
+# v353 게이트 CHECK 원 출력 (gate-check 는 지문만 남기므로 사람이 읽을 줄을 따로 남긴다)
+# source HEAD 45d4f16f96147888d323920233d5b9e1dca08eaf · 2026-10-25T10:48:11Z
+## G1
+BASELINE_OK 471 22
+## G7
+NEG_OK
+base page_break passed/failed: 0 4 | display_height: 1 4 | width_formula: 1 3
+## G11
+OUT_OF_SCOPE=0
+common_obj_attr_writer.rs numstat (+ - path): 1	0	src/document_core/converters/common_obj_attr_writer.rs
+## G12
+HANCOM_FILES=8
+## G2
+CASE T1 file=T1_press_release_cell_logo.hwpx probe=OK tables=100->100 cells=10953->10953 pics=44->42 loss=0 info=6096
+CASE T2 file=T2_2026_oss_rst.hwpx probe=OK tables=10->10 cells=126->126 pics=0->0 loss=0 info=42
+CASE T6 file=T6_table_giant_cell_overfill.hwpx probe=OK tables=22->22 cells=635->635 pics=13->13 loss=0 info=652
+CASE T7 file=T7_nested_row_first_line_height.hwpx probe=OK tables=5->5 cells=110->110 pics=2->2 loss=0 info=13
+ATTR_LOSS_TOTAL=0
+## G3
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 951 filtered out; finished in 0.01s
+## G4
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.91s
+## G5
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 2.38s
+## G6
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.88s
+## G9
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.13s
+## G10
+    Finished `release` profile [optimized] target(s) in 0.09s
+## G8 (전체 시험, 같은 source HEAD 45d4f16 에서 별도 집계: cargo test | grep "^test result:" | awk 합)
+PASSED_TOTAL=1148 FAILED_TOTAL=0 IGNORED_TOTAL=3 SUITES=16
