@@ -1,0 +1,51 @@
+{
+ "aligned_docs": 36,
+ "checks": {
+  "noAdjust~TABLEattr.bit3": {
+   "(False, False)": 943,
+   "(True, True)": 77
+  },
+  "flowWithText~CTRL.bit13": {
+   "(True, True)": 1003,
+   "(False, False)": 13,
+   "(True, False)": 4
+  },
+  "allowOverlap~CTRL.bit14": {
+   "(False, False)": 989,
+   "(True, True)": 31
+  },
+  "affectLSpacing~CTRL.bit2": {
+   "(False, False)": 1017,
+   "(True, True)": 3
+  },
+  "szProtect~CTRL.bit20": {
+   "(False, False)": 1016,
+   "(True, True)": 4
+  },
+  "lock~CTRL.bit30": {
+   "(False, False)": 1020
+  },
+  "textFlow~CTRL.bits24-25": {
+   "(0, 0)": 1018,
+   "(3, 3)": 2
+  },
+  "holdAnchorAndSO~preventPageBreak": {
+   "(False, False)": 1019,
+   "(True, True)": 1
+  },
+  "widthRelTo~CTRL.bits15-17": {
+   "(4, 4)": 1019,
+   "(4, 0)": 1
+  },
+  "heightRelTo~CTRL.bits18-19": {
+   "(2, 2)": 1019,
+   "(2, 0)": 1
+  },
+  "repeatHeader~TABLEattr.bit2": {
+   "(True, True)": 1009,
+   "(False, False)": 7,
+   "(False, True)": 3,
+   "(True, False)": 1
+  }
+ }
+}

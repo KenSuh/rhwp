@@ -975,7 +975,8 @@ impl DocumentCore {
         }
 
         if changed {
-            table.update_ctrl_dimensions();
+            // 행 수는 그대로다: 선언 폭을 지키고, 셀 높이 합이 표시 높이를 넘을 때만 늘린다.
+            table.refresh_ctrl_dimensions_after_content_edit(false);
             table.dirty = true;
         }
 
@@ -1173,7 +1174,8 @@ impl DocumentCore {
         }
 
         if changed {
-            table.update_ctrl_dimensions();
+            // 행 수는 그대로다: 선언 폭을 지키고, 셀 높이 합이 표시 높이를 넘을 때만 늘린다.
+            table.refresh_ctrl_dimensions_after_content_edit(false);
             table.dirty = true;
         }
 

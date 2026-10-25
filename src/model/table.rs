@@ -28,7 +28,7 @@ pub struct Table {
     /// 2D 그리드 인덱스: grid[row * col_count + col] = Some(cell_idx)
     /// 병합 셀의 span 영역 전체가 앵커 셀 인덱스를 가리킴
     pub cell_grid: Vec<Option<usize>>,
-    /// 쪽 경계에서 나눔 (0: 나누지 않음, 1: 셀 단위로 나눔)
+    /// 쪽 경계에서 나눔 (값별 한컴 의미는 [`TablePageBreak`] 참조)
     pub page_break: TablePageBreak,
     /// 제목 줄 자동 반복
     pub repeat_header: bool,
@@ -56,18 +56,64 @@ pub struct Table {
     pub dirty: bool,
 }
 
-/// 표 쪽 나눔 종류
-/// bit 0-1: 0=나누지 않음, 1=셀 단위로 나눔, 2=나눔(행 단위)
+/// 표 쪽 나눔 종류 (HWP5 HWPTAG_TABLE 속성 bit 0-1, HWPX `hp:tbl@pageBreak`)
+///
+/// 변형 이름은 옛 이름이라 한컴 의미와 어긋난다. 아래 의미는 한컴 원 소스 `HwpDef.h` 의
+/// `HWPTABLE_BREAK_*` 정의(업스트림 task_m100_713 기록)와, 같은 이름 HWP/HWPX 표본 쌍
+/// 1,020표 대조(HWPX `CELL`↔2 760/761, `TABLE`↔1 4/4, `NONE`↔0 252/255)로 확정했다.
+///
+/// | 변형 | HWP5 값 | HWPX 문자열 | 한컴 대화상자 | 한컴 동작 |
+/// |---|---|---|---|---|
+/// | `None` | 0 | `NONE` | 나누지 않음 | 표를 나누지 않는다 |
+/// | `CellBreak` | 1 | `TABLE` | 셀 단위로 나눔 | 표는 나누되 셀은 나누지 않는다(행 경계 분할) |
+/// | `RowBreak` | 2 | `CELL` | 나눔 | 셀 안의 텍스트도 나눈다 |
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum TablePageBreak {
-    /// 나누지 않음 (0)
+    /// 나누지 않음 (HWP5 0, HWPX `NONE`)
     #[default]
     None,
-    /// 셀 단위로 나눔 (1) — 행 내부(인트라-로우) 분할 허용
+    /// 셀 단위로 나눔 (HWP5 1, HWPX `TABLE`) — 표는 나누되 셀은 나누지 않는다
     CellBreak,
-    /// 나눔 (2) — 행 경계에서만 나눔 (인트라-로우 분할 없음)
+    /// 나눔 (HWP5 2, HWPX `CELL`) — 셀 안의 텍스트도 나눈다
     RowBreak,
 }
+
+impl TablePageBreak {
+    /// HWP5 HWPTAG_TABLE 속성 bit 0-1 값.
+    pub fn hwp5_bits(self) -> u32 {
+        match self {
+            TablePageBreak::None => 0,
+            TablePageBreak::CellBreak => 1,
+            TablePageBreak::RowBreak => 2,
+        }
+    }
+}
+
+/// HWPX `hp:tbl@noAdjust` 를 담는 HWPTAG_TABLE 속성 비트 (bit 3).
+///
+/// 같은 이름 HWP/HWPX 표본 쌍 1,020표에서 1:1 로 일치했다(v353 대조, 참 77건).
+pub const TABLE_RECORD_NO_ADJUST: u32 = 0x08;
+
+/// 셀 줄바꿈 방식 (`Cell::line_wrap`, HWPX `hp:subList@lineWrap`, HWP5 LIST_HEADER 속성 bit 19-20)
+pub const CELL_LINE_WRAP_BREAK: u8 = 0;
+/// 한 줄로 입력 — 자간을 줄여 한 줄을 유지한다.
+pub const CELL_LINE_WRAP_SQUEEZE: u8 = 1;
+/// 줄바꿈 없이 유지 (OWPML 열거 순서).
+pub const CELL_LINE_WRAP_KEEP: u8 = 2;
+
+/// `Cell::list_header_width_ref` 의 셀 보호 비트 (HWPX `hp:tc@protect`).
+///
+/// 그 필드는 이름과 달리 폭이 아니라 LIST_HEADER 속성의 상위 16비트다
+/// (제목 셀 0x04 는 HWP5 파서와 표 속성 명령이 이미 같은 자리에서 읽는다).
+pub const CELL_FLAG_PROTECT: u16 = 0x0002;
+/// `Cell::list_header_width_ref` 의 양식 모드 편집 가능 비트 (HWPX `hp:tc@editable`).
+pub const CELL_FLAG_EDITABLE_IN_FORM: u16 = 0x0008;
+
+/// `raw_ctrl_data`(CTRL_HEADER = CommonObjAttr 전체) 안 폭·높이 자리.
+/// `parse_common_obj_attr` 와 같은 배치다: [0..4] attr, [4..8] 세로 오프셋, [8..12] 가로 오프셋,
+/// [12..16] 폭, [16..20] 높이.
+const RAW_CTRL_WIDTH: std::ops::Range<usize> = 12..16;
+const RAW_CTRL_HEIGHT: std::ops::Range<usize> = 16..20;
 
 /// 표 영역 속성
 #[derive(Debug, Clone, Default)]
@@ -121,6 +167,10 @@ pub struct Cell {
     /// 셀 필드 이름 (한컴 셀 속성 → 필드 → 필드 이름)
     /// raw_list_extra의 offset 14-15(name_len) + offset 16~(UTF-16LE)에서 추출
     pub field_name: Option<String>,
+    /// 셀 줄바꿈 방식 (`CELL_LINE_WRAP_*`, HWPX `hp:subList@lineWrap`)
+    pub line_wrap: u8,
+    /// HWPX `hp:tc@dirty`
+    pub dirty_flag: bool,
 }
 
 /// 세로 정렬
@@ -133,6 +183,32 @@ pub enum VerticalAlign {
 }
 
 impl Cell {
+    /// 셀 보호 (HWPX `hp:tc@protect`).
+    pub fn cell_protect(&self) -> bool {
+        self.list_header_width_ref & CELL_FLAG_PROTECT != 0
+    }
+
+    pub fn set_cell_protect(&mut self, value: bool) {
+        self.set_list_header_flag(CELL_FLAG_PROTECT, value);
+    }
+
+    /// 양식 모드에서 편집 가능 (HWPX `hp:tc@editable`).
+    pub fn editable_in_form(&self) -> bool {
+        self.list_header_width_ref & CELL_FLAG_EDITABLE_IN_FORM != 0
+    }
+
+    pub fn set_editable_in_form(&mut self, value: bool) {
+        self.set_list_header_flag(CELL_FLAG_EDITABLE_IN_FORM, value);
+    }
+
+    fn set_list_header_flag(&mut self, flag: u16, value: bool) {
+        if value {
+            self.list_header_width_ref |= flag;
+        } else {
+            self.list_header_width_ref &= !flag;
+        }
+    }
+
     /// 빈 셀을 생성한다 (빈 문단 1개 포함).
     pub fn new_empty(
         col: u16,
@@ -207,6 +283,8 @@ impl Cell {
             raw_list_extra: template.raw_list_extra.clone(),
             field_name: None,
             paragraphs: vec![para],
+            line_wrap: template.line_wrap,
+            dirty_flag: false,
         }
     }
 }
@@ -250,21 +328,156 @@ impl Table {
         self.cells.get_mut(cell_idx)
     }
 
-    /// raw_ctrl_data 내 CommonObjAttr의 width/height를 재계산하여 갱신한다.
+    /// 표 크기(common.width/height 와 raw_ctrl_data)를 셀 격자에서 다시 계산한다.
     ///
-    /// raw_ctrl_data 레이아웃 (attr 4바이트 이후):
-    ///   [0..4] vertical_offset, [4..8] horizontal_offset,
-    ///   [8..12] width, [12..16] height, ...
+    /// 편집 정책이 없는 원시 재계산이다. 폭은 `declared_width_from_columns()`, 높이는 셀 높이 합이다.
+    /// 한컴은 표시 높이를 셀 높이 합과 따로 저장하므로(표본 4,688표 중 1,872표가 다르다),
+    /// 편집 경로는 이 함수 대신 표시 높이를 지키는 경로를 쓴다
+    /// (`insert_row`·`delete_row`·`refresh_ctrl_dimensions_after_content_edit` 등).
+    ///
+    /// raw_ctrl_data 는 HWP5 파서가 담는 CTRL_HEADER 전체(attr 포함)다. 그래서 폭은 [12..16],
+    /// 높이는 [16..20] 에 쓴다. 종전 [8..12]/[12..16] 은 가로 오프셋 자리에 폭을 덮어썼다.
     pub fn update_ctrl_dimensions(&mut self) {
-        let total_width: HwpUnit = self.get_column_widths().iter().sum();
-        let total_height: HwpUnit = self.get_row_heights().iter().sum();
-        self.common.width = total_width;
-        self.common.height = total_height;
-        if self.raw_ctrl_data.len() < 16 {
-            return;
+        let total_width = self.declared_width_from_columns();
+        let total_height = self.cell_height_sum();
+        self.sync_ctrl_width(total_width);
+        self.sync_ctrl_height(total_height);
+    }
+
+    /// 열 폭에서 유도한 표 선언 폭: Σ열 폭 + (열 수 + 1) × 셀 간격.
+    ///
+    /// 병합 셀이 없는 표본 3,175표 중 3,174표의 `hp:sz@width` 가 이 식과 정확히 같다.
+    pub fn declared_width_from_columns(&self) -> HwpUnit {
+        let columns: HwpUnit = self.get_column_widths().iter().sum();
+        let gaps = HwpUnit::from(self.col_count) + 1;
+        let spacing = HwpUnit::try_from(self.cell_spacing.max(0)).unwrap_or(0);
+        columns.saturating_add(gaps.saturating_mul(spacing))
+    }
+
+    /// 셀 높이 합 (`get_row_heights()` 의 합).
+    pub fn cell_height_sum(&self) -> HwpUnit {
+        self.get_row_heights()
+            .iter()
+            .fold(0, |sum: HwpUnit, h| sum.saturating_add(*h))
+    }
+
+    /// 표 폭을 common.width 와 raw_ctrl_data 에 함께 쓴다.
+    pub(crate) fn sync_ctrl_width(&mut self, width: HwpUnit) {
+        self.common.width = width;
+        if self.raw_ctrl_data.len() >= RAW_CTRL_WIDTH.end {
+            self.raw_ctrl_data[RAW_CTRL_WIDTH].copy_from_slice(&width.to_le_bytes());
         }
-        self.raw_ctrl_data[8..12].copy_from_slice(&total_width.to_le_bytes());
-        self.raw_ctrl_data[12..16].copy_from_slice(&total_height.to_le_bytes());
+    }
+
+    // 업스트림 edwardkim/rhwp 1a76570e src/model/table.rs `sync_ctrl_height` 이식.
+    /// 표 표시 높이를 common.height 와 raw_ctrl_data 에 함께 쓴다.
+    pub(crate) fn sync_ctrl_height(&mut self, height: HwpUnit) {
+        self.common.height = height;
+        if self.raw_ctrl_data.len() >= RAW_CTRL_HEIGHT.end {
+            self.raw_ctrl_data[RAW_CTRL_HEIGHT].copy_from_slice(&height.to_le_bytes());
+        }
+    }
+
+    // 업스트림 edwardkim/rhwp 1a76570e src/model/table.rs `stretched_row_heights` 이식.
+    /// 표시 기준 행 높이: 저장된 행 높이를 표시 높이(common.height)에 비례해 늘린 값.
+    ///
+    /// 셀 높이 합이 표시 높이보다 작을 때만 `Some` 이다. 반올림 오차는 마지막 행이 흡수한다.
+    pub(crate) fn stretched_row_heights(&self) -> Option<Vec<HwpUnit>> {
+        let mut heights = self.get_row_heights();
+        let raw_sum: u64 = heights.iter().map(|h| *h as u64).sum();
+        let target = self.common.height as u64;
+        if heights.is_empty() || raw_sum == 0 || target <= raw_sum {
+            return None;
+        }
+
+        let mut scaled_sum = 0u64;
+        for height in &mut heights {
+            let scaled = ((*height as u64 * target) + raw_sum / 2) / raw_sum;
+            *height = scaled.max(1).min(u32::MAX as u64) as HwpUnit;
+            scaled_sum += *height as u64;
+        }
+
+        if let Some(last) = heights.last_mut() {
+            match target.cmp(&scaled_sum) {
+                std::cmp::Ordering::Greater => {
+                    let delta = (target - scaled_sum).min(u32::MAX as u64);
+                    *last = last.saturating_add(delta as HwpUnit);
+                }
+                std::cmp::Ordering::Less => {
+                    let delta = (scaled_sum - target).min(*last as u64);
+                    *last = last.saturating_sub(delta as HwpUnit).max(1);
+                }
+                std::cmp::Ordering::Equal => {}
+            }
+        }
+
+        Some(heights)
+    }
+
+    /// 행별 표시 기준 높이: 표시 높이가 셀 합보다 크면 비례 배분 값, 아니면 저장 행 높이.
+    fn display_row_heights(&self) -> Vec<HwpUnit> {
+        self.stretched_row_heights()
+            .unwrap_or_else(|| self.get_row_heights())
+    }
+
+    /// 행 수가 변하지 않는 편집 뒤 표 크기를 갱신한다.
+    ///
+    /// - 폭: `columns_changed` 이거나 선언 폭이 없으면(0) 열 폭 공식으로 다시 계산하고,
+    ///   아니면 선언 폭을 그대로 둔다.
+    /// - 높이: 셀 높이 합이 표시 높이를 넘을 때만 늘린다. 줄이지 않는다.
+    pub fn refresh_ctrl_dimensions_after_content_edit(&mut self, columns_changed: bool) {
+        let width_before = self.common.width;
+        let height_before = self.common.height;
+        self.update_ctrl_dimensions();
+        if !columns_changed && width_before > 0 {
+            self.sync_ctrl_width(width_before);
+        }
+        let cell_sum = self.common.height;
+        self.sync_ctrl_height(height_before.max(cell_sum));
+    }
+
+    /// 열별 폭(HWPUNIT)을 절대값으로 설정한다.
+    ///
+    /// `widths.len()` 은 `col_count` 와 같아야 한다. 병합 셀은 걸친 열 폭의 합에
+    /// (걸친 열 수 − 1) × 셀 간격을 더한 값이 된다. 표 폭은 열 폭 공식으로 다시 계산하고,
+    /// 표시 높이는 줄이지 않는다.
+    pub fn set_column_widths(&mut self, widths: &[HwpUnit]) -> Result<(), String> {
+        if widths.len() != self.col_count as usize {
+            return Err(format!(
+                "열 폭 개수 {} 가 표의 열 수 {} 와 다릅니다",
+                widths.len(),
+                self.col_count
+            ));
+        }
+        let spacing = HwpUnit::try_from(self.cell_spacing.max(0)).unwrap_or(0);
+        for cell in &mut self.cells {
+            let start = cell.col as usize;
+            if start >= widths.len() {
+                continue;
+            }
+            let end = (start + cell.col_span.max(1) as usize).min(widths.len());
+            let covered: HwpUnit = widths[start..end].iter().sum();
+            let inner_gaps = (end - start).saturating_sub(1) as HwpUnit;
+            cell.width = covered.saturating_add(inner_gaps.saturating_mul(spacing));
+        }
+        // 폭은 입력 열 폭에서 바로 낸다. get_column_widths() 는 병합 셀만 덮는 열을 1800 으로 채운다.
+        let gaps = HwpUnit::from(self.col_count) + 1;
+        let total_width = widths
+            .iter()
+            .fold(0, |sum: HwpUnit, w| sum.saturating_add(*w))
+            .saturating_add(gaps.saturating_mul(spacing));
+        let height_before = self.common.height;
+        self.update_ctrl_dimensions();
+        self.sync_ctrl_width(total_width);
+        let cell_sum = self.common.height;
+        self.sync_ctrl_height(height_before.max(cell_sum));
+        self.rebuild_grid();
+        Ok(())
+    }
+
+    /// HWPX `noAdjust` (HWPTAG_TABLE 속성 bit 3).
+    pub fn no_adjust(&self) -> bool {
+        self.raw_table_record_attr & TABLE_RECORD_NO_ADJUST != 0
     }
 
     /// 열별 폭을 추출한다 (col_span==1인 셀 기준).
@@ -362,6 +575,14 @@ impl Table {
 
         let target_row = if below { row_idx + 1 } else { row_idx };
         let col_widths = self.get_column_widths();
+        // 표시 높이는 편집 전 값에 새 행의 표시 기준 높이를 더한다 (새 행은 row_idx 행 높이를 복제한다).
+        let width_before = self.common.width;
+        let height_before = self.common.height;
+        let inserted_display_height = self
+            .display_row_heights()
+            .get(row_idx as usize)
+            .copied()
+            .unwrap_or(0);
 
         // 셀 height용
         let row_heights = self.get_row_heights();
@@ -430,8 +651,20 @@ impl Table {
         // 행 우선 순서 정렬
         self.cells.sort_by_key(|c| (c.row, c.col));
 
-        // CommonObjAttr 크기 갱신
+        // CommonObjAttr 크기 갱신: 열 폭은 그대로라 선언 폭을 지키고,
+        // 표시 높이 = 편집 전 표시 높이 + 새 행의 표시 기준 높이 (셀 합 아래로는 내려가지 않는다).
         self.update_ctrl_dimensions();
+        if width_before > 0 {
+            self.sync_ctrl_width(width_before);
+        }
+        if height_before > 0 {
+            let cell_sum = self.common.height;
+            self.sync_ctrl_height(
+                height_before
+                    .saturating_add(inserted_display_height)
+                    .max(cell_sum),
+            );
+        }
 
         // 그리드 인덱스 재구축
         self.rebuild_grid();
@@ -451,6 +684,7 @@ impl Table {
         }
 
         let target_col = if right { col_idx + 1 } else { col_idx };
+        let height_before = self.common.height;
         let col_widths = self.get_column_widths();
         let row_heights = self.get_row_heights();
         let new_col_width = col_widths[col_idx as usize];
@@ -513,8 +747,13 @@ impl Table {
         // 행 우선 순서 정렬
         self.cells.sort_by_key(|c| (c.row, c.col));
 
-        // CommonObjAttr 크기 갱신
+        // CommonObjAttr 크기 갱신: 열 구성이 바뀌었으므로 폭은 열 폭 공식으로 다시 계산하고,
+        // 행은 그대로라 표시 높이는 줄이지 않는다.
         self.update_ctrl_dimensions();
+        if height_before > 0 {
+            let cell_sum = self.common.height;
+            self.sync_ctrl_height(height_before.max(cell_sum));
+        }
 
         // 그리드 인덱스 재구축
         self.rebuild_grid();
@@ -535,6 +774,15 @@ impl Table {
         if self.row_count <= 1 {
             return Err("최소 1행은 유지해야 합니다".to_string());
         }
+
+        // 표시 높이는 편집 전 값에서 삭제 행의 표시 기준 높이를 뺀다.
+        let width_before = self.common.width;
+        let height_before = self.common.height;
+        let removed_display_height = self
+            .display_row_heights()
+            .get(row_idx as usize)
+            .copied()
+            .unwrap_or(0);
 
         // 삭제 행을 걸치는 병합 셀: row_span 축소
         for cell in &mut self.cells {
@@ -568,8 +816,20 @@ impl Table {
         // 행 우선 순서 정렬
         self.cells.sort_by_key(|c| (c.row, c.col));
 
-        // CommonObjAttr 크기 갱신
+        // CommonObjAttr 크기 갱신: 열 폭은 그대로라 선언 폭을 지키고,
+        // 표시 높이 = max(편집 전 표시 높이 − 삭제 행의 표시 기준 높이, 셀 합).
         self.update_ctrl_dimensions();
+        if width_before > 0 {
+            self.sync_ctrl_width(width_before);
+        }
+        if height_before > 0 {
+            let cell_sum = self.common.height;
+            self.sync_ctrl_height(
+                height_before
+                    .saturating_sub(removed_display_height)
+                    .max(cell_sum),
+            );
+        }
 
         // 그리드 인덱스 재구축
         self.rebuild_grid();
@@ -590,6 +850,8 @@ impl Table {
         if self.col_count <= 1 {
             return Err("최소 1열은 유지해야 합니다".to_string());
         }
+
+        let height_before = self.common.height;
 
         // 삭제 열의 폭 (셀 width 축소용)
         let col_widths = self.get_column_widths();
@@ -633,8 +895,13 @@ impl Table {
         // 행 우선 순서 정렬
         self.cells.sort_by_key(|c| (c.row, c.col));
 
-        // CommonObjAttr 크기 갱신
+        // CommonObjAttr 크기 갱신: 열 구성이 바뀌었으므로 폭은 열 폭 공식으로 다시 계산하고,
+        // 행은 그대로라 표시 높이는 줄이지 않는다.
         self.update_ctrl_dimensions();
+        if height_before > 0 {
+            let cell_sum = self.common.height;
+            self.sync_ctrl_height(height_before.max(cell_sum));
+        }
 
         // 그리드 인덱스 재구축
         self.rebuild_grid();
@@ -1067,7 +1334,8 @@ impl Table {
 
         self.cells.sort_by_key(|c| (c.row, c.col));
         self.rebuild_row_sizes();
-        self.update_ctrl_dimensions();
+        // 셀을 나누어도 표 바깥 크기는 그대로다: 선언 폭을 지키고, 표시 높이는 셀 합을 넘을 때만 늘린다.
+        self.refresh_ctrl_dimensions_after_content_edit(false);
         self.rebuild_grid();
 
         Ok(())

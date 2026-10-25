@@ -1,0 +1,675 @@
+{
+ "pairs": 144,
+ "aligned_docs": 36,
+ "cooccurrence": {
+  "CELL|2": 760,
+  "NONE|0": 252,
+  "TABLE|1": 4,
+  "NONE|2": 3,
+  "CELL|0": 1
+ },
+ "docs": [
+  [
+   "2025 행정업무운영 편람(최종).hwpx",
+   {
+    "CELL|2": 327,
+    "NONE|0": 57,
+    "TABLE|1": 4
+   }
+  ],
+  [
+   "HWP5-nopassword-123456.hwpx",
+   {
+    "NONE|0": 2
+   }
+  ],
+  [
+   "[2027] 온새미로 1 본교재.hwpx",
+   {
+    "CELL|2": 11
+   }
+  ],
+  [
+   "hwp3-sample16-hwp5.hwpx",
+   {
+    "NONE|0": 91
+   }
+  ],
+  [
+   "hwpx/2024년 1분기 해외직접투자 보도자료 ff.hwpx",
+   {
+    "CELL|2": 5,
+    "NONE|0": 21
+   }
+  ],
+  [
+   "hwpx_sample2.hwpx",
+   {
+    "CELL|2": 61,
+    "NONE|0": 3
+   }
+  ],
+  [
+   "issue1510_coanchored_float_tables.hwpx",
+   {
+    "NONE|2": 3
+   }
+  ],
+  [
+   "issue1949_giant_cell_nested_tables_perf.hwpx",
+   {
+    "CELL|2": 8,
+    "NONE|0": 6
+   }
+  ],
+  [
+   "issue2004_cell_image_stack.hwpx",
+   {
+    "CELL|2": 7
+   }
+  ],
+  [
+   "issue2020/(250813) (보도자료) 2025년 7월중 가계대출 동향.hwpx",
+   {
+    "CELL|2": 11
+   }
+  ],
+  [
+   "issue3587/b-labnote-repeated.hwpx",
+   {
+    "CELL|2": 12
+   }
+  ],
+  [
+   "issue3587/b-table-repeated.hwpx",
+   {
+    "CELL|2": 10,
+    "NONE|0": 1
+   }
+  ],
+  [
+   "issue3587/c-form-labnote-001-stage11-filled.hwpx",
+   {
+    "CELL|2": 9
+   }
+  ],
+  [
+   "issue3587/c-rows-labnote-001-stage12-rows.hwpx",
+   {
+    "CELL|2": 9
+   }
+  ],
+  [
+   "issue3587/d-cli-filled.hwpx",
+   {
+    "CELL|2": 12
+   }
+  ],
+  [
+   "issue3587/d-pi2-import.hwpx",
+   {
+    "NONE|0": 1
+   }
+  ],
+  [
+   "ta-pic-001-r-쪽영역안제한.hwpx",
+   {
+    "CELL|2": 1
+   }
+  ],
+  [
+   "ta-pic-001-r-쪽영역안제한no.hwpx",
+   {
+    "CELL|2": 1
+   }
+  ],
+  [
+   "table-vpos-01.hwpx",
+   {
+    "CELL|2": 11
+   }
+  ],
+  [
+   "tac-img-02.hwpx",
+   {
+    "CELL|2": 126,
+    "NONE|0": 16
+   }
+  ],
+  [
+   "task1725/text_footnote_tail_overpagination.hwpx",
+   {
+    "CELL|2": 5,
+    "NONE|0": 36
+   }
+  ],
+  [
+   "task1749/saved_bounds_cumulative_page_break.hwpx",
+   {
+    "CELL|2": 7,
+    "NONE|0": 2
+   }
+  ],
+  [
+   "task1749/saved_bounds_cumulative_vpos.hwpx",
+   {
+    "NONE|0": 4,
+    "CELL|2": 1
+   }
+  ],
+  [
+   "task1750/split_guard_spacing_before.hwpx",
+   {
+    "CELL|0": 1
+   }
+  ],
+  [
+   "task1753/deferred_takeplace_fill_ahead.hwpx",
+   {
+    "CELL|2": 19,
+    "NONE|0": 5
+   }
+  ],
+  [
+   "task1763/cell_trailing_ls_expand.hwpx",
+   {
+    "NONE|0": 1
+   }
+  ],
+  [
+   "task1765/merged_cell_trailing_ls.hwpx",
+   {
+    "CELL|2": 1
+   }
+  ],
+  [
+   "대각선샘플.hwpx",
+   {
+    "CELL|2": 1
+   }
+  ],
+  [
+   "대각선샘플3.hwpx",
+   {
+    "CELL|2": 1
+   }
+  ],
+  [
+   "대각선샘플4.hwpx",
+   {
+    "CELL|2": 1
+   }
+  ],
+  [
+   "대각선샘플5.hwpx",
+   {
+    "CELL|2": 1
+   }
+  ],
+  [
+   "복학원서.hwpx",
+   {
+    "NONE|0": 3
+   }
+  ],
+  [
+   "셀보호.hwpx",
+   {
+    "CELL|2": 1
+   }
+  ],
+  [
+   "셀보호2.hwpx",
+   {
+    "CELL|2": 1
+   }
+  ],
+  [
+   "정책연구용역사업 중간진도보고서(살아있는 간장 기증자의 의학적 선별기준 연구).hwpx",
+   {
+    "NONE|0": 3,
+    "CELL|2": 99
+   }
+  ],
+  [
+   "추진일정.hwpx",
+   {
+    "CELL|2": 1
+   }
+  ]
+ ],
+ "skipped": [
+  [
+   "3-09월_교육_통합_2022.hwpx",
+   "count 7!=2"
+  ],
+  [
+   "3-09월_교육_통합_2023.hwpx",
+   "count 3!=2"
+  ],
+  [
+   "3-09월_교육_통합_2024-구분선아래20구분선위20.hwpx",
+   "count 7!=2"
+  ],
+  [
+   "3-10월_교육_통합_2022.hwpx",
+   "count 4!=3"
+  ],
+  [
+   "3-11월_실전_통합_2022.hwpx",
+   "count 6!=1"
+  ],
+  [
+   "3-11월_실전_통합_2024-구분선없음구분선위20미주사이20구분선아래20.hwpx",
+   "count 6!=1"
+  ],
+  [
+   "3-11월_실전_통합_2024-구분선위0미주사이0구분선아래0.hwpx",
+   "count 6!=1"
+  ],
+  [
+   "3-11월_실전_통합_2024-구분선위0미주사이20구분선아래2.hwpx",
+   "count 6!=1"
+  ],
+  [
+   "3-11월_실전_통합_2024-구분선위0미주사이7구분선아래2.hwpx",
+   "count 6!=1"
+  ],
+  [
+   "3-11월_실전_통합_2024-구분선위0미주사이7구분선아래20.hwpx",
+   "count 6!=1"
+  ],
+  [
+   "3-11월_실전_통합_2024-구분선위20미주사이0구분선아래20.hwpx",
+   "count 6!=1"
+  ],
+  [
+   "3-11월_실전_통합_2024-구분선위20미주사이7구분선아래2.hwpx",
+   "count 6!=1"
+  ],
+  [
+   "3-11월_실전_통합_2024-구분선위9미주사이8구분선아래7.hwpx",
+   "count 6!=1"
+  ],
+  [
+   "SO-SUEOP.hwp",
+   "hwp-err"
+  ],
+  [
+   "3차원누적가로막대형.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "3차원묶은가로막대형.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "누적가로막대형.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "묶은가로막대형.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "백프로기준누적가로막대형.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "고가저가종가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "시가고가저가종가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "꺽은선형.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "누적꺽은선형.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "백프로기준누적꺽은선형.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "표식이있는꺽은선형.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "표식이있는누적꺽은선형.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "곡선및표식이있는분산형.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "곡선이있는분산형.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "직선및표식이있는분산형.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "직선이있는분산형.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "표식만있는분산형.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "3차원누적세로막대형.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "3차원묶은세로막대형.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "누적세로막대형.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "묶은세로막대형.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "백프로기준누적세로막대형.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "2차원원형.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "3차원원형.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "원형대가로막대형.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "원형대원형.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "쪼개진원형.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "가로막대형_하나만있을떄_단일시리즈제목.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "hwp3-sample13-hwp5.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "hwp3-sample14-hwp5.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "d-pi4-import.hwpx",
+   "count 4!=0"
+  ],
+  [
+   "3차원묶은세로막대형-행추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "가로막대형_하나만있을떄_단일시리즈제목-점추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "누적세로막대형-계열삭제.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "묶은가로막대형-행추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "묶은세로막대형-계열명변경.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "묶은세로막대형-계열삭제.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "묶은세로막대형-계열추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "묶은세로막대형-라벨변경.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "묶은세로막대형-행삭제.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "묶은세로막대형-행추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "시가고가저가종가-계열삭제.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "원형대원형-계열추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "직선및표식이있는분산형-점추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "표식이있는꺽은선형-행추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "3차원묶은세로막대형-행추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "가로막대형_하나만있을떄_단일시리즈제목-점추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "누적세로막대형-계열삭제.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "묶은가로막대형-행추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "묶은세로막대형-계열명변경.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "묶은세로막대형-계열삭제.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "묶은세로막대형-계열추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "묶은세로막대형-라벨변경.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "묶은세로막대형-행삭제.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "묶은세로막대형-행추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "직선및표식이있는분산형-점추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "표식이있는꺽은선형-행추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "2차원원형-계열추가-데이터추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "2차원원형-계열추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "2차원원형-계열추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "3차원원형-계열추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "고가저가종가-꼬리계열추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "시가고가저가종가-중간계열삭제.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "시가고가저가종가-중간계열추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "원형대가로막대형-계열추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "원형대원형-계열추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "쪼개진원형-계열추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "고가저가종가-계열추가-데이터추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "고가저가종가-계열추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "고가저가종가-꼬리계열추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "시가고가저가종가-계열삭제.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "시가고가저가종가-계열추가-데이터추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "시가고가저가종가-계열추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "시가고가저가종가-꼬리계열추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "시가고가저가종가-종가삭제.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "시가고가저가종가-첫계열삭제.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "원형대원형-계열추가-데이터추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "원형대원형-계열추가.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "bold-faces.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "mixed_chart.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "7406_OLE__CHART.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "pic2.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "test-2018.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "test-2022.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "test-2024.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "rowbreak-problem-pages.hwpx",
+   "count 33!=29"
+  ],
+  [
+   "test-image.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "누름틀-2024.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "수식-문자처럼취급-아님.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "종이기준.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "쪽기준.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "투명도0-50-2nd그림글차처럼off.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "투명도0-50.hwpx",
+   "count 0!=0"
+  ],
+  [
+   "한셀OLE.hwpx",
+   "count 0!=0"
+  ]
+ ]
+}

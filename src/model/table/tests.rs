@@ -126,19 +126,22 @@ fn test_update_ctrl_dimensions_syncs_common_attr() {
 
 #[test]
 fn test_update_ctrl_dimensions_syncs_raw_ctrl_data() {
+    // raw_ctrl_data 는 HWP5 파서가 담는 CTRL_HEADER 전체(attr 포함)다:
+    // [8..12] 가로 오프셋, [12..16] 폭, [16..20] 높이. 가로 오프셋은 건드리지 않는다.
     let mut table = make_table(1, 1);
-    table.raw_ctrl_data = vec![0; 16];
+    let mut raw = vec![0u8; 40];
+    raw[8..12].copy_from_slice(&777u32.to_le_bytes());
+    table.raw_ctrl_data = raw;
 
     table.update_ctrl_dimensions();
 
-    assert_eq!(
-        u32::from_le_bytes(table.raw_ctrl_data[8..12].try_into().unwrap()),
-        3600
-    );
-    assert_eq!(
-        u32::from_le_bytes(table.raw_ctrl_data[12..16].try_into().unwrap()),
-        1000
-    );
+    assert_eq!(raw_u32(&table.raw_ctrl_data, 12), 3600);
+    assert_eq!(raw_u32(&table.raw_ctrl_data, 16), 1000);
+    assert_eq!(raw_u32(&table.raw_ctrl_data, 8), 777, "가로 오프셋은 그대로");
+}
+
+fn raw_u32(raw: &[u8], at: usize) -> u32 {
+    u32::from_le_bytes(raw[at..at + 4].try_into().unwrap())
 }
 
 // === insert_row 테스트 ===
@@ -936,4 +939,187 @@ fn test_split_cells_in_range_single_cell() {
     let mut table = make_table(2, 2);
     table.split_cells_in_range(0, 0, 0, 0, 1, 3, true).unwrap();
     assert_eq!(table.col_count, 4); // 2 + 2
+}
+
+// === v353: 표 기하 — 폭 공식과 표시 높이 ===
+
+/// 표시 높이를 셀 높이 합과 다르게 준 N×M 표 (make_table 셀은 3600×1000).
+fn make_display_table(rows: u16, cols: u16, display_height: HwpUnit) -> Table {
+    let mut table = make_table(rows, cols);
+    table.common.width = 3600 * cols as HwpUnit;
+    table.common.height = display_height;
+    table
+}
+
+#[test]
+fn declared_width_counts_cell_spacing() {
+    // Σ열 폭 + (열 수 + 1) × 셀 간격
+    let mut table = make_table(2, 3);
+    table.cell_spacing = 100;
+    assert_eq!(table.declared_width_from_columns(), 3 * 3600 + 4 * 100);
+    table.update_ctrl_dimensions();
+    assert_eq!(table.common.width, 3 * 3600 + 4 * 100);
+}
+
+#[test]
+fn stretched_row_heights_scale_to_display_height() {
+    let table = make_display_table(2, 1, 5000);
+    assert_eq!(table.stretched_row_heights(), Some(vec![2500, 2500]));
+    // 반올림 오차는 마지막 행이 흡수한다: 3333 + 3333 + 3334 = 10000
+    let table = make_display_table(3, 1, 10000);
+    assert_eq!(table.stretched_row_heights(), Some(vec![3333, 3333, 3334]));
+    // 표시 높이가 셀 합 이하면 늘릴 것이 없다
+    assert_eq!(make_display_table(2, 1, 2000).stretched_row_heights(), None);
+    assert_eq!(make_display_table(2, 1, 1500).stretched_row_heights(), None);
+}
+
+#[test]
+fn insert_row_adds_display_row_height_to_display_height() {
+    // 행 높이 [1000, 1000], 표시 높이 5000 → 표시 기준 행 높이 [2500, 2500]
+    let mut table = make_display_table(2, 1, 5000);
+    table.insert_row(0, true).unwrap();
+    assert_eq!(table.common.height, 5000 + 2500);
+    assert_eq!(table.common.width, 3600, "행 편집은 선언 폭을 바꾸지 않는다");
+}
+
+#[test]
+fn insert_row_without_stretch_follows_cell_sum() {
+    // 표시 높이 = 셀 합이면 새 행의 셀 높이만큼 늘어난다
+    let mut table = make_display_table(2, 1, 2000);
+    table.insert_row(1, true).unwrap();
+    assert_eq!(table.common.height, 3000);
+    // 표시 높이 < 셀 합인 표도 셀 합 아래로는 두지 않는다
+    let mut table = make_display_table(2, 1, 1500);
+    table.insert_row(0, false).unwrap();
+    assert_eq!(table.common.height, 3000);
+}
+
+#[test]
+fn delete_row_subtracts_display_row_height() {
+    // 행 높이 [1000, 1000, 1000], 표시 높이 9000 → 표시 기준 행 높이 [3000, 3000, 3000]
+    let mut table = make_display_table(3, 1, 9000);
+    table.delete_row(1).unwrap();
+    assert_eq!(table.common.height, 6000);
+    assert_eq!(table.common.width, 3600);
+}
+
+#[test]
+fn delete_row_never_goes_below_cell_sum() {
+    // 표시 높이 1500 < 셀 합 2000: 1500 − 1000 = 500 이지만 남은 셀 합 1000 아래로는 안 간다
+    let mut table = make_display_table(2, 1, 1500);
+    table.delete_row(0).unwrap();
+    assert_eq!(table.common.height, 1000);
+}
+
+#[test]
+fn column_edits_recompute_width_and_keep_display_height() {
+    let mut table = make_display_table(2, 2, 5000);
+    table.cell_spacing = 100;
+    table.common.width = 2 * 3600 + 3 * 100;
+
+    table.insert_column(0, true).unwrap();
+    assert_eq!(table.common.width, 3 * 3600 + 4 * 100);
+    assert_eq!(table.common.height, 5000);
+
+    table.delete_column(2).unwrap();
+    assert_eq!(table.common.width, 2 * 3600 + 3 * 100);
+    assert_eq!(table.common.height, 5000);
+}
+
+#[test]
+fn content_edit_refresh_only_grows_display_height() {
+    let mut table = make_display_table(2, 1, 5000);
+    table.common.width = 9999;
+
+    // 셀 합 6000 > 표시 높이 5000 → 늘린다
+    for cell in &mut table.cells {
+        cell.height = 3000;
+    }
+    table.refresh_ctrl_dimensions_after_content_edit(false);
+    assert_eq!(table.common.height, 6000);
+    assert_eq!(table.common.width, 9999, "열 폭이 그대로면 선언 폭을 지킨다");
+
+    // 셀 합이 줄어도 표시 높이는 줄이지 않는다
+    for cell in &mut table.cells {
+        cell.height = 500;
+    }
+    table.refresh_ctrl_dimensions_after_content_edit(false);
+    assert_eq!(table.common.height, 6000);
+
+    // 열 폭이 바뀌었으면 폭을 공식으로 다시 계산한다
+    table.refresh_ctrl_dimensions_after_content_edit(true);
+    assert_eq!(table.common.width, 3600);
+}
+
+#[test]
+fn set_column_widths_applies_spacing_to_merged_cells() {
+    let mut table = make_display_table(2, 3, 5000);
+    table.cell_spacing = 100;
+    table.merge_cells(0, 0, 0, 1).unwrap();
+
+    table.set_column_widths(&[1000, 2000, 3000]).unwrap();
+
+    let merged = table.cell_at(0, 0).unwrap();
+    assert_eq!(merged.width, 1000 + 2000 + 100, "병합 셀 = 덮는 열 합 + (span−1)×간격");
+    assert_eq!(table.cell_at(1, 1).unwrap().width, 2000);
+    assert_eq!(table.cell_at(1, 2).unwrap().width, 3000);
+    assert_eq!(table.common.width, 6000 + 4 * 100);
+    assert_eq!(table.common.height, 5000);
+    assert!(table.set_column_widths(&[1000]).is_err());
+}
+
+#[test]
+fn split_cell_into_keeps_outer_size() {
+    let mut table = make_display_table(2, 2, 5000);
+    table.common.width = 7200;
+    table.split_cell_into(0, 0, 1, 2, false, false).unwrap();
+    assert_eq!(table.common.width, 7200);
+    assert_eq!(table.common.height, 5000);
+}
+
+#[test]
+fn row_edit_keeps_hwp5_ctrl_header_layout() {
+    // HWP5 파서가 담는 CTRL_HEADER 와 같은 바이트로 시작해, 편집 뒤 다시 파싱해 본다.
+    let mut table = make_display_table(2, 1, 5000);
+    let mut common = table.common.clone();
+    common.horizontal_offset = 777;
+    common.vertical_offset = 555;
+    table.raw_ctrl_data =
+        crate::document_core::converters::common_obj_attr_writer::serialize_common_obj_attr(
+            &common,
+        );
+
+    table.insert_row(0, true).unwrap();
+
+    let reparsed = crate::parser::control::parse_common_obj_attr(&table.raw_ctrl_data);
+    assert_eq!(reparsed.horizontal_offset, 777, "가로 오프셋에 폭을 덮어쓰지 않는다");
+    assert_eq!(reparsed.vertical_offset, 555);
+    assert_eq!(reparsed.width, 3600);
+    assert_eq!(reparsed.height, 7500);
+}
+
+#[test]
+fn cell_flags_live_in_list_header_bits() {
+    let mut cell = Cell::new_empty(0, 0, 1000, 1000, 1);
+    cell.list_header_width_ref = 0x04; // 제목 셀 비트는 지켜야 한다
+    cell.set_cell_protect(true);
+    cell.set_editable_in_form(true);
+    assert!(cell.cell_protect() && cell.editable_in_form());
+    assert_eq!(cell.list_header_width_ref, 0x04 | CELL_FLAG_PROTECT | CELL_FLAG_EDITABLE_IN_FORM);
+    cell.set_cell_protect(false);
+    assert!(!cell.cell_protect());
+    assert_eq!(cell.list_header_width_ref, 0x04 | CELL_FLAG_EDITABLE_IN_FORM);
+}
+
+#[test]
+fn inserted_row_copies_template_line_wrap() {
+    let mut table = make_table(2, 1);
+    for cell in &mut table.cells {
+        cell.line_wrap = CELL_LINE_WRAP_SQUEEZE;
+        cell.dirty_flag = true;
+    }
+    table.insert_row(0, true).unwrap();
+    let inserted = table.cell_at(1, 0).unwrap();
+    assert_eq!(inserted.line_wrap, CELL_LINE_WRAP_SQUEEZE);
+    assert!(!inserted.dirty_flag);
 }

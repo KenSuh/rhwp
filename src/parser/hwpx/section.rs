@@ -644,20 +644,17 @@ fn parse_table(
             b"colCnt" => table.col_count = parse_u16(&attr),
             b"cellSpacing" => table.cell_spacing = parse_i16(&attr),
             b"borderFillIDRef" => table.border_fill_id = parse_u16(&attr),
-            b"pageBreak" => {
-                let val = attr_str(&attr);
-                table.page_break = match val.as_str() {
-                    "CELL" | "CELL_BREAK" => TablePageBreak::CellBreak,
-                    "TABLE" | "ROW" | "ROW_BREAK" => TablePageBreak::RowBreak,
-                    _ => TablePageBreak::None,
-                };
-            }
+            b"pageBreak" => table.page_break = parse_table_page_break(&attr_str(&attr)),
             b"repeatHeader" => {
                 table.repeat_header = attr_str(&attr) == "1";
             }
             b"noAdjust" => table.no_adjust = parse_bool(&attr),
+            b"lock" => table.common.locked = parse_bool(&attr),
+            b"textFlow" => table.common.text_flow = parse_text_flow(&attr_str(&attr)),
             b"textWrap" => {
                 table.common.text_wrap = match attr_str(&attr).as_str() {
+                    "TIGHT" => crate::model::shape::TextWrap::Tight,
+                    "THROUGH" => crate::model::shape::TextWrap::Through,
                     "TOP_AND_BOTTOM" => crate::model::shape::TextWrap::TopAndBottom,
                     "BEHIND_TEXT" => crate::model::shape::TextWrap::BehindText,
                     "IN_FRONT_OF_TEXT" => crate::model::shape::TextWrap::InFrontOfText,
@@ -666,6 +663,12 @@ fn parse_table(
             }
             _ => {}
         }
+    }
+    // noAdjust 는 HWPTAG_TABLE 속성 bit 3 에만 둔다. 쪽 나눔·제목 줄 반복 비트는 넣지 않는다 —
+    // HWP5 저장은 이 비트만 담긴 raw 값을 불완전한 값으로 보고 bit 0-2 를 IR 에서 다시 만든다
+    // (그래야 열어 둔 뒤 표 속성에서 바꾼 쪽 나눔이 HWP5 저장에 반영된다).
+    if table.no_adjust {
+        table.raw_table_record_attr = crate::model::table::TABLE_RECORD_NO_ADJUST;
     }
 
     // 표 내용 파싱 (행/셀)
@@ -707,6 +710,15 @@ fn parse_table(
                                 b"height" => {
                                     table.common.height = parse_u32(&attr);
                                 }
+                                b"widthRelTo" => {
+                                    table.common.width_criterion =
+                                        parse_size_criterion(&attr_str(&attr), true);
+                                }
+                                b"heightRelTo" => {
+                                    table.common.height_criterion =
+                                        parse_size_criterion(&attr_str(&attr), false);
+                                }
+                                b"protect" => table.common.size_protect = parse_bool(&attr),
                                 _ => {}
                             }
                         }
@@ -717,6 +729,14 @@ fn parse_table(
                                 b"treatAsChar" => {
                                     table.common.treat_as_char =
                                         attr_str(&attr) == "1" || attr_str(&attr) == "true";
+                                }
+                                b"affectLSpacing" => {
+                                    table.common.affect_line_spacing = parse_bool(&attr);
+                                }
+                                b"flowWithText" => table.common.flow_with_text = parse_bool(&attr),
+                                b"allowOverlap" => table.common.allow_overlap = parse_bool(&attr),
+                                b"holdAnchorAndSO" => {
+                                    table.common.prevent_page_break = i32::from(parse_bool(&attr));
                                 }
                                 b"vertRelTo" => {
                                     table.common.vert_rel_to = match attr_str(&attr).as_str() {
@@ -836,6 +856,44 @@ fn parse_table(
     Ok(table)
 }
 
+/// HWPX `hp:tbl@pageBreak` → [`TablePageBreak`].
+///
+/// 한컴은 HWPX `TABLE` 을 HWP5 값 1(`CellBreak`), `CELL` 을 값 2(`RowBreak`)로 저장한다
+/// (같은 이름 HWP/HWPX 표본 쌍 대조, 의미는 `TablePageBreak` 문서). `ROW`/`ROW_BREAK` 는
+/// 한컴 값이 아닌 별칭이라 `RowBreak` 로 읽고, 저장할 때 `CELL` 로 정규화된다.
+fn parse_table_page_break(value: &str) -> TablePageBreak {
+    match value {
+        "TABLE" | "TABLE_BREAK" => TablePageBreak::CellBreak,
+        "CELL" | "CELL_BREAK" | "ROW" | "ROW_BREAK" => TablePageBreak::RowBreak,
+        _ => TablePageBreak::None,
+    }
+}
+
+/// HWPX `textFlow` → [`TextFlow`](crate::model::shape::TextFlow).
+fn parse_text_flow(value: &str) -> crate::model::shape::TextFlow {
+    use crate::model::shape::TextFlow;
+    match value {
+        "LEFT_ONLY" => TextFlow::LeftOnly,
+        "RIGHT_ONLY" => TextFlow::RightOnly,
+        "LARGEST_ONLY" => TextFlow::LargestOnly,
+        _ => TextFlow::BothSides,
+    }
+}
+
+/// HWPX `widthRelTo`/`heightRelTo` → [`SizeCriterion`](crate::model::shape::SizeCriterion).
+///
+/// 높이 기준은 HWP5 에서 2비트(종이·쪽·절대)뿐이라 `COLUMN`/`PARA` 를 받지 않는다.
+fn parse_size_criterion(value: &str, allow_column_para: bool) -> crate::model::shape::SizeCriterion {
+    use crate::model::shape::SizeCriterion;
+    match value {
+        "PAPER" => SizeCriterion::Paper,
+        "PAGE" => SizeCriterion::Page,
+        "COLUMN" if allow_column_para => SizeCriterion::Column,
+        "PARA" if allow_column_para => SizeCriterion::Para,
+        _ => SizeCriterion::Absolute,
+    }
+}
+
 /// 표 캡션 파싱
 fn parse_table_caption(
     e: &quick_xml::events::BytesStart,
@@ -915,6 +973,9 @@ fn parse_table_cell(
             b"borderFillIDRef" => cell.border_fill_id = parse_u16(&attr),
             b"header" => cell.is_header = attr_str(&attr) == "1",
             b"hasMargin" => cell.apply_inner_margin = parse_bool(&attr),
+            b"protect" => cell.set_cell_protect(parse_bool(&attr)),
+            b"editable" => cell.set_editable_in_form(parse_bool(&attr)),
+            b"dirty" => cell.dirty_flag = parse_bool(&attr),
             _ => {}
         }
     }
@@ -988,14 +1049,24 @@ fn parse_table_cell(
                         }
                     }
                     b"subList" => {
-                        // subList: vertAlign 속성 파싱
+                        // subList: vertAlign·lineWrap 속성 파싱
                         for attr in ce.attributes().flatten() {
-                            if attr.key.as_ref() == b"vertAlign" {
-                                cell.vertical_align = match attr_str(&attr).as_str() {
-                                    "CENTER" => VerticalAlign::Center,
-                                    "BOTTOM" => VerticalAlign::Bottom,
-                                    _ => VerticalAlign::Top,
-                                };
+                            match attr.key.as_ref() {
+                                b"vertAlign" => {
+                                    cell.vertical_align = match attr_str(&attr).as_str() {
+                                        "CENTER" => VerticalAlign::Center,
+                                        "BOTTOM" => VerticalAlign::Bottom,
+                                        _ => VerticalAlign::Top,
+                                    };
+                                }
+                                b"lineWrap" => {
+                                    cell.line_wrap = match attr_str(&attr).as_str() {
+                                        "SQUEEZE" => crate::model::table::CELL_LINE_WRAP_SQUEEZE,
+                                        "KEEP" => crate::model::table::CELL_LINE_WRAP_KEEP,
+                                        _ => crate::model::table::CELL_LINE_WRAP_BREAK,
+                                    };
+                                }
+                                _ => {}
                             }
                         }
                     }
@@ -3356,5 +3427,118 @@ mod tests {
         let xml = r#"<?xml version="1.0"?><hs:sec xmlns:hs="http://www.hancom.co.kr/hwpml/2011/section"/>"#;
         let section = parse_hwpx_section(xml).unwrap();
         assert!(section.paragraphs.is_empty());
+    }
+
+    /// 표 한 개짜리 구역을 파싱해 표를 돌려준다. `tbl_attrs` 는 `<hp:tbl>` 속성,
+    /// `sz`·`pos` 는 자식 속성, `tc`·`sub` 는 유일한 셀의 `<hp:tc>`·`<hp:subList>` 속성이다.
+    fn parse_one_table(tbl_attrs: &str, sz: &str, pos: &str, tc: &str, sub: &str) -> Table {
+        let xml = format!(
+            concat!(
+                r#"<?xml version="1.0" encoding="UTF-8"?>"#,
+                r#"<hs:sec xmlns:hp="http://www.hancom.co.kr/hwpml/2011/paragraph" xmlns:hs="http://www.hancom.co.kr/hwpml/2011/section">"#,
+                r#"<hp:p id="0" paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="0">"#,
+                r#"<hp:tbl rowCnt="1" colCnt="1" {tbl_attrs}><hp:sz width="1000" height="1000" {sz}/>"#,
+                r#"<hp:pos vertRelTo="PARA" horzRelTo="PARA" {pos}/><hp:tr><hp:tc {tc}><hp:subList {sub}>"#,
+                r#"<hp:p id="0" paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="0"><hp:t>x</hp:t></hp:run></hp:p>"#,
+                r#"</hp:subList><hp:cellAddr colAddr="0" rowAddr="0"/><hp:cellSpan colSpan="1" rowSpan="1"/>"#,
+                r#"<hp:cellSz width="1000" height="1000"/></hp:tc></hp:tr></hp:tbl></hp:run></hp:p></hs:sec>"#
+            ),
+            tbl_attrs = tbl_attrs,
+            sz = sz,
+            pos = pos,
+            tc = tc,
+            sub = sub,
+        );
+        let section = parse_hwpx_section(&xml).unwrap();
+        section.paragraphs[0]
+            .controls
+            .iter()
+            .find_map(|c| match c {
+                Control::Table(t) => Some(t.as_ref().clone()),
+                _ => None,
+            })
+            .expect("표")
+    }
+
+    #[test]
+    fn hwpx_page_break_maps_to_hancom_enum() {
+        // 한컴은 HWPX TABLE 을 HWP5 값 1(CellBreak), CELL 을 값 2(RowBreak)로 저장한다.
+        let cases = [
+            ("TABLE", TablePageBreak::CellBreak),
+            ("TABLE_BREAK", TablePageBreak::CellBreak),
+            ("CELL", TablePageBreak::RowBreak),
+            ("CELL_BREAK", TablePageBreak::RowBreak),
+            ("ROW", TablePageBreak::RowBreak),
+            ("ROW_BREAK", TablePageBreak::RowBreak),
+            ("NONE", TablePageBreak::None),
+        ];
+        for (value, want) in cases {
+            let t = parse_one_table(&format!(r#"pageBreak="{value}""#), "", "", "", "");
+            assert_eq!(t.page_break, want, "pageBreak={value}");
+            assert_eq!(parse_table_page_break(value), want, "pageBreak={value}");
+        }
+        assert_eq!(TablePageBreak::CellBreak.hwp5_bits(), 1);
+        assert_eq!(TablePageBreak::RowBreak.hwp5_bits(), 2);
+        assert_eq!(TablePageBreak::None.hwp5_bits(), 0);
+    }
+
+    #[test]
+    fn hwpx_table_attrs_are_parsed_into_ir() {
+        let t = parse_one_table(
+            r#"pageBreak="TABLE" repeatHeader="1" noAdjust="1" lock="1" textFlow="LARGEST_ONLY" textWrap="TIGHT""#,
+            r#"widthRelTo="PARA" heightRelTo="PAGE" protect="1""#,
+            r#"treatAsChar="1" affectLSpacing="1" flowWithText="0" allowOverlap="1" holdAnchorAndSO="1""#,
+            "",
+            "",
+        );
+        assert!(t.no_adjust());
+        // raw 속성에는 noAdjust(0x08)만 담는다. 쪽 나눔·제목 줄 반복은 HWP5 저장이 IR 에서 만든다.
+        assert_eq!(t.raw_table_record_attr, 0x08);
+        assert!(t.common.locked);
+        assert_eq!(t.common.text_flow, crate::model::shape::TextFlow::LargestOnly);
+        assert_eq!(t.common.text_wrap, TextWrap::Tight);
+        assert_eq!(
+            t.common.width_criterion,
+            crate::model::shape::SizeCriterion::Para
+        );
+        assert_eq!(
+            t.common.height_criterion,
+            crate::model::shape::SizeCriterion::Page
+        );
+        assert!(t.common.size_protect);
+        assert!(t.common.affect_line_spacing);
+        assert!(!t.common.flow_with_text);
+        assert!(t.common.allow_overlap);
+        assert_eq!(t.common.prevent_page_break, 1);
+    }
+
+    #[test]
+    fn hwpx_table_without_no_adjust_keeps_zero_raw_record_attr() {
+        // noAdjust="0" 표는 종전처럼 raw 0 으로 남아 HWP5 저장이 IR 에서 비트를 다시 만든다.
+        let t = parse_one_table(r#"pageBreak="CELL" repeatHeader="1" noAdjust="0""#, "", "", "", "");
+        assert_eq!(t.raw_table_record_attr, 0);
+        assert!(!t.no_adjust());
+        assert!(t.common.flow_with_text, "flowWithText 가 없으면 한컴 기본값 1");
+    }
+
+    #[test]
+    fn hwpx_cell_flags_are_parsed_into_ir() {
+        let t = parse_one_table(
+            "",
+            "",
+            "",
+            r#"protect="1" editable="1" dirty="1""#,
+            r#"lineWrap="SQUEEZE" vertAlign="BOTTOM""#,
+        );
+        let cell = &t.cells[0];
+        assert!(cell.cell_protect());
+        assert!(cell.editable_in_form());
+        assert!(cell.dirty_flag);
+        assert_eq!(cell.line_wrap, crate::model::table::CELL_LINE_WRAP_SQUEEZE);
+        assert_eq!(cell.vertical_align, VerticalAlign::Bottom);
+
+        let plain = parse_one_table("", "", "", r#"protect="0""#, r#"lineWrap="BREAK""#);
+        assert!(!plain.cells[0].cell_protect());
+        assert_eq!(plain.cells[0].line_wrap, crate::model::table::CELL_LINE_WRAP_BREAK);
     }
 }

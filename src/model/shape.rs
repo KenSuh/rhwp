@@ -5,7 +5,11 @@ use super::style::{Fill, ShapeBorderLine};
 use super::*;
 
 /// 개체 공통 속성 (모든 개체에 공통)
-#[derive(Debug, Clone, Default)]
+///
+/// `Default` 는 손으로 구현한다 — `flow_with_text` 의 기본값이 한컴 기본값인 `true` 여야 해서다.
+/// HWP5 파서와 편집기가 만드는 개체는 이 필드를 채우지 않으므로, 기본값이 `false` 면 그런 표가
+/// HWPX 로 저장될 때 종전 출력(`flowWithText="1"`)이 `"0"` 으로 바뀐다.
+#[derive(Debug, Clone)]
 pub struct CommonObjAttr {
     /// 컨트롤 ID
     pub ctrl_id: u32,
@@ -47,6 +51,66 @@ pub struct CommonObjAttr {
     pub description: String,
     /// 파싱된 필드 이후 추가 바이트 (라운드트립 보존용)
     pub raw_extra: Vec<u8>,
+    /// HWPX `hp:pos@flowWithText` — 세로 기준이 문단일 때 개체를 본문 영역 안으로 제한한다
+    /// (HWP5 attr bit 13). 기본값 `true` (한컴 기본값).
+    pub flow_with_text: bool,
+    /// HWPX `hp:pos@allowOverlap` — 다른 개체와 겹침 허용 (HWP5 attr bit 14).
+    pub allow_overlap: bool,
+    /// HWPX `hp:pos@affectLSpacing` — 글자처럼 취급할 때 줄 간격에 영향 (HWP5 attr bit 2).
+    pub affect_line_spacing: bool,
+    /// HWPX `hp:sz@protect` — 크기 보호 (HWP5 attr bit 20).
+    pub size_protect: bool,
+    /// HWPX `lock` — 개체 잠금 (업스트림은 HWP5 attr bit 30 으로 본다).
+    pub locked: bool,
+    /// HWPX `textFlow` — 개체 좌우 어느 쪽에 글을 흘릴지 (HWP5 attr bit 24-25).
+    pub text_flow: TextFlow,
+}
+
+impl Default for CommonObjAttr {
+    fn default() -> Self {
+        Self {
+            ctrl_id: 0,
+            attr: 0,
+            vertical_offset: 0,
+            horizontal_offset: 0,
+            width: 0,
+            height: 0,
+            z_order: 0,
+            margin: Padding::default(),
+            instance_id: 0,
+            prevent_page_break: 0,
+            treat_as_char: false,
+            vert_rel_to: VertRelTo::default(),
+            vert_align: VertAlign::default(),
+            horz_rel_to: HorzRelTo::default(),
+            horz_align: HorzAlign::default(),
+            text_wrap: TextWrap::default(),
+            width_criterion: SizeCriterion::default(),
+            height_criterion: SizeCriterion::default(),
+            description: String::new(),
+            raw_extra: Vec::new(),
+            flow_with_text: true,
+            allow_overlap: false,
+            affect_line_spacing: false,
+            size_protect: false,
+            locked: false,
+            text_flow: TextFlow::default(),
+        }
+    }
+}
+
+/// 개체 좌우의 글 흐름 (HWPX `textFlow`, HWP5 attr bit 24-25)
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub enum TextFlow {
+    /// 양쪽 (0)
+    #[default]
+    BothSides,
+    /// 왼쪽만 (1)
+    LeftOnly,
+    /// 오른쪽만 (2)
+    RightOnly,
+    /// 넓은 쪽만 (3)
+    LargestOnly,
 }
 
 /// 세로 위치 기준
@@ -586,6 +650,19 @@ mod tests {
         let attr = CommonObjAttr::default();
         assert!(!attr.treat_as_char);
         assert_eq!(attr.text_wrap, TextWrap::Square);
+    }
+
+    #[test]
+    fn common_obj_attr_default_uses_hancom_object_flags() {
+        let attr = CommonObjAttr::default();
+        assert!(attr.flow_with_text, "한컴 기본값은 flowWithText=1");
+        assert!(!attr.allow_overlap);
+        assert!(!attr.affect_line_spacing);
+        assert!(!attr.size_protect);
+        assert!(!attr.locked);
+        assert_eq!(attr.text_flow, TextFlow::BothSides);
+        assert_eq!(attr.width_criterion, SizeCriterion::Absolute);
+        assert_eq!(attr.height_criterion, SizeCriterion::Absolute);
     }
 
     #[test]

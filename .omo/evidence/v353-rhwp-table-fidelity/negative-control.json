@@ -1,0 +1,64 @@
+{
+  "base": "a34d88ff3bae317ad08d8f0b99504e4395278e6a",
+  "base_copy": "/private/tmp/claude-501/-Users-ken-orca-workspaces-rhwp-v353-rhwp-table-fidelity/fcc5f616-f678-4d45-ac3d-d75fcee63888/scratchpad/base-a34d88ff",
+  "base_copy_method": "git archive a34d88ff | tar -x (src/ byte-identical to the base commit)",
+  "test_file_sha256": "034737d2c171dbd737828c15f776a0cd730ef9be5f3e6cf904d3eaf869bb123b",
+  "generated_at": "2026-10-25T10:43:50Z",
+  "page_break_failed": 4,
+  "display_height_failed": 4,
+  "width_formula_failed": 3,
+  "page_break": {
+    "exit": 101,
+    "compiled": true,
+    "passed": 0,
+    "failed": 4,
+    "tests": {
+      "page_break_writes_hancom_hwp5_bits": "FAILED",
+      "page_break_strings_survive_hwpx_ir_hwpx": "FAILED",
+      "page_break_strings_survive_hwpx_hwp5_hwpx": "FAILED",
+      "page_break_row_alias_normalizes_to_cell_in_both_paths": "FAILED"
+    },
+    "panic_first_lines": [
+      "assertion `left == right` failed: HWP5 TABLE 속성 bit 0-1",
+      "assertion `left == right` failed: T2: HWPX→IR→HWPX 에서 pageBreak 가 바뀌었다",
+      "assertion `left == right` failed: T2: HWPX→HWP5→HWPX 에서 pageBreak 가 바뀌었다",
+      "assertion `left == right` failed: HWPX→IR→HWPX"
+    ]
+  },
+  "display_height": {
+    "exit": 101,
+    "compiled": true,
+    "passed": 1,
+    "failed": 4,
+    "tests": {
+      "display_height_shrinks_by_display_row_height_on_row_delete": "FAILED",
+      "display_height_survives_column_insert": "FAILED",
+      "display_height_grows_by_display_row_height_on_row_insert": "FAILED",
+      "display_height_follows_text_edit_rule_on_overfilled_cell": "ok",
+      "display_height_survives_cell_text_edit": "FAILED"
+    },
+    "panic_first_lines": [
+      "assertion `left == right` failed: IR 표시 높이",
+      "assertion `left == right` failed: IR 표시 높이",
+      "assertion `left == right` failed: IR 표시 높이",
+      "assertion `left == right` failed: IR 표시 높이"
+    ]
+  },
+  "width_formula": {
+    "exit": 101,
+    "compiled": true,
+    "passed": 1,
+    "failed": 3,
+    "tests": {
+      "width_formula_matches_unmerged_fixture_tables": "ok",
+      "width_formula_holds_after_column_delete_with_cell_spacing": "FAILED",
+      "width_formula_kept_after_row_insert": "FAILED",
+      "width_formula_holds_after_column_insert_with_cell_spacing": "FAILED"
+    },
+    "panic_first_lines": [
+      "assertion `left == right` failed: 열 삭제 뒤: sz.width",
+      "assertion `left == right` failed: 행 삽입 뒤: sz.width",
+      "assertion `left == right` failed: 열 삽입 뒤: sz.width"
+    ]
+  }
+}

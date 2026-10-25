@@ -1,0 +1,16 @@
+# HWPX -> HWP5 -> HWPX 왕복 관찰 (v353, 2026-10-25T10:37:50Z)
+# 경로: DocumentCore::from_bytes -> export_hwp_with_adapter -> DocumentCore::from_bytes -> export_hwpx_native
+== base (a34d88ff3bae317ad08d8f0b99504e4395278e6a)
+ERR	T1_press_release_cell_logo.hwpx	HWPX 저장: 렌더링 오류: XML 쓰기 실패: <hp:pic> binaryItemIDRef 미등록 bin_data_id=2 (BinDataContent 누락)
+OK	T2_2026_oss_rst.hwpx
+ERR	T5_36395325_gyeoljae_consulting.hwpx	HWPX 저장: 렌더링 오류: XML 쓰기 실패: <hp:pic> binaryItemIDRef 미등록 bin_data_id=1 (BinDataContent 누락)
+표준 CFB 파서 실패: CFB 열기 실패: next_id (4294967295) is invalid, lenient 파서로 재시도...
+ERR	T6_table_giant_cell_overfill.hwpx	HWPX 저장: 렌더링 오류: XML 쓰기 실패: <hp:pic> binaryItemIDRef 미등록 bin_data_id=1 (BinDataContent 누락)
+ERR	T7_nested_row_first_line_height.hwpx	HWPX 저장: 렌더링 오류: XML 쓰기 실패: <hp:pic> binaryItemIDRef 미등록 bin_data_id=1 (BinDataContent 누락)
+== head (working-tree)
+ERR	T1_press_release_cell_logo.hwpx	HWPX 저장: 렌더링 오류: XML 쓰기 실패: <hp:pic> binaryItemIDRef 미등록 bin_data_id=2 (BinDataContent 누락)
+OK	T2_2026_oss_rst.hwpx
+ERR	T5_36395325_gyeoljae_consulting.hwpx	HWPX 저장: 렌더링 오류: XML 쓰기 실패: <hp:pic> binaryItemIDRef 미등록 bin_data_id=1 (BinDataContent 누락)
+표준 CFB 파서 실패: CFB 열기 실패: next_id (4294967295) is invalid, lenient 파서로 재시도...
+ERR	T6_table_giant_cell_overfill.hwpx	HWPX 저장: 렌더링 오류: XML 쓰기 실패: <hp:pic> binaryItemIDRef 미등록 bin_data_id=1 (BinDataContent 누락)
+ERR	T7_nested_row_first_line_height.hwpx	HWPX 저장: 렌더링 오류: XML 쓰기 실패: <hp:pic> binaryItemIDRef 미등록 bin_data_id=1 (BinDataContent 누락)

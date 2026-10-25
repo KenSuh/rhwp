@@ -1081,7 +1081,9 @@ impl DocumentCore {
                 }
             }
         }
-        table.update_ctrl_dimensions();
+        // 행 수는 그대로다: 열 폭이 바뀐 경우에만 표 폭을 다시 계산하고, 표시 높이는 줄이지 않는다.
+        let columns_changed = updates.iter().any(|upd| upd.width_delta != 0);
+        table.refresh_ctrl_dimensions_after_content_edit(columns_changed);
         table.dirty = true;
 
         // 너비가 변경된 셀의 모든 문단에 대해 line_segs 재계산 (텍스트 리플로우)
@@ -1460,7 +1462,9 @@ impl DocumentCore {
                 }
             }
         }
-        table.update_ctrl_dimensions();
+        // 행 수는 그대로다: 열 폭이 바뀐 경우에만 표 폭을 다시 계산하고, 표시 높이는 줄이지 않는다.
+        let columns_changed = updates.iter().any(|upd| upd.width_delta != 0);
+        table.refresh_ctrl_dimensions_after_content_edit(columns_changed);
         table.dirty = true;
 
         if has_dimension_delta {
