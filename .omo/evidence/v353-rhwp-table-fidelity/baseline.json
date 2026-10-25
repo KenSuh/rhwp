@@ -1,0 +1,328 @@
+{
+  "tool": "tools/roundtrip_diff.py",
+  "pipeline": "rhwp::DocumentCore::from_bytes -> export_hwpx_native",
+  "repo": "/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity",
+  "head": "a34d88ff3bae317ad08d8f0b99504e4395278e6a",
+  "src_dirty": false,
+  "generated_at": "2026-10-25T10:04:35Z",
+  "fixtures": "tests/fixtures/table-fidelity",
+  "cases": [
+    "T1",
+    "T2",
+    "T6",
+    "T7"
+  ],
+  "counted_keys": {
+    "tbl": [
+      "textWrap",
+      "textFlow",
+      "lock",
+      "pageBreak",
+      "repeatHeader",
+      "noAdjust",
+      "cellSpacing",
+      "rowCnt",
+      "colCnt"
+    ],
+    "sz": [
+      "width",
+      "widthRelTo",
+      "height",
+      "heightRelTo",
+      "protect"
+    ],
+    "pos": [
+      "treatAsChar",
+      "affectLSpacing",
+      "flowWithText",
+      "allowOverlap",
+      "holdAnchorAndSO",
+      "vertRelTo",
+      "horzRelTo",
+      "vertAlign",
+      "horzAlign",
+      "vertOffset",
+      "horzOffset"
+    ],
+    "caption": [
+      "side",
+      "fullSz",
+      "width",
+      "gap",
+      "lastWidth",
+      "@paragraphs"
+    ],
+    "cellzone": [
+      "startRowAddr",
+      "startColAddr",
+      "endRowAddr",
+      "endColAddr",
+      "borderFillIDRef"
+    ],
+    "tc": [
+      "protect",
+      "editable",
+      "dirty"
+    ],
+    "subList": [
+      "lineWrap",
+      "vertAlign"
+    ]
+  },
+  "info_keys": {
+    "tbl": [
+      "id",
+      "zOrder",
+      "numberingType",
+      "dropcapstyle",
+      "borderFillIDRef"
+    ],
+    "tc": [
+      "name",
+      "header",
+      "hasMargin",
+      "borderFillIDRef"
+    ],
+    "subList": [
+      "textDirection"
+    ]
+  },
+  "T1": {
+    "src": "tests/fixtures/table-fidelity/T1_press_release_cell_logo.hwpx",
+    "dst": "/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity/target/table-fidelity-roundtrip/T1.roundtrip.hwpx",
+    "tables": [
+      100,
+      100
+    ],
+    "cells": [
+      10953,
+      10953
+    ],
+    "pics": [
+      44,
+      42
+    ],
+    "ATTR_LOSS_TOTAL": 471,
+    "INFO_DIFF_TOTAL": 6096,
+    "losses": {
+      "pos.allowOverlap": 7,
+      "pos.flowWithText": 1,
+      "struct.caption": 6,
+      "struct.cellzone": 5,
+      "subList.lineWrap": 435,
+      "tbl.noAdjust": 17
+    },
+    "info": {
+      "pic.count": 2,
+      "pic.curSz.height": 39,
+      "pic.curSz.width": 39,
+      "pic.orgSz.height": 42,
+      "pic.orgSz.width": 42,
+      "tbl.id": 100,
+      "tbl.zOrder": 99,
+      "tc.hasMargin": 5722,
+      "tc.name": 11
+    },
+    "examples": [
+      "loss:tbl.noAdjust tbl[0]: '1' -> '0'",
+      "info:tbl.id tbl[0]: '2086476618' -> '0'",
+      "info:tbl.zOrder tbl[0]: '52' -> '0'",
+      "info:tc.hasMargin tbl[0].cell(0, 1): '1' -> '0'",
+      "loss:tbl.noAdjust tbl[1]: '1' -> '0'",
+      "info:tbl.id tbl[1]: '2086476621' -> '0'",
+      "info:tbl.zOrder tbl[1]: '55' -> '0'",
+      "loss:pos.flowWithText tbl[1]: '0' -> '1'",
+      "info:tc.name tbl[1].cell(0, 0): '기관명' -> ''",
+      "loss:tbl.noAdjust tbl[2]: '1' -> '0'",
+      "info:tbl.id tbl[2]: '2086476622' -> '0'",
+      "info:tbl.zOrder tbl[2]: '51' -> '0'",
+      "info:tc.name tbl[2].cell(0, 1): '보도일시' -> ''",
+      "info:tc.name tbl[2].cell(0, 3): '배포일시' -> ''",
+      "loss:struct.cellzone tbl[5]: 3 -> 0",
+      "info:tc.hasMargin tbl[5].cell(2, 0): '1' -> '0'",
+      "loss:struct.cellzone tbl[6]: 3 -> 0",
+      "info:tc.hasMargin tbl[6].cell(2, 0): '1' -> '0'",
+      "loss:pos.allowOverlap tbl[29]: '1' -> '0'",
+      "loss:struct.caption tbl[29]: True -> False",
+      "loss:pos.allowOverlap tbl[30]: '1' -> '0'",
+      "loss:struct.caption tbl[30]: True -> False",
+      "loss:pos.allowOverlap tbl[32]: '1' -> '0'",
+      "loss:struct.caption tbl[32]: True -> False",
+      "loss:subList.lineWrap tbl[38].cell(5, 2): 'SQUEEZE' -> 'BREAK'",
+      "loss:struct.cellzone tbl[44]: 1 -> 0",
+      "loss:subList.lineWrap tbl[50].cell(10, 1): 'SQUEEZE' -> 'BREAK'",
+      "loss:subList.lineWrap tbl[50].cell(10, 10): 'SQUEEZE' -> 'BREAK'",
+      "info:pic.orgSz.width pic[0]: '88560' -> '0'",
+      "info:pic.orgSz.height pic[0]: '88560' -> '0'",
+      "info:pic.orgSz.width pic[1]: '9480' -> '0'",
+      "info:pic.orgSz.height pic[1]: '3300' -> '0'",
+      "info:pic.curSz.width pic[1]: '6860' -> '61260'",
+      "info:pic.curSz.height pic[1]: '2388' -> '85860'",
+      "info:pic.orgSz.width pic[2]: '6082' -> '0'",
+      "info:pic.orgSz.height pic[2]: '2457' -> '0'",
+      "info:pic.curSz.width pic[2]: '8950' -> '48988'",
+      "info:pic.curSz.height pic[2]: '3163' -> '2993'",
+      "info:pic.curSz.width pic[3]: '0' -> '46570'",
+      "info:pic.curSz.height pic[3]: '0' -> '11507'"
+    ],
+    "probe": "OK",
+    "file": "T1_press_release_cell_logo.hwpx",
+    "sha256": "67cf6aa2f6042cd0c743c7ae03d46cc97a0c398df331606c98b26dacc6c62f1e"
+  },
+  "T2": {
+    "src": "tests/fixtures/table-fidelity/T2_2026_oss_rst.hwpx",
+    "dst": "/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity/target/table-fidelity-roundtrip/T2.roundtrip.hwpx",
+    "tables": [
+      10,
+      10
+    ],
+    "cells": [
+      126,
+      126
+    ],
+    "pics": [
+      0,
+      0
+    ],
+    "ATTR_LOSS_TOTAL": 22,
+    "INFO_DIFF_TOTAL": 42,
+    "losses": {
+      "subList.lineWrap": 6,
+      "tbl.lock": 3,
+      "tbl.noAdjust": 3,
+      "tbl.pageBreak": 1,
+      "tc.protect": 9
+    },
+    "info": {
+      "tbl.id": 10,
+      "tbl.zOrder": 9,
+      "tc.hasMargin": 23
+    },
+    "examples": [
+      "info:tbl.id tbl[0]: '1075989302' -> '0'",
+      "info:tbl.zOrder tbl[0]: '2' -> '0'",
+      "loss:tbl.noAdjust tbl[1]: '1' -> '0'",
+      "info:tbl.id tbl[1]: '1085359372' -> '0'",
+      "info:tbl.zOrder tbl[1]: '4' -> '0'",
+      "loss:tbl.lock tbl[2]: '1' -> '0'",
+      "info:tbl.id tbl[2]: '1085359374' -> '0'",
+      "info:tbl.zOrder tbl[2]: '5' -> '0'",
+      "loss:tc.protect tbl[2].cell(0, 0): '1' -> '0'",
+      "loss:tc.protect tbl[2].cell(2, 0): '1' -> '0'",
+      "loss:tbl.noAdjust tbl[3]: '1' -> '0'",
+      "loss:tbl.lock tbl[5]: '1' -> '0'",
+      "loss:tc.protect tbl[5].cell(0, 0): '1' -> '0'",
+      "loss:subList.lineWrap tbl[6].cell(1, 4): 'SQUEEZE' -> 'BREAK'",
+      "loss:subList.lineWrap tbl[6].cell(2, 4): 'SQUEEZE' -> 'BREAK'",
+      "loss:subList.lineWrap tbl[6].cell(3, 4): 'SQUEEZE' -> 'BREAK'",
+      "loss:tbl.lock tbl[7]: '1' -> '0'",
+      "loss:tbl.pageBreak tbl[9]: 'TABLE' -> 'NONE'",
+      "loss:tbl.noAdjust tbl[9]: '1' -> '0'",
+      "info:tc.hasMargin tbl[9].cell(0, 0): '1' -> '0'",
+      "info:tc.hasMargin tbl[9].cell(1, 0): '1' -> '0'",
+      "info:tc.hasMargin tbl[9].cell(10, 0): '1' -> '0'"
+    ],
+    "probe": "OK",
+    "file": "T2_2026_oss_rst.hwpx",
+    "sha256": "90858f0ecf9e95afe46b6dace6a61960b03552236a1204be530ce3d1866a8398"
+  },
+  "T6": {
+    "src": "tests/fixtures/table-fidelity/T6_table_giant_cell_overfill.hwpx",
+    "dst": "/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity/target/table-fidelity-roundtrip/T6.roundtrip.hwpx",
+    "tables": [
+      22,
+      22
+    ],
+    "cells": [
+      635,
+      635
+    ],
+    "pics": [
+      13,
+      13
+    ],
+    "ATTR_LOSS_TOTAL": 2,
+    "INFO_DIFF_TOTAL": 652,
+    "losses": {
+      "tbl.noAdjust": 1,
+      "tbl.pageBreak": 1
+    },
+    "info": {
+      "pic.curSz.height": 2,
+      "pic.curSz.width": 2,
+      "pic.orgSz.height": 13,
+      "pic.orgSz.width": 13,
+      "tbl.id": 22,
+      "tbl.zOrder": 21,
+      "tc.hasMargin": 579
+    },
+    "examples": [
+      "info:tbl.id tbl[0]: '1910927949' -> '0'",
+      "info:tc.hasMargin tbl[0].cell(0, 0): '1' -> '0'",
+      "info:tc.hasMargin tbl[0].cell(1, 0): '1' -> '0'",
+      "info:tc.hasMargin tbl[0].cell(2, 0): '1' -> '0'",
+      "info:tbl.id tbl[1]: '1910927951' -> '0'",
+      "info:tbl.zOrder tbl[1]: '1' -> '0'",
+      "info:tbl.id tbl[2]: '1910927954' -> '0'",
+      "info:tbl.zOrder tbl[2]: '28' -> '0'",
+      "info:tbl.zOrder tbl[3]: '30' -> '0'",
+      "loss:tbl.pageBreak tbl[9]: 'TABLE' -> 'NONE'",
+      "loss:tbl.noAdjust tbl[17]: '1' -> '0'",
+      "info:pic.orgSz.width pic[0]: '25380' -> '0'",
+      "info:pic.orgSz.height pic[0]: '41700' -> '0'",
+      "info:pic.curSz.height pic[0]: '19841' -> '19842'",
+      "info:pic.orgSz.width pic[1]: '23400' -> '0'",
+      "info:pic.orgSz.height pic[1]: '51600' -> '0'",
+      "info:pic.orgSz.width pic[2]: '32460' -> '0'",
+      "info:pic.orgSz.height pic[2]: '54480' -> '0'",
+      "info:pic.curSz.width pic[4]: '31180' -> '31181'",
+      "info:pic.curSz.width pic[7]: '0' -> '37260'",
+      "info:pic.curSz.height pic[7]: '0' -> '20100'"
+    ],
+    "probe": "OK",
+    "file": "T6_table_giant_cell_overfill.hwpx",
+    "sha256": "5d7eb4a21e46d9ad01a0f631eea2b1f2ec8a71750b4d448868e944e1b95042f4"
+  },
+  "T7": {
+    "src": "tests/fixtures/table-fidelity/T7_nested_row_first_line_height.hwpx",
+    "dst": "/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity/target/table-fidelity-roundtrip/T7.roundtrip.hwpx",
+    "tables": [
+      5,
+      5
+    ],
+    "cells": [
+      110,
+      110
+    ],
+    "pics": [
+      2,
+      2
+    ],
+    "ATTR_LOSS_TOTAL": 0,
+    "INFO_DIFF_TOTAL": 13,
+    "losses": {},
+    "info": {
+      "pic.orgSz.height": 2,
+      "pic.orgSz.width": 2,
+      "tbl.id": 5,
+      "tbl.zOrder": 4
+    },
+    "examples": [
+      "info:tbl.id tbl[0]: '2005281692' -> '0'",
+      "info:tbl.id tbl[1]: '2005281693' -> '0'",
+      "info:tbl.zOrder tbl[1]: '1' -> '0'",
+      "info:tbl.id tbl[2]: '2005281694' -> '0'",
+      "info:tbl.zOrder tbl[2]: '2' -> '0'",
+      "info:tbl.zOrder tbl[3]: '3' -> '0'",
+      "info:pic.orgSz.width pic[0]: '58860' -> '0'",
+      "info:pic.orgSz.height pic[0]: '22500' -> '0'",
+      "info:pic.orgSz.width pic[1]: '59940' -> '0'",
+      "info:pic.orgSz.height pic[1]: '21060' -> '0'"
+    ],
+    "probe": "OK",
+    "file": "T7_nested_row_first_line_height.hwpx",
+    "sha256": "c6bcf3686e8fbfbc79f5f3e2c690a62577e8ef63f0bad74e66ee3b255d76b931"
+  },
+  "unmeasured": [],
+  "ATTR_LOSS_TOTAL": 495
+}
