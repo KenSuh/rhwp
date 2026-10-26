@@ -1,0 +1,7 @@
+UTC_START=2026-10-26T13:17:59Z
+CWD=/tmp/v353-final-v354.WRpWpU
+ARGV= cp -cR /Users/ken/.cargo/registry /tmp/v353-final-v354.WRpWpU/cargo-home/registry
+
+UTC_END=2026-10-26T13:18:05Z
+ELAPSED_SECONDS=6
+EXIT_STATUS=0

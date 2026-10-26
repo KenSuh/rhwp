@@ -1,0 +1,19 @@
+IMPACT at=vault:HEAD@761855767872+dirty code:d2d370919ed4e3a24e0f7a6a46e1ef3b1e9feb76@d2d370919ed4 query="outputs/v353-rhwp-table/RHWP_HWPX_SAVE_FIDELITY_L2_PACKET.md" mode=path jev=used jev_threshold=0.45 files=7 rows=9 det_ms=8414 total_ms=8653 jev_requests=1 jev_http_attempts=1 jev_input_tokens=2205 code_tree=impact-main@d2d370919ed4 fresh_age=4s fetch=ok
+  ! code_tree=impact-main@d2d370919ed4 fresh_age=4s fetch=ok · /Users/ken/Projects/hwpx-editor/_wt/hwpx-editor/impact-main
+  ! cache stale (base vault:HEAD@fe59f39d781f/code:d2d370919ed4e3a24e0f7a6a46e1ef3b1e9feb76@d2d370919ed4 → vault:HEAD@761855767872+dirty/code:d2d370919ed4e3a24e0f7a6a46e1ef3b1e9feb76@d2d370919ed4) · 재도출
+- [vault] outputs/v353-rhwp-table/RHWP_HWPX_SAVE_L2_CORRECTION_C2_V354.md  channel=output_other binding=exec jev=0.34 rows=2
+    :5 [path/exec] W=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity, branch v353-rhwp-table-fidelity-g0. Required starting clean HEAD 7370ec9fdcf89eb4a372143bc
+    :13 [path/mention] `"/Users/ken/ken wiki/agent-harness/bin/mah" start --repo "$PWD" --task v353-rhwp-hwpx-save-l2 --agent codex --role executor --scope repo --paths '.om
+- [vault] outputs/v353-rhwp-table/RHWP_HWPX_SAVE_L2_CORRECTION_C1_V353.md  channel=output_other binding=mention jev=0.28 rows=2
+    :3 [path/mention] Stage: correction (Codex). This brief changes only what is named below. The packet `outputs/v353-rhwp-table/RHWP_HWPX_SAVE_FIDELITY_L2_PACKET.md` and
+    :14 [path/mention] "/Users/ken/ken wiki/agent-harness/bin/mah" start --repo "$PWD" --task v353-rhwp-hwpx-save-l2 --agent codex --role executor --scope repo --paths gates
+- [vault] outputs/v353-rhwp-table/RHWP_HWPX_SAVE_L2_REVIEW_R3_V354.md  channel=output_other binding=exec jev=0.24 rows=1
+    :5 [path/exec] W=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity. Exact base7370ec9fdcf89eb4a372143bcb555ddd9bfe0b46; exact head17f85ce02d48a7da5d12a6e09979
+- [vault] outputs/v353-rhwp-table/RHWP_HWPX_SAVE_L2_REVIEW_R2_V354.md  channel=output_other binding=mention jev=0.24 rows=1
+    :13 [path/mention] Read the original packet `outputs/v353-rhwp-table/RHWP_HWPX_SAVE_FIDELITY_L2_PACKET.md`, packet dispositions 1/2, `RHWP_HWPX_SAVE_L2_CORRECTION_C1_V35
+- [vault] outputs/v353-rhwp-table/RHWP_HWPX_SAVE_L2_REVIEW_R1_V353.md  channel=output_other binding=mention jev=0.19 rows=1
+    :17 [path/mention] - the packet `/Users/ken/ken wiki/outputs/v353-rhwp-table/RHWP_HWPX_SAVE_FIDELITY_L2_PACKET.md` and its dispositions 1 (option A, p195 IR limit) and 2
+- [vault] outputs/vault_session_refresh_v354_ENTRY_PROMPT.md  channel=output_other binding=mention jev=0.19 rows=1
+    :165 [path/mention] - L2 패킷 `outputs/v353-rhwp-table/RHWP_HWPX_SAVE_FIDELITY_L2_PACKET.md` + 처분 1·2. Claude 1차 `8027a28` → **Codex 리뷰 R1 REQUEST_CHANGES**(task_07ac928651
+- [vault] outputs/v353-rhwp-table/RHWP_HWPX_SAVE_L2_FINAL_VALIDATION_V354.md  channel=output_other binding=mention jev=0.17 rows=1
+    :11 [path/mention] Before writes confirm exact clean head, active matching reservation, R3 result supplied by Parent and acquire a fresh executor lease under the same ta

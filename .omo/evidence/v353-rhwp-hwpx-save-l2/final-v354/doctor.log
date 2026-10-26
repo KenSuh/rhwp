@@ -1,0 +1,17 @@
+mah harness: available
+state root: available
+git: available
+gh: available
+claude: available
+codex: available
+agy: available
+grok: available
+graphify: available
+python3: available
+opencode (experimental, opt-in): available
+model catalog:
+  agy: 6 models updated=2026-10-25T23:02:45Z
+  claude: 4 models updated=2026-10-25T23:02:43Z
+  codex: 9 models updated=2026-10-25T23:02:43Z
+  grok: 1 models updated=2026-10-25T23:02:55Z
+  opencode: 42 models updated=2026-10-08T21:01:50Z

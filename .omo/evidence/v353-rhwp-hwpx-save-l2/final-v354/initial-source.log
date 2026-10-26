@@ -1,0 +1,9 @@
+17f85ce02d48a7da5d12a6e0997939949a60f613
+a1b872ba61d3e7e135754d188f253e840f31e030
+v353-rhwp-table-fidelity-g0
+17f85ce02d48a7da5d12a6e0997939949a60f613 fix(rhwp): verify clean checkouts without an ignored Cargo lock
+7370ec9fdcf89eb4a372143bcb555ddd9bfe0b46 docs(rhwp): finish C1 HWPX save fidelity verification
+a6d024f4f0bda4dcbe01bc247dceef003ea865d4 docs(rhwp): checkpoint C1 correction evidence and paused validation
+c0d6a342c186a3d57c416ddb262783cc7a064c23 fix(rhwp): use clippy-compliant tab parity check
+5315315566c6fe75826fe05a9d59880aae62948a fix(rhwp): preserve HWPX field order and header values on save
+/Users/ken/Projects/rhwp/.git

@@ -1,0 +1,72 @@
+import hashlib,json,os,pathlib,re,subprocess
+from typing import Final
+root: Final=pathlib.Path.cwd()
+candidate: Final="17f85ce02d48a7da5d12a6e0997939949a60f613"
+base: Final="59c2285efe616211cd147dfa849d2f9f9df767dd"
+ledger: Final="gates/V353_RHWP_HWPX_SAVE_L2_GATES.md"
+prefix: Final=".omo/evidence/v353-rhwp-hwpx-save-l2/"
+def git(*args: str) -> str:
+ return subprocess.check_output(["/usr/bin/git",*args],text=True).strip()
+assert git("rev-parse","HEAD")==candidate
+delta=git("diff","--name-only",candidate).splitlines()
+new=git("ls-files","--others","--exclude-standard").splitlines()
+assert delta==[ledger]
+assert new and all(path.startswith(prefix+"final-v354/") for path in new)
+all_changed=sorted(set(git("diff","--name-only",base).splitlines()+new))
+allowed=r"^(src/serializer/hwpx/(section|table|header|shape|field|mod)\.rs|src/parser/hwpx/(header|section)\.rs|src/model/document\.rs|tests/hwpx_save_fidelity_l2\.rs|tests/hwpx_roundtrip_integration\.rs|tests/fixtures/save-fidelity-l2/.*|gates/V353_RHWP_HWPX_SAVE_L2_GATES\.md|\.omo/evidence/v353-rhwp-hwpx-save-l2/.*)$"
+assert all(re.fullmatch(allowed,path) for path in all_changed)
+roots=("src","tests","Cargo.toml","build.rs",".cargo","template","assets","ttfs")
+listing=git("ls-tree","-r",candidate,"--",*roots)
+assert not git("diff","--name-only","a6d024f4f0bda4dcbe01bc247dceef003ea865d4","--",*roots)
+product_digest=hashlib.sha256(listing.encode()).hexdigest()
+assert product_digest=="e37e82934c69b185df54c38abf1028a4872da80b2ca77c9d445b87f94072495a"
+preserved=git("ls-tree","-r","-z",candidate).rstrip("\0").split("\0")
+selected=[]
+for entry in preserved:
+ meta,path=entry.split("\t",1)
+ mode,kind,blob=meta.split()
+ if path==ledger:
+  continue
+ content=(root/path).read_bytes() if mode!="120000" else os.readlink(root/path).encode()
+ assert kind=="blob"
+ assert hashlib.sha1(b"blob "+str(len(content)).encode()+b"\0"+content).hexdigest()==blob,path
+ if path.split("/",1)[0] in roots or path in (prefix+"c1/clean-cargo.sh",prefix+"baseline.json",prefix+"negative-control.json","gates/V318_ENGINE_CLIPPY_CORRECTION_GATES.md") or path.startswith(prefix+"hancom/"):
+  selected.append({"path":path,"mode":mode,"blob":blob,"sha256":hashlib.sha256(content).hexdigest()})
+before=git("show",candidate+":"+ledger)
+current=(root/ledger).read_text()
+for number in (1,2,3,4,5,6,10,11):
+ pattern=rf"^- \[.\] G{number}:.*?(?=^- \[.\] G|^## |\Z)"
+ assert re.search(pattern,before,re.M|re.S)[0]==re.search(pattern,current,re.M|re.S)[0]
+assert re.findall(r"^  EXPECT: .*",before,re.M)==re.findall(r"^  EXPECT: .*",current,re.M)
+assert len(re.findall(r"^- \[x\] G\d+:",current,re.M))==11
+assert not re.search(r"^\s*ABANDON: G[789] DEFERRED-TO-LANDING",current,re.M)
+for number in (7,8,9):
+ generated=(root/prefix/f"final-v354/G{number}.md").read_text()
+ for key in ("CHECK","EXPECT","EVIDENCE"):
+  block=re.search(rf"^- \[.\] G{number}:.*?(?=^- \[.\] G|^## |\Z)",current,re.M|re.S)[0]
+  assert re.search(rf"^  {key}: (.*)$",generated,re.M)[1]==re.search(rf"^  {key}: (.*)$",block,re.M)[1]
+native=pathlib.Path("/Users/ken/ken wiki/.omo/evidence/v338-vault-coordination/v354-rhwp-hancom/REVIEW.md")
+native_text=native.read_text()
+receipt_hashes=dict(re.findall(r"^\| ([^| ]+\.hwpx) \| ([a-f0-9]{64}) \|$",native_text,re.M))
+manifest=(root/prefix/"hancom/MANIFEST.txt").read_text()
+artifacts=[]
+for expected,name,size,flags in re.findall(r"^([a-f0-9]{64}) (\S+\.hwpx) bytes=(\d+) flags=(\d+)$",manifest,re.M):
+ content=(root/prefix/"hancom"/name).read_bytes()
+ actual=hashlib.sha256(content).hexdigest()
+ assert actual==expected==receipt_hashes[name] and len(content)==int(size)
+ artifacts.append({"path":prefix+"hancom/"+name,"sha256":actual,"bytes":len(content),"flags":int(flags)})
+assert len(artifacts)==6
+for path in (root/"tests/fixtures/save-fidelity-l2").glob("*.hwpx"):
+ if path.name in receipt_hashes:
+  assert hashlib.sha256(path.read_bytes()).hexdigest()==receipt_hashes[path.name]
+baseline=json.loads((root/prefix/"baseline.json").read_text())
+negative=json.loads((root/prefix/"negative-control.json").read_text())
+assert baseline["head"]==base and baseline["g8_failed"] and baseline["order_defects"]>0
+assert negative["base"]==base and all(negative[key]>0 for key in ("run_order_failed","two_save_failed","residual_failed"))
+assert negative["test_file_sha256"]==hashlib.sha256((root/"tests/hwpx_save_fidelity_l2.rs").read_bytes()).hexdigest()
+r3=pathlib.Path("/Users/ken/.multiagent/reports/v353-rhwp-hwpx-save-l2/review-r3/REVIEW_R3.md")
+assert hashlib.sha256(r3.read_bytes()).hexdigest()=="1878c19fa4ea812526f35a7c3bd6382aaad2142cb7e18ceabc928f0eb0d02428"
+assert pathlib.Path("/tmp/v353-final-v354.WRpWpU/cargo-home/registry").is_dir()
+assert not subprocess.check_output(["find","/tmp/v353-final-v354.WRpWpU/cargo-home","-type","l"],text=True).strip()
+out={"candidate":candidate,"candidate_tree":git("rev-parse",candidate+"^{tree}"),"preserved_entries_disk_verified":len(preserved)-1,"preserved_git_listing_sha256":hashlib.sha256("\n".join(line for line in preserved if line.split("\t",1)[1]!=ledger).encode()).hexdigest(),"product_listing_sha256":product_digest,"product_roots":roots,"selected_source_hashes":selected,"baseline_equivalent_to_c1":True,"negative_control_unchanged":True,"original_scope_changed_paths":all_changed,"out_of_scope":0,"candidate_delta":delta+new,"gates":{"checked":11,"unchanged_blocks":[1,2,3,4,5,6,10,11],"all_expects_unchanged":True,"G7_G9_generated_evidence_transferred_exactly":True,"G7_G9_deferrals":0},"hancom_artifacts":artifacts,"parent_native_receipt":{"path":str(native),"sha256":hashlib.sha256(native.read_bytes()).hexdigest(),"limitation":"Original opening/page observations only; no new native operation, full-layout or page-count recovery claim."},"r3":{"path":str(r3),"sha256":hashlib.sha256(r3.read_bytes()).hexdigest(),"carry":"Identical candidate product/test/fixture/helper, prior evidence and Hancom bytes; same-engine correction approval, not final-five or Parent landing approval."},"private_registry_copy_has_symlinks":False}
+print(json.dumps(out,indent=2))

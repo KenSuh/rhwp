@@ -1,0 +1,9 @@
+  UNMET G7:G7 (unchecked): full Cargo suite exits zero
+G7.md: 1 gates
+  UNMET G8:G8 (unchecked): Clippy exits zero with warnings denied
+G8.md: 1 gates
+  UNMET G9:G9 (unchecked): wasm32 release library build exits zero
+G9.md: 1 gates
+UNMET: 3 (met: 0)
+  G7:G7, G8:G8, G9:G9
+LINT OK

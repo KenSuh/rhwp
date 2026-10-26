@@ -1,0 +1,13 @@
+UTC_START=2026-10-26T13:17:59Z
+CWD=/tmp/v353-final-v354.WRpWpU/checkout
+ARGV= bash -euo pipefail -c $'\n    test "$(git rev-parse HEAD)" = 17f85ce02d48a7da5d12a6e0997939949a60f613\n    test -z "$(git status --porcelain=v1 -uall)"\n    test -z "$(git status --porcelain=v1 --ignored -uall)"\n    test -z "$(git ls-files Cargo.lock)"\n    test ! -e Cargo.lock\n    test ! -e target\n    git rev-parse HEAD "HEAD^{tree}"\n    git status --porcelain=v1 --ignored -uall\n    printf "PRISTINE_NO_TRACKED_OR_IGNORED_LOCK_NO_TARGET\\n"\n    shasum -a 256 Cargo.toml .omo/evidence/v353-rhwp-hwpx-save-l2/c1/clean-cargo.sh tests/hwpx_save_fidelity_l2.rs\n'
+17f85ce02d48a7da5d12a6e0997939949a60f613
+a1b872ba61d3e7e135754d188f253e840f31e030
+PRISTINE_NO_TRACKED_OR_IGNORED_LOCK_NO_TARGET
+885d0647d7fae87fbea9e608d5028d09ad934398555a115908a63f16a4902a2c  Cargo.toml
+2b0e9279535d7656d764db8a7c13619eea7bab200a61b40b06ab32a5811ce1c6  .omo/evidence/v353-rhwp-hwpx-save-l2/c1/clean-cargo.sh
+31b58bbaf1a8d7a1426c192aa1113190d801c350124dc4ac89249aef517bd066  tests/hwpx_save_fidelity_l2.rs
+
+UTC_END=2026-10-26T13:17:59Z
+ELAPSED_SECONDS=0
+EXIT_STATUS=0
