@@ -1,5 +1,5 @@
-CLEAN_SOURCE_HEAD=5315315566c6fe75826fe05a9d59880aae62948a
+CLEAN_SOURCE_HEAD=a6d024f4f0bda4dcbe01bc247dceef003ea865d4
 CLEAN_SOURCE_METHOD=git-archive+identical-Cargo.lock
 COMMAND=cargo build --lib --target wasm32-unknown-unknown --release
-   Compiling rhwp v0.7.3 (/private/var/folders/1j/_ggsky8n1bzfn0g2x5c8_wgm0000gn/T/v353-c1-clean.T50beQ)
-    Finished `release` profile [optimized] target(s) in 16.31s
+   Compiling rhwp v0.7.3 (/private/var/folders/1j/_ggsky8n1bzfn0g2x5c8_wgm0000gn/T/v353-c1-clean.XaHoym)
+    Finished `release` profile [optimized] target(s) in 11.98s

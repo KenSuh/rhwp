@@ -18,7 +18,7 @@
 - [x] G4: 도형·필드·header 잔여 결함 측정과 수정 — 새 base 에서 측정한 결함 목록과, 그 각각의 회귀 시험
   CHECK: cargo test --test hwpx_save_fidelity_l2 residual 2>&1 | tail -3
   EXPECT: /test result: ok\. [1-9]\d* passed; 0 failed/
-  EVIDENCE: automatic-evidence=v1; definition-sha256=d6d98cda6ebeffa990fe4459455f282f349524f9cee3f3f7e7a0b7ea3e591715; exit=0; EXPECT=matched; output-sha256=9b6f1dd8c2396068c5ed649470cf14147b1cad958c0b691f00194c4518f83bd2; output-bytes=98; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=43712a571703/49 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=d6d98cda6ebeffa990fe4459455f282f349524f9cee3f3f7e7a0b7ea3e591715; exit=0; EXPECT=matched; output-sha256=3be03fada0dca6f71739ca70d8daf3a612478c7bc549b6dc231da056e1a5ad0c; output-bytes=98; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=43712a571703/49 entries
 
 - [x] G5: 음성 대조 — G2·G3·G4 시험이 59c2285 에서는 실패한다
   CHECK: python3 -c 'import json,hashlib,pathlib,re;d=json.load(open(".omo/evidence/v353-rhwp-hwpx-save-l2/negative-control.json"));assert d["base"]=="59c2285efe616211cd147dfa849d2f9f9df767dd";assert d["run_order_failed"]>0 and d["two_save_failed"]>0 and d["residual_failed"]>0;assert d["test_file_sha256"]==hashlib.sha256(pathlib.Path("tests/hwpx_save_fidelity_l2.rs").read_bytes()).hexdigest();s=pathlib.Path(".omo/evidence/v353-rhwp-hwpx-save-l2/c1/red-8027a28-final.log").read_text();assert re.search(r"test result: FAILED\. 1 passed; 5 failed",s);print("NEG_OK")'
@@ -35,15 +35,15 @@
   EXPECT: /^FAILED_TOTAL=0$/m
   EVIDENCE: automatic-evidence=v1; definition-sha256=68973d8e72bba97554bf2d826267e99ed285ef0d3dd007b6e2fa9c2f90e4c5de; exit=0; EXPECT=matched; output-sha256=34acd69d8c8337c7c993bc0a99093bb0f4dfc879c5cea9515b73e5957c9ccf55; output-bytes=15; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=43712a571703/49 entries
 
-- [ ] G8: clippy
+- [x] G8: clippy
   CHECK: bash .omo/evidence/v353-rhwp-hwpx-save-l2/c1/clean-cargo.sh clippy -- -D warnings > .omo/evidence/v353-rhwp-hwpx-save-l2/c1/g8-clippy.log 2>&1 && tail -1 .omo/evidence/v353-rhwp-hwpx-save-l2/c1/g8-clippy.log
   EXPECT: /Finished/
-  EVIDENCE: pending
+  EVIDENCE: automatic-evidence=v1; definition-sha256=d46d128678d39342cc6e63c75f57c739b58d6792a44aac2509b89d767167452a; exit=0; EXPECT=matched; output-sha256=4ed42f79a2fa6f51520472efd0449ec48a430ebb04142668046774315c424736; output-bytes=72; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=43712a571703/49 entries
 
 - [x] G9: WASM 빌드
   CHECK: bash .omo/evidence/v353-rhwp-hwpx-save-l2/c1/clean-cargo.sh build --lib --target wasm32-unknown-unknown --release > .omo/evidence/v353-rhwp-hwpx-save-l2/c1/g9-wasm.log 2>&1 && tail -1 .omo/evidence/v353-rhwp-hwpx-save-l2/c1/g9-wasm.log
   EXPECT: /Finished/
-  EVIDENCE: automatic-evidence=v1; definition-sha256=bf02372c67b1959fdbf6a4efb651b8e8ba3440a9d25c2a2c6972ddbdc023a91b; exit=0; EXPECT=matched; output-sha256=7bf5ae2b3f792e49eb1b5d0f51ebce57ad07c3204f04aecc9bb4a502986e02a2; output-bytes=63; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=43712a571703/49 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=bf02372c67b1959fdbf6a4efb651b8e8ba3440a9d25c2a2c6972ddbdc023a91b; exit=0; EXPECT=matched; output-sha256=bae030b4c981566277bf7548af7ca04ece2dfd008fb71bad0cb8678fe25dccc2; output-bytes=63; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=43712a571703/49 entries
 
 - [x] G10: 범위 — 59c2285 대비 변경 파일이 §3.1 안
   CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape|field|mod)\.rs|src/parser/hwpx/(header|section)\.rs|src/model/document\.rs|tests/hwpx_save_fidelity_l2\.rs|tests/hwpx_roundtrip_integration\.rs|tests/fixtures/save-fidelity-l2/.*|gates/V353_RHWP_HWPX_SAVE_L2_GATES\.md|\.omo/evidence/v353-rhwp-hwpx-save-l2/.*)$' | wc -l | tr -d ' ' | sed 's/^/OUT_OF_SCOPE=/'
@@ -83,3 +83,14 @@
 - NOTE C1 lint follow-up: initial clean-source run at 5315315 passed G2-G7 and G9-G11, but G8 failed with manual_is_multiple_of on the new unsigned tab parity expression. Source c0d6a34 replaces only that expression with is_multiple_of(2); initial raw outputs are retained as *-initial-5315315.log. Per Parent STOP-SAVE msg_450f6ddd4d0d, the obtained G2-G7/G9-G11 evidence at 5315315 is retained and G8 remains pending. Source c0d6a34 has only the parity lint edit and has not been revalidated. G1 remains the unchanged baseline carry.
 
 - NOTE PAUSED (Parent STOP-SAVE, 2026-10-26T08:10:19Z): G7 obtained 1252 passed / 0 failed / 7 ignored in 17 groups and G9 obtained Finished at exact source 5315315566c6fe75826fe05a9d59880aae62948a. G8's one lint is fixed in c0d6a342c186a3d57c416ddb262783cc7a064c23 but has not been rerun; its box and EVIDENCE remain pending. The checked rows record the already obtained source-5315315 evidence, not a claim of final-head validation; final correction validation/re-review and final-head Hancom regeneration remain for resumption. No new cargo/clippy/WASM was started after STOP-SAVE. No worker_done or successful mah finish is issued while this task is paused.
+
+
+## C1 resumed final validation
+
+- RESUME msg_c5ef38c11cf4 (2026-10-26T11:53:19Z); executor lease retaken for 8 hours with the same accepted intent. Source verification head a6d024f4f0bda4dcbe01bc247dceef003ea865d4 has byte-identical src/tests to c0d6a342c186a3d57c416ddb262783cc7a064c23; the only product delta after the previous successful full suite is the unsigned tab parity expression.
+- Delta: rerun G4 (tab/header regression), G7 (full compilation/tests on the final source), G8, G9 and structural G10/G11. G1's baseline bytes, G5's fixed-base test/input digests, and the G2/G3/G6 control/section/table test implementations are unchanged; their source-5315315 evidence is carried with those input declarations. The final G7 also executes the complete L2, G0, lane-1 and G3 test targets again on this source.
+- mah impact at a6d024f is retained in c1/impact-resumed-header.log, impact-resumed-ledger.log and impact-resumed-manifest.log (deterministic pin/exec retained). The pause notes above are history; they do not authorize another hold after the explicit RESUME.
+
+- FINAL RESULT at source a6d024f4f0bda4dcbe01bc247dceef003ea865d4 (src/tests identical to c0d6a34): G4/G7/G8/G9/G10/G11 directly rerun and PASS; gate-run-final.log ends ALL MET (11 met), no deferrals. Full cargo exit=0, 17 result groups, 1252 passed / 0 failed / 7 ignored, including all six C1 regressions, L2 18/0/2, G0 57/0/2, lane 1 39/0/1 and the G3 form-attribute test. Clippy and WASM both exit=0 / Finished. The source input hashes and Git blobs are retained in c1/final-source-binding.json; the subsequent final checkpoint changes only evidence/report/ledger bytes.
+- FINAL G11: six files regenerated by the actual native export/edit test at a6d024f, ZIP/XML/hash verified; C6 flags=56 and FACF flags=0. All six artifact hashes equal the prior corrected generation; hancom/MANIFEST.txt now identifies the final producer head and hancom-generate-final.log. Parent Hancom visual verification remains its explicitly separate stage.
+- FINAL INTENT: RHWP-HWPX-SAVE-FIDELITY-L2-V353@r1 sha256:d385ca9b6e37df48347dfc71d28bfbc161c1db249304100a064347645b479366, binding status=current after the resumed executor lease. AC1 met (approved fixture scope/p195 disposition), AC2 met (G3/two-save targets), AC3 met (residual inventory and F1-F4 RED/GREEN), AC4 met (full/clippy/WASM/scope/11 gates/6 artifacts). jev=used; no self-review receipt or push. Independent re-review is dispatched separately.

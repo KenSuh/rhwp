@@ -1,12 +1,12 @@
-SOURCE_HEAD=5315315566c6fe75826fe05a9d59880aae62948a
+SOURCE_HEAD=a6d024f4f0bda4dcbe01bc247dceef003ea865d4
+PRODUCT_SOURCE_HEAD=c0d6a342c186a3d57c416ddb262783cc7a064c23 (src/tests byte-identical)
 COMMAND=L2_HANCOM_OUT=.omo/evidence/v353-rhwp-hwpx-save-l2/hancom cargo test --offline --test hwpx_save_fidelity_l2 write_hancom_review_files -- --ignored --nocapture
-LATEST_SOURCE=c0d6a342c186a3d57c416ddb262783cc7a064c23 (parity-only lint fix; not regenerated due Parent STOP-SAVE)
-GENERATION_LOG=../c1/hancom-generate.log
+GENERATION_LOG=../c1/hancom-generate-final.log
 907e6be79ac071344ae0bdeaafd600495be2d8602893eda2d3b61f310a5fd761 L2_C6_cell_text.hwpx bytes=132135 flags=56
 60ae60943287254821a7cd893c51c5f87e004330cbee838283cab0603cd37877 L2_C6_insert_row.hwpx bytes=132188 flags=56
 3d51083077c0c68e623843381d8247a64ad7fc87239bd4af81d7cd7cb324862d L2_C6_open_save.hwpx bytes=132066 flags=56
 5f945b09184d33b71c47fb8bbb5871184bdb79beaedace925758606978d99878 L2_FACF_cell_text.hwpx bytes=131215 flags=0
 aac61c1829c89a0f6251aff9e27c8c057c396978512e0fc97a78f78fcaaeba6b L2_FACF_insert_row.hwpx bytes=131269 flags=0
 9c6a2fd6d59bb9bc41327d8858c42fb416ad8a40f048b991ca2e67d0bb15b6b3 L2_FACF_open_save.hwpx bytes=131140 flags=0
-All six were regenerated; FACF outputs remain byte-identical to the previous generation because their source flags are already 0.
+All six were regenerated from a6d024f; all six hashes are identical to the prior corrected 5315315 generation. C6 flags remain 56 and FACF flags remain 0.
 Hancom opening and visual verification remain the Parent stage.

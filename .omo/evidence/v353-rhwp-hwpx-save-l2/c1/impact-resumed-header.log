@@ -1,0 +1,1785 @@
+IMPACT at=code:HEAD@a6d024f4f0bd query="src/serializer/hwpx/header.rs" mode=path jev=used jev_threshold=0.45 files=538 rows=9083 det_ms=462 total_ms=1610 jev_requests=5 jev_http_attempts=5 jev_input_tokens=39859
+  ! Jev 에 보내지 않은 파일 418 (상한 --max-files=120 또는 비밀 성격 경로)
+  ! cache stale (base code:HEAD@5315315566c6 → code:HEAD@a6d024f4f0bd) · 재도출
+- [code] src/serializer/control.rs  channel=other binding=mention jev=0.53★ rows=23
+    :3 [stem/stem_weak] //! `parser::body_text::parse_ctrl_header` + `parser::control::parse_control`의 역방향.
+    :13 [stem/stem_weak] use crate::model::header_footer::{Footer, Header, HeaderFooterApply};
+    :41 [stem/stem_weak] Control::Header(header) => serialize_header_control(header, level, records),
+- [code] tests/hwpx_roundtrip_integration.rs  channel=other binding=mention jev=0.53★ rows=31
+    :29 [stem/stem_weak] let mut header = c9_header_xml(&c9_header_fixture(
+    :41 [stem/stem_weak] let start = header.find("<hh:charProperties").unwrap();
+    :42 [stem/stem_weak] let end = header.find("</hh:charProperties>").unwrap() + "</hh:charProperties>".len();
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c3/g0-chain.patch  channel=other binding=mention jev=0.51★ rows=70
+    :4174 [path/mention] diff --git a/src/serializer/hwpx/header.rs b/src/serializer/hwpx/header.rs
+    :4176 [path/mention] --- a/src/serializer/hwpx/header.rs
+    :4177 [path/mention] +++ b/src/serializer/hwpx/header.rs
+- [code] tests/hwpx_header_resave_stability.rs  channel=other binding=mention jev=0.50★ rows=41
+    :1 [stem/stem_weak] //! HWPX 재저장 header 안정 회귀 — form-002 를 두 번 저장·재열기해도 문단 여백·winBrush·첫 문단 run 글자모양이 원본과 같다.
+    :71 [stem/stem_weak] let mut header = zip_text(FORM_002, "Contents/header.xml");
+    :72 [stem/stem_weak] let count = Tree::parse(&header)
+- [code] rhwp-studio/index.html  channel=other binding=mention jev=0.49★ rows=74
+    :180 [stem/stem_weak] <span class="md-icon icon-header"></span><span class="md-label">머리말</span><span class="md-arrow">▶</span>
+    :186 [stem/stem_weak] <div class="md-item" data-cmd="page:apply-hf-template" data-is-header="true" data-apply-to="0" data-template-id="0"><span class="md-label">빈 머리말</span
+    :188 [stem/stem_weak] <div class="md-item" data-cmd="page:apply-hf-template" data-is-header="true" data-apply-to="0" data-template-id="1"><span class="md-label">왼쪽 쪽 번호</sp
+- [code] tests/hwpx_save_fidelity_l2.rs  channel=other binding=mention jev=0.45★ rows=30
+    :1 [stem/stem_weak] //! HWPX 저장 충실도 레인 2 회귀 시험 (v353) — 문단 run·컨트롤 순서, 두 번 저장, 도형·header 잔여 결함.
+    :721 [stem/stem_weak] // ---------- G4: header·도형 잔여 결함 ----------
+    :738 [stem/stem_weak] fn para_switches(header_xml: &str) -> Vec<ParaSwitch> {
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-final-5.log  channel=other binding=pin jev=0.44 rows=3
+    :6 [stem/pin] :49 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape
+    :10 [stem/pin] :66 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape
+    :17 [stem/stem_weak] :40 [stem/stem_weak] $ git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shap
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-5.json  channel=other binding=mention jev=0.41 rows=13
+    :151 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :82 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :84 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] mydocs/plans/archives/task_193_impl.md  channel=doc binding=mention jev=0.41 rows=43
+    :23 [stem/stem_weak] 새 모듈 `header_footer_ops.rs` 생성:
+    :27 [stem/stem_weak] pub fn get_header_footer(doc: &Document, section_idx: usize, is_header: bool, apply_to: u8) -> Option<&[Paragraph]>
+    :30 [stem/stem_weak] pub fn create_header_footer(doc: &mut Document, section_idx: usize, is_header: bool, apply_to: u8) -> Result<(), String>
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/gate-run-initial-5315315.log  channel=other binding=pin jev=0.40 rows=2
+    :58 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape|field|mod)\.rs
+    :85 [stem/stem_weak] PASS V353_RHWP_HWPX_SAVE_L2_GATES:G4: 도형·필드·header 잔여 결함 측정과 수정 — 새 base 에서 측정한 결함 목록과, 그 각각의 회귀 시험
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/gate-run.log  channel=other binding=pin jev=0.40 rows=2
+    :58 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape|field|mod)\.rs
+    :85 [stem/stem_weak] PASS V353_RHWP_HWPX_SAVE_L2_GATES:G4: 도형·필드·header 잔여 결함 측정과 수정 — 새 base 에서 측정한 결함 목록과, 그 각각의 회귀 시험
+- [code] .omo/evidence/v318-engine-clippy-correction/baseline-clippy.json  channel=other binding=mention jev=0.38 rows=13
+    :147 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :78 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :80 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-5.log  channel=other binding=pin jev=0.37 rows=3
+    :5 [stem/pin] :49 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape
+    :9 [stem/pin] :66 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape
+    :13 [stem/stem_weak] :40 [stem/stem_weak] $ git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shap
+- [code] gates/V353_RHWP_HWPX_SAVE_L2_GATES.md  channel=ledger_check binding=pin jev=0.36 rows=6
+    :65 [basename/mention] - NOTE G10 (Parent 처분 2, `outputs/v353-rhwp-table/RHWP_HWPX_SAVE_FIDELITY_L2_PACKET_DISPOSITION2.md`): 허용 목록에 `tests/hwpx_roundtrip_integration.rs`(c1
+    :73 [basename/mention] - NOTE G10 scope addition (Parent C1 brief): src/parser/hwpx/header.rs may read trackchageConfig@flags and correct F2/F3 read-back; src/model/document
+    :18 [stem/stem_weak] - [x] G4: 도형·필드·header 잔여 결함 측정과 수정 — 새 base 에서 측정한 결함 목록과, 그 각각의 회귀 시험
+- [code] .omo/evidence/v318-engine-clippy-correction/focused-hwpx.json  channel=other binding=mention jev=0.36 rows=13
+    :146 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :77 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :79 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/metadata-online.json  channel=other binding=mention jev=0.36 rows=13
+    :144 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :75 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :77 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/rustfmt-final.json  channel=other binding=mention jev=0.36 rows=13
+    :157 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :88 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :90 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/candidate-clippy.json  channel=other binding=mention jev=0.35 rows=13
+    :147 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :78 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :80 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/final-integrity.json  channel=other binding=mention jev=0.35 rows=13
+    :142 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :73 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :75 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/gate-status.json  channel=other binding=mention jev=0.35 rows=13
+    :143 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :74 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :76 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-1.json  channel=other binding=mention jev=0.35 rows=13
+    :151 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :82 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :84 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-3.json  channel=other binding=mention jev=0.35 rows=13
+    :151 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :82 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :84 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-4.json  channel=other binding=mention jev=0.35 rows=13
+    :151 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :82 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :84 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-10.json  channel=other binding=mention jev=0.34 rows=13
+    :151 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :82 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :84 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-2.json  channel=other binding=mention jev=0.34 rows=13
+    :151 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :82 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :84 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-final-3.log  channel=other binding=pin jev=0.33 rows=1184
+    :1 [path/mention] IMPACT at=code:HEAD@5315315566c6 query="src/serializer/hwpx/header.rs" mode=path jev=used jev_threshold=0.45 files=515 rows=4037 det_ms=954 total_ms=2
+    :13 [path/mention] :147 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :25 [path/mention] :142 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+- [code] .omo/evidence/v318-engine-clippy-correction/cli-after.json  channel=other binding=mention jev=0.33 rows=13
+    :144 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :75 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :77 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/cli-output-parity.json  channel=other binding=mention jev=0.33 rows=13
+    :142 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :73 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :75 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/final-gate-status.json  channel=other binding=mention jev=0.33 rows=13
+    :143 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :74 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :76 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/final-input-check.json  channel=other binding=mention jev=0.33 rows=13
+    :142 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :73 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :75 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/final-source-diff.json  channel=other binding=mention jev=0.33 rows=13
+    :146 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :77 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :79 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/rustfmt.json  channel=other binding=mention jev=0.33 rows=13
+    :157 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :88 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :90 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/semantics.json  channel=other binding=mention jev=0.33 rows=13
+    :143 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :74 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :76 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/diff-check.json  channel=other binding=mention jev=0.32 rows=13
+    :142 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :73 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :75 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/inline-table.json  channel=other binding=mention jev=0.32 rows=13
+    :148 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :79 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :81 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/library-carry-check.json  channel=other binding=mention jev=0.32 rows=13
+    :153 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :84 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :86 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/metadata.json  channel=other binding=mention jev=0.32 rows=13
+    :145 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :76 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :78 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] src/model/table.rs  channel=other binding=mention jev=0.32 rows=21
+    :34 [stem/stem_weak] pub repeat_header: bool,
+    :104 [stem/stem_weak] /// `Cell::list_header_width_ref` 의 셀 보호 비트 (HWPX `hp:tc@protect`).
+    :109 [stem/stem_weak] /// `Cell::list_header_width_ref` 의 양식 모드 편집 가능 비트 (HWPX `hp:tc@editable`).
+- [code] .omo/evidence/v318-engine-clippy-correction/scoped-clippy.json  channel=other binding=mention jev=0.31 rows=13
+    :148 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :79 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :81 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] mydocs/working/archives/task_193_step1.md  channel=doc binding=mention jev=0.31 rows=16
+    :6 [stem/stem_weak] - **`src/document_core/commands/header_footer_ops.rs`** — 머리말/꼬리말 CRUD 및 텍스트 편집 함수
+    :9 [stem/stem_weak] - **`src/document_core/commands/mod.rs`** — header_footer_ops 모듈 등록
+    :17 [stem/stem_weak] | `get_header_footer_native` | 머리말/꼬리말 존재 여부 및 정보 조회 |
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-final-1.log  channel=other binding=pin jev=0.30 rows=1184
+    :92 [path/mention] :21 [basename/mention] **`src/serializer/hwpx/header.rs`** (13줄 → 약 760줄)
+    :433 [path/mention] - [code] src/serializer/hwpx/header.rs  channel=other binding=mention jev=0.13 rows=15
+    :520 [path/mention] :6 [basename/mention] "src/serializer/hwpx/header.rs",
+- [code] .omo/evidence/v318-engine-clippy-correction/executor-lock.json  channel=other binding=mention jev=0.30 rows=13
+    :143 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :74 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :76 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-11.json  channel=other binding=mention jev=0.30 rows=13
+    :151 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :82 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :84 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] src/parser/body_text.rs  channel=other binding=mention jev=0.30 rows=15
+    :25 [stem/stem_weak] use crate::model::header_footer::{HeaderFooterApply, MasterPage};
+    :133 [stem/stem_weak] let mut para = parse_para_header(&records[0].data);
+    :172 [stem/stem_weak] let mut control = parse_ctrl_header(ctrl_records);
+- [code] .omo/evidence/v318-engine-clippy-correction/model-style.json  channel=other binding=mention jev=0.29 rows=13
+    :146 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :77 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :79 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/command-batch.json  channel=other binding=mention jev=0.28 rows=13
+    :148 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :79 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :81 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-7.json  channel=other binding=mention jev=0.28 rows=13
+    :151 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :82 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :84 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-gate.json  channel=other binding=mention jev=0.28 rows=13
+    :151 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :82 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :84 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/nested-table.json  channel=other binding=mention jev=0.28 rows=13
+    :148 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :79 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :81 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-1.log  channel=other binding=pin jev=0.27 rows=1184
+    :1 [path/mention] IMPACT at=code:HEAD@8027a28e4d14 query="src/serializer/hwpx/header.rs" mode=path jev=used jev_threshold=0.45 files=515 rows=4025 det_ms=638 total_ms=1
+    :17 [path/mention] :147 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :21 [path/mention] :142 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-2.log  channel=other binding=pin jev=0.27 rows=1184
+    :116 [path/mention] :21 [basename/mention] **`src/serializer/hwpx/header.rs`** (13줄 → 약 760줄)
+    :425 [path/mention] - [code] src/serializer/hwpx/header.rs  channel=other binding=mention jev=0.13 rows=15
+    :520 [path/mention] :6 [basename/mention] "src/serializer/hwpx/header.rs",
+- [code] .omo/evidence/v318-engine-clippy-correction/cli-before.json  channel=other binding=mention jev=0.27 rows=13
+    :144 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :75 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :77 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/cli-build.json  channel=other binding=mention jev=0.27 rows=13
+    :146 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :77 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :79 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/cursor-line-break.json  channel=other binding=mention jev=0.27 rows=13
+    :148 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :79 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :81 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/dispatch-identity.json  channel=other binding=mention jev=0.27 rows=13
+    :145 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :76 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :78 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-6.json  channel=other binding=mention jev=0.27 rows=13
+    :151 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :82 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :84 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/pagedef13.json  channel=other binding=mention jev=0.27 rows=13
+    :146 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :77 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :79 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] src/renderer/typeset.rs  channel=other binding=mention jev=0.27 rows=23
+    :16 [stem/stem_weak] use crate::model::header_footer::HeaderFooterApply;
+    :52 [stem/stem_weak] /// 머리행 수 (repeat_header && has_header_cells일 때 1)
+    :53 [stem/stem_weak] header_row_count: usize,
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-3.log  channel=other binding=pin jev=0.26 rows=50
+    :2064 [path/mention] - [code] src/serializer/hwpx/header.rs  channel=other binding=mention jev=- rows=3
+    :949 [basename/mention] :39 [basename/mention] | Utility function duplication | header.rs, section.rs each have separate local_name, attr_str, parse_u8..parse_u32 | Extract t
+    :1019 [basename/mention] :10 [basename/mention] - Removed 120 lines of duplicate functions from header.rs/section.rs
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-10.log  channel=other binding=mention jev=0.26 rows=45
+    :1704 [path/mention] - [code] src/serializer/hwpx/header.rs  channel=other binding=mention jev=- rows=3
+    :678 [basename/mention] :39 [basename/mention] | Utility function duplication | header.rs, section.rs each have separate local_name, attr_str, parse_u8..parse_u32 | Extract t
+    :682 [basename/mention] :19 [basename/mention] 1. **utils.rs new creation** — extract duplicate functions from header.rs and section.rs:
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-main-head.json  channel=other binding=mention jev=0.26 rows=13
+    :151 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :82 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :84 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/record-integrity.json  channel=other binding=mention jev=0.26 rows=13
+    :142 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :73 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :75 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] rhwp-studio/public/rhwp.js  channel=other binding=mention jev=0.26 rows=56
+    :147 [stem/stem_weak] * @param {boolean} is_header
+    :152 [stem/stem_weak] applyHfTemplate(section_idx, is_header, apply_to, template_id) {
+    :156 [stem/stem_weak] const ret = wasm.hwpdocument_applyHfTemplate(this.__wbg_ptr, section_idx, is_header, apply_to, template_id);
+- [code] .omo/evidence/v318-engine-clippy-correction/focused-parser.json  channel=other binding=mention jev=0.25 rows=13
+    :146 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :77 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :79 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-9.json  channel=other binding=mention jev=0.25 rows=13
+    :151 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :82 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :84 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-final-2.log  channel=other binding=pin jev=0.24 rows=50
+    :2065 [path/mention] - [code] src/serializer/hwpx/header.rs  channel=other binding=mention jev=- rows=3
+    :950 [basename/mention] :39 [basename/mention] | Utility function duplication | header.rs, section.rs each have separate local_name, attr_str, parse_u8..parse_u32 | Extract t
+    :1020 [basename/mention] :10 [basename/mention] - Removed 120 lines of duplicate functions from header.rs/section.rs
+- [code] .omo/evidence/v318-engine-clippy-correction/cli-rustfmt.json  channel=other binding=mention jev=0.24 rows=13
+    :147 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :78 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :80 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] src/document_core/queries/rendering.rs  channel=other binding=mention jev=0.24 rows=39
+    :97 [stem/stem_weak] let mh = hwpunit_to_px(page_def.margin_header as i32, self.dpi);
+    :141 [stem/stem_weak] sd.hide_header, sd.hide_footer, sd.hide_master_page,
+    :179 [stem/stem_weak] sd.hide_header = v;
+- [code] src/parser/body_text/tests.rs  channel=other binding=mention jev=0.24 rows=17
+    :7 [stem/stem_weak] let header = (tag_id as u32) | ((level as u32) << 10) | (size << 20);
+    :8 [stem/stem_weak] let mut bytes = header.to_le_bytes().to_vec();
+    :14 [stem/stem_weak] fn make_para_header_data(char_count: u32, para_shape_id: u16, style_id: u8) -> Vec<u8> {
+- [code] src/serializer/doc_info.rs  channel=other binding=mention jev=0.24 rows=17
+    :623 [stem/stem_weak] header_offset: usize,
+    :636 [stem/stem_weak] let header = u32::from_le_bytes([
+    :642 [stem/stem_weak] let tag_id = (header & 0x3FF) as u16;
+- [code] src/wmf/parser/objects/structure/bitmap_info_header/mod.rs  channel=other binding=mention jev=0.24 rows=16
+    :20 [stem/stem_weak] let (header_size, mut consumed_bytes) = crate::wmf::parser::read_u32_from_le_bytes(buf)?;
+    :22 [stem/stem_weak] match header_size {
+    :24 [stem/stem_weak] let (header, c) = BitmapInfoHeaderCore::parse(buf, header_size)?;
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-8.json  channel=other binding=mention jev=0.23 rows=13
+    :151 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :82 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :84 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-main.json  channel=other binding=mention jev=0.23 rows=13
+    :151 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :82 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :84 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-4.log  channel=other binding=mention jev=0.23 rows=31
+    :2728 [path/mention] - [code] src/serializer/hwpx/header.rs  channel=other binding=mention jev=- rows=11
+    :1278 [basename/mention] :56 [basename/mention] header.rs, doc_info.rs                   document.rs, paragraph.rs
+    :2034 [basename/mention] :55 [basename/mention] header.rs, doc_info.rs                    document.rs, paragraph.rs
+- [code] src/parser/control.rs  channel=other binding=mention jev=0.23 rows=20
+    :18 [stem/stem_weak] use crate::model::header_footer::{Footer, Header, HeaderFooterApply};
+    :32 [stem/stem_weak] /// body_text::parse_ctrl_header에서 secd/cold 이외의 컨트롤을 위임받는다.
+    :37 [stem/stem_weak] tags::CTRL_HEADER => parse_header_control(ctrl_data, child_records),
+- [code] src/renderer/height_measurer.rs  channel=other binding=mention jev=0.23 rows=22
+    :111 [stem/stem_weak] pub repeat_header: bool,
+    :112 [stem/stem_weak] /// 행0에 제목 셀(is_header)이 있는지 여부
+    :113 [stem/stem_weak] pub has_header_cells: bool,
+- [code] src/serializer/header.rs  channel=other binding=mention jev=0.22 rows=27
+    :3 [stem/stem_weak] //! `parse_file_header()`의 역방향으로, FileHeader를 256바이트 바이너리로 변환한다.
+    :13 [stem/stem_weak] use crate::parser::header::{FILE_HEADER_SIZE, HWP_SIGNATURE};
+    :16 [stem/stem_weak] pub fn serialize_file_header(header: &FileHeader) -> Vec<u8> {
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-final-0.log  channel=other binding=mention jev=0.21 rows=31
+    :2729 [path/mention] - [code] src/serializer/hwpx/header.rs  channel=other binding=mention jev=- rows=11
+    :1279 [basename/mention] :56 [basename/mention] header.rs, doc_info.rs                   document.rs, paragraph.rs
+    :2035 [basename/mention] :55 [basename/mention] header.rs, doc_info.rs                    document.rs, paragraph.rs
+- [code] src/wasm_api.rs  channel=other binding=mention jev=0.20 rows=61
+    :659 [stem/stem_weak] pub fn get_header_footer(
+    :662 [stem/stem_weak] is_header: bool,
+    :665 [stem/stem_weak] self.get_header_footer_native(section_idx as usize, is_header, apply_to)
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c3/base-source-binding.json  channel=other binding=mention jev=0.19 rows=17
+    :10022 [path/mention] "path": "src/serializer/hwpx/header.rs",
+    :9742 [basename/mention] "path": "src/parser/header.rs",
+    :9750 [basename/mention] "path": "src/parser/hwpx/header.rs",
+- [code] gates/V353_RHWP_TABLE_FIDELITY_GATES.md  channel=gate_ledger binding=mention jev=0.19 rows=1
+    :120 [stem/stem_weak] - NOTE C3 전체 시험 수: G8이 lib에서 멈춘 뒤 모든 나머지 cargo target과 doctest를 명시 실행했다. lib=1000 passed/1 failed/1 ignored; table fidelity=39/0/1, G0 roundtrip integ
+- [code] mydocs/plans/archives/task_70_impl.md  channel=doc binding=mention jev=0.19 rows=16
+    :11 [stem/stem_weak] `PageContent`의 `header_paragraphs`/`footer_paragraphs` 타입을 인덱스 벡터 대신
+    :19 [stem/stem_weak] pub active_header: Option<HeaderFooterRef>,
+    :34 [stem/stem_weak] 3. `PageContent` 생성 시 `active_header`/`active_footer` 할당
+- [code] mydocs/working/task_m100_182_stage1.md  channel=doc binding=mention jev=0.18 rows=16
+    :21 [path/mention] **`src/serializer/hwpx/header.rs`** (13줄 → 약 760줄)
+    :41 [basename/mention] 단위 테스트 (`header.rs` 내부):
+    :1 [stem/stem_weak] # Stage 1 단계별 완료보고서: header.xml IR 기반 동적 생성
+- [code] src/parser/header.rs  channel=other binding=mention jev=0.18 rows=34
+    :130 [stem/stem_weak] pub fn parse_file_header(data: &[u8]) -> Result<FileHeader, HeaderError> {
+    :167 [stem/stem_weak] fn make_file_header(major: u8, minor: u8, flags: u32) -> Vec<u8> {
+    :191 [stem/stem_weak] fn test_parse_valid_header() {
+- [code] mydocs/eng/orders/20260404.md  channel=doc binding=link jev=0.17 rows=3
+    :8 [stem/link] | [#42](https://github.com/edwardkim/rhwp/issues/42) | Picture rendering in header/footer | Done | has_picture branch, footer TAC inline, bin_data_con
+    :9 [stem/link] | [#43](https://github.com/edwardkim/rhwp/issues/43) | Image crop + image border lines | Done | crop SVG viewBox/Canvas drawImage, border rendering, h
+    :41 [stem/stem_weak] - **Typesetting (4 fixes)**: TAC+block table, header Picture, crop/border, split table alignment
+- [code] mydocs/eng/troubleshootings/repeat_header_image_duplication.md  channel=doc binding=mention jev=0.17 rows=36
+    :12 [stem/stem_weak] - The header row (row=0) image from page 3 is duplicated on page 4
+    :19 [stem/stem_weak] P29 Table: rows=4 cols=1, repeat_header=true
+    :20 [stem/stem_weak] Cell0: row=0  pic(bin=6)  is_header=false  <- Row containing only an image
+- [code] src/document_core/commands/object_ops.rs  channel=other binding=mention jev=0.17 rows=33
+    :1107 [stem/stem_weak] // 셀 문단 보정: char_count_msb, raw_header_extra, para/char shape
+    :1111 [stem/stem_weak] if cp.raw_header_extra.len() < 10 {
+    :1115 [stem/stem_weak] cp.raw_header_extra = rhe;
+- [code] src/main.rs  channel=other binding=mention jev=0.17 rows=21
+    :510 [stem/stem_weak] document.header.version.major,
+    :511 [stem/stem_weak] document.header.version.minor,
+    :512 [stem/stem_weak] document.header.version.build,
+- [code] src/parser/mod.rs  channel=other binding=mention jev=0.17 rows=37
+    :7 [stem/stem_weak] //! 2. FileHeader 파싱 (header)
+    :15 [stem/stem_weak] //! 3. header.xml → DocInfo (hwpx/header)
+    :25 [stem/stem_weak] pub mod header;
+- [code] src/serializer/cfb_writer/tests.rs  channel=other binding=mention jev=0.17 rows=37
+    :35 [stem/stem_weak] header: FileHeader {
+    :81 [stem/stem_weak] let header = cfb.read_file_header().unwrap();
+    :82 [stem/stem_weak] assert_eq!(header.len(), 256);
+- [code] .omo/evidence/v318-engine-clippy-correction/focused-parser.log  channel=other binding=mention jev=0.16 rows=18
+    :192 [stem/stem_weak] test parser::body_text::tests::test_parse_para_header_fields ... ok
+    :229 [stem/stem_weak] test parser::control::tests::test_parse_header_control ... ok
+    :259 [stem/stem_weak] test parser::header::tests::test_hwp_signature ... ok
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-9.log  channel=other binding=mention jev=0.16 rows=40
+    :5 [basename/mention] :34 [basename/mention] 1. **HWP 직렬화기 코드 0줄 수정** — `serializer/cfb_writer.rs`, `body_text.rs`, `control.rs`, `header.rs`, `doc_info.rs` 중 어느 하나라도 수정 PR
+    :1997 [basename/mention] - [code] src/wmf/parser/records/control/header.rs  channel=other binding=mention jev=- rows=1
+    :45 [stem/stem_weak] :49 [stem/stem_weak] Self::collect_header_footer_controls(paragraphs, section_index);
+- [code] src/document_core/commands/table_ops.rs  channel=other binding=mention jev=0.16 rows=16
+    :492 [stem/stem_weak] let cell_protect = (cell.list_header_width_ref & 0x02) != 0;
+    :498 [stem/stem_weak] va, cell.text_direction, cell.is_header, cell_protect,
+    :595 [stem/stem_weak] cell.is_header = v;
+- [code] src/document_core/queries/cursor_rect.rs  channel=other binding=mention jev=0.16 rows=22
+    :1959 [stem/stem_weak] pub fn get_cursor_rect_in_header_footer_native(
+    :1962 [stem/stem_weak] is_header: bool,
+    :1972 [stem/stem_weak] // layout_header_footer_paragraphs에서 para_index = usize::MAX - i 로 설정됨
+- [code] src/renderer/layout.rs  channel=other binding=mention jev=0.16 rows=34
+    :20 [stem/stem_weak] use crate::model::header_footer::MasterPage;
+    :222 [stem/stem_weak] /// 머리말/꼬리말 감추기 세트: (global_page_index, is_header)
+    :223 [stem/stem_weak] hidden_header_footer: std::cell::RefCell<std::collections::HashSet<(u32, bool)>>,
+- [code] src/document_core/html_table_import.rs  channel=other binding=mention jev=0.15 rows=22
+    :29 [stem/stem_weak] is_header: bool,
+    :146 [stem/stem_weak] is_header: is_th,
+    :278 [stem/stem_weak] let mut has_header_row = false;
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c3/g8.log  channel=other binding=mention jev=0.14 rows=56
+    :59 [stem/stem_weak] test document_core::commands::header_footer_ops::tests::test_p222_header_structure ... ignored
+    :60 [stem/stem_weak] test document_core::commands::header_footer_ops::tests::test_create_and_get_header ... ok
+    :61 [stem/stem_weak] test document_core::commands::header_footer_ops::tests::test_create_and_get_footer ... ok
+- [code] src/wasm_api/tests.rs  channel=other binding=mention jev=0.14 rows=232
+    :65 [stem/stem_weak] margin_header: 4252,
+    :187 [stem/stem_weak] margin_header: 4252,
+    :353 [stem/stem_weak] margin_header: 4252,
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/g8.log  channel=other binding=mention jev=0.13 rows=55
+    :58 [stem/stem_weak] test document_core::commands::header_footer_ops::tests::test_p222_header_structure ... ignored
+    :62 [stem/stem_weak] test document_core::commands::header_footer_ops::tests::test_delete_nonexistent_fails ... ok
+    :63 [stem/stem_weak] test document_core::commands::header_footer_ops::tests::test_duplicate_create_fails ... ok
+- [code] src/parser/hwpx/section.rs  channel=other binding=mention jev=0.13 rows=16
+    :17 [stem/stem_weak] use crate::model::header_footer::{Footer, Header, HeaderFooterApply};
+    :118 [stem/stem_weak] b"header" => page.margin_header = parse_u32(&attr),
+    :444 [stem/stem_weak] b"hideFirstHeader" => sec_def.hide_header = attr_str(&attr) == "1",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-7.log  channel=other binding=mention jev=0.12 rows=15
+    :56 [basename/mention] :34 [basename/mention] 1. **HWP 직렬화기 코드 0줄 수정** — `serializer/cfb_writer.rs`, `body_text.rs`, `control.rs`, `header.rs`, `doc_info.rs` 중 어느 하나라도 수정 PR
+    :225 [basename/mention] :52 [basename/mention] header.rs, doc_info.rs, body_text.rs
+    :227 [basename/mention] :69 [basename/mention] renderer.rs (310 lines)                   header.rs, doc_info.rs, body_text.rs
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/intermediate-7668ec2/g8.log  channel=other binding=mention jev=0.12 rows=55
+    :58 [stem/stem_weak] test document_core::commands::header_footer_ops::tests::test_p222_header_structure ... ignored
+    :59 [stem/stem_weak] test document_core::commands::header_footer_ops::tests::test_delete_nonexistent_fails ... ok
+    :61 [stem/stem_weak] test document_core::commands::header_footer_ops::tests::test_duplicate_create_fails ... ok
+- [code] mydocs/eng/plans/archives/task_70_impl.md  channel=doc binding=mention jev=0.12 rows=19
+    :11 [stem/stem_weak] Change `PageContent`'s `header_paragraphs`/`footer_paragraphs` types from index vectors to actual Header/Footer reference info:
+    :17 [stem/stem_weak] /// Header to apply to this page (None = no header)
+    :18 [stem/stem_weak] pub active_header: Option<HeaderFooterRef>,
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/g7-full-initial-5315315.log  channel=other binding=mention jev=0.11 rows=60
+    :61 [stem/stem_weak] test document_core::commands::header_footer_ops::tests::test_p222_header_structure ... ignored
+    :64 [stem/stem_weak] test document_core::commands::header_footer_ops::tests::test_delete_nonexistent_fails ... ok
+    :65 [stem/stem_weak] test document_core::commands::header_footer_ops::tests::test_duplicate_create_fails ... ok
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/g8.log  channel=other binding=mention jev=0.11 rows=55
+    :59 [stem/stem_weak] test document_core::commands::header_footer_ops::tests::test_p222_header_structure ... ignored
+    :61 [stem/stem_weak] test document_core::commands::header_footer_ops::tests::test_delete_nonexistent_fails ... ok
+    :62 [stem/stem_weak] test document_core::commands::header_footer_ops::tests::test_create_and_get_footer ... ok
+- [code] mydocs/working/archives/task_194_final.md  channel=doc binding=mention jev=0.11 rows=21
+    :9 [stem/stem_weak] | `delete_header_footer_native` (Rust) | 완료 |
+    :12 [stem/stem_weak] | `page:headerfooter-delete` 커맨드 | 완료 |
+    :19 [stem/stem_weak] | `navigate_header_footer_by_page_native` (Rust) | 완료 |
+- [code] mydocs/eng/plans/archives/task_194_impl.md  channel=doc binding=exec jev=0.10 rows=8
+    :6 [stem/stem_weak] - Add `delete_header_footer_native` to `header_footer_ops.rs`
+    :11 [stem/stem_weak] - `page.ts`: Add `page:headerfooter-delete` command (exit editing mode → delete control → refresh canvas)
+    :14 [stem/stem_weak] - Expand `.tb-headerfooter-group` toolbar: `[Header(Both)] | [Previous] [Next] | [Close] [Delete]`
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/g7-full.log  channel=other binding=mention jev=0.10 rows=60
+    :61 [stem/stem_weak] test document_core::commands::header_footer_ops::tests::test_p222_header_structure ... ignored
+    :64 [stem/stem_weak] test document_core::commands::header_footer_ops::tests::test_delete_nonexistent_fails ... ok
+    :65 [stem/stem_weak] test document_core::commands::header_footer_ops::tests::test_duplicate_create_fails ... ok
+- [code] mydocs/troubleshootings/repeat_header_image_duplication.md  channel=doc binding=mention jev=0.10 rows=29
+    :19 [stem/stem_weak] P29 Table: rows=4 cols=1, repeat_header=true
+    :20 [stem/stem_weak] Cell0: row=0  pic(bin=6)  is_header=false  ← 이미지만 있는 행
+    :21 [stem/stem_weak] Cell1: row=1  (텍스트)    is_header=false
+- [code] rhwp-studio/src/command/commands/page.ts  channel=other binding=mention jev=0.10 rows=15
+    :58 [stem/stem_weak] services.eventBus.emit('headerFooterModeChanged', isHeader ? 'header' : 'footer');
+    :72 [stem/stem_weak] const isHeader = cursor.headerFooterMode === 'header';
+    :99 [stem/stem_weak] const isHeader = cursor.headerFooterMode === 'header';
+- [code] src/renderer/pagination/engine.rs  channel=other binding=mention jev=0.10 rows=22
+    :6 [stem/stem_weak] use crate::model::header_footer::HeaderFooterApply;
+    :49 [stem/stem_weak] Self::collect_header_footer_controls(paragraphs, section_index);
+    :604 [stem/stem_weak] fn collect_header_footer_controls(
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/gate-check-output.txt  channel=other binding=pin jev=0.09 rows=2
+    :66 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape|field|mod)\.rs
+    :96 [stem/stem_weak] PASS V353_RHWP_HWPX_SAVE_L2_GATES:G4: 도형·필드·header 잔여 결함 측정과 수정 — 새 base 에서 측정한 결함 목록과, 그 각각의 회귀 시험
+- [code] src/parser/cfb_reader.rs  channel=other binding=mention jev=0.09 rows=14
+    :78 [stem/stem_weak] pub fn read_file_header(&mut self) -> Result<Vec<u8>, CfbError> {
+    :560 [stem/stem_weak] pub fn read_file_header(&self) -> Result<Vec<u8>, CfbError> {
+    :853 [stem/stem_weak] let header =
+- [code] src/wmf/converter/bitmap.rs  channel=other binding=mention jev=0.09 rows=106
+    :28 [stem/stem_weak] let mut info_header = vec![];
+    :31 [stem/stem_weak] // write info header
+    :32 [stem/stem_weak] match dib.dib_header_info {
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-5.log  channel=other binding=link jev=0.08 rows=15
+    :5 [stem/stem_weak] :385 [stem/stem_weak] Automatically repeats row 0 (header row) rendering on continuation pages.
+    :73 [stem/stem_weak] :14 [stem/stem_weak] | B-104 | Header/footer rendering | Render header/footer areas per page | Medium |
+    :154 [stem/stem_weak] :32 [stem/stem_weak] - `layout_header_footer_paragraphs()` function for rendering paragraphs inside Header/Footer
+- [code] mydocs/eng/orders/20260403.md  channel=doc binding=link jev=0.08 rows=3
+    :9 [stem/link] | [#36](https://github.com/edwardkim/rhwp/issues/36) | Image not rendered inside header table cell | Done | Fixed bin_data_content delivery path (head
+    :15 [stem/link] | [#42](https://github.com/edwardkim/rhwp/issues/42) | Picture rendering in header/footer | Done | Added has_picture branch, footer TAC inline layout,
+    :16 [stem/link] | [#43](https://github.com/edwardkim/rhwp/issues/43) | Image crop rendering + border lines | Done | crop SVG viewBox/Canvas drawImage, image border re
+- [code] rhwp-chrome/test/05-gov-site-sim.html  channel=test binding=mention jev=0.05 rows=2
+    :11 [stem/stem_weak] .header { background: #003366; color: #fff; padding: 12px 24px; font-size: 18px; font-weight: bold; }
+    :29 [stem/stem_weak] <div class="header">정부24 (시뮬레이션)</div>
+- [code] src/document_core/commands/header_footer_ops.rs  channel=other binding=mention jev=0.05 rows=149
+    :11 [stem/stem_weak] use crate::model::header_footer::{Footer, Header, HeaderFooterApply};
+    :45 [stem/stem_weak] fn find_header_footer_control(
+    :48 [stem/stem_weak] is_header: bool,
+- [code] src/wmf/parser/objects/structure/device_independent_bitmap.rs  channel=other binding=mention jev=0.05 rows=26
+    :13 [stem/stem_weak] pub dib_header_info: crate::wmf::parser::BitmapInfoHeader,
+    :23 [stem/stem_weak] /// required to be contiguous with the DIB header, unless this is a packed
+    :38 [stem/stem_weak] let (dib_header_info, mut consumed_bytes) =
+- [code] scripts/dashboard.html  channel=script binding=mention jev=0.04 rows=4
+    :11 [stem/stem_weak] .header { background: #1a1a2e; color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; }
+    :12 [stem/stem_weak] .header h1 { font-size: 22px; font-weight: 600; }
+    :13 [stem/stem_weak] .header .timestamp { font-size: 13px; color: #8892b0; }
+- [code] .omo/evidence/v318-engine-clippy-correction/CLI_SCOPE_AUTHORIZATION.md  channel=doc binding=mention jev=- rows=1
+    :5 [stem/stem_weak] > Authorize the exact discovered src/main.rs:1331 correction: remove ONLY the redundant & before para.raw_header_extra in println, preserving bytes/fo
+- [code] .omo/evidence/v318-engine-clippy-correction/SELF_CHECK.md  channel=doc binding=mention jev=- rows=1
+    :15 [stem/stem_weak] 호출자를 rg로 확인했다: build_inline_table_control→create_table_in_cell_by_path_native; path setter→wasm_api wrapper/기존 nested-table test; move_vertical_native
+- [code] .omo/evidence/v318-engine-clippy-correction/candidate-clippy.log  channel=other binding=mention jev=- rows=2
+    :5 [stem/stem_weak] 1331 |                         &para.raw_header_extra);
+    :6 [stem/stem_weak] |                         ^^^^^^^^^^^^^^^^^^^^^^ help: remove the redundant `&`: `para.raw_header_extra`
+- [code] .omo/evidence/v318-engine-clippy-correction/cli-after.log  channel=other binding=mention jev=- rows=4
+    :774 [stem/stem_weak] [0] 감추기: header=false, footer=false, master=false, border=true, fill=false, page_num=false
+    :775 [stem/stem_weak] [1] 감추기: header=false, footer=false, master=false, border=true, fill=false, page_num=false
+    :776 [stem/stem_weak] [2] 감추기: header=false, footer=false, master=false, border=true, fill=false, page_num=false
+- [code] .omo/evidence/v318-engine-clippy-correction/cli-before.log  channel=other binding=mention jev=- rows=4
+    :774 [stem/stem_weak] [0] 감추기: header=false, footer=false, master=false, border=true, fill=false, page_num=false
+    :775 [stem/stem_weak] [1] 감추기: header=false, footer=false, master=false, border=true, fill=false, page_num=false
+    :776 [stem/stem_weak] [2] 감추기: header=false, footer=false, master=false, border=true, fill=false, page_num=false
+- [code] .omo/evidence/v318-engine-clippy-correction/final-source-diff.log  channel=other binding=mention jev=- rows=2
+    :125 [stem/stem_weak] -                        &para.raw_header_extra);
+    :126 [stem/stem_weak] +                        para.raw_header_extra);
+- [code] .omo/evidence/v318-engine-clippy-correction/focused-hwpx.log  channel=other binding=mention jev=- rows=5
+    :54 [stem/stem_weak] test serializer::hwpx::fixtures::tests::empty_header_contains_hh_head_root ... ok
+    :75 [stem/stem_weak] test serializer::hwpx::header::tests::write_header_runs_on_empty_document ... ok
+    :105 [stem/stem_weak] test serializer::hwpx::header::tests::canonical_attr_order_charpr ... ok
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-11.log  channel=other binding=mention jev=- rows=7
+    :28 [stem/stem_weak] :26 [basename/mention] 2. **빈 문서 특수 분기 제거**: `mod.rs:61-66` 삭제. 빈 Document도 동적 경로. `EMPTY_CONTENT_HPF`/`empty_header.xml`/`empty_section0.xml`는 테스트 fi
+    :86 [stem/stem_weak] :11 [basename/mention] | `src/serializer/mod.rs` | Added `pub mod header;`, `pub mod doc_info;` |
+    :367 [stem/stem_weak] :275 [basename/mention] | `src/document_core/mod.rs` | header_footer_ops 모듈 등록 |
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-6.log  channel=other binding=mention jev=- rows=2
+    :118 [stem/stem_weak] :64 [basename/mention] image.rs, style.rs, page.rs, header_footer.rs,
+    :120 [stem/stem_weak] :64 [basename/mention] image.rs, style.rs, page.rs, header_footer.rs,
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-main-head.log  channel=other binding=mention jev=- rows=1
+    :10 [stem/stem_weak] :5 [path/mention] 1. **HIGH / BLOCKING — src/main.rs:1331**: `cargo +1.99.0 clippy -- -D warnings`는 library 14개 수정 뒤 binary의 `println!` 인수 `&para.raw_
+- [code] .omo/evidence/v318-engine-clippy-correction/source-diff.json  channel=other binding=mention jev=- rows=13
+    :144 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :75 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :77 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/source-doc-diff-check.json  channel=other binding=mention jev=- rows=13
+    :150 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :81 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :83 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/source-input-check.json  channel=other binding=mention jev=- rows=13
+    :142 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :73 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :75 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/staged-diff-check.json  channel=other binding=mention jev=- rows=13
+    :143 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :74 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :76 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/staged-diff-check.log  channel=other binding=mention jev=- rows=2
+    :8 [stem/stem_weak] +    :33 [stem/stem_weak] pub fn insert_text_in_header_footer(doc: &mut Document, section_idx: usize, is_header: bool, apply_to: u8, para_idx: usize, 
+    :38 [stem/stem_weak] +    :5 [stem/stem_weak] Implement field insertion (page number, total pages, filename) in header/footer editing mode, rendering with actual values at
+- [code] .omo/evidence/v318-engine-clippy-correction/strict-clippy-final.json  channel=other binding=mention jev=- rows=13
+    :147 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :78 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :80 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v318-engine-clippy-correction/toolchain.json  channel=other binding=mention jev=- rows=13
+    :144 [path/mention] "src/serializer/hwpx/header.rs": "e80427a92a44461b76a916d355fe3a74962930439f018ef00f80cf94d929f5cb",
+    :75 [basename/mention] "src/parser/header.rs": "e329a7c959fda713a04c8fa63d33f1c74cdfaf526a5d9fd6ddde58bbcce074c9",
+    :77 [basename/mention] "src/parser/hwpx/header.rs": "c12b21c10960b1be44724a86ee3cca34590b97c775be948dd0c1ee6f3250849d",
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/C1_PAUSE_STATE.md  channel=doc binding=mention jev=- rows=1
+    :17 [stem/stem_weak] Details: `c1/REPORT.md`, `c1/red-8027a28-final.log`, updated `negative-control.json`, `c1/*-initial-5315315.log`, `c1/green-*.log`, `c1/impact-*.log`,
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/REPORT.md  channel=doc binding=mention jev=- rows=4
+    :38 [basename/mention] - 처분 2 (선택지 B): `tests/hwpx_roundtrip_integration.rs` 의 c10 세 시험·c9 여백 시험은 기대값만 새 동작으로 바꿨다(다른 assertion 불변). `src/parser/hwpx/header.rs` 는 switch case
+    :45 [stem/stem_weak] 1. header 문단 여백·줄 간격 — switch 없이 default(2배) 값을 평문으로 써서 한컴이 case 로 읽어 들여쓰기·여백이 두 배(진단 결함 D). → HwpUnitChar case(절반, 홀수 unit=CHAR)/default switch, `xml
+    :46 [stem/stem_weak] 2. header 탭 위치 — 같은 2배 평문. → tabItem 마다 switch. `residual_header_tab_items_use_hancom_switch`.
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/after.json  channel=other binding=mention jev=- rows=3
+    :6 [path/mention] "src/serializer/hwpx/header.rs",
+    :5 [basename/mention] "src/parser/hwpx/header.rs",
+    :47 [stem/stem_weak] "header": {
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/baseline.json  channel=other binding=mention jev=- rows=1
+    :47 [stem/stem_weak] "header": {
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/baseline.py  channel=other binding=mention jev=- rows=2
+    :52 [stem/stem_weak] "header": {k: m.header_report(v) for k, v in [("C6_original", c6), ("C6_open_save", f"{dump}/C6_open_save.hwpx")]},
+    :57 [stem/stem_weak] for v in residual["header"].values():
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/REPORT.md  channel=doc binding=mention jev=- rows=5
+    :10 [path/mention] | F2 | `src/serializer/hwpx/header.rs:616` writes odd tab case values with CHAR; `src/parser/hwpx/header.rs:1165` restores the unit remainder. | `resi
+    :11 [path/mention] | F3 | `src/serializer/hwpx/header.rs:908` shares the signed margin scaling rule at `:940`; `src/parser/hwpx/header.rs:800` decodes the CHAR remainder
+    :12 [path/mention] | F4 | `src/model/document.rs:130` stores raw flags, `src/parser/hwpx/header.rs:156` reads empty and paired elements, and `src/serializer/hwpx/header.
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/g8-clippy-initial-5315315.log  channel=other binding=mention jev=- rows=1
+    :6 [path/mention] --> src/serializer/hwpx/header.rs:631:20
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/g8-clippy.log  channel=other binding=mention jev=- rows=1
+    :6 [path/mention] --> src/serializer/hwpx/header.rs:631:20
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/green-g0.log  channel=other binding=mention jev=- rows=1
+    :44 [stem/stem_weak] test stage1_ref_mixed_header_level_regression_probe ... ok
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/green-l2.log  channel=other binding=mention jev=- rows=3
+    :18 [stem/stem_weak] test residual_header_tab_items_use_hancom_switch ... ok
+    :22 [stem/stem_weak] test residual_header_odd_even_negative_margins_survive_two_saves ... ok
+    :23 [stem/stem_weak] test residual_header_para_margins_use_hancom_switch ... ok
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-0.log  channel=other binding=mention jev=- rows=2
+    :412 [stem/stem_weak] - [code] mydocs/eng/troubleshootings/repeat_header_image_duplication.md  channel=doc binding=mention jev=0.08 rows=2
+    :421 [stem/stem_weak] - [code] mydocs/troubleshootings/repeat_header_image_duplication.md  channel=doc binding=mention jev=0.07 rows=2
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-final-4.log  channel=other binding=mention jev=- rows=2
+    :413 [stem/stem_weak] - [code] mydocs/eng/troubleshootings/repeat_header_image_duplication.md  channel=doc binding=mention jev=0.08 rows=2
+    :422 [stem/stem_weak] - [code] mydocs/troubleshootings/repeat_header_image_duplication.md  channel=doc binding=mention jev=0.07 rows=2
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-final-6.log  channel=other binding=mention jev=- rows=1
+    :10 [stem/stem_weak] :40 [stem/stem_weak] $ git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shap
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/char_unit_scan.py  channel=other binding=mention jev=- rows=1
+    :8 [stem/stem_weak] z = zipfile.ZipFile(fn); h = z.read("Contents/header.xml").decode("utf-8")
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/gate-raw-output.txt  channel=other binding=mention jev=- rows=1
+    :40 [stem/stem_weak] $ git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape|field|mod)\.rs|src/
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/l2_measure.py  channel=other binding=mention jev=- rows=6
+    :1 [stem/stem_weak] # 레인 2 측정: 문단 원자 순서열 비교 + 도형·필드·header 잔여 결함(측정 전용).
+    :111 [stem/stem_weak] def header_report(fn):
+    :112 [stem/stem_weak] z=zipfile.ZipFile(fn); x=z.read("Contents/header.xml").decode("utf-8")
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/negative-control.json  channel=other binding=mention jev=- rows=3
+    :24 [stem/stem_weak] "residual_header_odd_even_negative_margins_survive_two_saves": "FAILED",
+    :28 [stem/stem_weak] "residual_header_tab_items_use_hancom_switch": "FAILED",
+    :33 [stem/stem_weak] "residual_header_para_margins_use_hancom_switch": "FAILED",
+- [code] .omo/evidence/v353-rhwp-table-fidelity/REPORT.md  channel=doc binding=mention jev=- rows=3
+    :62 [stem/stem_weak] - **셀 protect/editable** → `list_header_width_ref` 비트 0x02·0x08(업스트림과 같은 자리, HWP5 파서·`table_ops` 가 이미 0x02/0x04 를 같은 필드에서 쓴다). **dirty** → `dirty_flag
+    :71 [stem/stem_weak] - **CTRL_HEADER 오프셋 결함 수정** — `raw_ctrl_data` 는 HWP5 파서가 attr 포함 CTRL_HEADER 전체를 담는다(폭 [12..16], 높이 [16..20], `object_ops.rs` 도 같은 배치). 종전 `update_ctr
+    :81 [stem/stem_weak] 7. **HWPX→HWP5 의 6플래그** — 어댑터 `pack_common_attr_bits`(범위 밖)가 bit 2·13·14·20·24-25·30 을 넣지 않는다. HWP5 셀 lineWrap 비트도 `serialize_cell` 이 쓰지 않는다(protect/e
+- [code] .omo/evidence/v353-rhwp-table-fidelity/baseline.json  channel=other binding=mention jev=- rows=1
+    :82 [stem/stem_weak] "header",
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c3/REBASE.md  channel=doc binding=mention jev=- rows=4
+    :68 [stem/stem_weak] - **Border widths and field offsets (0a04914):** header, field, picture, and section serializers
+    :73 [stem/stem_weak] - **Paragraph margins/init order (4c279a1/c765a21):** header parser/serializer and section writer
+    :143 [stem/stem_weak] | G0 hwpx_header_resave_stability | 7 | 0 | 0 |
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c3/baseline.json  channel=other binding=mention jev=- rows=1
+    :80 [stem/stem_weak] "header",
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c3/c3-source.patch  channel=other binding=mention jev=- rows=1
+    :29 [stem/stem_weak] table.repeat_header = attr & 0x04 != 0;
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c3/conflicts-45d4f16.patch  channel=other binding=mention jev=- rows=4
+    :19 [stem/stem_weak] +                table.repeat_header = attr_str(&attr) == "1";
+    :25 [stem/stem_weak] +                 table.repeat_header = attr_str(&attr) == "1";
+    :41 [stem/stem_weak] b"header" => cell.is_header = attr_str(&attr) == "1",
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c3/g0-base-form-failure.log  channel=other binding=mention jev=- rows=2
+    :49 [stem/stem_weak] left: "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\" ?><hs:sec xmlns:ha=\"http://www.hancom.co.kr/hwpml/2011/app\" xmlns:hp=\"http://www
+    :50 [stem/stem_weak] right: "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\" ?><hs:sec xmlns:ha=\"http://www.hancom.co.kr/hwpml/2011/app\" xmlns:hp=\"http://ww
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c3/g3.log  channel=other binding=mention jev=- rows=1
+    :64 [stem/stem_weak] test serializer::hwpx::table::tests::hwpx_table_no_adjust_keeps_page_break_and_repeat_header ... ok
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c3/impact-parser-control.log  channel=other binding=mention jev=- rows=3
+    :36 [stem/stem_weak] - [code] src/document_core/commands/header_footer_ops.rs  channel=other binding=mention jev=0.47★ rows=41
+    :39 [stem/stem_weak] :45 [stem/stem_weak] fn find_header_footer_control(
+    :92 [stem/stem_weak] :49 [stem/stem_weak] Self::collect_header_footer_controls(paragraphs, section_index);
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c3/lane-g0-integration.log  channel=other binding=mention jev=- rows=3
+    :2 [stem/stem_weak] Running tests/hwpx_header_resave_stability.rs (target/debug/deps/hwpx_header_resave_stability-8f04aadd7596c664)
+    :10 [stem/stem_weak] test form_002_header_survives_two_save_reopen_cycles ... ok
+    :55 [stem/stem_weak] test stage1_ref_mixed_header_level_regression_probe ... ok
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c3/replay-range-diff.txt  channel=other binding=mention jev=- rows=3
+    :29 [stem/stem_weak] table.repeat_header = attr_str(&attr) == "1";
+    :51 [stem/stem_weak] b"header" => cell.is_header = attr_str(&attr) == "1",
+    :82 [stem/stem_weak] let repeat_header = bool01(table.repeat_header);
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c3/verification.json  channel=other binding=mention jev=- rows=3
+    :74 [path/mention] "src/serializer/hwpx/header.rs": "4cd05672a0517188e0874ccdff675cdf1d7a05b7",
+    :62 [basename/mention] "src/parser/hwpx/header.rs": "b6b261065d5da1c42934dc8c62a3e72fd498cdf8",
+    :78 [stem/stem_weak] "tests/hwpx_header_resave_stability.rs": "989acac4ac649241a74887d1bdf1afb438eab5fb"
+- [code] .omo/evidence/v353-rhwp-table-fidelity/t5-observation-base.json  channel=other binding=mention jev=- rows=1
+    :79 [stem/stem_weak] "header",
+- [code] CLAUDE.md  channel=doc binding=mention jev=- rows=1
+    :171 [stem/stem_weak] 5. HWPX XML 원본 확인 (header.xml / section0.xml)
+- [code] README_EN.md  channel=doc binding=mention jev=- rows=1
+    :69 [stem/stem_weak] - Pagination (multi-column split, table row split), headers/footers, master pages, footnotes
+- [code] mydocs/eng/feedback/code-refactoring-strategy.md  channel=doc binding=mention jev=- rows=1
+    :166 [stem/stem_weak] | Header/footer placement | `resolve_header_footer()` | ~150 |
+- [code] mydocs/eng/feedback/layout-quality-report.md  channel=doc binding=mention jev=- rows=2
+    :139 [stem/stem_weak] 1. Page layout calculation (margins, columns, header/footer areas)
+    :207 [stem/stem_weak] - Some abbreviation inconsistency: `bf` (border_fill), `bs` (border_style), `hf` (header_footer)
+- [code] mydocs/eng/feedback/post-refactoring-remaining-tasks.md  channel=doc binding=mention jev=- rows=2
+    :101 [stem/stem_weak] | `paginate_with_measured()` | `pagination/engine.rs` | ~1,450 lines | <=100 lines | Separate table splitting, multi-column, headers, etc. |
+    :195 [stem/stem_weak] | Table page splitting | Minimal | Intra-row, header row repetition |
+- [code] mydocs/eng/feedback/r-code-review-4th.md  channel=doc binding=mention jev=- rows=2
+    :122 [stem/stem_weak] - Integrated multi-column, header/footer, footnote handling (1,541 lines, 16 functions)
+    :182 [stem/stem_weak] - Multi-column + table + header combination E2E
+- [code] mydocs/eng/feedback/r-code-review-report.md  channel=doc binding=mention jev=- rows=3
+    :48 [stem/stem_weak] This single function contains all page splitting logic (table splitting, multi-column handling, header/footer placement, footnote placement, shape pla
+    :57 [stem/stem_weak] - Sub-module separation in `parser/` is also good (cfb_reader, doc_info, body_text, header, etc.)
+    :188 [stem/stem_weak] 2. **Decompose `paginate_with_measured()` 1,456-line function**: Extract table splitting, multi-column handling, header/footer, etc. into separate fun
+- [code] mydocs/eng/manual/dump_command.md  channel=doc binding=mention jev=- rows=2
+    :6 [stem/stem_weak] It displays detailed properties of all paragraphs, shapes, tables, headers/footers, and more.
+    :162 [stem/stem_weak] [0] Hide: header=true, footer=false, border=false, fill=false
+- [code] mydocs/eng/manual/ir_diff_command.md  channel=doc binding=mention jev=- rows=1
+    :130 [stem/stem_weak] 3. **Inspect original HWPX XML** -- Extract the zip and examine header.xml / section0.xml
+- [code] mydocs/eng/manual/keyboard_shortcut_guide.md  channel=doc binding=mention jev=- rows=1
+    :68 [stem/stem_weak] 4.  Editing mode key handling (header/footer / footnote)
+- [code] mydocs/eng/manual/logo_prompts.md  channel=doc binding=mention jev=- rows=1
+    :59 [stem/stem_weak] Vector, flat, scalable. Corporate identity quality — suitable for GitHub README header, VS Code Marketplace banner, and business cards.
+- [code] mydocs/eng/manual/logo_prompts_en.md  channel=doc binding=mention jev=- rows=2
+    :57 [stem/stem_weak] Vector, flat, scalable. Corporate identity quality — suitable for a GitHub README header, app store banner, and business cards.
+    :81 [stem/stem_weak] | Document header | 4 with tagline | landscape |
+- [code] mydocs/eng/manual/onboarding_guide.md  channel=doc binding=mention jev=- rows=5
+    :156 [stem/stem_weak] 1. **Changing text colors**: Applying different colors to header/body/background text to identify rendering sources
+    :165 [stem/stem_weak] "I've colored the odd-page header too. Please re-export page 1 SVG"
+    :169 [stem/stem_weak] This comes from the odd-page header. The header is still
+- [code] mydocs/eng/orders/20260208.md  channel=doc binding=mention jev=- rows=1
+    :8 [stem/stem_weak] | 27 | Table page break | Done | Row-level splitting, header row repeat, row_span cell border fix, 384 tests passed |
+- [code] mydocs/eng/orders/20260210.md  channel=doc binding=mention jev=- rows=2
+    :6 [stem/stem_weak] | 35 | Image handling inside table cells fix | Done | bin_data_content propagation, TextBox Picture/Shape handling, inline horizontal layout, header c
+    :7 [stem/stem_weak] | 36 | Table border rendering enhancement | Done | Phase 1: Gradient fill rendering (SVG/Canvas), Phase 2: Edge-based border deduplication, header row
+- [code] mydocs/eng/orders/20260214.md  channel=doc binding=mention jev=- rows=1
+    :10 [stem/stem_weak] | 69 | Paper setup top margin/header height correction (per Hancom help) | Done | PageAreas::from_page_def() modified: body_start=margin_header+margin
+- [code] mydocs/eng/orders/20260215.md  channel=doc binding=mention jev=- rows=1
+    :18 [stem/stem_weak] | 89 | HWPX file format support | Done | HWPX (ZIP+XML) parser 5 modules implemented. header.xml->DocInfo, section*.xml->Section, content.hpf->section
+- [code] mydocs/eng/orders/20260221.md  channel=doc binding=mention jev=- rows=3
+    :13 [stem/stem_weak] | 133 | New blank document creation + save | Done | Prerequisite: Enter key bug fix (split_at char_count control not included, raw_header_extra lost).
+    :14 [stem/stem_weak] | 134 | CFB error file recovery open | Done | "Malformed FAT (sector 0 pointed to twice)" error file opened normally with LenientCfbReader fallback. p
+    :26 [stem/stem_weak] | B-008 | ~~File corruption when saving after text input + table creation~~ | 2026-02-21 | Resolved | Fixed in Task 133. split_at() raw_header_extra l
+- [code] mydocs/eng/orders/20260222.md  channel=doc binding=mention jev=- rows=1
+    :27 [stem/stem_weak] | B-008 | ~~File corruption when saving after text input + table creation~~ | 2026-02-21 | Resolved | Fixed in Task 133. split_at() raw_header_extra l
+- [code] mydocs/eng/orders/20260223.md  channel=doc binding=mention jev=- rows=1
+    :17 [stem/stem_weak] | B-008 | ~~File corruption when saving after text input + table creation~~ | 2026-02-21 | Resolved | Fixed in Task 133. split_at() raw_header_extra l
+- [code] mydocs/eng/orders/20260322.md  channel=doc binding=mention jev=- rows=1
+    :19 [stem/stem_weak] | 323 | Header/footer Shape rendering + even/odd page selection | Done | Shape rendering added + even/odd header selection (section inheritance -> pag
+- [code] mydocs/eng/orders/20260323.md  channel=doc binding=mention jev=- rows=6
+    :19 [stem/stem_weak] | 323 | Header/footer Shape rendering + even/odd page selection | Done | Shape rendering added + even/odd header selection (section inheritance -> pag
+    :28 [stem/stem_weak] | 333 | Debug overlay feature implementation | Done | export-svg --debug-overlay flag. s{section}:pi={paragraph} label + paragraph boundary (dashed) +
+    :37 [stem/stem_weak] | 342 | exam_math.hwp page 1 header double rendering | Done | Pagination engine initial full-scan header registration removed. Header applied starting
+- [code] mydocs/eng/orders/20260324.md  channel=doc binding=mention jev=- rows=2
+    :11 [stem/stem_weak] | 351 | Layout integration test creation | Done | Real HWP file-based 11 tests. Page count/2-column/header/table split/SVG/equation/regression. 716 ->
+    :23 [stem/stem_weak] | 363 | Wave 6: Paper/header (5 Actions) | Done | PageSetup/HeaderFooter + BreakSection/ColDef/PageNum (stub) |
+- [code] mydocs/eng/orders/backlog-befor50.md  channel=doc binding=mention jev=- rows=1
+    :14 [stem/stem_weak] | B-104 | Header/footer rendering | Render header/footer areas per page | Medium |
+- [code] mydocs/eng/plans/archives/task_105.md  channel=doc binding=mention jev=- rows=1
+    :19 [stem/stem_weak] | bit 1 | Include header | 0=exclude, 1=include |
+- [code] mydocs/eng/plans/archives/task_11.md  channel=doc binding=mention jev=- rows=1
+    :41 [stem/stem_weak] | BYTE stream | n | Paragraph list header (Table 65) |
+- [code] mydocs/eng/plans/archives/task_125.md  channel=doc binding=mention jev=- rows=1
+    :74 [stem/stem_weak] 1. TTF header: Read table directory (tag/offset/length)
+- [code] mydocs/eng/plans/archives/task_131.md  channel=doc binding=mention jev=- rows=2
+    :98 [basename/mention] **File 4**: `src/parser/hwpx/header.rs` (line 302-303) — Fix HWPX parser bits
+    :203 [basename/mention] | `src/parser/hwpx/header.rs` | Fix HWPX emboss/engrave bits | ~4 lines |
+- [code] mydocs/eng/plans/archives/task_133.md  channel=doc binding=mention jev=- rows=6
+    :25 [stem/stem_weak] | File size difference | - | -1,024B | raw_header_extra lost + structural mismatch |
+    :32 [stem/stem_weak] 2. **raw_header_extra lost**: `raw_header_extra: Vec::new()` → Original 12-byte metadata (instanceId+mergeFlags) disappears. PARA_HEADER shrinks from 
+    :53 [stem/stem_weak] **Fix B**: Copy raw_header_extra (`paragraph.rs:507`)
+- [code] mydocs/eng/plans/archives/task_142.md  channel=doc binding=mention jev=- rows=1
+    :117 [stem/stem_weak] │   └── header_footer_layout.rs ← Header/footer
+- [code] mydocs/eng/plans/archives/task_142_impl.md  channel=doc binding=mention jev=- rows=4
+    :209 [stem/stem_weak] ├── header_footer.rs     ← Header/footer collection/application
+    :253 [stem/stem_weak] ├── control_hf.rs        ← header/footer/footnote/endnote/comment (~150 lines)
+    :266 [stem/stem_weak] ├── control_hf.rs        ← header/footer/footnote serialization (~100 lines)
+- [code] mydocs/eng/plans/archives/task_146_impl.md  channel=doc binding=mention jev=- rows=1
+    :5 [stem/stem_weak] Extract 8 independent rendering blocks as private methods: build_page_background, build_page_borders, build_master_page, build_header, build_footer, b
+- [code] mydocs/eng/plans/archives/task_154.md  channel=doc binding=mention jev=- rows=5
+    :115 [basename/mention] | ParaPr margins (prev/next) | Possible paragraph spacing not reflected | Check header.rs parsing |
+    :116 [basename/mention] | ParaPr indent | Possible indentation not reflected | Check header.rs parsing |
+    :35 [stem/stem_weak] | **Headers/footers** (`<hp:headerFooter>`) | **X** | O | Unimplemented in HWPX |
+- [code] mydocs/eng/plans/archives/task_193.md  channel=doc binding=mention jev=- rows=11
+    :5 [stem/stem_weak] Implement header/footer editing experience identical to Hancom's word processor in the web editor. Enable public sector users to create headers/footer
+    :11 [stem/stem_weak] - **Parser/serializer**: HWP file header/footer read/write fully operational
+    :12 [stem/stem_weak] - **Pagination**: HeaderFooterRef determines active header/footer per page
+- [code] mydocs/eng/plans/archives/task_193_impl.md  channel=doc binding=mention jev=- rows=8
+    :16 [stem/stem_weak] - New module `header_footer_ops.rs`: get/create/insertText/deleteText functions for header/footer
+    :18 [stem/stem_weak] - Cursor coordinate calculation for header/footer area
+    :22 [stem/stem_weak] - CursorState extension with headerFooterMode, position fields, enter/exit methods
+- [code] mydocs/eng/plans/archives/task_194.md  channel=doc binding=mention jev=- rows=9
+    :5 [stem/stem_weak] Extend basic header/footer creation/editing from Task 193 to provide management features identical to Hancom's word processor.
+    :22 [stem/stem_weak] - Rust: `delete_header_footer_native` + WASM: `deleteHeaderFooter`
+    :23 [stem/stem_weak] - Frontend: `page:headerfooter-delete` command + toolbar button
+- [code] mydocs/eng/plans/archives/task_195.md  channel=doc binding=mention jev=- rows=6
+    :5 [stem/stem_weak] Implement field insertion (page number, total pages, filename) in header/footer editing mode, rendering with actual values at display time. Implement 
+    :20 [stem/stem_weak] Insert Unicode Private Use Area markers in header/footer paragraph text, substitute with actual values during rendering.
+    :31 [stem/stem_weak] - Rust: `insert_field_in_hf_native()` — insert marker character into header paragraph
+- [code] mydocs/eng/plans/archives/task_195_impl.md  channel=doc binding=mention jev=- rows=4
+    :11 [stem/stem_weak] - `header_footer_ops.rs`: Add `insert_field_in_hf_native(section_idx, is_header, apply_to, hf_para_idx, char_offset, field_type: u8)` (field_type: 1=p
+    :12 [stem/stem_weak] - `layout.rs`: Activate `_page_index` → `page_index` in `layout_header_footer_paragraphs`, substitute markers in ComposedParagraph text runs, maintain
+    :19 [stem/stem_weak] - Toolbar: [Page Number] button in header/footer toolbar
+- [code] mydocs/eng/plans/archives/task_214.md  channel=doc binding=mention jev=- rows=1
+    :54 [stem/stem_weak] **Goal**: Handle multi-column, headers/footers, footnotes and other special cases; connect with existing code
+- [code] mydocs/eng/plans/archives/task_215.md  channel=doc binding=mention jev=- rows=1
+    :20 [stem/stem_weak] 3. **MS Word/OOXML**: cantSplit, tblHeader — row split rules and header row repetition
+- [code] mydocs/eng/plans/archives/task_23.md  channel=doc binding=mention jev=- rows=2
+    :31 [basename/mention] | `src/serializer/header.rs` | New: FileHeader serialization |
+    :30 [stem/stem_weak] | `src/serializer/record_writer.rs` | New: record header encoding |
+- [code] mydocs/eng/plans/archives/task_27.md  channel=doc binding=mention jev=- rows=5
+    :19 [stem/stem_weak] | `Table.repeat_header` | Parsed, unused | Whether to repeat header row |
+    :27 [stem/stem_weak] - When `repeat_header` is true, repeat the first row (header row) on continuation pages
+    :51 [stem/stem_weak] - `repeat_header` support: consider header row height on continuation pages
+- [code] mydocs/eng/plans/archives/task_27_impl.md  channel=doc binding=mention jev=- rows=5
+    :8 [stem/stem_weak] - Goal: Table starts at bottom of page 5, overflowing rows continue on page 6 with header row repeated
+    :29 [stem/stem_weak] /// Continuation page flag (if true, repeat header row)
+    :45 [stem/stem_weak] → When repeat_header, deduct header row height from available
+- [code] mydocs/eng/plans/archives/task_29.md  channel=doc binding=mention jev=- rows=5
+    :19 [basename/mention] 1. `src/parser/header.rs`: Parse `distribution` flag (bit 2)
+    :25 [basename/mention] 1. `src/serializer/header.rs`: Serializes `flags` field as-is (raw_data priority)
+    :64 [basename/mention] | `src/serializer/header.rs` | Serialization with distribution flag removed |
+- [code] mydocs/eng/plans/archives/task_29_impl.md  channel=doc binding=mention jev=- rows=5
+    :47 [basename/mention] **File**: `src/serializer/header.rs`
+    :31 [stem/stem_weak] if !self.header.distribution { return; }
+    :34 [stem/stem_weak] self.header.distribution = false;
+- [code] mydocs/eng/plans/archives/task_2_impl.md  channel=doc binding=mention jev=- rows=1
+    :23 [stem/stem_weak] - `header_footer.rs` - Headers/Footers (Header, Footer)
+- [code] mydocs/eng/plans/archives/task_3_impl.md  channel=doc binding=mention jev=- rows=6
+    :30 [basename/mention] - `src/parser/header.rs` extension — FileHeader binary parsing
+    :132 [basename/mention] | `src/parser/header.rs` | 1 | FileHeader binary parsing extension |
+    :17 [stem/stem_weak] Implement the foundation code to open the HWP file's OLE/CFB container, extract streams, and parse record headers.
+- [code] mydocs/eng/plans/archives/task_43_feature_def.md  channel=doc binding=mention jev=- rows=1
+    :91 [stem/stem_weak] | P1 (Important) | Advanced document editing | Image insertion, headers/footers, page numbers, distribution documents |
+- [code] mydocs/eng/plans/archives/task_44_impl.md  channel=doc binding=mention jev=- rows=1
+    :41 [stem/stem_weak] - PageFlow: Page splitting, headers/footers, footnotes, table splitting
+- [code] mydocs/eng/plans/archives/task_62_impl.md  channel=doc binding=mention jev=- rows=1
+    :29 [stem/stem_weak] - `.dialog-wrap .dialog-title` — header (#e7eaf4 background, bold, drag cursor)
+- [code] mydocs/eng/plans/archives/task_69.md  channel=doc binding=mention jev=- rows=6
+    :6 [stem/stem_weak] > "Regardless of whether headers/footers have content, the body text starts after leaving space equal to the height specified in [Page Setup - Header/
+    :11 [stem/stem_weak] but the actual HWP behavior is **body start = margin_top + margin_header**.
+    :18 [stem/stem_weak] | margin_header | 10mm | 10mm |
+- [code] mydocs/eng/plans/archives/task_69_impl.md  channel=doc binding=mention jev=- rows=7
+    :15 [stem/stem_weak] // HWP body start = margin_top + margin_header (per Hancom Help)
+    :16 [stem/stem_weak] let content_top = page_def.margin_top + page_def.margin_header;
+    :21 [stem/stem_weak] Align header_area / footer_area for consistency:
+- [code] mydocs/eng/plans/archives/task_70.md  channel=doc binding=mention jev=- rows=4
+    :9 [stem/stem_weak] - **Page areas**: header_area, footer_area area calculation complete (Task 69)
+    :15 [stem/stem_weak] 1. `PageContent.header_paragraphs / footer_paragraphs` is always `Vec::new()`
+    :21 [stem/stem_weak] - Header: Fixed repeating content at page top (header_area region)
+- [code] mydocs/eng/plans/archives/task_84.md  channel=doc binding=mention jev=- rows=6
+    :17 [stem/stem_weak] - Table: `cell_spacing`, `padding`, `page_break`, `repeat_header`, `border_fill_id`
+    :18 [stem/stem_weak] - Cell: `width`, `height`, `padding`, `vertical_align`, `text_direction`, `is_header`, `border_fill_id`
+    :72 [stem/stem_weak] | Auto-repeat header row | Checkbox | Table: repeat_header | **Implemented** |
+- [code] mydocs/eng/plans/archives/task_84_impl.md  channel=doc binding=mention jev=- rows=3
+    :64 [stem/stem_weak] - `.dialog-tabs` (tab header bar)
+    :73 [stem/stem_weak] - **Table tab** (active): Page split radio, header row checkbox, all cell inner margins x4
+    :74 [stem/stem_weak] - **Cell tab** (active): Size (width/height), inner margins (4 directions), vertical alignment (3 buttons), vertical text (2 buttons), header cell che
+- [code] mydocs/eng/plans/archives/task_89.md  channel=doc binding=mention jev=- rows=4
+    :103 [basename/mention] +-- header.rs          # header.xml -> DocInfo conversion
+    :23 [stem/stem_weak] |   +-- header.xml           # Document metadata (fonts, styles, paragraph shapes, etc.)
+    :71 [stem/stem_weak] - header.xml parsing (fonts, char shapes, paragraph shapes, styles, border fills)
+- [code] mydocs/eng/plans/archives/task_89_impl.md  channel=doc binding=mention jev=- rows=9
+    :44 [basename/mention] - `src/parser/hwpx/header.rs` — header.xml parsing module
+    :152 [basename/mention] | `src/parser/hwpx/header.rs` | 2 | header.xml → DocInfo conversion |
+    :167 [basename/mention] +-- header.xml -> DocInfo    (header.rs)    <- quick-xml
+- [code] mydocs/eng/plans/archives/task_90.md  channel=doc binding=mention jev=- rows=4
+    :14 [basename/mention] ### header.rs Gaps
+    :39 [basename/mention] | Utility function duplication | header.rs, section.rs each have separate local_name, attr_str, parse_u8..parse_u32 | Extract to common module |
+    :49 [basename/mention] - `src/parser/hwpx/header.rs` — charPr/paraPr/borderFill parsing improvements
+- [code] mydocs/eng/plans/archives/task_90_impl.md  channel=doc binding=mention jev=- rows=7
+    :7 [basename/mention] ### Step 1: Common Utility Extraction + header.rs charPr/paraPr Improvements
+    :14 [basename/mention] - `src/parser/hwpx/header.rs` — charPr/paraPr parsing improvements, remove duplicates
+    :19 [basename/mention] 1. **utils.rs new creation** — extract duplicate functions from header.rs and section.rs:
+- [code] mydocs/eng/plans/archives/task_95.md  channel=doc binding=mention jev=- rows=1
+    :12 [stem/stem_weak] - Reuse existing header/footer pattern for implementation
+- [code] mydocs/eng/plans/archives/task_95_impl.md  channel=doc binding=mention jev=- rows=1
+    :6 [stem/stem_weak] - `src/model/header_footer.rs`: Add MasterPage struct (apply_to, paragraphs, text_width, text_height, text_ref, num_ref, raw_list_header)
+- [code] mydocs/eng/plans/nonfunctional_todo.md  channel=doc binding=mention jev=- rows=1
+    :112 [stem/stem_weak] - Navy (#1B3A6B): Primary UI color, header
+- [code] mydocs/eng/plans/task_252.md  channel=doc binding=mention jev=- rows=1
+    :29 [stem/stem_weak] - Footnote area click → enter footnote edit mode (similar to header/footer)
+- [code] mydocs/eng/plans/task_255.md  channel=doc binding=mention jev=- rows=2
+    :12 [stem/stem_weak] Apply the same pattern as header/footer editing API (`header_footer_ops.rs`):
+    :50 [stem/stem_weak] - Header/footer pattern: `src/document_core/commands/header_footer_ops.rs`
+- [code] mydocs/eng/plans/task_256.md  channel=doc binding=mention jev=- rows=1
+    :11 [stem/stem_weak] - `cursor.ts`: `_headerFooterMode`, `enterHeaderFooterMode()`, `exitHeaderFooterMode()`
+- [code] mydocs/eng/plans/task_265.md  channel=doc binding=mention jev=- rows=1
+    :16 [stem/stem_weak] - Collect PageHide in `collect_header_footer_controls` (including paragraph index)
+- [code] mydocs/eng/plans/task_266.md  channel=doc binding=mention jev=- rows=2
+    :7 [stem/stem_weak] - Dialog: Select content to hide (header, footer, page number, page border, background, master page)
+    :25 [stem/stem_weak] - Dialog: 6 checkboxes (header, footer, page number, border, background, master page)
+- [code] mydocs/eng/plans/task_291.md  channel=doc binding=mention jev=- rows=3
+    :22 [stem/stem_weak] [0]  tag=72(CTRL_HEADER) level=2 size=34   ← Master page control header
+    :39 [stem/stem_weak] | CTRL_HEADER(tag=72) level=2 | Ignored | Master page control header |
+    :58 [stem/stem_weak] 4. `build_header/footer` (header/footer) → Layer 3
+- [code] mydocs/eng/plans/task_312.md  channel=doc binding=mention jev=- rows=1
+    :10 [stem/stem_weak] - `applyParaFormat()`: Already implemented (supports selection range, cell/header mode)
+- [code] mydocs/eng/plans/task_321.md  channel=doc binding=mention jev=- rows=8
+    :31 [stem/stem_weak] - [0] Both: Vertical lines + header table
+    :41 [stem/stem_weak] - [0] Both: For even pages (vertical lines + header table)
+    :42 [stem/stem_weak] - [1] Odd: For odd pages (vertical lines + header table, left-right mirrored)
+- [code] mydocs/eng/plans/task_356.md  channel=doc binding=mention jev=- rows=1
+    :140 [stem/stem_weak] | 27 | HeaderFooter | HeaderFooter | `insert_header/footer()` | Header/footer |
+- [code] mydocs/eng/plans/task_B009.md  channel=doc binding=mention jev=- rows=4
+    :283 [stem/stem_weak] 4. Origin Validation: Checks Origin header on every request
+    :338 [stem/stem_weak] | 1-1 | PDF binary basic structure (header, xref, trailer) | `src/renderer/pdf.rs` |
+    :353 [stem/stem_weak] | 2-1 | PS Level 2 basic frame (DSC header, page structure) | `src/renderer/postscript.rs` |
+- [code] mydocs/eng/plans/task_m100_7.md  channel=doc binding=mention jev=- rows=1
+    :31 [basename/mention] - `src/parser/hwpx/header.rs` — paraPr parsing
+- [code] mydocs/eng/report/midterm_review_day21.md  channel=doc binding=mention jev=- rows=1
+    :606 [stem/stem_weak] | Phase 3: Advanced editor | Image+header+page setup+cell formatting | **45%** | Image/cell formatting/page setup complete, header/footnote not starte
+- [code] mydocs/eng/report/table_algorithm_research.md  channel=doc binding=mention jev=- rows=1
+    :177 [stem/stem_weak] - Split after header row               -> low penalty
+- [code] mydocs/eng/report/table_architecture_review.md  channel=doc binding=mention jev=- rows=7
+    :23 [stem/stem_weak] pub repeat_header: bool,
+    :48 [stem/stem_weak] pub is_header: bool,
+    :367 [stem/stem_weak] is_continuation: bool,              // Continuation page flag (for header row repetition)
+- [code] mydocs/eng/report/task_133_final.md  channel=doc binding=mention jev=- rows=2
+    :14 [stem/stem_weak] | `split_at()` raw_header_extra lost | Copy original raw_header_extra to split paragraph | `src/model/paragraph.rs` |
+    :53 [stem/stem_weak] | `src/model/paragraph.rs` | split_at() char_count/raw_header_extra fix |
+- [code] mydocs/eng/report/task_1_final.md  channel=doc binding=mention jev=- rows=1
+    :24 [basename/mention] | `src/parser/header.rs` | HWP file header struct and signature |
+- [code] mydocs/eng/report/task_2_final.md  channel=doc binding=mention jev=- rows=1
+    :64 [stem/stem_weak] image.rs, style.rs, page.rs, header_footer.rs,
+- [code] mydocs/eng/report/task_36_final.md  channel=doc binding=mention jev=- rows=6
+    :9 [stem/stem_weak] Additionally fixed a bug where some cells were missing during header row repetition.
+    :39 [stem/stem_weak] **Problem**: `layout_partial_table()` skipped individual cells without the `is_header` attribute when repeating header rows, causing some cells to be 
+    :41 [stem/stem_weak] **Root cause**: The HWP editor repeats **all cells** in row 0 if at least one `is_header` cell exists in that row, but the code checked each cell's in
+- [code] mydocs/eng/report/task_3_final.md  channel=doc binding=mention jev=- rows=7
+    :25 [basename/mention] | header | `src/parser/header.rs` | 270 | FileHeader binary parsing |
+    :14 [stem/stem_weak] | Step 4 | Control parsing (tables/shapes/images/headers) + BinData | 175 -> 175 (+/-0, refactoring) | Approved |
+    :26 [stem/stem_weak] | record | `src/parser/record.rs` | 224 | Record header parsing |
+- [code] mydocs/eng/report/task_90_final.md  channel=doc binding=mention jev=- rows=3
+    :10 [basename/mention] - Removed 120 lines of duplicate functions from header.rs/section.rs
+    :51 [basename/mention] | `src/parser/hwpx/header.rs` | Modified | fontface lang, charPr/paraPr/borderFill enhancements |
+    :43 [stem/stem_weak] | Code quality | Duplicate functions in header/section | Common utils.rs module |
+- [code] mydocs/eng/tech/dev_roadmap_v1_backup.md  channel=doc binding=mention jev=- rows=1
+    :48 [stem/stem_weak] +- Quality Improvements (header/footer, etc.)
+- [code] mydocs/eng/tech/direct_printing_guideline.md  channel=doc binding=mention jev=- rows=1
+    :179 [stem/stem_weak] | CSRF Prevention | Origin header validation (only allow rhwp-studio origin) |
+- [code] mydocs/eng/tech/hancom_font_system_analysis.md  channel=doc binding=mention jev=- rows=1
+    :427 [stem/stem_weak] 2. **Independent metrics generation**: Glyph widths can be read from the `hmtx` table of actual font files (.ttf/.otf) to create our own metrics DB. T
+- [code] mydocs/eng/tech/hwp_errata_public_comparison.md  channel=doc binding=mention jev=- rows=4
+    :96 [stem/stem_weak] > body_writer.rs:1164  →  ShapeComponentPicture written immediately after ctrl_header
+    :139 [stem/stem_weak] Thanks to this tolerance, python-hwpx can edit and save at the level of **paragraphs, tables, memos, and headers/footers**.
+    :262 [stem/stem_weak] HWP 5.0 supports **50+ types of controls** (tables, images, equations, shapes, footnotes, endnotes, headers, footers, hyperlinks, bookmarks, OLE, char
+- [code] mydocs/eng/tech/hwp_hwpx_ir_differences.md  channel=doc binding=mention jev=- rows=1
+    :91 [stem/stem_weak] | Header/Footer | CTRL_HEADER/FOOTER | `<headerFooter>` | HWPX not implemented |
+- [code] mydocs/eng/tech/hwp_save_guide.md  channel=doc binding=mention jev=- rows=3
+    :13 [stem/stem_weak] │       margin_header (15mm)      │ <- Header area
+    :14 [stem/stem_weak] ├─────────────────────────────────┤ <- body_area.top = margin_top + margin_header (9920)
+    :101 [stem/stem_weak] | PARA_HEADER | 24 bytes (base) + raw_header_extra | Exact match |
+- [code] mydocs/eng/tech/hwp_spec_errata.md  channel=doc binding=mention jev=- rows=12
+    :40 [stem/stem_weak] | Spec location | Table 67 (Paragraph list header) |
+    :67 [stem/stem_weak] | Spec location | Table 60 (Paragraph header) |
+    :82 [stem/stem_weak] | Spec location | Table 60 (Paragraph header), Table 62 (Paragraph text) |
+- [code] mydocs/eng/tech/hwp_table_rendering.md  channel=doc binding=mention jev=- rows=1
+    :242 [stem/stem_weak] - [ ] Is the thick bottom border of header rows displayed?
+- [code] mydocs/eng/tech/hwpers_analysis.md  channel=doc binding=mention jev=- rows=8
+    :52 [basename/mention] header.rs, doc_info.rs, body_text.rs
+    :56 [basename/mention] header.rs, doc_info.rs                   document.rs, paragraph.rs
+    :69 [basename/mention] renderer.rs (310 lines)                   header.rs, doc_info.rs, body_text.rs
+- [code] mydocs/eng/tech/layout_engine_research.md  channel=doc binding=mention jev=- rows=6
+    :109 [stem/stem_weak] - Header row repetition: When Follow is created, Master's header rows are cloned and inserted
+    :139 [stem/stem_weak] | `tblHeader` | Repeat header rows (only on automatic page breaks) |
+    :151 [stem/stem_weak] - Only the first n consecutive rows can be header rows (rows in the middle cannot)
+- [code] mydocs/eng/tech/project_vision.md  channel=doc binding=mention jev=- rows=8
+    :40 [stem/stem_weak] | **Fragment effect** (Table/formatting shapes) | The moment AI generates HWP | Table page splitting, headers/footers, auto-numbering |
+    :49 [stem/stem_weak] > C(x,y) = (Kmax(column header keyword), Kmax(row header keyword))
+    :53 [stem/stem_weak] > - `Kmax(column header)`: Maximum x-coordinate where keyword is found in the column header area
+- [code] mydocs/eng/tech/rendering_engine_design.md  channel=doc binding=mention jev=- rows=3
+    :106 [basename/mention] │   └── header.rs       # File header parsing, signature verification
+    :116 [stem/stem_weak] │   ├── header_footer.rs # Header, Footer
+    :359 [stem/stem_weak] | Header/Footer | Basic header/footer rendering |
+- [code] mydocs/eng/tech/text_layout_review.md  channel=doc binding=mention jev=- rows=1
+    :119 [stem/stem_weak] - Pagination, table row splitting, multi-column layout, headers/footers/background pages, footnotes/endnotes, object placement (TopAndBottom/TAC), etc
+- [code] mydocs/eng/troubleshootings/page_margin_area_calculation.md  channel=doc binding=mention jev=- rows=12
+    :18 [stem/stem_weak] | margin_header (header, e.g., 10.6mm) -> Header area starts
+    :26 [stem/stem_weak] Key point: **margin_top is the distance from the top of the paper to the body**, and margin_header is the distance from the top of the paper to the he
+    :31 [stem/stem_weak] // Body start = margin_top + margin_header (wrong!)
+- [code] mydocs/eng/troubleshootings/shape_fill_transparency.md  channel=doc binding=mention jev=- rows=1
+    :152 [basename/mention] | `src/parser/hwpx/header.rs` | HWPX `winBrush` alpha attribute parsing |
+- [code] mydocs/eng/troubleshootings/table_paste_file_corruption.md  channel=doc binding=mention jev=- rows=5
+    :70 [stem/stem_weak] This rule applies uniformly to all paragraph lists: sections, cells, text boxes, headers/footers, etc.
+    :237 [stem/stem_weak] - VALID: `attr = 0x04000006` (bits 1,2 set: no cell split + repeat_header)
+    :238 [stem/stem_weak] - DAMAGED: `attr = 0x04000004` (bit 2 only: repeat_header only)
+- [code] mydocs/eng/troubleshootings/table_reflow_and_cell_rendering.md  channel=doc binding=mention jev=- rows=1
+    :64 [stem/stem_weak] The HWP spec's table attributes (attr) have no wrapper identification flag (only bits 0-1: page break, bit 2: header row repeat are defined).
+- [code] mydocs/eng/troubleshootings/task_96_group_child_textbox_vertical_align.md  channel=doc binding=mention jev=- rows=3
+    :67 [stem/stem_weak] let mut list_header_data: Option<&[u8]> = None;
+    :71 [stem/stem_weak] list_header_data = Some(&record.data);  // Capture data
+    :79 [stem/stem_weak] if let Some(lh_data) = list_header_data {
+- [code] mydocs/eng/working/archives/task_102_step1.md  channel=doc binding=mention jev=- rows=1
+    :37 [stem/stem_weak] - `src/renderer/layout.rs`: Added `measured_table: Option<&MeasuredTable>` to `layout_table()` signature. Uses MeasuredTable.row_heights directly for 
+- [code] mydocs/eng/working/archives/task_107_final.md  channel=doc binding=mention jev=- rows=1
+    :51 [basename/mention] | src/parser/hwpx/header.rs | HWPX header change |
+- [code] mydocs/eng/working/archives/task_142_step1.md  channel=doc binding=mention jev=- rows=1
+    :50 [stem/stem_weak] - Total line increase vs original: 24,585 → 24,713 (+128 lines, module header/import overhead)
+- [code] mydocs/eng/working/archives/task_142_step2.md  channel=doc binding=mention jev=- rows=2
+    :13 [stem/stem_weak] | `layout.rs` | 1,128 | LayoutEngine struct + build_render_tree + header/footer + mod declarations |
+    :46 [stem/stem_weak] - Total line increase vs original: 8,708 → 8,838 (+130 lines, module header/import overhead)
+- [code] mydocs/eng/working/archives/task_142_step4.md  channel=doc binding=mention jev=- rows=1
+    :13 [stem/stem_weak] | `control.rs` | 585 | parse_control dispatcher + table/header-footer/footnote-endnote/simple control parsers |
+- [code] mydocs/eng/working/archives/task_146_report.md  channel=doc binding=mention jev=- rows=1
+    :26 [stem/stem_weak] - 8 page element methods extracted (background, border, master page, header, footer, column divider, footnote, page number)
+- [code] mydocs/eng/working/archives/task_154_stage3.md  channel=doc binding=mention jev=- rows=2
+    :51 [stem/stem_weak] | **`<header>`** | `Control::Header` | **applyPageType + subList paragraph parsing** |
+    :72 [stem/stem_weak] 22 new helper functions added including `parse_sublist_paragraphs()`, `parse_bool_attr()`, `parse_page_hiding_attrs()`, `parse_ctrl_header()`, `parse_
+- [code] mydocs/eng/working/archives/task_193_final.md  channel=doc binding=mention jev=- rows=3
+    :5 [stem/stem_weak] Implemented basic header/footer editing experience matching Hancom's approach for public sector users. Proceeded according to 4-step plan; steps 2-4 w
+    :23 [stem/stem_weak] - **Rust Core**: header_footer_ops.rs (CRUD + text editing), cursor_rect.rs (cursor coordinates + hit test), wasm_api.rs (10 bindings)
+    :26 [stem/stem_weak] - **Text Edit Pipeline**: input-handler-text.ts (3-way branch: body/cell/header-footer), input-handler-keyboard.ts
+- [code] mydocs/eng/working/archives/task_193_step1.md  channel=doc binding=mention jev=- rows=2
+    :4 [stem/stem_weak] - **`src/document_core/commands/header_footer_ops.rs`** — Header/footer CRUD and text editing functions
+    :9 [stem/stem_weak] - 5 internal helpers: find_header_footer_control, get_hf_paragraph_mut/ref, reflow_hf_paragraph, find_section_for_page, get_active_hf_apply_to
+- [code] mydocs/eng/working/archives/task_193_step2_3_4.md  channel=doc binding=mention jev=- rows=2
+    :6 [stem/stem_weak] - cursor.ts: mode fields (`_headerFooterMode`, `_hfSectionIdx`, `_hfApplyTo`, etc.), enter/exit methods, horizontal movement, updateRect modification
+    :11 [stem/stem_weak] - Toolbar switching on headerFooterModeChanged event: Show `.tb-headerfooter-group`, hide default groups
+- [code] mydocs/eng/working/archives/task_194_final.md  channel=doc binding=mention jev=- rows=8
+    :6 [stem/stem_weak] - `delete_header_footer_native`, WASM binding, toolbar: [Label] [Prev] [Next] [Close] [Delete]
+    :9 [stem/stem_weak] - `navigate_header_footer_by_page_native` with Both/Odd/Even distinction
+    :12 [stem/stem_weak] - `DocumentCore.hidden_header_footer: HashSet<(u32, bool)>` for per-page hiding
+- [code] mydocs/eng/working/archives/task_195_final.md  channel=doc binding=mention jev=- rows=1
+    :19 [stem/stem_weak] - HWP controls occupy 8 UTF-16 code units; char_count was not updated when adding/removing header/footer controls, causing rendering omissions in `com
+- [code] mydocs/eng/working/archives/task_1_step_3.md  channel=doc binding=mention jev=- rows=2
+    :19 [basename/mention] └── header.rs   # HWP file header parsing (signature, version structs)
+    :24 [basename/mention] - `parser/header.rs`: Defined HWP file signature constants, `FileHeader`, `HwpVersion` structs
+- [code] mydocs/eng/working/archives/task_1_step_4.md  channel=doc binding=mention jev=- rows=1
+    :15 [stem/stem_weak] - `parser::header::tests::test_hwp_signature` - OK
+- [code] mydocs/eng/working/archives/task_214_final.md  channel=doc binding=mention jev=- rows=1
+    :79 [stem/stem_weak] - Intra-row split, header row repetition, captions, footnotes, host_spacing
+- [code] mydocs/eng/working/archives/task_214_step1_2.md  channel=doc binding=mention jev=- rows=1
+    :55 [stem/stem_weak] - Cause: Detailed logic for table row splitting/captions/header row repetition/footnotes not yet implemented
+- [code] mydocs/eng/working/archives/task_214_step3.md  channel=doc binding=mention jev=- rows=1
+    :27 [stem/stem_weak] - Cause: TypesetEngine's table splitting logic is simplified (intra-row split, header row repetition, captions, footnotes, host_spacing, etc. not yet 
+- [code] mydocs/eng/working/archives/task_215_step1.md  channel=doc binding=mention jev=- rows=2
+    :8 [stem/stem_weak] - `FormattedTable`: Table format() result (row_heights, host_spacing, effective_height, header_row_count, etc.)
+    :32 [stem/stem_weak] - Header row repetition (repeated in continuation fragments when header_row_count > 0)
+- [code] mydocs/eng/working/archives/task_23_step1.md  channel=doc binding=mention jev=- rows=3
+    :11 [stem/stem_weak] | `src/serializer/record_writer.rs` | New: Record header encoding + 9 tests |
+    :27 [stem/stem_weak] - Reverse of `Record::read_all()` — record header encoding
+    :45 [stem/stem_weak] - `test_write_multiple_records`, `test_write_record_from_struct`, `test_roundtrip_header_encoding`
+- [code] mydocs/eng/working/archives/task_23_step2.md  channel=doc binding=mention jev=- rows=8
+    :9 [basename/mention] | `src/serializer/header.rs` | New: FileHeader 256-byte serialization + 5 tests |
+    :15 [basename/mention] 1. **FileHeader Serialization** (`header.rs`)
+    :11 [stem/stem_weak] | `src/serializer/mod.rs` | Added `pub mod header;`, `pub mod doc_info;` |
+- [code] mydocs/eng/working/archives/task_23_step3.md  channel=doc binding=mention jev=- rows=3
+    :12 [stem/stem_weak] | `serialize_paragraph_list(paragraphs, base_level, records)` | Paragraph list → records (for recursive calls in cells, headers, etc.) |
+    :14 [stem/stem_weak] | `serialize_para_header(para)` | PARA_HEADER data (char_count, control_mask, shape_id, style_id, break_type) |
+    :38 [stem/stem_weak] | Header/Footer | `serialize_header_control/footer_control` | LIST_HEADER + paragraphs |
+- [code] mydocs/eng/working/archives/task_23_step4.md  channel=doc binding=mention jev=- rows=1
+    :65 [stem/stem_weak] 4. `parse_file_header()` → version/flag match verification
+- [code] mydocs/eng/working/archives/task_27_complete.md  channel=doc binding=mention jev=- rows=5
+    :21 [stem/stem_weak] | `src/renderer/height_measurer.rs` | Added `cell_spacing`, `repeat_header` fields to `MeasuredTable`, added `get_measured_table()` method |
+    :28 [stem/stem_weak] - For tables with `repeat_header=true`, deducts header row (row 0) height from available area on continuation pages
+    :32 [stem/stem_weak] - `is_continuation && repeat_header` → renders header row first then body rows
+- [code] mydocs/eng/working/archives/task_29_final.md  channel=doc binding=mention jev=- rows=2
+    :11 [stem/stem_weak] - Sets `raw_data = None` to trigger header regeneration
+    :30 [stem/stem_weak] - Therefore, additional work is only header flag cleanup and encryption seed data removal
+- [code] mydocs/eng/working/archives/task_2_step_2.md  channel=doc binding=mention jev=- rows=2
+    :19 [stem/stem_weak] | `header_footer.rs` | Header, Footer | Headers/footers |
+    :33 [stem/stem_weak] 8. **Section definition**: Per-section independent page settings, header/footer/border/background hide flags
+- [code] mydocs/eng/working/archives/task_2_step_5.md  channel=doc binding=mention jev=- rows=1
+    :18 [stem/stem_weak] | parser | 1 | 1 | File header signature verification |
+- [code] mydocs/eng/working/archives/task_37_final.md  channel=doc binding=mention jev=- rows=1
+    :67 [stem/stem_weak] | `src/model/header_footer.rs` | 1 | Added Clone derive |
+- [code] mydocs/eng/working/archives/task_37_stage1.md  channel=doc binding=mention jev=- rows=2
+    :16 [stem/stem_weak] | `src/model/header_footer.rs` | `Header`, `Footer` |
+    :97 [stem/stem_weak] | `src/model/header_footer.rs` | Added Clone derive (Header, Footer) |
+- [code] mydocs/eng/working/archives/task_38_final.md  channel=doc binding=mention jev=- rows=2
+    :19 [stem/stem_weak] | 5 | Table struct assembly: Cell, row_sizes, raw_ctrl_data (CommonObjAttr), repeat_header setup |
+    :90 [stem/stem_weak] | New: th header row table | 1 |
+- [code] mydocs/eng/working/archives/task_3_step_1.md  channel=doc binding=mention jev=- rows=6
+    :12 [basename/mention] | `src/parser/header.rs` | FileHeader binary parsing (signature, version, flags) |
+    :43 [basename/mention] #### header.rs - FileHeader Binary Parsing
+    :10 [stem/stem_weak] | `src/parser/record.rs` | Record header parsing (tag ID, level, size, extended size) |
+- [code] mydocs/eng/working/archives/task_3_step_3.md  channel=doc binding=mention jev=- rows=5
+    :32 [stem/stem_weak] Recursive decomposition via `parse_body_text_section()` -> `parse_paragraph()` -> `parse_ctrl_header()`.
+    :48 [stem/stem_weak] | `parse_para_header()` | PARA_HEADER data | `Paragraph` base fields |
+    :53 [stem/stem_weak] | `parse_ctrl_header()` | CTRL_HEADER group | `Control` |
+- [code] mydocs/eng/working/archives/task_3_step_4.md  channel=doc binding=mention jev=- rows=10
+    :9 [stem/stem_weak] | `src/parser/control.rs` | ~610 | Control parsing (tables, shapes, pictures, headers/footers, footnotes/endnotes, hidden comments, simple controls) |
+    :20 [stem/stem_weak] Receives delegation from body_text.rs `parse_ctrl_header` for controls other than secd/cold.
+    :28 [stem/stem_weak] | `daeh` | Header | `parse_header_control()` | `Control::Header(Header)` |
+- [code] mydocs/eng/working/archives/task_3_step_5.md  channel=doc binding=mention jev=- rows=6
+    :146 [basename/mention] | header | `src/parser/header.rs` | FileHeader binary parsing |
+    :26 [stem/stem_weak] 2. **Parse FileHeader** -> `parse_file_header()` -> version, compression, distribution flags
+    :94 [stem/stem_weak] |-- Parse FileHeader (header)
+- [code] mydocs/eng/working/archives/task_41_step2.md  channel=doc binding=mention jev=- rows=2
+    :21 [stem/stem_weak] **Problem**: bit 1 (cell split prevention) was set only when `has_header_row`
+    :26 [stem/stem_weak] let tbl_rec_attr: u32 = if has_header_row {
+- [code] mydocs/eng/working/archives/task_44_step3.md  channel=doc binding=mention jev=- rows=2
+    :30 [stem/stem_weak] | **HeaderFooterContext** | Inside header/footer | headerFooterType, innerCursor |
+    :68 [stem/stem_weak] -> Stage 2: Page area determination (body/header/footer/margin)
+- [code] mydocs/eng/working/archives/task_4_step_4.md  channel=doc binding=mention jev=- rows=2
+    :12 [stem/stem_weak] | `src/parser/control.rs` | ~10 lines modified | find_list_header_paragraphs level bug fix |
+    :47 [stem/stem_weak] **1. find_list_header_paragraphs level bug (control.rs)**
+- [code] mydocs/eng/working/archives/task_52_step_report.md  channel=doc binding=mention jev=- rows=1
+    :138 [stem/stem_weak] - `icon-footnote(4,4)`, `icon-endnote(5,4)`, `icon-header(1,4)`, `icon-footer(2,4)`
+- [code] mydocs/eng/working/archives/task_62_report.md  channel=doc binding=mention jev=- rows=1
+    :39 [stem/stem_weak] - **Paper margins**: Top/bottom/left/right/header/footer/binding -- 7 fields (mm, 1 decimal)
+- [code] mydocs/eng/working/archives/task_70_final.md  channel=doc binding=mention jev=- rows=6
+    :21 [stem/stem_weak] - Added `active_header`, `active_footer`, `page_number_pos` fields to `PageContent`
+    :25 [stem/stem_weak] - Selects correct header/footer based on odd/even page number
+    :31 [stem/stem_weak] - Referenced `active_header`/`active_footer` when creating Header/Footer nodes in `build_render_tree()`
+- [code] mydocs/eng/working/archives/task_84_done.md  channel=doc binding=mention jev=- rows=3
+    :5 [stem/stem_weak] Implemented a table/cell properties dialog with the HWP standard 6-tab structure (Basic, Margins/Caption, Border, Background, Table, Cell). The Table 
+    :36 [stem/stem_weak] | Table | **Active** | Page boundary break (radio), auto-repeat header row, all cell padding (4 directions) |
+    :37 [stem/stem_weak] | Cell | **Active** | Width/height, padding (4 directions), vertical alignment (3 buttons), vertical text (2 buttons), header cell |
+- [code] mydocs/eng/working/archives/task_89_report.md  channel=doc binding=mention jev=- rows=5
+    :25 [basename/mention] | `src/parser/hwpx/header.rs` (~700 lines) | header.xml -> DocInfo + DocProperties conversion |
+    :87 [basename/mention] - `src/parser/hwpx/header.rs` — header.xml -> DocInfo
+    :21 [stem/stem_weak] ### Stage 2: header.xml Parsing -> DocInfo Conversion
+- [code] mydocs/eng/working/archives/task_90_step1.md  channel=doc binding=mention jev=- rows=4
+    :4 [basename/mention] Extract common utility functions + improve header.rs charPr/paraPr parsing
+    :13 [basename/mention] ### 2. header.rs Duplicate Function Removal + paraPr/charPr Improvements
+    :41 [basename/mention] | `src/parser/hwpx/header.rs` | utils import, duplicate removal, charPr/paraPr improvements |
+- [code] mydocs/eng/working/archives/task_90_step3.md  channel=doc binding=mention jev=- rows=2
+    :47 [basename/mention] | `src/parser/hwpx/header.rs` | fontface lang tracking, borderFill gradation/imgBrush/slash, import cleanup |
+    :11 [stem/stem_weak] - Tracked context with `current_font_group` variable in `parse_hwpx_header`
+- [code] mydocs/eng/working/archives/task_95_final.md  channel=doc binding=mention jev=- rows=4
+    :12 [stem/stem_weak] - Added `MasterPage` struct to `header_footer.rs`
+    :14 [stem/stem_weak] - Fields: apply_to, paragraphs, text_width, text_height, text_ref, num_ref, raw_list_header
+    :31 [stem/stem_weak] - Same Both->Odd/Even priority pattern as header/footer
+- [code] mydocs/eng/working/task_241_stage2.md  channel=doc binding=mention jev=- rows=1
+    :24 [stem/stem_weak] - Also collects bookmarks in nested structures (table cells, headers/footers, etc.)
+- [code] mydocs/eng/working/task_5_complete.md  channel=doc binding=mention jev=- rows=1
+    :8 [basename/mention] - `src/parser/hwpx/header.rs` -- imgBrush mode="TOTAL" -> FitToSize mapping added
+- [code] mydocs/feedback/code-refactoring-strategy.md  channel=doc binding=mention jev=- rows=1
+    :166 [stem/stem_weak] | 머리말/꼬리말 배치 | `resolve_header_footer()` | ~150 |
+- [code] mydocs/feedback/layout-quality-report.md  channel=doc binding=mention jev=- rows=1
+    :207 [stem/stem_weak] - 일부 약어 혼용: `bf`(border_fill), `bs`(border_style), `hf`(header_footer)
+- [code] mydocs/feedback/r-code-review-report.md  channel=doc binding=mention jev=- rows=1
+    :57 [stem/stem_weak] - `parser/` 모듈의 서브 모듈 분리도 양호 (cfb_reader, doc_info, body_text, header 등)
+- [code] mydocs/manual/OWPML SCHEMA/ParaList XML schema.xml  channel=other binding=mention jev=- rows=4
+    :128 [stem/stem_weak] <xs:element name="header" type="hp:HeaderFooterType"/>
+    :829 [stem/stem_weak] <xs:attribute name="header" type="xs:nonNegativeInteger"
+    :987 [stem/stem_weak] <xs:attribute name="headerInside" type="xs:boolean" default="false">
+- [code] mydocs/manual/dump_command.md  channel=doc binding=mention jev=- rows=1
+    :162 [stem/stem_weak] [0] 감추기: header=true, footer=false, border=false, fill=false
+- [code] mydocs/manual/ir_diff_command.md  channel=doc binding=mention jev=- rows=1
+    :130 [stem/stem_weak] 3. **HWPX XML 원본 확인** — zip 해제 후 header.xml / section0.xml 검사
+- [code] mydocs/manual/logo_prompts.md  channel=doc binding=mention jev=- rows=1
+    :59 [stem/stem_weak] Vector, flat, scalable. Corporate identity quality — suitable for GitHub README header, VS Code Marketplace banner, and business cards.
+- [code] mydocs/manual/logo_prompts_en.md  channel=doc binding=mention jev=- rows=2
+    :57 [stem/stem_weak] Vector, flat, scalable. Corporate identity quality — suitable for a GitHub README header, app store banner, and business cards.
+    :81 [stem/stem_weak] | Document header | 4 with tagline | landscape |
+- [code] mydocs/orders/20260210.md  channel=doc binding=mention jev=- rows=1
+    :6 [stem/stem_weak] | 35 | 표 안의 이미지 처리 문제 해결 | 완료 | bin_data_content 전파, TextBox 내 Picture/Shape 처리, 인라인 수평 배치, 제목 셀(is_header) 기반 반복행 처리, 415 테스트 통과 |
+- [code] mydocs/orders/20260214.md  channel=doc binding=mention jev=- rows=1
+    :10 [stem/stem_weak] | 69 | 용지설정 윗여백·머릿말 높이 보정 (한컴 도움말 기준) | 완료 | PageAreas::from_page_def()에서 본문시작=margin_header+margin_top, 본문끝=height-margin_footer-margin_bottom으로 수정. 
+- [code] mydocs/orders/20260215.md  channel=doc binding=mention jev=- rows=1
+    :18 [stem/stem_weak] | 89 | HWPX 파일 처리 지원 | 완료 | HWPX(ZIP+XML) 파서 5개 모듈 구현. header.xml→DocInfo, section*.xml→Section, content.hpf→섹션목록, BinData 로딩. 포맷 자동감지, WASM/프론트엔드 통합.
+- [code] mydocs/orders/20260221.md  channel=doc binding=mention jev=- rows=3
+    :13 [stem/stem_weak] | 133 | 빈 문서 만들기 + 저장 | 완료 | 선결: 엔터키 버그 수정(split_at char_count 컨트롤 미포함, raw_header_extra 유실). 내장 템플릿(blank2010.hwp) 기반 새 문서 생성 + 문서 초기화 리팩터링 + file:ne
+    :14 [stem/stem_weak] | 134 | CFB 오류 파일 복구 열기 | 완료 | "Malformed FAT (sector 0 pointed to twice)" 오류 파일을 LenientCfbReader 폴백으로 정상 열기. parse_hwp() strict→lenient 2단계 전략. Leni
+    :26 [stem/stem_weak] | B-008 | ~~텍스트 입력 후 표 생성 → 저장 시 파일 손상~~ | 2026-02-21 | 해결 | 타스크 133에서 수정. split_at() raw_header_extra 유실 + char_count 컨트롤 미포함 + 빈 문단 has_para_text 처리
+- [code] mydocs/orders/20260222.md  channel=doc binding=mention jev=- rows=1
+    :27 [stem/stem_weak] | B-008 | ~~텍스트 입력 후 표 생성 → 저장 시 파일 손상~~ | 2026-02-21 | 해결 | 타스크 133에서 수정. split_at() raw_header_extra 유실 + char_count 컨트롤 미포함 + 빈 문단 has_para_text 처리
+- [code] mydocs/orders/20260223.md  channel=doc binding=mention jev=- rows=1
+    :17 [stem/stem_weak] | B-008 | ~~텍스트 입력 후 표 생성 → 저장 시 파일 손상~~ | 2026-02-21 | 해결 | 타스크 133에서 수정. split_at() raw_header_extra 유실 + char_count 컨트롤 미포함 + 빈 문단 has_para_text 처리
+- [code] mydocs/orders/20260323.md  channel=doc binding=mention jev=- rows=2
+    :38 [stem/stem_weak] | 343 | 2단 수식 문단 페이지네이션 + 머리말 위치 수정 | 완료 | TAC 수식 vpos 보정 제외 → 페이지 수 정상화 + PartialParagraph 중복 방지 + header_area.top margin_top으로 수정. B-004/B-005 백로그 등
+    :54 [stem/stem_weak] | B-005 | 2단 문서 머리글 영역에 본문 문단 겹침 | 2026-03-23 | 해결 | Task 343에서 header_area.top을 margin_top으로 수정하여 해결 |
+- [code] mydocs/orders/20260417.md  channel=doc binding=mention jev=- rows=1
+    :47 [stem/stem_weak] - **Task #165**: header.xml IR 기반 직렬화 (글꼴/스타일/문단 모양)
+- [code] mydocs/orders/20260418.md  channel=doc binding=mention jev=- rows=1
+    :51 [stem/stem_weak] - `6c3983b` Task #182 Stage 1: header.xml IR 동적 생성 (2026-04-17)
+- [code] mydocs/plans/archives/task_122.md  channel=doc binding=mention jev=- rows=1
+    :72 [basename/mention] | src/parser/hwpx/header.rs | HWPX Bullet 파싱 (필요시) |
+- [code] mydocs/plans/archives/task_131.md  channel=doc binding=mention jev=- rows=2
+    :98 [basename/mention] **파일 4**: `src/parser/hwpx/header.rs` (라인 302-303) — HWPX 파서 비트 수정
+    :203 [basename/mention] | `src/parser/hwpx/header.rs` | HWPX emboss/engrave 비트 수정 | ~4줄 |
+- [code] mydocs/plans/archives/task_133.md  channel=doc binding=mention jev=- rows=6
+    :25 [stem/stem_weak] | 파일 크기 차이 | - | -1,024B | raw_header_extra 유실 + 구조 불일치 |
+    :32 [stem/stem_weak] 2. **raw_header_extra 유실**: `raw_header_extra: Vec::new()` → 원본의 12바이트 메타데이터(instanceId+mergeFlags)가 사라짐. PARA_HEADER가 24B→22B로 축소
+    :53 [stem/stem_weak] **수정 B**: raw_header_extra 복사 (`paragraph.rs:507`)
+- [code] mydocs/plans/archives/task_142.md  channel=doc binding=mention jev=- rows=1
+    :117 [stem/stem_weak] │   └── header_footer_layout.rs ← 머리말/꼬리말
+- [code] mydocs/plans/archives/task_142_impl.md  channel=doc binding=mention jev=- rows=4
+    :209 [stem/stem_weak] ├── header_footer.rs     ← 머리말/꼬리말 수집·적용
+    :253 [stem/stem_weak] ├── control_hf.rs        ← header/footer/footnote/endnote/comment (~150줄)
+    :266 [stem/stem_weak] ├── control_hf.rs        ← header/footer/footnote 직렬화 (~100줄)
+- [code] mydocs/plans/archives/task_146_impl.md  channel=doc binding=mention jev=- rows=1
+    :5 [stem/stem_weak] 8개 독립 렌더링 블록을 private 메서드로 추출: build_page_background, build_page_borders, build_master_page, build_header, build_footer, build_column_separators, buil
+- [code] mydocs/plans/archives/task_154.md  channel=doc binding=mention jev=- rows=4
+    :115 [basename/mention] | ParaPr margins (prev/next) | 문단 전후 간격 미반영 가능성 | header.rs 파싱 확인 |
+    :116 [basename/mention] | ParaPr indent | 들여쓰기 미반영 가능성 | header.rs 파싱 확인 |
+    :35 [stem/stem_weak] | **머리말/꼬리말** (`<hp:headerFooter>`) | **X** | O | HWPX에서 미구현 |
+- [code] mydocs/plans/archives/task_193.md  channel=doc binding=mention jev=- rows=8
+    :15 [stem/stem_weak] - **렌더러**: build_header/build_footer로 렌더 트리에 Header/Footer 노드 생성
+    :43 [stem/stem_weak] - CursorState에 `headerFooterMode: 'none' | 'header' | 'footer'` 상태 추가
+    :44 [stem/stem_weak] - DocumentPosition에 `headerFooterParaIndex`, `headerFooterApplyTo` 필드 추가
+- [code] mydocs/plans/archives/task_194.md  channel=doc binding=mention jev=- rows=6
+    :19 [stem/stem_weak] 한컴 도움말(`format/header/`)을 참고하여 다음 기능을 구현한다.
+    :25 [stem/stem_weak] - Rust: `delete_header_footer_native` 함수 신규
+    :27 [stem/stem_weak] - 프론트엔드: `page:headerfooter-delete` 커맨드 + 도구상자 버튼
+- [code] mydocs/plans/archives/task_194_impl.md  channel=doc binding=mention jev=- rows=10
+    :6 [stem/stem_weak] - `header_footer_ops.rs`에 `delete_header_footer_native` 추가
+    :13 [stem/stem_weak] - `page.ts`에 `page:headerfooter-delete` 커맨드 추가
+    :17 [stem/stem_weak] - `.tb-headerfooter-group` 도구상자 확장:
+- [code] mydocs/plans/archives/task_195.md  channel=doc binding=mention jev=- rows=4
+    :63 [stem/stem_weak] - Rust: `insert_field_in_hf_native(section_idx, is_header, apply_to, hf_para_idx, char_offset, field_type)` — 머리말 문단에 마커 문자 삽입
+    :64 [stem/stem_weak] - 렌더링: `layout_header_footer_paragraphs`에서 compose 결과의 마커를 실제 값으로 치환
+    :85 [stem/stem_weak] - `src/document_core/commands/header_footer_ops.rs` — 필드 마커 삽입 함수
+- [code] mydocs/plans/archives/task_195_impl.md  channel=doc binding=mention jev=- rows=2
+    :11 [stem/stem_weak] - `header_footer_ops.rs`: `insert_field_in_hf_native(section_idx, is_header, apply_to, hf_para_idx, char_offset, field_type: u8)` 추가
+    :14 [stem/stem_weak] - `layout.rs`: `layout_header_footer_paragraphs`에서 compose 후 마커 치환
+- [code] mydocs/plans/archives/task_215.md  channel=doc binding=mention jev=- rows=5
+    :40 [stem/stem_weak] header_row_count: usize, cell_breaks: Option<Vec<CellBreakToken>> },
+    :50 [stem/stem_weak] header_row_count: usize,     // 머리행 수
+    :80 [stem/stem_weak] 1. 머리행 배치 (break_token.header_row_count 참조)
+- [code] mydocs/plans/archives/task_226.md  channel=doc binding=mention jev=- rows=1
+    :37 [stem/stem_weak] | 머리말/꼬리말 감추기 | hide_header, hide_footer | bool |
+- [code] mydocs/plans/archives/task_23.md  channel=doc binding=mention jev=- rows=5
+    :90 [basename/mention] **파일**: `src/serializer/header.rs`, `src/serializer/doc_info.rs`
+    :160 [basename/mention] | `src/serializer/header.rs` | 신규: FileHeader 직렬화 |
+    :34 [stem/stem_weak] → serialize_file_header → 256바이트
+- [code] mydocs/plans/archives/task_27.md  channel=doc binding=mention jev=- rows=4
+    :19 [stem/stem_weak] | `Table.repeat_header` | 파싱됨, 미사용 | 제목행 반복 여부 |
+    :27 [stem/stem_weak] - `repeat_header`가 true인 경우 연속 페이지에 첫 행(제목행)을 반복
+    :51 [stem/stem_weak] - `repeat_header` 지원: 연속 페이지에 제목행 높이도 고려
+- [code] mydocs/plans/archives/task_27_impl.md  channel=doc binding=mention jev=- rows=3
+    :45 [stem/stem_weak] → repeat_header 시 제목행 높이도 available에서 차감
+    :89 [stem/stem_weak] - `is_continuation && repeat_header`: 먼저 행0(제목행) 셀 렌더링, 그 아래에 start_row~end_row 렌더링
+    :104 [stem/stem_weak] - 페이지네이션: repeat_header 시 연속 페이지에 제목행 높이 반영
+- [code] mydocs/plans/archives/task_29.md  channel=doc binding=mention jev=- rows=3
+    :19 [basename/mention] 1. `src/parser/header.rs`: `distribution` 플래그 파싱 (bit 2)
+    :25 [basename/mention] 1. `src/serializer/header.rs`: `flags` 필드를 그대로 직렬화 (raw_data 우선)
+    :64 [basename/mention] | `src/serializer/header.rs` | distribution 플래그 제거 직렬화 |
+- [code] mydocs/plans/archives/task_29_impl.md  channel=doc binding=mention jev=- rows=5
+    :48 [basename/mention] **파일**: `src/serializer/header.rs`
+    :31 [stem/stem_weak] if !self.header.distribution { return; }
+    :34 [stem/stem_weak] self.header.distribution = false;
+- [code] mydocs/plans/archives/task_2_impl.md  channel=doc binding=mention jev=- rows=1
+    :23 [stem/stem_weak] - `header_footer.rs` - 머리말/꼬리말 (Header, Footer)
+- [code] mydocs/plans/archives/task_38_impl.md  channel=doc binding=mention jev=- rows=3
+    :27 [stem/stem_weak] is_header: bool,                  // <th> 태그 여부
+    :106 [stem/stem_weak] - `is_header` → `<th>` 태그 여부
+    :119 [stem/stem_weak] - `repeat_header`: `<th>` 행이 있으면 `true`
+- [code] mydocs/plans/archives/task_3_impl.md  channel=doc binding=mention jev=- rows=2
+    :30 [basename/mention] - `src/parser/header.rs` 확장 - FileHeader 바이너리 파싱
+    :132 [basename/mention] | `src/parser/header.rs` | 1 | FileHeader 바이너리 파싱 확장 |
+- [code] mydocs/plans/archives/task_44_architecture.md  channel=doc binding=mention jev=- rows=5
+    :1361 [stem/stem_weak] type: 'headerFooter';
+    :1362 [stem/stem_weak] headerFooterType: 'header' | 'footer';
+    :1431 [stem/stem_weak] case 'headerFooter':
+- [code] mydocs/plans/archives/task_69.md  channel=doc binding=mention jev=- rows=5
+    :11 [stem/stem_weak] 한컴 HWP 실제 동작은 **본문 시작 = margin_top + margin_header**이다.
+    :18 [stem/stem_weak] | margin_header | 10mm | 10mm |
+    :26 [stem/stem_weak] ├── margin_header (10mm)     ← 머리말 시작 위치
+- [code] mydocs/plans/archives/task_69_impl.md  channel=doc binding=mention jev=- rows=6
+    :15 [stem/stem_weak] // HWP 본문 시작 = margin_top + margin_header (한컴 도움말 기준)
+    :16 [stem/stem_weak] let content_top = page_def.margin_top + page_def.margin_header;
+    :21 [stem/stem_weak] header_area / footer_area도 정합성 맞춤:
+- [code] mydocs/plans/archives/task_70.md  channel=doc binding=mention jev=- rows=3
+    :10 [stem/stem_weak] - **페이지 영역**: header_area, footer_area 영역 계산 완성 (타스크 69)
+    :16 [stem/stem_weak] 1. `PageContent.header_paragraphs / footer_paragraphs`가 항상 `Vec::new()`
+    :22 [stem/stem_weak] - 머리말: 쪽 상단 고정 반복 콘텐츠 (header_area 영역)
+- [code] mydocs/plans/archives/task_84.md  channel=doc binding=mention jev=- rows=5
+    :17 [stem/stem_weak] - Table: `cell_spacing`, `padding`, `page_break`, `repeat_header`, `border_fill_id`
+    :18 [stem/stem_weak] - Cell: `width`, `height`, `padding`, `vertical_align`, `text_direction`, `is_header`, `border_fill_id`
+    :72 [stem/stem_weak] | 제목 줄 자동 반복 | 체크박스 | Table: repeat_header | **구현** |
+- [code] mydocs/plans/archives/task_89.md  channel=doc binding=mention jev=- rows=3
+    :103 [basename/mention] ├── header.rs          # header.xml → DocInfo 변환
+    :23 [stem/stem_weak] │   ├── header.xml           # 문서 메타데이터 (글꼴, 스타일, 문단모양 등)
+    :71 [stem/stem_weak] - header.xml 파싱 (글꼴, 글자모양, 문단모양, 스타일, 테두리/배경)
+- [code] mydocs/plans/archives/task_89_impl.md  channel=doc binding=mention jev=- rows=9
+    :44 [basename/mention] - `src/parser/hwpx/header.rs` — header.xml 파싱 모듈
+    :152 [basename/mention] | `src/parser/hwpx/header.rs` | 2 | header.xml → DocInfo 변환 |
+    :167 [basename/mention] ├── header.xml → DocInfo    (header.rs)    ← quick-xml
+- [code] mydocs/plans/archives/task_90.md  channel=doc binding=mention jev=- rows=4
+    :15 [basename/mention] ### header.rs 갭
+    :40 [basename/mention] | 유틸리티 함수 중복 | header.rs, section.rs 각각 별도의 local_name, attr_str, parse_u8..parse_u32 | 공통 모듈로 추출 |
+    :50 [basename/mention] - `src/parser/hwpx/header.rs` — charPr/paraPr/borderFill 파싱 보완
+- [code] mydocs/plans/archives/task_90_impl.md  channel=doc binding=mention jev=- rows=7
+    :7 [basename/mention] ### 1단계: 공통 유틸리티 추출 + header.rs charPr/paraPr 보완
+    :14 [basename/mention] - `src/parser/hwpx/header.rs` — charPr/paraPr 파싱 보완, 중복 함수 제거
+    :19 [basename/mention] 1. **utils.rs 신규 생성** — header.rs와 section.rs에 중복되는 함수 추출:
+- [code] mydocs/plans/archives/task_95_impl.md  channel=doc binding=mention jev=- rows=1
+    :6 [stem/stem_weak] - `src/model/header_footer.rs`: MasterPage 구조체 추가 (apply_to, paragraphs, text_width, text_height, text_ref, num_ref, raw_list_header)
+- [code] mydocs/plans/task_1790.md  channel=doc binding=mention jev=- rows=1
+    :29 [stem/stem_weak] | setupEventListeners() | eventBus 9종 구독 (current-page-changed·zoom-level-display·insert-mode-changed·field-info-changed·picture-object-selection-chan
+- [code] mydocs/plans/task_255.md  channel=doc binding=mention jev=- rows=2
+    :12 [stem/stem_weak] 머리말/꼬리말 편집 API (`header_footer_ops.rs`)와 동일한 패턴 적용:
+    :50 [stem/stem_weak] - 머리말/꼬리말 패턴: `src/document_core/commands/header_footer_ops.rs`
+- [code] mydocs/plans/task_256.md  channel=doc binding=mention jev=- rows=1
+    :11 [stem/stem_weak] - `cursor.ts`: `_headerFooterMode`, `enterHeaderFooterMode()`, `exitHeaderFooterMode()`
+- [code] mydocs/plans/task_265.md  channel=doc binding=mention jev=- rows=1
+    :16 [stem/stem_weak] - `collect_header_footer_controls`에서 PageHide 수집 (문단 인덱스 포함)
+- [code] mydocs/plans/task_291.md  channel=doc binding=mention jev=- rows=1
+    :58 [stem/stem_weak] 4. `build_header/footer` (머리말/꼬리말) → Layer 3
+- [code] mydocs/plans/task_356.md  channel=doc binding=mention jev=- rows=1
+    :140 [stem/stem_weak] | 27 | HeaderFooter | HeaderFooter | `insert_header/footer()` | 머리말/꼬리말 |
+- [code] mydocs/plans/task_m100_164.md  channel=doc binding=mention jev=- rows=3
+    :61 [path/mention] - `src/serializer/hwpx/header.rs` — 최소 `header.xml` (기본 fonts/charShapes/paraShapes)
+    :28 [basename/mention] | `src/parser/hwpx/header.rs` | 완료 | `header.xml` → DocInfo/DocProperties |
+    :75 [basename/mention] - `header.rs` 확장: fonts/borderFills/charShapes/paraShapes/styles/numberings/bullets/tabDefs 역매핑
+- [code] mydocs/plans/task_m100_164_impl.md  channel=doc binding=mention jev=- rows=10
+    :18 [path/mention] | `src/serializer/hwpx/header.rs` | 1, 2 | 신규 — `Contents/header.xml` |
+    :142 [basename/mention] **1-3. header.xml 최소 버전 (`header.rs`)**
+    :201 [basename/mention] - `header.rs` (확장 — charShapes/paraShapes/fonts/borderFills 완전화)
+- [code] mydocs/plans/task_m100_178_impl.md  channel=doc binding=mention jev=- rows=3
+    :34 [basename/mention] 1. **HWP 직렬화기 코드 0줄 수정** — `serializer/cfb_writer.rs`, `body_text.rs`, `control.rs`, `header.rs`, `doc_info.rs` 중 어느 하나라도 수정 PR 이 발생하면 본 타스크 범위 위반. (필
+    :77 [stem/stem_weak] | `body_text.rs:215` | `if para.raw_header_extra.len() >= 10 { ... } else { write_u32(0) }` | 빈 Vec → instanceId 0 fallback (OK) |
+    :79 [stem/stem_weak] | `control.rs:375` | `if table.raw_table_record_attr != 0 { ... } else { 재구성 from page_break + repeat_header }` | `0` → 재구성 (OK, page_break 채움 가정) |
+- [code] mydocs/plans/task_m100_182.md  channel=doc binding=mention jev=- rows=7
+    :15 [basename/mention] - **header.rs**: 13줄짜리 `include_str!("templates/empty_header.xml")` 하드코딩 ❌
+    :60 [basename/mention] - `header.rs` 13줄 → ~400줄. `HeaderWriter<'a>` 구조체 + 9개 하위 writer 함수
+    :102 [basename/mention] | 1 | `header.rs`, `fixtures.rs` | — |
+- [code] mydocs/plans/task_m100_182_impl.md  channel=doc binding=mention jev=- rows=11
+    :336 [path/mention] #### (1) `src/serializer/hwpx/header.rs` (13줄 → ~400줄)
+    :48 [stem/stem_weak] // ... 2-pass write (header, section, content.hpf, manifest) ...
+    :156 [stem/stem_weak] pub const EMPTY_HEADER_XML: &str = include_str!("templates/empty_header.xml");
+- [code] mydocs/plans/task_m100_7.md  channel=doc binding=mention jev=- rows=1
+    :31 [basename/mention] - `src/parser/hwpx/header.rs` — paraPr 파싱
+- [code] mydocs/report/rag_feature_analysis.md  channel=doc binding=mention jev=- rows=6
+    :131 [stem/stem_weak] - 행/열 헤더 자동 감지 및 `is_header` 플래그
+    :142 [stem/stem_weak] { "row": 0, "col": 0, "row_span": 2, "col_span": 1, "text": "사업명", "is_header": true },
+    :143 [stem/stem_weak] { "row": 0, "col": 1, "row_span": 1, "col_span": 2, "text": "2025년도", "is_header": true },
+- [code] mydocs/report/table_architecture_review.md  channel=doc binding=mention jev=- rows=5
+    :23 [stem/stem_weak] pub repeat_header: bool,
+    :48 [stem/stem_weak] pub is_header: bool,
+    :378 [stem/stem_weak] let header_overhead = if is_continuation
+- [code] mydocs/report/task_133_final.md  channel=doc binding=mention jev=- rows=2
+    :14 [stem/stem_weak] | `split_at()` raw_header_extra 유실 | 분할된 문단에 원본 raw_header_extra 복사 | `src/model/paragraph.rs` |
+    :53 [stem/stem_weak] | `src/model/paragraph.rs` | split_at() char_count/raw_header_extra 수정 |
+- [code] mydocs/report/task_1_final.md  channel=doc binding=mention jev=- rows=1
+    :25 [basename/mention] | `src/parser/header.rs` | HWP 파일 헤더 구조체 및 시그니처 |
+- [code] mydocs/report/task_2_final.md  channel=doc binding=mention jev=- rows=1
+    :64 [stem/stem_weak] image.rs, style.rs, page.rs, header_footer.rs,
+- [code] mydocs/report/task_36_final.md  channel=doc binding=mention jev=- rows=3
+    :39 [stem/stem_weak] **문제**: `layout_partial_table()`에서 제목행 반복 시 `is_header` 속성이 없는 개별 셀을 건너뛰어 일부 셀이 누락됨
+    :41 [stem/stem_weak] **원인**: HWP 편집기는 행 0에 `is_header` 셀이 하나라도 있으면 해당 행의 **모든 셀**을 반복하지만, 코드는 개별 셀의 `is_header` 플래그를 체크
+    :43 [stem/stem_weak] **해결**: `if is_repeated_header_cell && !cell.is_header { continue; }` 조건 제거
+- [code] mydocs/report/task_3_final.md  channel=doc binding=mention jev=- rows=3
+    :26 [basename/mention] | header | `src/parser/header.rs` | 270 | FileHeader 바이너리 파싱 |
+    :44 [stem/stem_weak] ├── FileHeader 파싱 (header)
+    :116 [stem/stem_weak] | parser/header | 8 |
+- [code] mydocs/report/task_90_final.md  channel=doc binding=mention jev=- rows=3
+    :11 [basename/mention] - header.rs/section.rs 중복 함수 120줄 제거
+    :55 [basename/mention] | `src/parser/hwpx/header.rs` | 수정 | fontface lang, charPr/paraPr/borderFill 보완 |
+    :47 [stem/stem_weak] | 코드 품질 | header/section 중복 함수 | utils.rs 공통 모듈 |
+- [code] mydocs/report/task_m100_182_report.md  channel=doc binding=mention jev=- rows=9
+    :41 [basename/mention] | 1 | header.xml IR 동적화 | `header.rs` 13줄 → 760줄 | 2026-04-17 |
+    :63 [stem/stem_weak] | header | 4 |
+    :79 [stem/stem_weak] - `stage1_ref_mixed_header_level_regression_probe` (IrDiff 0)
+- [code] mydocs/tech/hwp_errata_public_comparison.md  channel=doc binding=mention jev=- rows=1
+    :96 [stem/stem_weak] ▸ body_writer.rs:1164  →  ctrl_header 직후 ShapeComponentPicture 작성
+- [code] mydocs/tech/hwp_hwpx_ir_differences.md  channel=doc binding=mention jev=- rows=1
+    :91 [stem/stem_weak] | 머리말/꼬리말 | CTRL_HEADER/FOOTER | `<headerFooter>` | HWPX 미구현 |
+- [code] mydocs/tech/hwp_save_guide.md  channel=doc binding=mention jev=- rows=3
+    :13 [stem/stem_weak] │       margin_header (15mm)      │ ← 머리말 영역
+    :14 [stem/stem_weak] ├─────────────────────────────────┤ ← body_area.top = margin_top + margin_header (9920)
+    :101 [stem/stem_weak] | PARA_HEADER | 24바이트 (기본) + raw_header_extra | 완전 일치 |
+- [code] mydocs/tech/hwp_spec_errata.md  channel=doc binding=mention jev=- rows=4
+    :143 [stem/stem_weak] ## 10. 셀 제목 행(is_header) 비트 — HWP 5.0 미기재
+    :152 [stem/stem_weak] | 동작 규칙 | `表.repeat_header=true` AND 행0에 `is_header=true` 셀이 있어야 제목행 반복 |
+    :153 [stem/stem_weak] | 우리 코드에서의 추출 | `cell.is_header = (cell.list_header_width_ref & 0x04) != 0;` |
+- [code] mydocs/tech/hwpers_analysis.md  channel=doc binding=mention jev=- rows=6
+    :51 [basename/mention] header.rs, doc_info.rs, body_text.rs
+    :55 [basename/mention] header.rs, doc_info.rs                    document.rs, paragraph.rs
+    :68 [basename/mention] renderer.rs (310줄)                        header.rs, doc_info.rs, body_text.rs
+- [code] mydocs/tech/hwpx_hancom_reference.md  channel=doc binding=mention jev=- rows=3
+    :171 [basename/mention] 조사 결과, rhwp 파서는 292개 중 **약 283개를 다루고 있음**으로 추정된다 (`src/parser/hwpx/section.rs`, `header.rs`의 매칭 태그 기준).
+    :27 [stem/stem_weak] │  ├─ Head/  (107) — header.xml 요소: 폰트, 스타일, 마진, 테두리
+    :241 [stem/stem_weak] | Stage 1 (header.xml) | 한컴 `Class/Head/*.cpp` 속성 목록 대조 |
+- [code] mydocs/tech/layout_engine_research.md  channel=doc binding=mention jev=- rows=2
+    :247 [stem/stem_weak] header_rows: Vec<usize>,    // 반복할 머리행 인덱스
+    :268 [stem/stem_weak] // 1. 머리행 배치 (break_token에서 header_rows 참조)
+- [code] mydocs/tech/partial_table_flow.md  channel=doc binding=mention jev=- rows=1
+    :59 [stem/stem_weak] │     = page_avail - header_overhead - spacing_before_px             │
+- [code] mydocs/tech/project_vision.md  channel=doc binding=mention jev=- rows=2
+    :304 [stem/stem_weak] add_header_footer(text, pos)      머리말/꼬리말
+    :622 [stem/stem_weak] doc.add_table(data, headers=["항목", "금액"])
+- [code] mydocs/tech/rendering_engine_design.md  channel=doc binding=mention jev=- rows=2
+    :102 [basename/mention] │   └── header.rs       # 파일 헤더 파싱, 시그니처 검증
+    :112 [stem/stem_weak] │   ├── header_footer.rs # Header, Footer
+- [code] mydocs/tech/webhwp/04_page_layout.md  channel=doc binding=mention jev=- rows=13
+    :147 [stem/stem_weak] hcwo_page_header       — 머리말 영역
+    :148 [stem/stem_weak] hcwo_page_header_block — 머리말 블록
+    :377 [stem/stem_weak] t.e_delete_header_footer = "pagedeleteheaderfooter"
+- [code] mydocs/tech/webhwp/06_events.md  channel=doc binding=mention jev=- rows=8
+    :60 [stem/stem_weak] | `e_delete_header_footer` | 머리말/꼬리말 삭제 |
+    :70 [stem/stem_weak] | `e_insert_header` | 머리말 삽입 |
+    :85 [stem/stem_weak] | `e_header_footer_close` | — | 머리말/꼬리말 닫기 |
+- [code] mydocs/troubleshootings/page_margin_area_calculation.md  channel=doc binding=mention jev=- rows=12
+    :18 [stem/stem_weak] ↓ margin_header (머리말, 예: 10.6mm) → 머리말 영역 시작
+    :26 [stem/stem_weak] 핵심: **margin_top은 용지 상단에서 본문까지의 거리**이며, margin_header는 용지 상단에서 머리말까지의 거리이다. 두 값은 독립적이고 합산하면 안 된다.
+    :31 [stem/stem_weak] // 본문 시작 = margin_top + margin_header (잘못!)
+- [code] mydocs/troubleshootings/shape_fill_transparency.md  channel=doc binding=mention jev=- rows=1
+    :152 [basename/mention] | `src/parser/hwpx/header.rs` | HWPX `winBrush` alpha 속성 파싱 |
+- [code] mydocs/troubleshootings/table_paste_file_corruption.md  channel=doc binding=mention jev=- rows=4
+    :237 [stem/stem_weak] - VALID: `attr = 0x04000006` (bit 1,2 set: 셀 분리 금지 + repeat_header)
+    :238 [stem/stem_weak] - DAMAGED: `attr = 0x04000004` (bit 2 only: repeat_header만)
+    :241 [stem/stem_weak] VALID:   low bits = 110 (bit1=셀분리금지, bit2=repeat_header)
+- [code] mydocs/troubleshootings/task178_second_attempt_hancom_rejection.md  channel=doc binding=mention jev=- rows=1
+    :71 [stem/stem_weak] - Paragraph instanceId, raw_header_extra
+- [code] mydocs/troubleshootings/task_96_group_child_textbox_vertical_align.md  channel=doc binding=mention jev=- rows=3
+    :67 [stem/stem_weak] let mut list_header_data: Option<&[u8]> = None;
+    :71 [stem/stem_weak] list_header_data = Some(&record.data);  // 데이터 캡처
+    :79 [stem/stem_weak] if let Some(lh_data) = list_header_data {
+- [code] mydocs/working/archives/task_107_final.md  channel=doc binding=mention jev=- rows=1
+    :51 [basename/mention] | src/parser/hwpx/header.rs | HWPX 헤더 변경 |
+- [code] mydocs/working/archives/task_142_step2.md  channel=doc binding=mention jev=- rows=1
+    :13 [stem/stem_weak] | `layout.rs` | 1,128 | LayoutEngine struct + build_render_tree + header/footer + mod 선언 |
+- [code] mydocs/working/archives/task_146_report.md  channel=doc binding=mention jev=- rows=1
+    :32 [stem/stem_weak] - 13개 메서드 추출 (collect_header_footer_controls, process_multicolumn_break, process_column_break, process_page_break, paginate_text_lines, paginate_multi
+- [code] mydocs/working/archives/task_154_stage3.md  channel=doc binding=mention jev=- rows=4
+    :51 [stem/stem_weak] | **`<header>`** | `Control::Header` | **applyPageType + subList 문단 파싱** |
+    :78 [stem/stem_weak] - `parse_sublist_paragraphs()` — header/footer/footnote/endnote/hiddenComment 공통 subList 파싱
+    :89 [stem/stem_weak] - `parse_ctrl_header()` — header 요소 전체 파싱 (attrs + subList)
+- [code] mydocs/working/archives/task_193_final.md  channel=doc binding=mention jev=- rows=3
+    :28 [stem/stem_weak] │ header_footer_ops.rs (CRUD + 텍스트 편집)   │
+    :35 [stem/stem_weak] │ index.html (.tb-headerfooter-group)          │
+    :48 [stem/stem_weak] - `src/document_core/commands/header_footer_ops.rs` (신규)
+- [code] mydocs/working/archives/task_193_step2_3_4.md  channel=doc binding=mention jev=- rows=8
+    :16 [stem/stem_weak] | `rhwp-studio/src/command/commands/page.ts` | header-create, footer-create, headerfooter-close 커맨드 |
+    :17 [stem/stem_weak] | `rhwp-studio/index.html` | data-cmd 속성 추가, .tb-headerfooter-group, 메뉴 활성화 |
+    :18 [stem/stem_weak] | `rhwp-studio/src/main.ts` | headerFooterModeChanged 이벤트 → 도구상자 전환/dimming |
+- [code] mydocs/working/archives/task_195_final.md  channel=doc binding=mention jev=- rows=7
+    :10 [stem/stem_weak] | `insert_field_in_hf_native` (header_footer_ops.rs) | 완료 |
+    :11 [stem/stem_weak] | `layout_header_footer_paragraphs`에서 마커→실제 값 치환 | 완료 |
+    :47 [stem/stem_weak] **문제**: `create_header_footer_native`에서 본문 문단에 머리말/꼬리말 컨트롤을 추가할 때 `char_count` 갱신이 누락되었다. HWP 컨트롤은 UTF-16에서 8 code units를 차지하므로, `char_count`가 미갱신되면 `
+- [code] mydocs/working/archives/task_1_step_3.md  channel=doc binding=mention jev=- rows=2
+    :19 [basename/mention] └── header.rs   # HWP 파일 헤더 파싱 (시그니처, 버전 구조체)
+    :24 [basename/mention] - `parser/header.rs`: HWP 파일 시그니처 상수, `FileHeader`, `HwpVersion` 구조체 정의
+- [code] mydocs/working/archives/task_1_step_4.md  channel=doc binding=mention jev=- rows=1
+    :15 [stem/stem_weak] - `parser::header::tests::test_hwp_signature` - OK
+- [code] mydocs/working/archives/task_215_step1.md  channel=doc binding=mention jev=- rows=2
+    :8 [stem/stem_weak] - `FormattedTable`: 표의 format() 결과 (row_heights, host_spacing, effective_height, header_row_count 등)
+    :32 [stem/stem_weak] - 머리행 반복 (header_row_count > 0 시 continuation fragment에서 반복)
+- [code] mydocs/working/archives/task_23_step1.md  channel=doc binding=mention jev=- rows=1
+    :45 [stem/stem_weak] - `test_write_multiple_records`, `test_write_record_from_struct`, `test_roundtrip_header_encoding`
+- [code] mydocs/working/archives/task_23_step2.md  channel=doc binding=mention jev=- rows=7
+    :9 [basename/mention] | `src/serializer/header.rs` | 신규: FileHeader 256바이트 직렬화 + 테스트 5개 |
+    :15 [basename/mention] 1. **FileHeader 직렬화** (`header.rs`)
+    :11 [stem/stem_weak] | `src/serializer/mod.rs` | `pub mod header;`, `pub mod doc_info;` 추가 |
+- [code] mydocs/working/archives/task_23_step3.md  channel=doc binding=mention jev=- rows=2
+    :14 [stem/stem_weak] | `serialize_para_header(para)` | PARA_HEADER 데이터 (char_count, control_mask, shape_id, style_id, break_type) |
+    :38 [stem/stem_weak] | Header/Footer | `serialize_header_control/footer_control` | LIST_HEADER + 문단 |
+- [code] mydocs/working/archives/task_23_step4.md  channel=doc binding=mention jev=- rows=1
+    :65 [stem/stem_weak] 4. `parse_file_header()` → 버전/플래그 일치 확인
+- [code] mydocs/working/archives/task_27_complete.md  channel=doc binding=mention jev=- rows=4
+    :21 [stem/stem_weak] | `src/renderer/height_measurer.rs` | `MeasuredTable`에 `cell_spacing`, `repeat_header` 필드 추가, `get_measured_table()` 메서드 |
+    :28 [stem/stem_weak] - `repeat_header=true`인 표의 연속 페이지에서 제목행(행0) 높이를 사용 가능 영역에서 차감
+    :32 [stem/stem_weak] - `is_continuation && repeat_header` → 제목행을 먼저 렌더링 후 본문 행 배치
+- [code] mydocs/working/archives/task_2_step_2.md  channel=doc binding=mention jev=- rows=1
+    :19 [stem/stem_weak] | `header_footer.rs` | Header, Footer | 머리말/꼬리말 |
+- [code] mydocs/working/archives/task_37_final.md  channel=doc binding=mention jev=- rows=1
+    :67 [stem/stem_weak] | `src/model/header_footer.rs` | 1 | Clone derive 추가 |
+- [code] mydocs/working/archives/task_37_stage1.md  channel=doc binding=mention jev=- rows=2
+    :16 [stem/stem_weak] | `src/model/header_footer.rs` | `Header`, `Footer` |
+    :97 [stem/stem_weak] | `src/model/header_footer.rs` | Clone derive 추가 (Header, Footer) |
+- [code] mydocs/working/archives/task_38_final.md  channel=doc binding=mention jev=- rows=1
+    :19 [stem/stem_weak] | 5 | Table 구조체 조립: Cell, row_sizes, raw_ctrl_data(CommonObjAttr), repeat_header 설정 |
+- [code] mydocs/working/archives/task_3_step_1.md  channel=doc binding=mention jev=- rows=4
+    :12 [basename/mention] | `src/parser/header.rs` | FileHeader 바이너리 파싱 (시그니처, 버전, 플래그) |
+    :43 [basename/mention] #### header.rs - FileHeader 바이너리 파싱
+    :92 [stem/stem_weak] | header | test_hwp_signature | 시그니처 상수 |
+- [code] mydocs/working/archives/task_3_step_3.md  channel=doc binding=mention jev=- rows=4
+    :32 [stem/stem_weak] `parse_body_text_section()` → `parse_paragraph()` → `parse_ctrl_header()` 순으로 재귀적 분해.
+    :48 [stem/stem_weak] | `parse_para_header()` | PARA_HEADER 데이터 | `Paragraph` 기본 필드 |
+    :53 [stem/stem_weak] | `parse_ctrl_header()` | CTRL_HEADER 그룹 | `Control` |
+- [code] mydocs/working/archives/task_3_step_4.md  channel=doc binding=mention jev=- rows=8
+    :20 [stem/stem_weak] body_text.rs의 `parse_ctrl_header`에서 secd/cold 이외의 컨트롤을 위임받아 파싱한다.
+    :28 [stem/stem_weak] | `daeh` | 머리말 | `parse_header_control()` | `Control::Header(Header)` |
+    :71 [stem/stem_weak] `find_list_header_paragraphs()` 헬퍼를 사용하여 LIST_HEADER 하위의 문단을 재귀적으로 파싱:
+- [code] mydocs/working/archives/task_3_step_5.md  channel=doc binding=mention jev=- rows=3
+    :147 [basename/mention] | header | `src/parser/header.rs` | FileHeader 바이너리 파싱 |
+    :26 [stem/stem_weak] 2. **FileHeader 파싱** → `parse_file_header()` → 버전, 압축, 배포용 플래그
+    :95 [stem/stem_weak] ├── FileHeader 파싱 (header)
+- [code] mydocs/working/archives/task_41_step2.md  channel=doc binding=mention jev=- rows=2
+    :21 [stem/stem_weak] **문제**: bit 1 (셀 분리 금지)이 `has_header_row` 일 때만 설정됨
+    :26 [stem/stem_weak] let tbl_rec_attr: u32 = if has_header_row {
+- [code] mydocs/working/archives/task_44_step3.md  channel=doc binding=mention jev=- rows=1
+    :30 [stem/stem_weak] | **HeaderFooterContext** | 머리말/꼬리말 내부 | headerFooterType, innerCursor |
+- [code] mydocs/working/archives/task_4_step_4.md  channel=doc binding=mention jev=- rows=2
+    :12 [stem/stem_weak] | `src/parser/control.rs` | ~10줄 수정 | find_list_header_paragraphs 레벨 버그 수정 |
+    :47 [stem/stem_weak] **1. find_list_header_paragraphs 레벨 버그 (control.rs)**
+- [code] mydocs/working/archives/task_52_step_report.md  channel=doc binding=mention jev=- rows=1
+    :138 [stem/stem_weak] - `icon-footnote(4,4)`, `icon-endnote(5,4)`, `icon-header(1,4)`, `icon-footer(2,4)`
+- [code] mydocs/working/archives/task_70_final.md  channel=doc binding=mention jev=- rows=5
+    :21 [stem/stem_weak] - `PageContent`에 `active_header`, `active_footer`, `page_number_pos` 필드 추가
+    :31 [stem/stem_weak] - `build_render_tree()`에서 Header/Footer 노드 생성 시 `active_header`/`active_footer` 참조
+    :32 [stem/stem_weak] - `layout_header_footer_paragraphs()` 함수로 Header/Footer 내부 문단 렌더링
+- [code] mydocs/working/archives/task_89_report.md  channel=doc binding=mention jev=- rows=5
+    :26 [basename/mention] | `src/parser/hwpx/header.rs` (~700행) | header.xml → DocInfo + DocProperties 변환 |
+    :88 [basename/mention] - `src/parser/hwpx/header.rs` — header.xml → DocInfo
+    :22 [stem/stem_weak] ### 2단계: header.xml 파싱 → DocInfo 변환
+- [code] mydocs/working/archives/task_90_step1.md  channel=doc binding=mention jev=- rows=4
+    :4 [basename/mention] 공통 유틸리티 함수 추출 + header.rs charPr/paraPr 파싱 보완
+    :13 [basename/mention] ### 2. header.rs 중복 함수 제거 + paraPr/charPr 보완
+    :41 [basename/mention] | `src/parser/hwpx/header.rs` | utils import, 중복 제거, charPr/paraPr 보완 |
+- [code] mydocs/working/archives/task_90_step3.md  channel=doc binding=mention jev=- rows=2
+    :47 [basename/mention] | `src/parser/hwpx/header.rs` | fontface lang 추적, borderFill gradation/imgBrush/slash, import 정리 |
+    :11 [stem/stem_weak] - `parse_hwpx_header`에서 `current_font_group` 변수로 컨텍스트 추적
+- [code] mydocs/working/archives/task_95_final.md  channel=doc binding=mention jev=- rows=3
+    :12 [stem/stem_weak] - `header_footer.rs`에 `MasterPage` 구조체 추가
+    :14 [stem/stem_weak] - 필드: apply_to, paragraphs, text_width, text_height, text_ref, num_ref, raw_list_header
+    :52 [stem/stem_weak] | `src/model/header_footer.rs` | MasterPage 구조체 추가 |
+- [code] mydocs/working/task_5_complete.md  channel=doc binding=mention jev=- rows=1
+    :8 [basename/mention] - `src/parser/hwpx/header.rs` — imgBrush mode="TOTAL" → FitToSize 매핑 추가
+- [code] mydocs/working/task_m100_101_stage1.md  channel=doc binding=mention jev=- rows=1
+    :51 [stem/stem_weak] let avail_for_rows = (page_avail - header_overhead - sb_extra).max(0.0);
+- [code] mydocs/working/task_m100_164_report.md  channel=doc binding=mention jev=- rows=4
+    :23 [basename/mention] | `header.rs` | `Contents/header.xml` (현재 레퍼런스 템플릿 임베딩) |
+    :92 [stem/stem_weak] 1. **글꼴/스타일 IR 직렬화** — `header.xml`이 레퍼런스 템플릿 고정.
+    :94 [stem/stem_weak] → **Task #165 제안**: "header.xml IR 기반 직렬화 (글꼴/스타일/문단 모양)"
+- [code] mydocs/working/task_m100_164_stage1.md  channel=doc binding=mention jev=- rows=3
+    :23 [path/mention] | `src/serializer/hwpx/header.rs` | `Contents/header.xml` (Stage 1: 템플릿) |
+    :76 [basename/mention] - `header.rs`: 템플릿 → Document.doc_info(fonts/charShapes/paraShapes/styles) IR 기반 동적 생성
+    :55 [stem/stem_weak] - 한컴 레퍼런스(ref_empty.hwpx)와 핵심 XML(header.xml 32731B, section0.xml 3340B) **바이트 동일**
+- [code] mydocs/working/task_m100_164_stage2_1.md  channel=doc binding=mention jev=- rows=1
+    :44 [stem/stem_weak] - `paraPrIDRef`/`styleIDRef` 고정 "0" (Stage 2.4 header.xml 확장 후)
+- [code] mydocs/working/task_m100_182_stage0.md  channel=doc binding=mention jev=- rows=4
+    :136 [path/mention] - `src/serializer/hwpx/header.rs` 13줄 → ~400줄로 확장
+    :97 [stem/stem_weak] registered: HashSet<T>,  // header.xml에서 정의됨
+    :102 [stem/stem_weak] Stage 1~4에서 writer가 `reference(id)` 호출하면 자동으로 미등록 참조를 탐지. "section에선 쓰는데 header엔 없는" 단편적 실패를 컴파일 타임에는 아니지만 **런타임 단언**으로 차단.
+- [code] mydocs/working/task_m100_182_stage2.md  channel=doc binding=mention jev=- rows=2
+    :71 [stem/stem_weak] - header::tests: 4 ✅
+    :83 [stem/stem_weak] test stage1_ref_mixed_header_level_regression_probe ... ok
+- [code] mydocs/working/task_m100_182_stage3.md  channel=doc binding=mention jev=- rows=3
+    :69 [stem/stem_weak] - header::tests: 4 ✅
+    :82 [stem/stem_weak] test stage1_ref_mixed_header_level_regression_probe ... ok
+    :124 [stem/stem_weak] `write_table` 진입 시 `ctx.border_fill_ids.reference(table.border_fill_id)` 및 모든 zone, cell의 border_fill_id 등록. 미등록 ID는 `assert_all_refs_resolved()` 에서 잡
+- [code] mydocs/working/task_m100_182_stage4.md  channel=doc binding=mention jev=- rows=2
+    :75 [stem/stem_weak] - header::tests: 4 ✅
+    :89 [stem/stem_weak] test stage1_ref_mixed_header_level_regression_probe ... ok
+- [code] mydocs/working/task_m100_182_stage5.md  channel=doc binding=mention jev=- rows=3
+    :165 [basename/mention] | 1 | header.rs 동적화 | +4 |
+    :90 [stem/stem_weak] - header::tests: 4 ✅
+    :106 [stem/stem_weak] test stage1_ref_mixed_header_level_regression_probe ... ok
+- [code] rhwp-safari/src/background.js  channel=other binding=mention jev=- rows=2
+    :248 [stem/stem_weak] const location = res.headers.get('location');
+    :275 [stem/stem_weak] const ct = (res.headers.get('content-type') || '').toLowerCase();
+- [code] rhwp-safari/src/options.html  channel=other binding=mention jev=- rows=5
+    :21 [stem/stem_weak] .header {
+    :25 [stem/stem_weak] .header h1 {
+    :76 [stem/stem_weak] .card-header {
+- [code] rhwp-shared/security/filename-sanitizer.js  channel=other binding=mention jev=- rows=5
+    :73 [stem/stem_weak] * @param {string} headerValue — Content-Disposition 헤더 값
+    :76 [stem/stem_weak] function extractFilenameFromContentDisposition(headerValue) {
+    :77 [stem/stem_weak] if (!headerValue) return null;
+- [code] rhwp-studio/e2e/report-generator.mjs  channel=other binding=mention jev=- rows=7
+    :86 [stem/stem_weak] <div class="tc-header">
+    :107 [stem/stem_weak] .header { background: ${failed > 0 ? '#dc3545' : '#28a745'}; color: white; padding: 24px 32px; }
+    :108 [stem/stem_weak] .header h1 { font-size: 24px; margin-bottom: 8px; }
+- [code] rhwp-studio/hwpctl-test.html  channel=other binding=mention jev=- rows=12
+    :9 [stem/stem_weak] .header { background: #1a1a2e; color: white; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; }
+    :10 [stem/stem_weak] .header h1 { font-size: 18px; }
+    :11 [stem/stem_weak] .header .stats { font-size: 13px; color: #8892b0; }
+- [code] rhwp-studio/src/bootstrap.ts  channel=other binding=mention jev=- rows=4
+    :534 [stem/stem_weak] const hfGroup = rootEl.querySelector<HTMLElement>('.tb-headerfooter-group');
+    :536 [stem/stem_weak] const defaultTbGroups = rootEl.querySelectorAll('#icon-toolbar > .tb-group:not(.tb-headerfooter-group):not(.tb-rotate-group), #icon-toolbar > .tb-sep'
+    :540 [stem/stem_weak] eventBus.on('headerFooterModeChanged', (mode) => {
+- [code] rhwp-studio/src/engine/cursor.ts  channel=other binding=mention jev=- rows=12
+    :16 [stem/stem_weak] private _headerFooterMode: 'none' | 'header' | 'footer' = 'none';
+    :647 [stem/stem_weak] if (this._headerFooterMode !== 'none') {
+    :648 [stem/stem_weak] const isHeader = this._headerFooterMode === 'header';
+- [code] rhwp-studio/src/engine/embed-commands.ts  channel=other binding=mention jev=- rows=3
+    :20 [stem/stem_weak] headerRow?: boolean;
+    :171 [stem/stem_weak] if (spec.headerRow && r === 0 && text) {
+    :237 [stem/stem_weak] if (spec.headerRow && r === 0 && text) {
+- [code] rhwp-studio/src/engine/input-handler-keyboard.ts  channel=other binding=mention jev=- rows=3
+    :266 [stem/stem_weak] this.eventBus.emit('headerFooterModeChanged', 'none');
+    :294 [stem/stem_weak] const isHeader = this.cursor.headerFooterMode === 'header';
+    :309 [stem/stem_weak] const isHeader = this.cursor.headerFooterMode === 'header';
+- [code] rhwp-studio/src/engine/input-handler-mouse.ts  channel=other binding=mention jev=- rows=3
+    :688 [stem/stem_weak] this.eventBus.emit('headerFooterModeChanged', 'none');
+    :693 [stem/stem_weak] const isHeader = this.cursor.headerFooterMode === 'header';
+    :1001 [stem/stem_weak] this.eventBus.emit('headerFooterModeChanged', isHeader ? 'header' : 'footer');
+- [code] rhwp-studio/src/engine/input-handler-text.ts  channel=other binding=mention jev=- rows=5
+    :50 [stem/stem_weak] const isHeader = this.cursor.headerFooterMode === 'header';
+    :102 [stem/stem_weak] const isHeader = this.cursor.headerFooterMode === 'header';
+    :354 [stem/stem_weak] const isHeader = this.cursor.headerFooterMode === 'header';
+- [code] rhwp-studio/src/engine/input-handler.ts  channel=other binding=mention jev=- rows=3
+    :2031 [stem/stem_weak] const isHeader = this.cursor.headerFooterMode === 'header';
+    :3705 [stem/stem_weak] const isHeader = this.cursor.headerFooterMode === 'header';
+    :3947 [stem/stem_weak] const isHeader = this.cursor.headerFooterMode === 'header';
+- [code] rhwp-studio/src/hwpctl/actions/page.ts  channel=other binding=mention jev=- rows=2
+    :15 [stem/stem_weak] *   HeaderMargin → headerMargin, FooterMargin → footerMargin
+    :28 [stem/stem_weak] ['HeaderMargin', 'headerMargin'], ['FooterMargin', 'footerMargin'],
+- [code] rhwp-studio/src/styles/bookmark-dialog.css  channel=other binding=mention jev=- rows=1
+    :46 [stem/stem_weak] .bm-list-header {
+- [code] rhwp-studio/src/styles/toolbar.css  channel=other binding=mention jev=- rows=1
+    :106 [stem/stem_weak] .icon-header        { background-position: calc(-40px * 1) calc(-40px * 4); }
+- [code] rhwp-studio/src/ui/bookmark-dialog.ts  channel=other binding=mention jev=- rows=1
+    :114 [stem/stem_weak] listHeader.className = 'bm-list-header';
+- [code] rhwp-studio/src/ui/table-create-dialog.ts  channel=other binding=mention jev=- rows=4
+    :87 [stem/stem_weak] const header = document.createElement('div');
+    :88 [stem/stem_weak] header.style.cssText = 'padding:4px 6px;border-bottom:1px solid #e0e0e0;';
+    :97 [stem/stem_weak] header.appendChild(cancelBtn);
+- [code] src/document_core/commands/clipboard.rs  channel=other binding=mention jev=- rows=1
+    :1219 [stem/stem_weak] raw_header_extra: empty_raw,
+- [code] src/document_core/commands/document.rs  channel=other binding=mention jev=- rows=1
+    :91 [stem/stem_weak] hidden_header_footer: std::collections::HashSet::new(),
+- [code] src/document_core/commands/formatting.rs  channel=other binding=mention jev=- rows=4
+    :1726 [stem/stem_weak] hide_header: bool,
+    :1746 [stem/stem_weak] let all_false = !hide_header
+    :1771 [stem/stem_weak] hide_header,
+- [code] src/document_core/commands/mod.rs  channel=other binding=mention jev=- rows=1
+    :5 [stem/stem_weak] mod header_footer_ops;
+- [code] src/document_core/converters/diagnostics.rs  channel=other binding=mention jev=- rows=2
+    :141 [stem/stem_weak] || t.repeat_header
+    :153 [stem/stem_weak] t.page_break, t.repeat_header
+- [code] src/document_core/mod.rs  channel=other binding=mention jev=- rows=8
+    :97 [stem/stem_weak] /// 머리말/꼬리말 감추기: (global_page_index, is_header) 조합
+    :98 [stem/stem_weak] pub(crate) hidden_header_footer: std::collections::HashSet<(u32, bool)>,
+    :181 [stem/stem_weak] self.document.header.version.major,
+- [code] src/document_core/queries/form_query.rs  channel=other binding=mention jev=- rows=1
+    :337 [stem/stem_weak] // zlib 해제 (raw deflate, no header)
+- [code] src/model/control.rs  channel=other binding=mention jev=- rows=2
+    :7 [stem/stem_weak] use super::header_footer::{Footer, Header};
+    :187 [stem/stem_weak] pub hide_header: bool,
+- [code] src/model/document.rs  channel=other binding=mention jev=- rows=13
+    :5 [stem/stem_weak] use super::header_footer::MasterPage;
+    :26 [stem/stem_weak] pub header: FileHeader,
+    :204 [stem/stem_weak] pub hide_header: bool,
+- [code] src/model/header_footer.rs  channel=other binding=mention jev=- rows=5
+    :68 [stem/stem_weak] pub raw_list_header: Vec<u8>,
+    :76 [stem/stem_weak] fn test_header_default() {
+    :77 [stem/stem_weak] let header = Header::default();
+- [code] src/model/mod.rs  channel=other binding=mention jev=- rows=1
+    :11 [stem/stem_weak] pub mod header_footer;
+- [code] src/model/page.rs  channel=other binding=mention jev=- rows=12
+    :21 [stem/stem_weak] pub margin_header: HwpUnit,
+    :116 [stem/stem_weak] pub header_area: Rect,
+    :131 [stem/stem_weak] /// - margin_header: 용지 상단에서 머리말 시작까지 거리
+- [code] src/model/paragraph.rs  channel=other binding=mention jev=- rows=2
+    :42 [stem/stem_weak] pub raw_header_extra: Vec<u8>,
+    :630 [stem/stem_weak] raw_header_extra: self.raw_header_extra.clone(),
+- [code] src/model/shape.rs  channel=other binding=mention jev=- rows=1
+    :307 [stem/stem_weak] pub raw_list_header_extra: Vec<u8>,
+- [code] src/model/table/tests.rs  channel=other binding=mention jev=- rows=5
+    :1081 [stem/stem_weak] fn row_edit_keeps_hwp5_ctrl_header_layout() {
+    :1102 [stem/stem_weak] fn cell_flags_live_in_list_header_bits() {
+    :1104 [stem/stem_weak] cell.list_header_width_ref = 0x04; // 제목 셀 비트는 지켜야 한다
+- [code] src/parser/bin_data.rs  channel=other binding=mention jev=- rows=1
+    :86 [stem/stem_weak] data: vec![0xFF, 0xD8, 0xFF, 0xE0], // JPEG header
+- [code] src/parser/control/shape.rs  channel=other binding=mention jev=- rows=8
+    :125 [stem/stem_weak] let mut list_header_data: Option<&[u8]> = None;
+    :131 [stem/stem_weak] list_header_data = Some(&record.data);
+    :152 [stem/stem_weak] if let Some(lh_data) = list_header_data {
+- [code] src/parser/control/tests.rs  channel=other binding=mention jev=- rows=13
+    :13 [stem/stem_weak] fn make_para_header_data(char_count: u32) -> Vec<u8> {
+    :69 [stem/stem_weak] make_record(tags::HWPTAG_PARA_HEADER, 3, make_para_header_data(5)),
+    :87 [stem/stem_weak] fn test_parse_header_control() {
+- [code] src/parser/crypto.rs  channel=other binding=mention jev=- rows=8
+    :348 [stem/stem_weak] let decrypted_header = decrypt_distribute_doc_data(&first.data)?;
+    :351 [stem/stem_weak] let aes_key = extract_aes_key(&decrypted_header)?;
+    :355 [stem/stem_weak] let record_header_size = if first.size >= 0xFFF { 8 } else { 4 };
+- [code] src/parser/doc_info.rs  channel=other binding=mention jev=- rows=2
+    :851 [stem/stem_weak] let header = (tag_id as u32) | ((level as u32) << 10) | (size << 20);
+    :852 [stem/stem_weak] let mut bytes = header.to_le_bytes().to_vec();
+- [code] src/parser/hwpx/content.rs  channel=other binding=mention jev=- rows=2
+    :139 [stem/stem_weak] <opf:item id="header" href="Contents/header.xml" media-type="application/xml"/>
+    :146 [stem/stem_weak] <opf:itemref idref="header" linear="yes"/>
+- [code] src/parser/hwpx/header.rs  channel=other binding=mention jev=- rows=6
+    :1 [stem/stem_weak] //! header.xml 파싱 — HWPX 문서 메타데이터를 DocInfo로 변환
+    :3 [stem/stem_weak] //! header.xml은 글꼴, 글자모양, 문단모양, 스타일, 테두리/배경 등
+    :62 [stem/stem_weak] /// header.xml을 파싱하여 DocInfo와 DocProperties를 생성한다.
+- [code] src/parser/hwpx/mod.rs  channel=other binding=mention jev=- rows=7
+    :9 [stem/stem_weak] //! 3. header.xml → DocInfo 변환 (header)
+    :14 [stem/stem_weak] pub mod header;
+    :69 [stem/stem_weak] // 3. header.xml → DocInfo, DocProperties
+- [code] src/parser/hwpx/reader.rs  channel=other binding=mention jev=- rows=1
+    :19 [stem/stem_weak] /// XML 엔트리(section, header, content.hpf 등) 엔트리당 압축 해제 상한.
+- [code] src/parser/hwpx/utils.rs  channel=other binding=mention jev=- rows=1
+    :3 [basename/mention] //! header.rs, section.rs 등에서 공통으로 사용하는 XML 파싱 헬퍼.
+- [code] src/parser/record.rs  channel=other binding=mention jev=- rows=10
+    :44 [stem/stem_weak] let header = cursor
+    :48 [stem/stem_weak] let tag_id = (header & 0x3FF) as u16;
+    :49 [stem/stem_weak] let level = ((header >> 10) & 0x3FF) as u16;
+- [code] src/renderer/html.rs  channel=other binding=mention jev=- rows=2
+    :70 [stem/stem_weak] "<header class=\"page-header\" style=\"position:absolute;left:{}px;top:{}px;width:{}px;height:{}px;\">\n",
+    :76 [stem/stem_weak] self.output.push_str("</header>\n");
+- [code] src/renderer/layout/integration_tests.rs  channel=other binding=mention jev=- rows=4
+    :72 [stem/stem_weak] fn test_exam_math_no_header_on_first_page() {
+    :80 [stem/stem_weak] page.active_header.is_none(),
+    :88 [stem/stem_weak] fn test_exam_math_header_from_second_page() {
+- [code] src/renderer/layout/paragraph_layout.rs  channel=other binding=mention jev=- rows=6
+    :1341 [stem/stem_weak] crate::model::header_footer::HeaderFooterApply::Both => {
+    :1344 [stem/stem_weak] crate::model::header_footer::HeaderFooterApply::Even => {
+    :1347 [stem/stem_weak] crate::model::header_footer::HeaderFooterApply::Odd => {
+- [code] src/renderer/layout/picture_footnote.rs  channel=other binding=mention jev=- rows=1
+    :57 [stem/stem_weak] // 머리말/꼬리말에서 vert=Paper는 상단여백(header area) 기준
+- [code] src/renderer/layout/table_partial.rs  channel=other binding=mention jev=- rows=12
+    :28 [stem/stem_weak] /// `is_continuation`이 true이고 repeat_header인 표면 행0(제목행)을 먼저 렌더링한다.
+    :266 [stem/stem_weak] // is_continuation && repeat_header → 제목행(0)에 제목 셀(is_header)이 있으면 반복
+    :267 [stem/stem_weak] let render_header = is_continuation
+- [code] src/renderer/layout/tests.rs  channel=other binding=mention jev=- rows=9
+    :20 [stem/stem_weak] margin_header: 4252,
+    :168 [stem/stem_weak] active_header: None,
+    :226 [stem/stem_weak] active_header: None,
+- [code] src/renderer/page_layout.rs  channel=other binding=mention jev=- rows=4
+    :14 [stem/stem_weak] pub header_area: LayoutRect,
+    :68 [stem/stem_weak] let header_area = LayoutRect::from_hwpunit_rect(&areas.header_area, dpi);
+    :79 [stem/stem_weak] header_area,
+- [code] src/renderer/pagination.rs  channel=other binding=mention jev=- rows=3
+    :15 [stem/stem_weak] use crate::model::header_footer::HeaderFooterApply;
+    :45 [stem/stem_weak] pub active_header: Option<HeaderFooterRef>,
+    :380 [stem/stem_weak] active_header: old_page.active_header.clone(),
+- [code] src/renderer/pagination/state.rs  channel=other binding=mention jev=- rows=1
+    :231 [stem/stem_weak] active_header: None,
+- [code] src/renderer/pagination/tests.rs  channel=other binding=mention jev=- rows=8
+    :13 [stem/stem_weak] margin_header: 4252,
+    :379 [stem/stem_weak] fn test_table_split_with_repeat_header() {
+    :380 [stem/stem_weak] // repeat_header=true인 표가 분할될 때 is_continuation 확인
+- [code] src/serializer/body_text.rs  channel=other binding=mention jev=- rows=8
+    :102 [stem/stem_weak] data: serialize_para_header_with_mask(
+    :200 [stem/stem_weak] fn serialize_para_header_with_mask(
+    :234 [stem/stem_weak] // instanceId + 추가 바이트: raw_header_extra에서 복원
+- [code] src/serializer/cfb_writer.rs  channel=other binding=mention jev=- rows=6
+    :19 [stem/stem_weak] use super::header::serialize_file_header;
+    :26 [stem/stem_weak] let header_bytes = serialize_file_header(&doc.header);
+    :39 [stem/stem_weak] let compressed = doc.header.compressed;
+- [code] src/serializer/control/tests.rs  channel=other binding=mention jev=- rows=7
+    :22 [stem/stem_weak] margin_header: 4252,
+    :256 [stem/stem_weak] hide_header: true,
+    :286 [stem/stem_weak] assert!(ph.hide_header);
+- [code] src/serializer/hwpx/content.rs  channel=other binding=mention jev=- rows=3
+    :94 [stem/stem_weak] ("id", "header"),
+    :95 [stem/stem_weak] ("href", "Contents/header.xml"),
+    :141 [stem/stem_weak] empty_tag(&mut w, "opf:itemref", &[("idref", "header")])?;
+- [code] src/serializer/hwpx/context.rs  channel=other binding=mention jev=- rows=5
+    :5 [stem/stem_weak] //! HWPX 직렬화에서 가장 큰 함정은 **한 파일(section.xml)에서 쓴 ID가 다른 파일(header.xml)에
+    :7 [stem/stem_weak] //! header의 `<hh:charPr id="3">` 가 누락되면 한컴2020이 조용히 스타일을 엉키게 렌더링한다.
+    :38 [stem/stem_weak] /// header/DocInfo에서 정의되는 ID를 등록.
+- [code] src/serializer/hwpx/fixtures.rs  channel=other binding=mention jev=- rows=3
+    :12 [stem/stem_weak] pub const EMPTY_HEADER_XML: &str = include_str!("templates/empty_header.xml");
+    :28 [stem/stem_weak] fn empty_header_contains_hh_head_root() {
+    :31 [stem/stem_weak] "empty_header.xml should contain <hh:head> root"
+- [code] src/serializer/hwpx/mod.rs  channel=other binding=mention jev=- rows=6
+    :5 [stem/stem_weak] //! - Stage 1: header.xml IR 기반 동적 생성
+    :17 [stem/stem_weak] pub mod header;
+    :55 [stem/stem_weak] // 3. Contents/header.xml — Stage 1 동적 생성 (IR 기반)
+- [code] src/serializer/hwpx/section.rs  channel=other binding=mention jev=- rows=4
+    :274 [stem/stem_weak] ("hideHeader", bool01(page_hide.hide_header)),
+    :583 [stem/stem_weak] r#"<hp:pagePr landscape="{}" width="{}" height="{}" gutterType="{}"><hp:margin header="{}" footer="{}" gutter="{}" left="{}" right="{}" top="{}" botto
+    :588 [stem/stem_weak] pd.margin_header,
+- [code] src/serializer/hwpx/static_assets.rs  channel=other binding=mention jev=- rows=2
+    :27 [stem/stem_weak] r#"<ns0:hasPart xmlns:ns0="http://www.hancom.co.kr/hwpml/2016/meta/pkg#" rdf:resource="Contents/header.xml"/>"#,
+    :29 [stem/stem_weak] r#"<rdf:Description rdf:about="Contents/header.xml">"#,
+- [code] src/serializer/hwpx/table.rs  channel=other binding=mention jev=- rows=8
+    :17 [stem/stem_weak] //! name, header, hasMargin, protect, editable, dirty, borderFillIDRef
+    :72 [stem/stem_weak] let repeat_header = bool01(table.repeat_header);
+    :91 [stem/stem_weak] ("repeatHeader", repeat_header),
+- [code] src/serializer/hwpx/templates/empty_content.hpf  channel=other binding=mention jev=- rows=1
+    :1 [stem/stem_weak] <?xml version="1.0" encoding="UTF-8" standalone="yes" ?><opf:package xmlns:ha="http://www.hancom.co.kr/hwpml/2011/app" xmlns:hp="http://www.hancom.co.
+- [code] src/serializer/hwpx/templates/empty_section0.xml  channel=other binding=mention jev=- rows=1
+    :1 [stem/stem_weak] <?xml version="1.0" encoding="UTF-8" standalone="yes" ?><hs:sec xmlns:ha="http://www.hancom.co.kr/hwpml/2011/app" xmlns:hp="http://www.hancom.co.kr/hw
+- [code] src/serializer/mini_cfb.rs  channel=other binding=mention jev=- rows=2
+    :215 [stem/stem_weak] write_header(
+    :357 [stem/stem_weak] fn write_header(
+- [code] src/serializer/mod.rs  channel=other binding=mention jev=- rows=1
+    :11 [stem/stem_weak] pub mod header;
+- [code] src/serializer/record_writer.rs  channel=other binding=mention jev=- rows=5
+    :20 [stem/stem_weak] let header_size = if extended { 0xFFF } else { size };
+    :21 [stem/stem_weak] let header: u32 =
+    :22 [stem/stem_weak] (tag_id as u32 & 0x3FF) | ((level as u32 & 0x3FF) << 10) | (header_size << 20);
+- [code] src/tools/font_metric_gen.rs  channel=other binding=mention jev=- rows=3
+    :57 [stem/stem_weak] fn parse_table_directory_at(data: &[u8], header_off: usize) -> Vec<TableEntry> {
+    :58 [stem/stem_weak] let num_tables = read_u16_be(data, header_off + 4);
+    :62 [stem/stem_weak] let entry_off = header_off + 12 + i * 16;
+- [code] src/wmf/converter/mod.rs  channel=other binding=mention jev=- rows=3
+    :63 [stem/stem_weak] let (header, _) = MetafileHeader::parse(buf)?;
+    :66 [stem/stem_weak] debug!(%record_number, ?header);
+    :67 [stem/stem_weak] player = player.header(record_number, header)?;
+- [code] src/wmf/converter/player.rs  channel=other binding=mention jev=- rows=1
+    :65 [stem/stem_weak] fn header(self, record_number: usize, header: MetafileHeader) -> Result<Self, PlayError>;
+- [code] src/wmf/converter/svg/mod.rs  channel=other binding=mention jev=- rows=5
+    :465 [stem/stem_weak] fn header(mut self, record_number: usize, header: MetafileHeader) -> Result<Self, PlayError> {
+    :466 [stem/stem_weak] let (placeable, header) = match header {
+    :467 [stem/stem_weak] MetafileHeader::StartsWithHeader(header) => (None, header),
+- [code] src/wmf/converter/svg/util.rs  channel=other binding=mention jev=- rows=4
+    :90 [stem/stem_weak] .set("width", brush_hatch.dib_header_info.width())
+    :91 [stem/stem_weak] .set("height", brush_hatch.dib_header_info.height())
+    :98 [stem/stem_weak] .set("width", brush_hatch.dib_header_info.width())
+- [code] src/wmf/parser/constants/enums/logical_color_space.rs  channel=other binding=mention jev=- rows=1
+    :7 [stem/stem_weak] /// header of type BitmapV5Header Object.
+- [code] src/wmf/parser/constants/enums/record_type.rs  channel=other binding=mention jev=- rows=1
+    :257 [stem/stem_weak] /// A record type is not defined for the WMF header record, because only
+- [code] src/wmf/parser/objects/structure/bitmap16.rs  channel=other binding=mention jev=- rows=2
+    :133 [stem/stem_weak] dib_header_info: crate::wmf::parser::BitmapInfoHeader::Core(
+    :135 [stem/stem_weak] header_size: 12,
+- [code] src/wmf/parser/objects/structure/bitmap_info_header/core.rs  channel=other binding=mention jev=- rows=3
+    :13 [stem/stem_weak] pub header_size: u32,
+    :37 [stem/stem_weak] header_size: u32,
+    :72 [stem/stem_weak] header_size,
+- [code] src/wmf/parser/objects/structure/bitmap_info_header/info.rs  channel=other binding=mention jev=- rows=3
+    :9 [stem/stem_weak] pub header_size: u32,
+    :95 [stem/stem_weak] header_size: u32,
+    :151 [stem/stem_weak] header_size,
+- [code] src/wmf/parser/objects/structure/bitmap_info_header/v4.rs  channel=other binding=mention jev=- rows=8
+    :9 [stem/stem_weak] pub header_size: u32,
+    :147 [stem/stem_weak] header_size: u32,
+    :150 [stem/stem_weak] (header, header_bytes),
+- [code] src/wmf/parser/objects/structure/bitmap_info_header/v5.rs  channel=other binding=mention jev=- rows=8
+    :10 [stem/stem_weak] pub header_size: u32,
+    :173 [stem/stem_weak] header_size: u32,
+    :176 [stem/stem_weak] (header, header_bytes),
+- [code] src/wmf/parser/objects/structure/mod.rs  channel=other binding=mention jev=- rows=2
+    :5 [stem/stem_weak] mod bitmap_info_header;
+    :26 [stem/stem_weak] bitmap16::*, bitmap_info_header::*, ciexyz::*, ciexyz_triple::*, color_ref::*,
+- [code] src/wmf/parser/records/control/header.rs  channel=other binding=mention jev=- rows=4
+    :12 [stem/stem_weak] /// header.
+    :13 [stem/stem_weak] pub header_size: u16,
+    :51 [stem/stem_weak] let ((typ, mut consumed_bytes), (header_size, _)) = (
+- [code] src/wmf/parser/records/control/mod.rs  channel=other binding=mention jev=- rows=5
+    :5 [stem/stem_weak] mod header;
+    :8 [stem/stem_weak] pub use self::{eof::*, header::*, placeable::*};
+    :41 [stem/stem_weak] let (header, c) = crate::wmf::parser::META_HEADER::parse(buf, key)?;
+- [code] src/wmf/parser/records/control/placeable.rs  channel=other binding=mention jev=- rows=3
+    :13 [stem/stem_weak] /// placeable metafile header. This value MUST be 0x9AC6CDD7.
+    :37 [stem/stem_weak] /// header. This value can be used to determine whether the metafile has
+    :40 [stem/stem_weak] /// the header.
+- [code] src/wmf/parser/records/escape/mod.rs  channel=other binding=mention jev=- rows=1
+    :11 [stem/stem_weak] mod download_header;
+- [code] tests/cell_format_reflow.rs  channel=other binding=mention jev=- rows=2
+    :184 [stem/stem_weak] let header_end = node.find(",\"children\"").unwrap_or(node.len());
+    :185 [stem/stem_weak] if node[..header_end].contains(&address) {
+- [code] tests/form_caption_display.rs  channel=other binding=mention jev=- rows=1
+    :143 [stem/stem_weak] Control::Header(header) => all_paragraphs(&header.paragraphs, out),
+- [code] tests/hwpx_page_def_roundtrip.rs  channel=other binding=mention jev=- rows=13
+    :136 [stem/stem_weak] pd.margin_header,
+    :191 [stem/stem_weak] r#"<hp:pagePr landscape="{landscape}" width="59528" height="84186" gutterType="{gutter_type}"><hp:margin header="5555" footer="6666" gutter="7777" lef
+    :310 [stem/stem_weak] r#"<hp:pagePr width="59528" height="84186"><hp:margin header="0" footer="0" gutter="0" left="0" right="0" top="0" bottom="0"/></hp:pagePr>"#,
+- [code] tests/hwpx_phase1_corpus.rs  channel=other binding=mention jev=- rows=7
+    :78 [stem/stem_weak] Control::Header(header) => {
+    :79 [stem/stem_weak] for paragraph in &header.paragraphs {
+    :269 [stem/stem_weak] Control::Header(header) => {
+- [code] tests/pagination_square_wrap.rs  channel=other binding=mention jev=- rows=1
+    :17 [stem/stem_weak] margin_header: 4_252,
+- [code] tools/roundtrip_diff.py  channel=other binding=mention jev=- rows=1
+    :56 [stem/stem_weak] "tc": ("name", "header", "hasMargin", "borderFillIDRef"),
+- [code] web/editor.css  channel=other binding=mention jev=- rows=6
+    :21 [stem/stem_weak] header {
+    :32 [stem/stem_weak] header h1 {
+    :37 [stem/stem_weak] .header-controls {
+- [code] web/editor.html  channel=other binding=mention jev=- rows=5
+    :173 [stem/stem_weak] <header>
+    :175 [stem/stem_weak] <div class="header-controls">
+    :176 [stem/stem_weak] <a href="index.html" class="header-link">비교 모드</a>
+- [code] web/index.html  channel=other binding=mention jev=- rows=3
+    :27 [stem/stem_weak] <header>
+    :29 [stem/stem_weak] <div class="header-controls">
+    :34 [stem/stem_weak] </header>
+- [code] web/rhwp.js  channel=other binding=mention jev=- rows=1
+    :1650 [stem/stem_weak] if (validResponse && module.headers.get('Content-Type') !== 'application/wasm') {
+- [code] web/style.css  channel=other binding=mention jev=- rows=4
+    :20 [stem/stem_weak] header {
+    :30 [stem/stem_weak] header h1 {
+    :35 [stem/stem_weak] .header-controls {
