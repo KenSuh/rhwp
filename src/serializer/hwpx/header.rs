@@ -27,6 +27,9 @@ use super::context::SerializeContext;
 use super::utils::{empty_tag, end_tag, start_tag_attrs, write_xml_decl};
 use super::SerializeError;
 
+/// 한컴이 `hp:switch` 의 case 로 쓰는 HwpUnitChar 이름공간. 그 case 값은 IR(HWP5 척도)의 절반이다.
+const HWP_UNIT_CHAR_NS: &str = "http://www.hancom.co.kr/hwpml/2016/HwpUnitChar";
+
 /// `header.xml` 바이트 생성. Stage 1 진입점.
 pub fn write_header(doc: &Document, ctx: &SerializeContext) -> Result<Vec<u8>, SerializeError> {
     let mut w: Writer<Vec<u8>> = Writer::new(Vec::new());
@@ -53,6 +56,7 @@ pub fn write_header(doc: &Document, ctx: &SerializeContext) -> Result<Vec<u8>, S
                 "xmlns:ooxmlchart",
                 "http://www.hancom.co.kr/hwpml/2016/ooxmlchart",
             ),
+            ("xmlns:hwpunitchar", HWP_UNIT_CHAR_NS),
             ("xmlns:hpf", "http://www.hancom.co.kr/schema/2011/hpf"),
             (
                 "xmlns:config",
@@ -600,19 +604,44 @@ fn write_tab_pr<W: Write>(w: &mut Writer<W>, id: u16, td: &TabDef) -> Result<(),
     } else {
         start_tag_attrs(w, "hh:tabPr", &attrs_ref)?;
         for tab in &td.tabs {
-            empty_tag(
-                w,
-                "hh:tabItem",
-                &[
-                    ("pos", &tab.position.to_string()),
-                    ("type", tab_type_str(tab.tab_type)),
-                    ("leader", tab_leader_str(tab.fill_type)),
-                ],
-            )?;
+            write_tab_item_switch(w, tab)?;
         }
         end_tag(w, "hh:tabPr")?;
     }
     Ok(())
+}
+
+/// tabItem 하나를 한컴 원본처럼 `<hp:switch>` 로 쓴다 — HwpUnitChar case 는 위치의 절반(`unit="HWPUNIT"`),
+/// default 는 IR 위치. 한컴은 switch 없는 평문 위치를 case 척도로 읽어 탭이 두 배 자리로 간다.
+fn write_tab_item_switch<W: Write>(
+    w: &mut Writer<W>,
+    tab: &crate::model::style::TabItem,
+) -> Result<(), SerializeError> {
+    super::utils::start_tag(w, "hp:switch")?;
+    start_tag_attrs(w, "hp:case", &[("hp:required-namespace", HWP_UNIT_CHAR_NS)])?;
+    empty_tag(
+        w,
+        "hh:tabItem",
+        &[
+            ("pos", &(tab.position / 2).to_string()),
+            ("type", tab_type_str(tab.tab_type)),
+            ("leader", tab_leader_str(tab.fill_type)),
+            ("unit", "HWPUNIT"),
+        ],
+    )?;
+    end_tag(w, "hp:case")?;
+    super::utils::start_tag(w, "hp:default")?;
+    empty_tag(
+        w,
+        "hh:tabItem",
+        &[
+            ("pos", &tab.position.to_string()),
+            ("type", tab_type_str(tab.tab_type)),
+            ("leader", tab_leader_str(tab.fill_type)),
+        ],
+    )?;
+    end_tag(w, "hp:default")?;
+    end_tag(w, "hp:switch")
 }
 
 fn tab_type_str(t: u8) -> &'static str {
@@ -747,8 +776,8 @@ fn write_para_pr<W: Write>(
         ],
     )?;
 
-    // 자식 순서 (ParaShapeType.cpp:50-56):
-    // align, heading, breakSetting, margin, lineSpacing, border, autoSpacing
+    // 자식 순서 (한컴 원본 관찰):
+    // align, heading, breakSetting, autoSpacing, switch(margin, lineSpacing), border
     empty_tag(
         w,
         "hh:align",
@@ -809,24 +838,16 @@ fn write_para_pr<W: Write>(
         ],
     )?;
 
-    // <hh:margin>: 자식 4개 (intent, left, right, prev, next) — 단위/값 지정
-    super::utils::start_tag(w, "hh:margin")?;
-    write_margin_child(w, "hc:intent", ps.indent)?;
-    write_margin_child(w, "hc:left", ps.margin_left)?;
-    write_margin_child(w, "hc:right", ps.margin_right)?;
-    write_margin_child(w, "hc:prev", ps.spacing_before)?;
-    write_margin_child(w, "hc:next", ps.spacing_after)?;
-    end_tag(w, "hh:margin")?;
-
     empty_tag(
         w,
-        "hh:lineSpacing",
+        "hh:autoSpacing",
         &[
-            ("type", line_spacing_type_str(ps.line_spacing_type)),
-            ("value", &ps.line_spacing.to_string()),
-            ("unit", "HWPUNIT"),
+            ("eAsianEng", bool01(ps.attr2 & (1 << 4) != 0)),
+            ("eAsianNum", bool01(ps.attr2 & (1 << 5) != 0)),
         ],
     )?;
+
+    write_para_margin_switch(w, ps)?;
 
     empty_tag(
         w,
@@ -842,29 +863,80 @@ fn write_para_pr<W: Write>(
         ],
     )?;
 
-    empty_tag(
-        w,
-        "hh:autoSpacing",
-        &[
-            ("eAsianEng", bool01(ps.attr2 & (1 << 4) != 0)),
-            ("eAsianNum", bool01(ps.attr2 & (1 << 5) != 0)),
-        ],
-    )?;
-
     end_tag(w, "hh:paraPr")?;
     Ok(())
 }
 
+/// margin·lineSpacing 을 한컴 원본처럼 `<hp:switch>` 로 쓴다 — HwpUnitChar case 는 IR 값의 절반,
+/// default 는 IR 값. 한컴은 switch 없는 평문 값을 case 척도로 읽어 들여쓰기·여백이 두 배가 된다.
+/// 파서는 case 값을 두 배 해 IR 에 담으므로 짝수 값은 그대로 돌아온다.
+fn write_para_margin_switch<W: Write>(
+    w: &mut Writer<W>,
+    ps: &ParaShape,
+) -> Result<(), SerializeError> {
+    super::utils::start_tag(w, "hp:switch")?;
+    start_tag_attrs(w, "hp:case", &[("hp:required-namespace", HWP_UNIT_CHAR_NS)])?;
+    write_para_margin(w, ps, true)?;
+    write_para_line_spacing(w, ps, true)?;
+    end_tag(w, "hp:case")?;
+    super::utils::start_tag(w, "hp:default")?;
+    write_para_margin(w, ps, false)?;
+    write_para_line_spacing(w, ps, false)?;
+    end_tag(w, "hp:default")?;
+    end_tag(w, "hp:switch")
+}
+
+/// `<hh:margin>` 자식 다섯(intent, left, right, prev, next). `case` 면 HwpUnitChar 값을 쓴다.
+fn write_para_margin<W: Write>(
+    w: &mut Writer<W>,
+    ps: &ParaShape,
+    case: bool,
+) -> Result<(), SerializeError> {
+    super::utils::start_tag(w, "hh:margin")?;
+    write_margin_child(w, "hc:intent", ps.indent, case)?;
+    write_margin_child(w, "hc:left", ps.margin_left, case)?;
+    write_margin_child(w, "hc:right", ps.margin_right, case)?;
+    write_margin_child(w, "hc:prev", ps.spacing_before, case)?;
+    write_margin_child(w, "hc:next", ps.spacing_after, case)?;
+    end_tag(w, "hh:margin")
+}
+
+/// `<hh:lineSpacing>`. case 에서 PERCENT 는 그대로, 다른 종류는 HWPUNIT 이라 절반이다(파서가 두 배로 읽는다).
+fn write_para_line_spacing<W: Write>(
+    w: &mut Writer<W>,
+    ps: &ParaShape,
+    case: bool,
+) -> Result<(), SerializeError> {
+    let value = if case && !matches!(ps.line_spacing_type, LineSpacingType::Percent) {
+        ps.line_spacing / 2
+    } else {
+        ps.line_spacing
+    };
+    empty_tag(
+        w,
+        "hh:lineSpacing",
+        &[
+            ("type", line_spacing_type_str(ps.line_spacing_type)),
+            ("value", &value.to_string()),
+            ("unit", "HWPUNIT"),
+        ],
+    )
+}
+
+/// margin 자식 하나(`<hc:intent value="…" unit="…"/>`, 한컴 속성 순서). case 에서 홀수 IR 값은 절반이
+/// 정수로 떨어지지 않으므로 한컴 HWP→HWPX 변환본처럼 `(값 - 1) / 2` 와 `unit="CHAR"` 로 쓴다.
 fn write_margin_child<W: Write>(
     w: &mut Writer<W>,
     name: &str,
-    value: i32,
+    stored: i32,
+    case: bool,
 ) -> Result<(), SerializeError> {
-    empty_tag(
-        w,
-        name,
-        &[("unit", "HWPUNIT"), ("value", &value.to_string())],
-    )
+    let (value, unit) = match (case, stored % 2 != 0) {
+        (false, _) => (stored, "HWPUNIT"),
+        (true, false) => (stored / 2, "HWPUNIT"),
+        (true, true) => ((stored - 1) / 2, "CHAR"),
+    };
+    empty_tag(w, name, &[("value", &value.to_string()), ("unit", unit)])
 }
 
 fn alignment_str(a: Alignment) -> &'static str {

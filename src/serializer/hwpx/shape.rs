@@ -21,9 +21,12 @@ use crate::model::style::{FillType, ShapeBorderLine};
 // =====================================================================
 
 /// `<hp:rect>` 직렬화 진입점. Rectangle IR → XML.
+///
+/// `in_group` 이면 묶음(`hp:container`) 안 자식이다 — 한컴처럼 sz/pos/outMargin 을 쓰지 않는다.
 pub fn write_rect<W: Write>(
     w: &mut Writer<W>,
     rect: &RectangleShape,
+    in_group: bool,
     ctx: &mut SerializeContext,
 ) -> Result<(), SerializeError> {
     let c = &rect.common;
@@ -67,13 +70,25 @@ pub fn write_rect<W: Write>(
             ],
         )?;
     }
-    write_sz(w, c)?;
-    write_pos(w, c)?;
-    write_out_margin(w, c)?;
+    write_placement(w, c, in_group)?;
 
     write_shape_comment(w, c)?;
     end_tag(w, "hp:rect")?;
     Ok(())
+}
+
+/// 쪽 배치(sz/pos/outMargin). 묶음 안 자식은 묶음이 배치하므로 한컴 원본처럼 쓰지 않는다.
+fn write_placement<W: Write>(
+    w: &mut Writer<W>,
+    c: &CommonObjAttr,
+    in_group: bool,
+) -> Result<(), SerializeError> {
+    if in_group {
+        return Ok(());
+    }
+    write_sz(w, c)?;
+    write_pos(w, c)?;
+    write_out_margin(w, c)
 }
 
 // =====================================================================
@@ -81,9 +96,13 @@ pub fn write_rect<W: Write>(
 // =====================================================================
 
 /// `<hp:line>` 직렬화 진입점. LineShape IR → XML.
+///
+/// 시작·끝점은 OWPML LineType 의 필수 자식 `hc:startPt`/`hc:endPt` 로 쓴다. 이 저장소의 파서가 읽는
+/// `startX`… 속성도 함께 남긴다.
 pub fn write_line<W: Write>(
     w: &mut Writer<W>,
     line: &LineShape,
+    in_group: bool,
     ctx: &mut SerializeContext,
 ) -> Result<(), SerializeError> {
     let c = &line.common;
@@ -123,9 +142,9 @@ pub fn write_line<W: Write>(
 
     write_shape_component(w, &line.drawing.shape_attr)?;
     write_drawing(w, &line.drawing, ctx)?;
-    write_sz(w, c)?;
-    write_pos(w, c)?;
-    write_out_margin(w, c)?;
+    empty_tag(w, "hc:startPt", &[("x", &sx), ("y", &sy)])?;
+    empty_tag(w, "hc:endPt", &[("x", &ex), ("y", &ey)])?;
+    write_placement(w, c, in_group)?;
 
     write_shape_comment(w, c)?;
     end_tag(w, "hp:line")?;
@@ -170,11 +189,10 @@ pub fn write_container_open<W: Write>(
 pub fn write_container_close<W: Write>(
     w: &mut Writer<W>,
     group: &GroupShape,
+    in_group: bool,
     ctx: &mut SerializeContext,
 ) -> Result<(), SerializeError> {
-    write_sz(w, &group.common)?;
-    write_pos(w, &group.common)?;
-    write_out_margin(w, &group.common)?;
+    write_placement(w, &group.common, in_group)?;
     if let Some(caption) = &group.caption {
         write_caption(w, caption, ctx)?;
     }
@@ -186,12 +204,13 @@ pub(super) fn write_shape_component<W: Write>(
     w: &mut Writer<W>,
     shape: &ShapeComponentAttr,
 ) -> Result<(), SerializeError> {
+    // 음수 offset 은 한컴처럼 32비트 부호 없는 표기로 쓴다(파서도 그 표기를 읽는다).
     empty_tag(
         w,
         "hp:offset",
         &[
-            ("x", &shape.offset_x.to_string()),
-            ("y", &shape.offset_y.to_string()),
+            ("x", &(shape.offset_x as u32).to_string()),
+            ("y", &(shape.offset_y as u32).to_string()),
         ],
     )?;
     empty_tag(
@@ -610,13 +629,13 @@ mod tests {
 
     fn serialize_rect(rect: &RectangleShape) -> String {
         let mut w: Writer<Vec<u8>> = Writer::new(Vec::new());
-        write_rect(&mut w, rect, &mut SerializeContext::default()).expect("write_rect");
+        write_rect(&mut w, rect, false, &mut SerializeContext::default()).expect("write_rect");
         String::from_utf8(w.into_inner()).unwrap()
     }
 
     fn serialize_line(line: &LineShape) -> String {
         let mut w: Writer<Vec<u8>> = Writer::new(Vec::new());
-        write_line(&mut w, line, &mut SerializeContext::default()).expect("write_line");
+        write_line(&mut w, line, false, &mut SerializeContext::default()).expect("write_line");
         String::from_utf8(w.into_inner()).unwrap()
     }
 

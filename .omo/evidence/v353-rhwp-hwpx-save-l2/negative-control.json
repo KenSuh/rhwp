@@ -1,0 +1,60 @@
+{
+ "base": "59c2285efe616211cd147dfa849d2f9f9df767dd",
+ "base_copy": "/private/tmp/claude-501/-Users-ken-orca-workspaces-rhwp-v353-rhwp-table-fidelity/45cf6a7c-0f82-426a-bc0f-a2490ec30aa5/scratchpad/base-59c2285",
+ "base_copy_method": "git archive 59c2285 | tar -x (src/ byte-identical to the base commit) + work-tree Cargo.lock",
+ "test_file_sha256": "5dbc4e68d8d0d8ec46e6f0747a1516fb116c9baf8143ceed4790abd2aad94340",
+ "generated_at": "2026-10-26T06:26:16Z",
+ "run_order_failed": 3,
+ "two_save_failed": 3,
+ "two_save_l2_failed": 2,
+ "g8_lib_failed": true,
+ "residual_failed": 6,
+ "guard_tests_passing_at_base": [
+  "run_order_paragraph_without_offsets_keeps_text_first"
+ ],
+ "l2": {
+  "exit": 101,
+  "compiled": true,
+  "result_line": "test result: FAILED. 1 passed; 11 failed",
+  "tests": {
+   "dump_open_save": "ignored",
+   "write_hancom_review_files": "ignored",
+   "residual_header_odd_even_negative_margins_survive_two_saves": "FAILED",
+   "run_order_c6_open_save_matches_hancom_original": "FAILED",
+   "residual_header_tab_items_use_hancom_switch": "FAILED",
+   "run_order_facf_open_save_restores_hancom_original": "FAILED",
+   "residual_group_children_match_hancom_structure": "FAILED",
+   "run_order_offsets_gap_places_table_between_text": "FAILED",
+   "run_order_paragraph_without_offsets_keeps_text_first": "ok",
+   "residual_header_para_margins_use_hancom_switch": "FAILED",
+   "residual_line_writes_start_and_end_points": "FAILED",
+   "two_save_section_def_prefix_keeps_column_in_section_run": "FAILED",
+   "two_save_first_paragraph_keeps_hancom_section_runs": "FAILED",
+   "residual_negative_shape_offset_survives_second_save": "FAILED"
+  },
+  "panic_first_lines": [
+   "paraPr margin switch (한컴 원본 표기)",
+   "C6 열고 저장: run·컨트롤 순서가 원본과 다른 문단 56개 (깊이별 {0: 8, 1: 45, 3: 3}). 처음 3개 (전위 번호, 최상위 문단, 깊이, 기대, 실제): [(135, 71, 0, [Obj(\"tbl\"), Text(\" \")], [Text(\" \"), Obj(\"tbl\")]), (137, 71, 1, [Obj(\"rect\"), Text(\" 소상공인24(www.sbiz24.kr) 접속 → 회원가입(대표자가 회원가입→사업자 정보 입력)및 로그인\")], [Text(\" 소상공인24(www.sbiz24.kr) 접속 → 회원가입(대",
+   "assertion `left == right` failed: C6: tabItem switch",
+   "FACF 열고 저장: run·컨트롤 순서가 원본과 다른 문단 56개 (깊이별 {0: 8, 1: 45, 3: 3}). 처음 3개 (전위 번호, 최상위 문단, 깊이, 기대, 실제): [(135, 71, 0, [Obj(\"tbl\"), Text(\" \")], [Text(\" \"), Obj(\"tbl\")]), (137, 71, 1, [Obj(\"rect\"), Text(\" 소상공인24(www.sbiz24.kr) 접속 → 회원가입(대표자가 회원가입→사업자 정보 입력)및 로그인\")], [Text(\" 소상공인24(www.sbiz24.kr) 접속 → 회원가입",
+   "C6: 원본과 구성이 다른 개체 10개, 첫 개체 (원본, 저장본): Some(((\"rect\", true, [\"offset\", \"orgSz\", \"curSz\", \"flip\", \"rotationInfo\", \"renderingInfo\", \"lineShape\", \"fillBrush\", \"shadow\", \"pt0\", \"pt1\", \"pt2\", \"pt3\"]), (\"rect\", true, [\"offset\", \"orgSz\", \"curSz\", \"flip\", \"rotationInfo\", \"renderingInfo\", \"lineShape\", \"fillB",
+   "assertion `left == right` failed",
+   "assertion `left == right` failed: C6: paraPr margin switch",
+   "assertion `left == right` failed: T6 선 자식 구성",
+   "assertion `left == right` failed: 저장 1: 첫 문단 구역 run 구성",
+   "assertion `left == right` failed: C6 저장 1: 첫 문단 구역 run 구성",
+   "assertion `left == right` failed: 저장 1 offset"
+  ]
+ },
+ "g8_lib": {
+  "exit": 101,
+  "compiled": true,
+  "result_line": "test result: FAILED. 0 passed; 1 failed",
+  "tests": {
+   "serializer::hwpx::tests::form_attribute_entities_survive_two_hwpx_saves": "FAILED"
+  },
+  "panic_first_lines": [
+   "assertion `left == right` failed: second save must reproduce the first section XML"
+  ]
+ }
+}

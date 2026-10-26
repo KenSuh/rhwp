@@ -500,7 +500,7 @@ fn c10_native_initial_column_page_number_prefix_precedes_text_once() {
             .collect();
         assert_eq!(
             first,
-            ["secPr", "colPr", "pageNum", "t", "tbl", "pic", "colPr"]
+            ["secPr", "colPr", "pageNum", "tbl", "pic", "colPr", "t"]
         );
         let page_number = events.iter().find(|(_, n, _, _)| n == "pageNum").unwrap();
         assert_eq!(page_number.2, ["p0"]);
@@ -541,13 +541,13 @@ fn c10_native_nonleading_vector_columns_and_inline_order_are_retained() {
             first,
             [
                 "secPr",
-                "t",
                 "pageHiding",
                 "colPr",
                 "pageNum",
                 "colPr",
                 "tbl",
-                "pic"
+                "pic",
+                "t"
             ]
         );
         assert_eq!(c9_layout_events(xml), expected_columns);
@@ -574,7 +574,7 @@ fn c10_native_initial_column_moves_only_adjacent_page_number_prefix() {
             .collect();
         assert_eq!(
             first,
-            ["secPr", "colPr", "t", "pic", "pageNum", "colPr", "tbl"]
+            ["secPr", "colPr", "pic", "pageNum", "colPr", "tbl", "t"]
         );
     });
 }
@@ -1454,12 +1454,35 @@ fn c9_paragraph_margin_2011_expanded_namespace_and_signed_values_survive() {
     assert!(expected
         .iter()
         .all(|(ns, _, _, _)| ns == "http://www.hancom.co.kr/hwpml/2011/core"));
+    // 저장본은 한컴처럼 hp:switch 로 쓴다: HwpUnitChar case(짝수 = 값/2, 홀수 = (값-1)/2 · unit=CHAR)
+    // 다음에 default(입력 값 그대로).
+    let switched: Vec<_> = [
+        ("intent", "-60", "HWPUNIT"),
+        ("left", "160", "CHAR"),
+        ("right", "327", "HWPUNIT"),
+        ("prev", "-23", "CHAR"),
+        ("next", "394", "CHAR"),
+    ]
+    .iter()
+    .map(|(name, value, unit)| {
+        (
+            "http://www.hancom.co.kr/hwpml/2011/core".to_string(),
+            name.to_string(),
+            Vec::new(),
+            vec![
+                ("unit".to_string(), unit.to_string()),
+                ("value".to_string(), value.to_string()),
+            ],
+        )
+    })
+    .chain(expected.iter().cloned())
+    .collect();
     let mut doc = parse_hwpx(&input).unwrap();
     for pass in 1..=2 {
         let saved = serialize_hwpx(&doc).unwrap();
         assert_eq!(
             c9_layout_events(&c9_header_xml(&saved)),
-            expected,
+            switched,
             "save {pass} expanded namespace, units and numeric values"
         );
         doc = parse_hwpx(&saved).unwrap();

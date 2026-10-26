@@ -1,0 +1,189 @@
+{
+ "head": "59c2285efe616211cd147dfa849d2f9f9df767dd",
+ "src_dirty": false,
+ "src_diff_vs_base": [],
+ "generated_at": "2026-10-26T06:03:31Z",
+ "g8_test": "serializer::hwpx::tests::form_attribute_entities_survive_two_hwpx_saves",
+ "g8_failed": true,
+ "g8_result_line": "test result: FAILED. 0 passed; 1 failed",
+ "g8_panic_first_line": [
+  "assertion `left == right` failed: second save must reproduce the first section XML"
+ ],
+ "order_defects": 55,
+ "order": {
+  "C6_open_save": {
+   "order_diff_paras": 55,
+   "ws_before_inline_tbl": 7,
+   "text_only_diff_paras": 0,
+   "order_diff_patterns": [
+    "38x C:colPr T  ->  T C:colPr",
+    "10x O:rect T  ->  T O:rect",
+    "7x O:tbl T  ->  T O:tbl"
+   ]
+  },
+  "FACF_open_save": {
+   "order_diff_paras": 55,
+   "ws_before_inline_tbl": 7,
+   "text_only_diff_paras": 0,
+   "order_diff_patterns": [
+    "38x C:colPr T  ->  T C:colPr",
+    "10x O:rect T  ->  T O:rect",
+    "7x O:tbl T  ->  T O:tbl"
+   ]
+  },
+  "FACF_template_itself": {
+   "order_diff_paras": 56,
+   "ws_before_inline_tbl": 7,
+   "text_only_diff_paras": 0,
+   "order_diff_patterns": [
+    "38x C:colPr T  ->  T C:colPr",
+    "10x O:rect T  ->  T O:rect",
+    "7x O:tbl T  ->  T O:tbl",
+    "1x S:secPr C:colPr C:pageNum T  ->  S:secPr T C:colPr C:pageNum"
+   ]
+  }
+ },
+ "residual": {
+  "header": {
+   "C6_original": {
+    "hh:intent": 0,
+    "hc:intent": 850,
+    "hh:left": 0,
+    "hc:left": 850,
+    "hh:right": 0,
+    "hc:right": 850,
+    "hh:prev": 0,
+    "hc:prev": 850,
+    "hh:next": 0,
+    "hc:next": 850,
+    "paraPr": 425,
+    "switch": 463,
+    "margin_in_switch_case": 425,
+    "margin_total": 850,
+    "breakNonLatinWord": {
+     "KEEP_WORD": 314,
+     "BREAK_WORD": 111
+    }
+   },
+   "C6_open_save": {
+    "hh:intent": 0,
+    "hc:intent": 425,
+    "hh:left": 0,
+    "hc:left": 425,
+    "hh:right": 0,
+    "hc:right": 425,
+    "hh:prev": 0,
+    "hc:prev": 425,
+    "hh:next": 0,
+    "hc:next": 425,
+    "paraPr": 425,
+    "switch": 0,
+    "margin_in_switch_case": 0,
+    "margin_total": 425,
+    "breakNonLatinWord": {
+     "KEEP_WORD": 314,
+     "BREAK_WORD": 111
+    }
+   }
+  },
+  "fields": {
+   "C6_original": {
+    "raw_ctrl_chars": 0,
+    "fieldBegin": 11,
+    "fieldEnd": 11
+   },
+   "C6_open_save": {
+    "raw_ctrl_chars": 0,
+    "fieldBegin": 11,
+    "fieldEnd": 11
+   }
+  },
+  "shapes_C6_open_save": {
+   "rect": {
+    "ref": 26,
+    "out": 26,
+    "child_diffs": {
+     "('missing', (), 'extra', ('outMargin', 'pos', 'sz'))": 8
+    },
+    "attr_diffs": {
+     "numberingType": 18,
+     "id": 26
+    }
+   },
+   "container": {
+    "ref": 4,
+    "out": 4,
+    "child_diffs": {
+     "('missing', (), 'extra', ('outMargin', 'pos', 'sz'))": 2
+    },
+    "attr_diffs": {
+     "numberingType": 2,
+     "id": 4
+    }
+   },
+   "line": {
+    "ref": 0,
+    "out": 0
+   },
+   "ellipse": {
+    "ref": 0,
+    "out": 0
+   },
+   "pic": {
+    "ref": 1,
+    "out": 1,
+    "child_diffs": {},
+    "attr_diffs": {}
+   },
+   "tbl": {
+    "ref": 82,
+    "out": 82,
+    "child_diffs": {},
+    "attr_diffs": {
+     "id": 82,
+     "zOrder": 81
+    }
+   }
+  },
+  "line_children": {
+   "T6_original": [
+    [
+     "offset",
+     "orgSz",
+     "curSz",
+     "flip",
+     "rotationInfo",
+     "renderingInfo",
+     "transMatrix",
+     "scaMatrix",
+     "rotMatrix",
+     "lineShape",
+     "shadow",
+     "startPt",
+     "endPt",
+     "sz",
+     "pos",
+     "outMargin"
+    ]
+   ],
+   "T6_open_save": [
+    [
+     "offset",
+     "orgSz",
+     "curSz",
+     "flip",
+     "rotationInfo",
+     "renderingInfo",
+     "transMatrix",
+     "scaMatrix",
+     "rotMatrix",
+     "lineShape",
+     "shadow",
+     "sz",
+     "pos",
+     "outMargin"
+    ]
+   ]
+  }
+ }
+}

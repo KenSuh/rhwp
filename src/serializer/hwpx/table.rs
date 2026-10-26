@@ -327,10 +327,9 @@ pub(super) fn write_paragraph<W: Write>(
         .first()
         .map(|r| r.char_shape_id)
         .unwrap_or(0);
-    write_paragraph_text_runs(w, para)?;
-    for control in &para.controls {
-        write_cell_control_run(w, control, ctx, first_cs)?;
-    }
+    write_paragraph_runs(w, para, None, |w, control| {
+        write_cell_control_run(w, control, ctx, first_cs)
+    })?;
 
     write_cell_linesegs(w, &para.line_segs)?;
 
@@ -395,10 +394,90 @@ fn write_cell_fallback_lineseg<W: Write>(w: &mut Writer<W>) -> Result<(), Serial
     )
 }
 
-pub(super) fn write_paragraph_text_runs<W: Write>(
+/// 문단의 run 을 글자 위치 순서로 쓴다 — 글자·필드 표지·인라인 컨트롤을 char_offsets 에 맞춰 섞는다.
+///
+/// `write_control` 은 컨트롤 하나를 run 째로 쓴다(쓰지 않는 컨트롤이면 아무것도 쓰지 않는다).
+/// `skip` 컨트롤은 호출자가 다른 자리에 이미 썼다(구역 첫 문단의 단 정의).
+/// 글자 위치를 모르는 합성 문단은 옛 순서(글자 → 컨트롤)를 쓴다.
+pub(super) fn write_paragraph_runs<W, F>(
     w: &mut Writer<W>,
     para: &Paragraph,
-) -> Result<(), SerializeError> {
+    skip: Option<usize>,
+    mut write_control: F,
+) -> Result<(), SerializeError>
+where
+    W: Write,
+    F: FnMut(&mut Writer<W>, &Control) -> Result<(), SerializeError>,
+{
+    match inline_control_positions(para) {
+        Some(positions) => {
+            let placed: Vec<(usize, usize)> = positions
+                .into_iter()
+                .filter(|&(_, ci)| Some(ci) != skip)
+                .collect();
+            write_text_runs(w, para, &placed, &mut write_control)
+        }
+        None => {
+            write_text_runs(w, para, &[], &mut write_control)?;
+            for (ci, control) in para.controls.iter().enumerate() {
+                if Some(ci) != skip && !matches!(control, Control::Field(_)) {
+                    write_control(w, control)?;
+                }
+            }
+            Ok(())
+        }
+    }
+}
+
+/// 필드가 아닌 컨트롤마다 (들어갈 글자 인덱스, 컨트롤 인덱스) — 컨트롤은 그 글자 앞에 놓인다.
+///
+/// char_offsets 의 8 단위 빈칸이 컨트롤 자리다. 같은 빈칸의 필드 시작·끝 표지는 field_ranges 로 빼고
+/// 남은 자리를 컨트롤 순서대로 채운다. 자리가 모자라면 남은 컨트롤은 문단 끝에 둔다.
+/// HWPX 파서는 필드가 아닌 컨트롤을 모두 문단 앞머리 빈칸에 두므로 그런 문단은 «컨트롤 → 글자» 가 된다.
+/// 글자가 없으면 모든 컨트롤이 0 이고, 글자 수와 char_offsets 수가 다르면(합성 문단) `None` 이다.
+fn inline_control_positions(para: &Paragraph) -> Option<Vec<(usize, usize)>> {
+    let chars: Vec<char> = para.text.chars().collect();
+    let mut pending = para
+        .controls
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| !matches!(c, Control::Field(_)))
+        .map(|(ci, _)| ci);
+    if chars.is_empty() {
+        return Some(pending.map(|ci| (0, ci)).collect());
+    }
+    if para.char_offsets.len() != chars.len() {
+        return None;
+    }
+    let mut placed = Vec::new();
+    let mut previous_end = 0u32;
+    for (idx, (&ch, &offset)) in chars.iter().zip(&para.char_offsets).enumerate() {
+        let slots = (offset.saturating_sub(previous_end) / 8) as usize;
+        let field_marks = para
+            .field_ranges
+            .iter()
+            .map(|r| usize::from(r.start_char_idx == idx) + usize::from(r.end_char_idx == idx))
+            .sum::<usize>();
+        for ci in pending.by_ref().take(slots.saturating_sub(field_marks)) {
+            placed.push((idx, ci));
+        }
+        previous_end = offset + char_utf16_len(ch);
+    }
+    placed.extend(pending.map(|ci| (chars.len(), ci)));
+    Some(placed)
+}
+
+/// 글자 run 과 필드 run 을 쓰고, `placed` 의 컨트롤은 그 글자 인덱스 앞(필드 표지보다 먼저)에 끼운다.
+fn write_text_runs<W, F>(
+    w: &mut Writer<W>,
+    para: &Paragraph,
+    placed: &[(usize, usize)],
+    write_control: &mut F,
+) -> Result<(), SerializeError>
+where
+    W: Write,
+    F: FnMut(&mut Writer<W>, &Control) -> Result<(), SerializeError>,
+{
     let chars: Vec<char> = para.text.chars().collect();
     for range in &para.field_ranges {
         if range.start_char_idx > range.end_char_idx
@@ -468,10 +547,14 @@ pub(super) fn write_paragraph_text_runs<W: Write>(
     let mut current_text = String::new();
     let mut fallback_utf16_pos = 0;
     for idx in 0..=chars.len() {
-        if events.iter().any(|(pos, _, _, _)| *pos == idx) {
+        let has_controls = placed.iter().any(|&(pos, _)| pos == idx);
+        if has_controls || events.iter().any(|(pos, _, _, _)| *pos == idx) {
             if !current_text.is_empty() {
                 write_cell_text_run(w, current_shape.unwrap_or(0), &current_text)?;
                 current_text.clear();
+            }
+            for &(_, ci) in placed.iter().filter(|&&(pos, _)| pos == idx) {
+                write_control(w, &para.controls[ci])?;
             }
             for &(_, _, ci, begin) in events.iter().filter(|(pos, _, _, _)| *pos == idx) {
                 write_field_run(w, para, ci, begin, fallback_utf16_pos)?;
@@ -651,7 +734,7 @@ fn write_cell_control<W: Write>(
         Control::Table(table) => write_table(w, table, ctx),
         Control::Picture(pic) => write_picture(w, pic, ctx),
         Control::Shape(shape) => {
-            let _ = write_cell_shape(w, shape, ctx)?;
+            let _ = write_cell_shape(w, shape, false, ctx)?;
             Ok(())
         }
         Control::Form(form) => write_form(w, form),
@@ -668,26 +751,28 @@ fn shape_supported(shape: &ShapeObject) -> bool {
     }
 }
 
+/// `in_group` 이면 묶음 안 자식이다.
 fn write_cell_shape<W: Write>(
     w: &mut Writer<W>,
     shape: &ShapeObject,
+    in_group: bool,
     ctx: &mut SerializeContext,
 ) -> Result<bool, SerializeError> {
     match shape {
         ShapeObject::Line(line) => {
-            write_line(w, line, ctx)?;
+            write_line(w, line, in_group, ctx)?;
             Ok(true)
         }
         ShapeObject::Rectangle(rect) => {
-            write_rect(w, rect, ctx)?;
+            write_rect(w, rect, in_group, ctx)?;
             Ok(true)
         }
         ShapeObject::Group(group) => {
             write_container_open(w, group)?;
             for child in &group.children {
-                let _ = write_cell_shape(w, child, ctx)?;
+                let _ = write_cell_shape(w, child, true, ctx)?;
             }
-            write_container_close(w, group, ctx)?;
+            write_container_close(w, group, in_group, ctx)?;
             Ok(true)
         }
         ShapeObject::Picture(pic) => {

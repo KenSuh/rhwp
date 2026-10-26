@@ -37,7 +37,7 @@ use super::context::SerializeContext;
 use super::form::write_form;
 use super::picture::write_picture;
 use super::shape::{write_container_close, write_container_open, write_line, write_rect};
-use super::table::{write_paragraph_text_runs, write_table};
+use super::table::{write_paragraph_runs, write_table};
 use super::utils::{empty_tag, end_tag, start_tag, xml_escape};
 use super::SerializeError;
 
@@ -85,34 +85,36 @@ pub fn write_section(
         Some(page_pr) => replace_page_pr(EMPTY_SECTION_XML, &page_pr),
         None => EMPTY_SECTION_XML.to_string(),
     };
-    let template = if first_para.is_some_and(|p| {
+    // 구역 정의 바로 뒤의 단 정의는 한컴 원본처럼 구역 정의(secPr)와 같은 run 에 쓴다. 따로 쓰면
+    // 두 번째 저장부터 run 구성이 바뀐다. 다른 컨트롤 뒤의 단 정의는 제자리에 쓰고 템플릿 단 정의를
+    // 뺀다. 단 정의가 없으면 템플릿 기본 단 정의가 그 자리에 남는다.
+    let first_column = first_para.and_then(|p| {
         p.controls
             .iter()
-            .any(|c| matches!(c, Control::ColumnDef(_)))
-    }) {
-        template.replacen(TEMPLATE_COLUMN_DEF, "", 1)
-    } else {
-        template
+            .position(|c| !matches!(c, Control::SectionDef(_)))
+            .filter(|&ci| matches!(p.controls[ci], Control::ColumnDef(_)))
+    });
+    let template = match (first_para, first_column) {
+        (Some(p), Some(ci)) => {
+            let mut writer = Writer::new(Vec::new());
+            if let Control::ColumnDef(column) = &p.controls[ci] {
+                write_column_def(&mut writer, column)?;
+            }
+            let column_xml = String::from_utf8(writer.into_inner())
+                .map_err(|e| SerializeError::XmlError(e.to_string()))?;
+            template.replacen(TEMPLATE_COLUMN_DEF, &column_xml, 1)
+        }
+        (Some(p), None)
+            if p.controls
+                .iter()
+                .any(|c| matches!(c, Control::ColumnDef(_))) =>
+        {
+            template.replacen(TEMPLATE_COLUMN_DEF, "", 1)
+        }
+        _ => template,
     };
-    let initial_control_count = match first_para.map(|p| p.controls.as_slice()) {
-        Some([Control::ColumnDef(_), Control::PageNumberPos(_), ..]) => 2,
-        Some([Control::ColumnDef(_), ..]) => 1,
-        _ => 0,
-    };
-    let first_runs = match first_para {
-        Some(p) => format!(
-            "{}{}",
-            render_controls_xml(p, &p.controls[..initial_control_count], ctx)?,
-            render_text_runs(p)?
-        ),
-        None => format!(r#"<hp:run charPrIDRef="0">{first_t}</hp:run>"#),
-    };
-    let mut out = template.replacen(
-        &format!("{TEMPLATE_RUN_BEFORE_TEXT}</hp:run>"),
-        &first_runs,
-        1,
-    );
-    out = replace_first_linesegs(&out, &first_linesegs);
+    // 문단 run 에는 표 셀 문단의 linesegarray 가 들어갈 수 있으므로 첫 문단 자리표를 먼저 채운다.
+    let mut out = replace_first_linesegs(&template, &first_linesegs);
     if let Some(p) = first_para {
         out = out.replacen(TEMPLATE_FIRST_P_TAG, &render_hp_p_open(p, 0), 1);
         let first_cs = first_run_char_shape_id(p);
@@ -123,15 +125,16 @@ pub fn write_section(
                 1,
             );
         }
-        let controls_xml = render_controls_xml(p, &p.controls[initial_control_count..], ctx)?;
-        if !controls_xml.is_empty() {
-            out = out.replacen(
-                "<hp:linesegarray>",
-                &format!("{}<hp:linesegarray>", controls_xml),
-                1,
-            );
-        }
     }
+    let first_runs = match first_para {
+        Some(p) => render_paragraph_runs(p, first_column, ctx)?,
+        None => format!(r#"<hp:run charPrIDRef="0">{first_t}</hp:run>"#),
+    };
+    out = out.replacen(
+        &format!("{TEMPLATE_RUN_BEFORE_TEXT}</hp:run>"),
+        &first_runs,
+        1,
+    );
 
     // 추가 문단: `</hp:p></hs:sec>` 직전에 `<hp:p>` 요소를 삽입.
     if section.paragraphs.len() > 1 {
@@ -140,8 +143,7 @@ pub fn write_section(
             let (_, linesegs, advance) = render_paragraph_parts(p, vert_cursor);
             vert_cursor = advance;
             extra.push_str(&render_hp_p_open(p, idx as u32));
-            extra.push_str(&render_text_runs(p)?);
-            extra.push_str(&render_controls_xml(p, &p.controls, ctx)?);
+            extra.push_str(&render_paragraph_runs(p, None, ctx)?);
             extra.push_str(r#"<hp:linesegarray>"#);
             extra.push_str(&linesegs);
             extra.push_str(r#"</hp:linesegarray></hp:p>"#);
@@ -152,25 +154,16 @@ pub fn write_section(
     Ok(out.into_bytes())
 }
 
-fn render_text_runs(p: &Paragraph) -> Result<String, SerializeError> {
-    let mut writer = Writer::new(Vec::new());
-    write_paragraph_text_runs(&mut writer, p)?;
-    String::from_utf8(writer.into_inner()).map_err(|e| SerializeError::XmlError(e.to_string()))
-}
-
-fn render_controls_xml(
+/// 문단의 run 을 글자 위치 순서(글자·필드·컨트롤)로 만든다. `skip` 컨트롤은 이미 다른 자리에 썼다.
+fn render_paragraph_runs(
     p: &Paragraph,
-    controls: &[Control],
+    skip: Option<usize>,
     ctx: &mut SerializeContext,
 ) -> Result<String, SerializeError> {
-    let mut out = String::new();
-    for ctrl in controls {
-        let mut writer = Writer::new(Vec::new());
-        if write_control_xml(&mut writer, ctrl, ctx)? {
-            let bytes = writer.into_inner();
-            let xml = String::from_utf8(bytes).map_err(|e| {
-                SerializeError::XmlError(format!("control XML UTF-8 변환 실패: {}", e))
-            })?;
+    let mut writer = Writer::new(Vec::new());
+    write_paragraph_runs(&mut writer, p, skip, |w, ctrl| {
+        let xml = render_control_xml(ctrl, ctx)?;
+        if !xml.is_empty() {
             let mut char_shape_id = first_run_char_shape_id(p);
             if let Control::Table(table) = ctrl {
                 if let Some(id) = table.hwpx_owner_char_shape_id {
@@ -178,15 +171,27 @@ fn render_controls_xml(
                     char_shape_id = id;
                 }
             }
-            out.push_str(&format!(
-                r#"<hp:run charPrIDRef="{}">"#,
-                char_shape_id
-            ));
-            out.push_str(&xml);
-            out.push_str("</hp:run>");
+            let run = format!(r#"<hp:run charPrIDRef="{char_shape_id}">{xml}</hp:run>"#);
+            w.get_mut()
+                .write_all(run.as_bytes())
+                .map_err(|e| SerializeError::XmlError(e.to_string()))?;
         }
+        Ok(())
+    })?;
+    String::from_utf8(writer.into_inner()).map_err(|e| SerializeError::XmlError(e.to_string()))
+}
+
+/// 컨트롤 하나의 XML. 쓰지 않는 컨트롤이면 빈 문자열.
+fn render_control_xml(
+    ctrl: &Control,
+    ctx: &mut SerializeContext,
+) -> Result<String, SerializeError> {
+    let mut writer = Writer::new(Vec::new());
+    if !write_control_xml(&mut writer, ctrl, ctx)? {
+        return Ok(String::new());
     }
-    Ok(out)
+    String::from_utf8(writer.into_inner())
+        .map_err(|e| SerializeError::XmlError(format!("control XML UTF-8 변환 실패: {}", e)))
 }
 
 fn write_control_xml(
@@ -207,7 +212,7 @@ fn write_control_xml(
             write_picture(writer, pic, ctx)?;
             Ok(true)
         }
-        Control::Shape(shape) => write_shape_xml(writer, shape, ctx),
+        Control::Shape(shape) => write_shape_xml(writer, shape, false, ctx),
         Control::PageHide(page_hide) => {
             write_page_hide(writer, page_hide)?;
             Ok(true)
@@ -340,26 +345,28 @@ fn page_number_format_str(format: u8) -> &'static str {
     }
 }
 
+/// `in_group` 이면 묶음 안 자식이다.
 fn write_shape_xml(
     writer: &mut Writer<Vec<u8>>,
     shape: &ShapeObject,
+    in_group: bool,
     ctx: &mut SerializeContext,
 ) -> Result<bool, SerializeError> {
     match shape {
         ShapeObject::Line(line) => {
-            write_line(writer, line, ctx)?;
+            write_line(writer, line, in_group, ctx)?;
             Ok(true)
         }
         ShapeObject::Rectangle(rect) => {
-            write_rect(writer, rect, ctx)?;
+            write_rect(writer, rect, in_group, ctx)?;
             Ok(true)
         }
         ShapeObject::Group(group) => {
             write_container_open(writer, group)?;
             for child in &group.children {
-                let _ = write_shape_xml(writer, child, ctx)?;
+                let _ = write_shape_xml(writer, child, true, ctx)?;
             }
-            write_container_close(writer, group, ctx)?;
+            write_container_close(writer, group, in_group, ctx)?;
             Ok(true)
         }
         ShapeObject::Picture(pic) => {

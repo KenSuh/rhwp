@@ -727,13 +727,18 @@ fn parse_para_shape_switch(
                         b"margin" | b"intent" | b"left" | b"right" | b"prev" | b"next" => {
                             // margin 하위 요소들: <left value="..." />, <prev value="..." /> 등
                             let tag_name = local;
+                            // 한컴은 홀수 2× 값을 case 에 unit="CHAR" · (값-1)/2 로 쓴다.
+                            let char_unit = ce
+                                .attributes()
+                                .flatten()
+                                .any(|a| a.key.as_ref() == b"unit" && attr_str(&a) == "CHAR");
                             for attr in ce.attributes().flatten() {
                                 if attr.key.as_ref() == b"value" {
                                     let val = parse_i32(&attr);
                                     if in_hwpunitchar_case {
                                         // HwpUnitChar 값은 실제 HWPUNIT(1× 스케일)이므로
                                         // HWP 바이너리와 동일한 2× 스케일로 변환
-                                        let val2x = val * 2;
+                                        let val2x = val * 2 + i32::from(char_unit);
                                         match tag_name {
                                             b"left" => ps.margin_left = val2x,
                                             b"right" => ps.margin_right = val2x,
