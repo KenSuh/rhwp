@@ -11,24 +11,24 @@
   EVIDENCE: automatic-evidence=v1; definition-sha256=d772a45addd74446e9cd8040de32766f208b7f07a736fb5cad69876768a726fc; exit=0; EXPECT=matched; output-sha256=975a3b49f42c3770d08d76851c646a7fc45f2773a94ad2c75379bd8f3381f0be; output-bytes=622; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=b32f84a3da1f/49 entries
 
 - [x] G3: 속성 보존 단위 시험(noAdjust·lock·sz protect·allowOverlap·flowWithText·textFlow·셀 lineWrap SQUEEZE·셀 protect 각 1 사례 이상)
-  CHECK: bash -o pipefail -c 'cargo test --offline --locked --lib serializer::hwpx::table 2>&1 | tee .omo/evidence/v353-rhwp-table-fidelity/c3/g3.log'
+  CHECK: bash -o pipefail -c 'cargo test --offline --lib serializer::hwpx::table 2>&1 | tee .omo/evidence/v353-rhwp-table-fidelity/c3/g3.log'
   EXPECT: /test result: ok\. [1-9]\d* passed; 0 failed/
-  EVIDENCE: automatic-evidence=v1; definition-sha256=1a6424eca037b00ce4cc26391fc344ff37d8d05d6a64fe98f0954892972f4909; exit=0; EXPECT=matched; output-sha256=1deace0b0228f7e8262f720448214cf08bc684a2f99ee86efc87e49cd545598b; output-bytes=4440; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=b32f84a3da1f/49 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=5b830573173329a2cd0bd014755505d2a6a0f67f5fb3f1ceb23e908eaa46e636; exit=0; EXPECT=matched; output-sha256=b0845f78c3e18b18904e3d34ace280b3efdbdd0b974f5abe0c2e085de49091c7; output-bytes=9012; shell=/bin/sh; cwd=/private/var/folders/1j/_ggsky8n1bzfn0g2x5c8_wgm0000gn/T/mah-unlazy-rerun-iso-ni01yaki/tree
 
 - [x] G4: pageBreak 4값 — HWPX→IR→HWPX 와 HWPX→HWP5→HWPX 두 경로 모두 원 문자열 보존
-  CHECK: bash -o pipefail -c 'cargo test --offline --locked --test hwpx_table_fidelity page_break 2>&1 | tee .omo/evidence/v353-rhwp-table-fidelity/c3/g4.log'
+  CHECK: bash -o pipefail -c 'cargo test --offline --test hwpx_table_fidelity page_break 2>&1 | tee .omo/evidence/v353-rhwp-table-fidelity/c3/g4.log'
   EXPECT: /test result: ok\. [2-9]\d* passed; 0 failed/
-  EVIDENCE: automatic-evidence=v1; definition-sha256=14618f0bd816910a34072eff93f8935c57b2f650b6d947f3388538ac60964abc; exit=0; EXPECT=matched; output-sha256=48daa9b215716d0a7af983fce2785955174eb3d8f2a4978548736853b8178bf0; output-bytes=505; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=b32f84a3da1f/49 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=82da78534dd08b2b2434c2a1bf6c63a0e44848588d0833f2ae5fdb228fcc62e4; exit=0; EXPECT=matched; output-sha256=a4a31a6785275f46a4e22a3ea4c55c8773a58bc4e2d0f45c86095c2cb3003f72; output-bytes=625; shell=/bin/sh; cwd=/private/var/folders/1j/_ggsky8n1bzfn0g2x5c8_wgm0000gn/T/mah-unlazy-rerun-iso-ni01yaki/tree
 
 - [x] G5: 표시 높이 — T6(표시 높이 ≠ 셀 합) 행 삽입·삭제·텍스트 편집 뒤 sz.height 가 §3.2 공식대로 유지
-  CHECK: bash -o pipefail -c 'cargo test --offline --locked --test hwpx_table_fidelity display_height 2>&1 | tee .omo/evidence/v353-rhwp-table-fidelity/c3/g5.log'
+  CHECK: bash -o pipefail -c 'cargo test --offline --test hwpx_table_fidelity display_height 2>&1 | tee .omo/evidence/v353-rhwp-table-fidelity/c3/g5.log'
   EXPECT: /test result: ok\. (?:[3-9]|[1-9]\d+) passed; 0 failed/
-  EVIDENCE: automatic-evidence=v1; definition-sha256=df977e30a421b4258a2db71128526618f98fab9cfe3fff2faff6827386415592; exit=0; EXPECT=matched; output-sha256=5366daa67b0a46e81ba265ed1edce42f0dffceabb3379e95f607ec1df4909145; output-bytes=1385; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=b32f84a3da1f/49 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=64d55dac5f6660bc21702566707fa6903fd042c5644707d4f35434c7e87a511a; exit=0; EXPECT=matched; output-sha256=4bceb159855f59e4cb68323656fd348bf639df3ed06797d26c913f22c5c6bac6; output-bytes=1385; shell=/bin/sh; cwd=/private/var/folders/1j/_ggsky8n1bzfn0g2x5c8_wgm0000gn/T/mah-unlazy-rerun-iso-ni01yaki/tree
 
 - [x] G6: 폭 공식 — cellSpacing>0 표와 병합 없는 표에서 sz.width == Σ열 폭 + (colCnt+1)×cellSpacing
-  CHECK: bash -o pipefail -c 'cargo test --offline --locked --test hwpx_table_fidelity width_formula 2>&1 | tee .omo/evidence/v353-rhwp-table-fidelity/c3/g6.log'
+  CHECK: bash -o pipefail -c 'cargo test --offline --test hwpx_table_fidelity width_formula 2>&1 | tee .omo/evidence/v353-rhwp-table-fidelity/c3/g6.log'
   EXPECT: /test result: ok\. [1-9]\d* passed; 0 failed/
-  EVIDENCE: automatic-evidence=v1; definition-sha256=782d7c6fe97d35b140a99f3797fbc66338b18e42f8400e90c65936f596eb846d; exit=0; EXPECT=matched; output-sha256=37cfc3dccd4fb98183960a3f1f716a446d775e21e0cab4b5fc68fc81eb6b61f2; output-bytes=1272; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=b32f84a3da1f/49 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=fb63178de87a17505ea390d2f154fe8aba9b8f66b3c2ec18d8037b2a924fef69; exit=0; EXPECT=matched; output-sha256=d4f667a1f21e308ccacb31334728c319b9a334e997065cddb5abffc9a9ae180c; output-bytes=1272; shell=/bin/sh; cwd=/private/var/folders/1j/_ggsky8n1bzfn0g2x5c8_wgm0000gn/T/mah-unlazy-rerun-iso-ni01yaki/tree
 
 - [x] G7: 음성 대조 — G4·G5 시험을 수정 전 01a67b3 의 해당 함수에 적용하면 실패한다(시험이 결함을 실제로 잡는다)
   CHECK: python3 -c 'import json;d=json.load(open(".omo/evidence/v353-rhwp-table-fidelity/c3/negative-control.json"));assert d["base"]=="01a67b3f77760b5a9dae9fc155d83f8ca84ab529";assert d["page_break_failed"]>0 and d["display_height_failed"]>0;print("NEG_OK")'
@@ -43,14 +43,14 @@
 ABANDON: G8 PRE-EXISTING-BASE — 01a67b3 자체에서 form_attribute_entities_survive_two_hwpx_saves 실패(두 번째 저장의 colPr run 분리); C3 재정렬 손상 아님; rhwp 레인 2 에서 수정
 
 - [x] G9: clippy
-  CHECK: bash -o pipefail -c 'cargo clippy --offline --locked -- -D warnings 2>&1 | tee .omo/evidence/v353-rhwp-table-fidelity/c3/g9.log'
+  CHECK: bash -o pipefail -c 'cargo clippy --offline -- -D warnings 2>&1 | tee .omo/evidence/v353-rhwp-table-fidelity/c3/g9.log'
   EXPECT: /Finished/
-  EVIDENCE: automatic-evidence=v1; definition-sha256=739aae5ce14aa57d20b95ab77a77801b03def630bea5cd4684d85ffaed750803; exit=0; EXPECT=matched; output-sha256=192f346a831bf242f6362c9dd6271dd991a2d249c793229d9b0ec13edb76e7db; output-bytes=156; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=b32f84a3da1f/49 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=ba33763f42ae5095b589f70efd9daed522b911702e8cebc7d067c43d1624c9da; exit=0; EXPECT=matched; output-sha256=5b0accc720ded9e0d9cacdb15417a89367183bb60d2c7e1b082cfc31a3f226f1; output-bytes=3713; shell=/bin/sh; cwd=/private/var/folders/1j/_ggsky8n1bzfn0g2x5c8_wgm0000gn/T/mah-unlazy-rerun-iso-ni01yaki/tree
 
 - [x] G10: WASM 빌드(에디터가 쓰는 대상)
-  CHECK: bash -o pipefail -c 'cargo build --offline --locked --lib --target wasm32-unknown-unknown --release 2>&1 | tee .omo/evidence/v353-rhwp-table-fidelity/c3/g10.log'
+  CHECK: bash -o pipefail -c 'cargo build --offline --lib --target wasm32-unknown-unknown --release 2>&1 | tee .omo/evidence/v353-rhwp-table-fidelity/c3/g10.log'
   EXPECT: /Finished/
-  EVIDENCE: automatic-evidence=v1; definition-sha256=22cd66a83ce347df24a7371857ef533b9c3f09b9928ad3c521139a1b60e71c28; exit=0; EXPECT=matched; output-sha256=0d3814088b37419e0b3aece1fe92d7a0c3b25c6459d26b581211698e5c0ada0b; output-bytes=147; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=b32f84a3da1f/49 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=7580a1fe35670bb18dfdc7449d567c765694c89508af83d2731847a82b184973; exit=0; EXPECT=matched; output-sha256=25abc8f8ed9ccb082cf1a84965ffb780a2b4e9892cb97724cd3e9b1a87bb4f8f; output-bytes=1534; shell=/bin/sh; cwd=/private/var/folders/1j/_ggsky8n1bzfn0g2x5c8_wgm0000gn/T/mah-unlazy-rerun-iso-ni01yaki/tree
 
 - [x] G11: 범위 — base 대비 변경 파일이 전부 §3.1 MUST 안
   CHECK: git diff --name-only 01a67b3f77760b5a9dae9fc155d83f8ca84ab529 HEAD | grep -vE '^(src/model/table\.rs|src/model/table/tests\.rs|src/model/shape\.rs|src/parser/hwpx/section\.rs|src/parser/control\.rs|src/serializer/hwpx/table\.rs|src/serializer/control\.rs|src/document_core/commands/(table_ops|text_editing)\.rs|src/document_core/converters/common_obj_attr_writer\.rs|tools/roundtrip_diff\.py|tests/hwpx_table_fidelity\.rs|tests/hwpx_roundtrip_integration\.rs|tests/fixtures/table-fidelity/.*|gates/V353_RHWP_TABLE_FIDELITY_GATES\.md|\.omo/evidence/v353-rhwp-table-fidelity/.*|\.gitignore)$' | wc -l | tr -d ' ' | sed 's/^/OUT_OF_SCOPE=/'
@@ -127,3 +127,13 @@ AC2: met — 승인된 ROW→CELL 정규화 처분을 적용한 G4 4 passed 및 
 AC3: met — G5/G6 18/14 passed와 새 base G7 2/10 failed.
 AC4: unmet — G8 기존 base 시험 실패; G9/G10/G11은 통과, Parent 처분에 따라 ABANDON으로 반환.
 jev=used — 결정적 pin/exec 결속을 유지하고 Jev 순위를 함께 확인했다.
+
+## C4 — clean-checkout CHECK reproducibility
+
+- NOTE C4 R4 F1: removed `--locked` only from G3/G4/G5/G6/G9/G10; `Cargo.lock` is ignored and absent from the committed tree. `--offline` stays because the clean isolated run resolved dependencies from this machine's Cargo cache and all six CHECKs passed. No EXPECT changed: the successful output shape is unchanged. G8 CHECK, failure evidence and disposition-2 ABANDON remain unchanged.
+- NOTE C4 execution: `mah unlazy-rerun --repo "$PWD" --ledger gates/V353_RHWP_TABLE_FIDELITY_GATES.md --approve --isolated` ran the edited ledger against clean detached source `c3be62605694758dd516d70802f958b32487ee91`; rc=0, elapsed=146s. Source product/test/tool/fixture inputs are unchanged by C4; the final commit contains ledger and c4 evidence only.
+- NOTE C4 result: `GATE_RERUN_SUMMARY pass=11 fail=0 nocheck=0 noevidence=0 abandoned=1 evidence_same=5 evidence_diff=6 worker_unmet=6 evidence_separator=0 evidence_truncation=0 evidence_substantive=6`; `GATE_RERUN_OK`. The six evidence differences include the intentional CHECK-definition changes and fresh build/output fingerprints, not failed CHECKs. Canonical log: `.omo/evidence/v353-rhwp-table-fidelity/c4/isolated-rerun.log`.
+- NOTE C4 evidence: mah's comparison rows omit shell/CWD; the six EVIDENCE rows restore those recorded fields from the canonical log (`c4/isolated-evidence.json`). `worker_unmet=6` describes the audit-input evidence whose shell metadata had been omitted during transport; it does not describe execution failures. Final native status verifies the restored records. Other G1/G2/G7/G11/G12 fingerprints were independently reproduced unchanged.
+- NOTE C4 logging: the initial successful run wrote its transcript inside the source tree and emitted a residue warning for that transcript only (`c4/initial-rerun-logger-warning.log`); it is not the acceptance run. The canonical rerun logged outside the source until completion and has no residue/cleanup warning.
+- NOTE C4 self-review: current-session review found no remaining substantive finding in this ledger-only correction. All twelve EXPECTs, G8 ABANDON and product inputs are preserved; no independent-review receipt is claimed. G8's existing base defect, Parent Hancom app check and landing audit remain outstanding. AC1–AC3 retain the C3/R4 evidence above; AC4 remains unmet only for the approved G8 defect.
+- NOTE C4 Jev: jev=used for the ledger and canonical packet, with deterministic pin/exec candidates retained (`c4/impact-ledger.log`); C3 disposition queries had no candidates. Intent binding was checked `status=current` for the same repo/task/scope.
