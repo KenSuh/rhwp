@@ -1,0 +1,195 @@
+diff --cc src/parser/hwpx/section.rs
+index 1a63326,7b32722..0000000
+--- a/src/parser/hwpx/section.rs
++++ b/src/parser/hwpx/section.rs
+@@@ -644,20 -649,17 +645,32 @@@ fn parse_table
+              b"colCnt" => table.col_count = parse_u16(&attr),
+              b"cellSpacing" => table.cell_spacing = parse_i16(&attr),
+              b"borderFillIDRef" => table.border_fill_id = parse_u16(&attr),
+++<<<<<<< HEAD
+ +            b"pageBreak" => {
+ +                let val = attr_str(&attr);
+ +                table.page_break = match val.as_str() {
+ +                    "CELL" | "CELL_BREAK" => TablePageBreak::CellBreak,
+ +                    "TABLE" | "ROW" | "ROW_BREAK" => TablePageBreak::RowBreak,
+ +                    _ => TablePageBreak::None,
+ +                };
+ +            }
+ +            b"repeatHeader" => {
+ +                table.repeat_header = attr_str(&attr) == "1";
+ +            }
+ +            b"noAdjust" => table.no_adjust = parse_bool(&attr),
+++=======
++             b"pageBreak" => table.page_break = parse_table_page_break(&attr_str(&attr)),
++             b"repeatHeader" => {
++                 table.repeat_header = attr_str(&attr) == "1";
++             }
++             b"noAdjust" => no_adjust = parse_bool(&attr),
++             b"lock" => table.common.locked = parse_bool(&attr),
++             b"textFlow" => table.common.text_flow = parse_text_flow(&attr_str(&attr)),
+++>>>>>>> 45d4f16 (feat(rhwp): keep HWPX table attributes and display height across edits)
+              b"textWrap" => {
+                  table.common.text_wrap = match attr_str(&attr).as_str() {
++                     "TIGHT" => crate::model::shape::TextWrap::Tight,
++                     "THROUGH" => crate::model::shape::TextWrap::Through,
+                      "TOP_AND_BOTTOM" => crate::model::shape::TextWrap::TopAndBottom,
+                      "BEHIND_TEXT" => crate::model::shape::TextWrap::BehindText,
+                      "IN_FRONT_OF_TEXT" => crate::model::shape::TextWrap::InFrontOfText,
+@@@ -914,7 -967,9 +988,13 @@@ fn parse_table_cell
+          match attr.key.as_ref() {
+              b"borderFillIDRef" => cell.border_fill_id = parse_u16(&attr),
+              b"header" => cell.is_header = attr_str(&attr) == "1",
+++<<<<<<< HEAD
+ +            b"hasMargin" => cell.apply_inner_margin = parse_bool(&attr),
+++=======
++             b"protect" => cell.set_cell_protect(parse_bool(&attr)),
++             b"editable" => cell.set_editable_in_form(parse_bool(&attr)),
++             b"dirty" => cell.dirty_flag = parse_bool(&attr),
+++>>>>>>> 45d4f16 (feat(rhwp): keep HWPX table attributes and display height across edits)
+              _ => {}
+          }
+      }
+diff --cc src/serializer/hwpx/table.rs
+index d0a619f,13c1e94..0000000
+--- a/src/serializer/hwpx/table.rs
++++ b/src/serializer/hwpx/table.rs
+@@@ -63,11 -64,11 +66,12 @@@ pub fn write_table<W: Write>
+      let id_str = table.common.instance_id.to_string();
+      let z_order = table.common.z_order.to_string();
+      let text_wrap = text_wrap_str(table.common.text_wrap);
+-     let text_flow = text_flow_str(table.common.text_wrap);
+-     let lock = bool01(false);
++     let text_flow = text_flow_str(table.common.text_flow);
++     let lock = bool01(table.common.locked);
+      let page_break = table_page_break_str(table.page_break);
++     let no_adjust = bool01(table.no_adjust());
+      let repeat_header = bool01(table.repeat_header);
+ +    let no_adjust = bool01(table.no_adjust);
+      let row_cnt = table.row_count.to_string();
+      let col_cnt = table.col_count.to_string();
+      let cell_spacing = table.cell_spacing.to_string();
+@@@ -99,9 -100,10 +103,14 @@@
+      write_pos(w, &table.common)?;
+      write_out_margin(w, table)?;
+      if let Some(caption) = &table.caption {
+++<<<<<<< HEAD
+ +        super::shape::write_caption(w, caption, ctx)?;
+++=======
++         write_caption(w, caption, ctx)?;
+++>>>>>>> 45d4f16 (feat(rhwp): keep HWPX table attributes and display height across edits)
+      }
+      write_in_margin(w, table)?;
++     write_cellzone_list(w, table)?;
+  
+      // tr[]: 행 단위 반복. 각 행에 속한 셀 (cell.row == r) 을 col 오름차순으로 출력.
+      for row_idx in 0..table.row_count {
+@@@ -255,58 -340,59 +347,108 @@@ fn write_sub_list<W: Write>
+          ],
+      )?;
+  
+++<<<<<<< HEAD
+ +    for (pi, para) in cell.paragraphs.iter().enumerate() {
+ +        write_paragraph(w, para, pi, ctx)?;
+-     }
+++=======
++     write_sub_list_paragraphs(w, &cell.paragraphs, ctx)?;
+  
+      end_tag(w, "hp:subList")?;
+      Ok(())
+  }
+  
++ /// subList 안 문단 목록 — 셀과 표 캡션이 함께 쓴다.
++ fn write_sub_list_paragraphs<W: Write>(
++     w: &mut Writer<W>,
++     paragraphs: &[Paragraph],
++     ctx: &mut SerializeContext,
++ ) -> Result<(), SerializeError> {
++     // 각 문단은 간단한 <hp:p><hp:run><hp:t>텍스트</hp:t></hp:run></hp:p> 구조
++     for (pi, para) in paragraphs.iter().enumerate() {
++         ctx.para_shape_ids.reference(para.para_shape_id);
++         ctx.style_ids.reference(para.style_id as u16);
++         for cs_ref in &para.char_shapes {
++             ctx.char_shape_ids.reference(cs_ref.char_shape_id);
++         }
++ 
++         let pi_str = pi.to_string();
++         let ppr = para.para_shape_id.to_string();
++         let sp = para.style_id.to_string();
++         start_tag_attrs(
++             w,
++             "hp:p",
++             &[
++                 ("id", &pi_str),
++                 ("paraPrIDRef", &ppr),
++                 ("styleIDRef", &sp),
++                 ("pageBreak", "0"),
++                 ("columnBreak", "0"),
++                 ("merged", "0"),
++             ],
++         )?;
++ 
++         let first_cs = para
++             .char_shapes
++             .first()
++             .map(|r| r.char_shape_id)
++             .unwrap_or(0);
++         write_cell_text_runs(w, &para.text, &para.char_offsets, &para.char_shapes)?;
++         for control in &para.controls {
++             write_cell_control_run(w, control, ctx, first_cs)?;
++         }
++ 
++         write_cell_linesegs(w, &para.line_segs)?;
++ 
++         end_tag(w, "hp:p")?;
+++>>>>>>> 45d4f16 (feat(rhwp): keep HWPX table attributes and display height across edits)
++     }
++     Ok(())
++ }
++ 
+ +pub(super) fn write_paragraph<W: Write>(
+ +    w: &mut Writer<W>,
+ +    para: &Paragraph,
+ +    id: usize,
+ +    ctx: &mut SerializeContext,
+ +) -> Result<(), SerializeError> {
+ +    ctx.para_shape_ids.reference(para.para_shape_id);
+ +    ctx.style_ids.reference(para.style_id as u16);
+ +    for cs_ref in &para.char_shapes {
+ +        ctx.char_shape_ids.reference(cs_ref.char_shape_id);
+ +    }
+ +
+ +    let pi_str = id.to_string();
+ +    let ppr = para.para_shape_id.to_string();
+ +    let sp = para.style_id.to_string();
+ +    start_tag_attrs(
+ +        w,
+ +        "hp:p",
+ +        &[
+ +            ("id", &pi_str),
+ +            ("paraPrIDRef", &ppr),
+ +            ("styleIDRef", &sp),
+ +            ("pageBreak", "0"),
+ +            ("columnBreak", "0"),
+ +            ("merged", "0"),
+ +        ],
+ +    )?;
+ +
+ +    let first_cs = para
+ +        .char_shapes
+ +        .first()
+ +        .map(|r| r.char_shape_id)
+ +        .unwrap_or(0);
+ +    write_paragraph_text_runs(w, para)?;
+ +    for control in &para.controls {
+ +        write_cell_control_run(w, control, ctx, first_cs)?;
+ +    }
+ +
+ +    write_cell_linesegs(w, &para.line_segs)?;
+ +
+ +    end_tag(w, "hp:p")?;
+ +    Ok(())
+ +}
+ +
+  fn write_cell_linesegs<W: Write>(
+      w: &mut Writer<W>,
+      line_segs: &[LineSeg],

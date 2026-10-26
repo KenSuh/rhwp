@@ -1,0 +1,160 @@
+IMPACT at=code:0052deae929c53830d2ff573c9c8ec817a4693b6@0052deae929c query="src/parser/control.rs" mode=path jev=used jev_threshold=0.45 files=763 rows=7938 det_ms=395 total_ms=1560 jev_requests=5 jev_http_attempts=5 jev_input_tokens=33123
+  ! Jev 에 보내지 않은 파일 643 (상한 --max-files=120 또는 비밀 성격 경로)
+  ! cache stale (base code:cf18963428fb131a17c8785fb12d3f335f718b8f@cf18963428fb → code:0052deae929c53830d2ff573c9c8ec817a4693b6@0052deae929c) · 재도출
+- [code] src/parser/control/tests.rs  channel=other binding=mention jev=0.71★ rows=45
+    :16 [stem/stem_weak] data.extend_from_slice(&0u32.to_le_bytes()); // control_mask
+    :73 [stem/stem_weak] let ctrl = parse_table_control(&[], &child_records);
+    :82 [stem/stem_weak] panic!("Expected Table control");
+- [code] src/document_core/queries/field_query.rs  channel=other binding=mention jev=0.63★ rows=46
+    :7 [stem/stem_weak] use crate::model::control::{Control, Field, FieldType};
+    :22 [stem/stem_weak] /// 표 셀: (control_index, cell_index, para_index)
+    :24 [stem/stem_weak] control_index: usize,
+- [code] src/parser/hwpx/section.rs  channel=other binding=mention jev=0.61★ rows=39
+    :10 [stem/stem_weak] use crate::model::control::{
+    :187 [stem/stem_weak] para.controls.push(Control::Table(Box::new(table)));
+    :193 [stem/stem_weak] para.controls.push(pic);
+- [code] src/renderer/layout/table_layout.rs  channel=other binding=mention jev=0.56★ rows=33
+    :17 [stem/stem_weak] use crate::model::control::Control;
+    :160 [stem/stem_weak] p.controls.iter().enumerate().find_map(|(ctrl_idx, c)| {
+    :176 [stem/stem_weak] control_index: nested_ctrl_idx,
+- [code] src/serializer/control/tests.rs  channel=other binding=mention jev=0.54★ rows=22
+    :41 [stem/stem_weak] controls: vec![Control::SectionDef(Box::new(sd))],
+    :75 [stem/stem_weak] controls: vec![Control::ColumnDef(cd)],
+    :89 [stem/stem_weak] .controls
+- [code] src/renderer/layout/paragraph_layout.rs  channel=other binding=mention jev=0.50★ rows=41
+    :21 [stem/stem_weak] use crate::model::control::Control;
+    :51 [stem/stem_weak] use crate::model::control::Control;
+    :68 [stem/stem_weak] .controls
+- [code] src/renderer/layout.rs  channel=other binding=mention jev=0.49★ rows=96
+    :18 [stem/stem_weak] use crate::model::control::Control;
+    :50 [stem/stem_weak] pub control_index: usize,
+    :70 [stem/stem_weak] pub fn outermost_control(&self) -> usize {
+- [code] .omo/evidence/v318-engine-clippy-correction/focused-parser.log  channel=other binding=mention jev=0.47★ rows=19
+    :144 [stem/stem_weak] warning: function `test_merge_then_control_layout_has_colSpan` should have a snake case name
+    :147 [stem/stem_weak] 1173 | fn test_merge_then_control_layout_has_colSpan() {
+    :148 [stem/stem_weak] |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `test_merge_then_control_layout_has_col_span`
+- [code] src/document_core/commands/header_footer_ops.rs  channel=other binding=mention jev=0.47★ rows=41
+    :9 [stem/stem_weak] use crate::model::control::Control;
+    :44 [stem/stem_weak] /// 반환: (para_index, control_index)
+    :45 [stem/stem_weak] fn find_header_footer_control(
+- [code] src/document_core/converters/hwpx_to_hwp.rs  channel=other binding=mention jev=0.46★ rows=20
+    :8 [basename/mention] //!   `control.rs` 등은 변경하지 않는다.
+    :108 [basename/mention] /// HWP 직렬화기 (`serializer/control.rs:40 + 171-241`) 는 `paragraph.controls` 를
+    :157 [basename/mention] // 2. attr 동기화: serializer/control.rs:349 가 raw_ctrl_data 를 그대로 쓰므로
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/intermediate-7668ec2/gate-run.log  channel=other binding=pin jev=0.43 rows=1
+    :44 [stem/pin] CHECK: git diff --name-only a34d88ff3bae317ad08d8f0b99504e4395278e6a HEAD | grep -vE '^(src/model/table\.rs|src/model/table/tests\.rs|src/model/shape\
+- [code] src/wasm_api/tests.rs  channel=other binding=exec jev=0.43 rows=530
+    :171 [stem/stem_weak] use crate::model::control::Control;
+    :288 [stem/stem_weak] controls: vec![Control::Table(Box::new(table))],
+    :318 [stem/stem_weak] if let Some(Control::Table(table)) = doc.document.sections[0].paragraphs[0].controls.get(0) {
+- [code] src/renderer/layout/table_partial.rs  channel=other binding=mention jev=0.42 rows=22
+    :17 [stem/stem_weak] use crate::model::control::Control;
+    :36 [stem/stem_weak] control_index: usize,
+    :55 [stem/stem_weak] let table = match para.controls.get(control_index) {
+- [code] src/renderer/height_measurer.rs  channel=other binding=mention jev=0.41 rows=50
+    :9 [stem/stem_weak] use crate::model::control::Control;
+    :24 [stem/stem_weak] controls: &[Control],
+    :33 [stem/stem_weak] let tac_tables: Vec<&Table> = controls
+- [code] tests/common/reflow_geometry.rs  channel=other binding=mention jev=0.41 rows=20
+    :2 [stem/stem_weak] use rhwp::model::control::Control;
+    :34 [stem/stem_weak] pub control_idx: usize,
+    :67 [stem/stem_weak] let control_idx = number(&created, "controlIdx");
+- [code] src/document_core/commands/footnote_ops.rs  channel=other binding=mention jev=0.39 rows=30
+    :5 [stem/stem_weak] use crate::model::control::Control;
+    :16 [stem/stem_weak] control_idx: usize,
+    :26 [stem/stem_weak] let ctrl = para.controls.get_mut(control_idx).ok_or_else(|| {
+- [code] src/serializer/body_text.rs  channel=other binding=mention jev=0.38 rows=32
+    :19 [stem/stem_weak] use crate::model::control::Control;
+    :75 [stem/stem_weak] // control_mask 재계산: 실제 controls에서 비트 마스크를 산출한다.
+    :76 [stem/stem_weak] // 모델의 control_mask가 controls와 불일치하면 한컴이 파일 손상으로 판단하므로,
+- [code] src/renderer/layout/shape_layout.rs  channel=other binding=mention jev=0.37 rows=58
+    :19 [stem/stem_weak] use crate::model::control::Control;
+    :43 [stem/stem_weak] let ctrl = match para.controls.get(ci) {
+    :135 [stem/stem_weak] control_index: usize,
+- [code] .omo/evidence/v318-engine-clippy-correction/baseline-clippy.json  channel=other binding=mention jev=0.36 rows=10
+    :73 [path/mention] "src/parser/control.rs": "e280455c0d8406ee5fca3b73033089c4826b57785f785e94983efde2baabe6e0",
+    :53 [basename/mention] "src/model/control.rs": "1de0049fe9be2752f04977acea7a2fcdc31e2e3f748fa0ee2c205791125213fe",
+    :136 [basename/mention] "src/serializer/control.rs": "55059f454ea2e45f8ca7263afd482ac4554f7bd0f78dc4d512cb2837027ec31e",
+- [code] src/document_core/queries/cursor_nav.rs  channel=other binding=mention jev=0.36 rows=28
+    :4 [stem/stem_weak] get_textbox_from_shape, has_table_control, navigable_text_len, utf16_pos_to_char_idx,
+    :9 [stem/stem_weak] use crate::model::control::Control;
+    :37 [stem/stem_weak] control_idx: usize,
+- [code] src/document_core/commands/clipboard.rs  channel=other binding=mention jev=0.35 rows=120
+    :9 [stem/stem_weak] use crate::model::control::Control;
+    :14 [stem/stem_weak] fn inline_control_height(control: &Control) -> i32 {
+    :15 [stem/stem_weak] match control {
+- [code] src/document_core/commands/text_editing.rs  channel=other binding=mention jev=0.35 rows=127
+    :6 [stem/stem_weak] use crate::model::control::Control;
+    :98 [stem/stem_weak] (para.controls.len() as u32) * 8
+    :204 [stem/stem_weak] (para.controls.len() as u32) * 8
+- [code] src/renderer/pagination/engine.rs  channel=other binding=mention jev=0.34 rows=73
+    :5 [stem/stem_weak] use crate::model::control::Control;
+    :49 [stem/stem_weak] Self::collect_header_footer_controls(paragraphs, section_index);
+    :104 [stem/stem_weak] let trimmed = para.text.replace(|c: char| c.is_control(), "");
+- [code] gates/V353_RHWP_TABLE_FIDELITY_GATES.md  channel=ledger_check binding=pin jev=0.33 rows=3
+    :34 [stem/pin] CHECK: python3 -c 'import json;d=json.load(open(".omo/evidence/v353-rhwp-table-fidelity/negative-control.json"));assert d["base"]=="a34d88ff3bae317ad0
+    :54 [stem/pin] CHECK: git diff --name-only a34d88ff3bae317ad08d8f0b99504e4395278e6a HEAD | grep -vE '^(src/model/table\.rs|src/model/table/tests\.rs|src/model/shape\
+    :91 [stem/stem_weak] - NOTE C2 G7 CARRY: 고정 a34d88ff 음성 대조 JSON·negative_control.py·원 시험 prefix는 그대로다. 새 C2 사례는 e6e5850에서 별도 RED를 기록하고 이 head에서 GREEN을 검증한다. 원 a34d88ff 전수 
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-9.json  channel=other binding=mention jev=0.33 rows=11
+    :13 [path/mention] "src/parser/control.rs",
+    :77 [path/mention] "src/parser/control.rs": "6fe6143935d7a143737e14d743923889b34840a8fdb318592ce3956e65dcf8b2",
+    :57 [basename/mention] "src/model/control.rs": "1de0049fe9be2752f04977acea7a2fcdc31e2e3f748fa0ee2c205791125213fe",
+- [code] gates/V318_ENGINE_CLIPPY_CORRECTION_GATES.md  channel=gate_ledger binding=mention jev=0.33 rows=1
+    :31 [path/mention] | src/parser/control.rs | cell field name 및 form UTF-16 decoder의 완전한 LE pair iteration만 변경. |
+- [code] src/document_core/commands/formatting.rs  channel=other binding=mention jev=0.33 rows=37
+    :9 [stem/stem_weak] use crate::model::control::Control;
+    :40 [stem/stem_weak] control_idx: usize,
+    :49 [stem/stem_weak] control_idx,
+- [code] src/renderer/pagination.rs  channel=other binding=mention jev=0.33 rows=34
+    :14 [stem/stem_weak] use crate::model::control::Control;
+    :49 [stem/stem_weak] pub page_number_pos: Option<crate::model::control::PageNumberPos>,
+    :51 [stem/stem_weak] pub page_hide: Option<crate::model::control::PageHide>,
+- [code] tests/hwpx_phase1_corpus.rs  channel=other binding=mention jev=0.33 rows=48
+    :9 [stem/stem_weak] use rhwp::model::control::Control;
+    :17 [stem/stem_weak] top_level_controls: usize,
+    :47 [stem/stem_weak] metrics.top_level_controls += paragraph.controls.len();
+- [code] src/document_core/helpers.rs  channel=other binding=mention jev=0.32 rows=25
+    :6 [stem/stem_weak] use crate::model::control::Control;
+    :48 [stem/stem_weak] .controls
+    :53 [stem/stem_weak] let positions = find_control_text_positions(para);
+- [code] src/renderer/composer.rs  channel=other binding=mention jev=0.32 rows=30
+    :10 [stem/stem_weak] use crate::model::control::Control;
+    :75 [stem/stem_weak] /// Paragraph.controls 내 인덱스
+    :76 [stem/stem_weak] pub control_index: usize,
+- [code] tests/hwpx_roundtrip_integration.rs  channel=other binding=mention jev=0.32 rows=11
+    :26 [stem/stem_weak] for (ctrl_idx, ctrl) in para.controls.iter().enumerate() {
+    :27 [stem/stem_weak] if matches!(ctrl, rhwp::model::control::Control::Table(_)) {
+    :40 [stem/stem_weak] for ctrl in &para.controls {
+- [code] mydocs/eng/plans/archives/task_142_impl.md  channel=doc binding=mention jev=0.31 rows=20
+    :25 [path/mention] | `src/parser/control.rs` | 1,744 | Step 4 |
+    :26 [basename/mention] | `src/serializer/control.rs` | 1,520 | Step 4 |
+    :245 [basename/mention] ### 4-A. parser/control.rs (1,744 lines)
+- [code] mydocs/working/task_m100_111_stage1.md  channel=doc binding=mention jev=0.31 rows=11
+    :16 [stem/stem_weak] `collect_runs()`가 `TableCell` bbox를 `parent_para_index=0, control_index=0`으로 등록한 뒤,
+    :25 [stem/stem_weak] - `RenderNodeType::Table` 진입 시 `(section_index, para_index, control_index)` 추출하여 하위 전파
+    :26 [stem/stem_weak] - `TableCell` 노드 등록 시 `table_meta`로 즉시 `section_index`, `parent_para_index`, `control_index` 채움
+- [code] src/document_core/queries/doc_tree_nav.rs  channel=other binding=mention jev=0.31 rows=43
+    :7 [stem/stem_weak] find_control_text_positions, get_textbox_from_shape, navigable_text_len,
+    :10 [stem/stem_weak] use crate::model::control::Control;
+    :99 [stem/stem_weak] let ctrl = para.controls.get(entry.ctrl_idx)?;
+- [code] tests/hwpx_to_hwp_adapter.rs  channel=other binding=mention jev=0.31 rows=11
+    :11 [stem/stem_weak] use rhwp::model::control::Control;
+    :130 [stem/stem_weak] for ctrl in &para.controls {
+    :157 [stem/stem_weak] for ctrl in &para.controls {
+- [code] .omo/evidence/v318-engine-clippy-correction/rustfmt-final.json  channel=other binding=mention jev=0.30 rows=11
+    :19 [path/mention] "src/parser/control.rs",
+    :83 [path/mention] "src/parser/control.rs": "6fe6143935d7a143737e14d743923889b34840a8fdb318592ce3956e65dcf8b2",
+    :63 [basename/mention] "src/model/control.rs": "1de0049fe9be2752f04977acea7a2fcdc31e2e3f748fa0ee2c205791125213fe",
+- [code] rhwp-studio/src/engine/cursor.ts  channel=other binding=mention jev=0.30 rows=26
+    :105 [stem/stem_weak] a.controlIndex !== b.controlIndex ||
+    :109 [stem/stem_weak] if (a.controlIndex !== b.controlIndex) return a.controlIndex! < b.controlIndex! ? -1 : 1;
+    :163 [stem/stem_weak] const { sectionIndex: sec, parentParaIndex: ppi, controlIndex: ci, cellIndex: cei } = this.position;
+- [code] src/document_core/commands/table_ops.rs  channel=other binding=mention jev=0.30 rows=100
+    :6 [stem/stem_weak] use crate::model::control::Control;
+    :16 [stem/stem_weak] control_idx: usize,
+    :18 [stem/stem_weak] let path = path_from_flat(parent_para_idx, control_idx);
+- [code] src/document_core/queries/rendering.rs  channel=other binding=mention jev=0.30 rows=73
+    :6 [stem/stem_weak] use crate::model::control::Control;
+    :28 [stem/stem_weak] renderer.show_control_codes = self.show_control_codes;
+    :46 [stem/stem_weak] renderer.show_control_codes = self.show_control_codes;
+  … 723 more files (--top 0 으로 전부)

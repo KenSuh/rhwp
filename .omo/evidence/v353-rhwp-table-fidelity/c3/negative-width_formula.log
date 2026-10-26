@@ -1,0 +1,98 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.05s
+     Running tests/hwpx_table_fidelity.rs (target/debug/deps/hwpx_table_fidelity-8fba4dff0113d046)
+
+running 12 tests
+test width_formula_includes_new_spacing_after_column_split ... FAILED
+test width_formula_matches_unmerged_fixture_tables ... ok
+test width_formula_preserves_declaration_when_resize_keeps_columns ... FAILED
+test width_formula_preserves_declaration_when_row_insert_keeps_columns ... FAILED
+test width_formula_preserves_declaration_when_row_split_keeps_columns ... FAILED
+test width_formula_preserves_declaration_when_row_delete_keeps_columns ... FAILED
+test width_formula_updates_when_row_delete_changes_columns ... ok
+test width_formula_preserves_declaration_when_path_resize_keeps_columns ... FAILED
+test width_formula_holds_after_column_delete_with_cell_spacing ... FAILED
+test width_formula_kept_after_row_insert ... FAILED
+test width_formula_holds_after_column_insert_with_cell_spacing ... FAILED
+test width_formula_updates_when_resize_changes_columns ... ok
+
+failures:
+
+---- width_formula_includes_new_spacing_after_column_split stdout ----
+
+thread 'width_formula_includes_new_spacing_after_column_split' (714272878) panicked at tests/hwpx_table_fidelity.rs:926:5:
+assertion `left == right` failed
+  left: 1000
+ right: 1300
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- width_formula_preserves_declaration_when_resize_keeps_columns stdout ----
+
+thread 'width_formula_preserves_declaration_when_resize_keeps_columns' (714272882) panicked at tests/hwpx_table_fidelity.rs:852:9:
+assertion `left == right` failed: [{"cellIdx":0,"widthDelta":-283}], by_path=false
+  left: 9600
+ right: 5000
+
+---- width_formula_preserves_declaration_when_row_insert_keeps_columns stdout ----
+
+thread 'width_formula_preserves_declaration_when_row_insert_keeps_columns' (714272884) panicked at tests/hwpx_table_fidelity.rs:992:5:
+assertion `left == right` failed
+  left: 9600
+ right: 5000
+
+---- width_formula_preserves_declaration_when_row_split_keeps_columns stdout ----
+
+thread 'width_formula_preserves_declaration_when_row_split_keeps_columns' (714272885) panicked at tests/hwpx_table_fidelity.rs:1006:5:
+assertion `left == right` failed
+  left: 9600
+ right: 5000
+
+---- width_formula_preserves_declaration_when_row_delete_keeps_columns stdout ----
+
+thread 'width_formula_preserves_declaration_when_row_delete_keeps_columns' (714272883) panicked at tests/hwpx_table_fidelity.rs:978:5:
+assertion `left == right` failed
+  left: 3000
+ right: 7000
+
+---- width_formula_preserves_declaration_when_path_resize_keeps_columns stdout ----
+
+thread 'width_formula_preserves_declaration_when_path_resize_keeps_columns' (714272881) panicked at tests/hwpx_table_fidelity.rs:852:9:
+assertion `left == right` failed: [{"cellIdx":0,"widthDelta":-283}], by_path=true
+  left: 9600
+ right: 5000
+
+---- width_formula_holds_after_column_delete_with_cell_spacing stdout ----
+
+thread 'width_formula_holds_after_column_delete_with_cell_spacing' (714272876) panicked at tests/hwpx_table_fidelity.rs:582:5:
+assertion `left == right` failed: 열 삭제 뒤: sz.width
+  left: "95806"
+ right: "96256"
+
+---- width_formula_kept_after_row_insert stdout ----
+
+thread 'width_formula_kept_after_row_insert' (714272879) panicked at tests/hwpx_table_fidelity.rs:582:5:
+assertion `left == right` failed: 행 삽입 뒤: sz.width
+  left: "47903"
+ right: "48303"
+
+---- width_formula_holds_after_column_insert_with_cell_spacing stdout ----
+
+thread 'width_formula_holds_after_column_insert_with_cell_spacing' (714272877) panicked at tests/hwpx_table_fidelity.rs:582:5:
+assertion `left == right` failed: 열 삽입 뒤: sz.width
+  left: "95806"
+ right: "96406"
+
+
+failures:
+    width_formula_holds_after_column_delete_with_cell_spacing
+    width_formula_holds_after_column_insert_with_cell_spacing
+    width_formula_includes_new_spacing_after_column_split
+    width_formula_kept_after_row_insert
+    width_formula_preserves_declaration_when_path_resize_keeps_columns
+    width_formula_preserves_declaration_when_resize_keeps_columns
+    width_formula_preserves_declaration_when_row_delete_keeps_columns
+    width_formula_preserves_declaration_when_row_insert_keeps_columns
+    width_formula_preserves_declaration_when_row_split_keeps_columns
+
+test result: FAILED. 3 passed; 9 failed; 0 ignored; 0 measured; 26 filtered out; finished in 1.40s
+
+error: test failed, to rerun pass `--test hwpx_table_fidelity`

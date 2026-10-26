@@ -1,0 +1,61 @@
+   Compiling rhwp v0.7.3 (/private/var/folders/1j/_ggsky8n1bzfn0g2x5c8_wgm0000gn/T/rhwp-v353-c3-base-8sddr2vd)
+warning: function `footnote_emits_autoNum` should have a snake case name
+   --> src/serializer/hwpx/field.rs:353:8
+    |
+353 |     fn footnote_emits_autoNum() {
+    |        ^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `footnote_emits_auto_num`
+    |
+    = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: function `test_merge_then_control_layout_has_colSpan` should have a snake case name
+    --> src/wasm_api/tests.rs:1173:4
+     |
+1173 | fn test_merge_then_control_layout_has_colSpan() {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `test_merge_then_control_layout_has_col_span`
+
+warning: unused `Result` that must be used
+     --> src/wasm_api/tests.rs:11958:5
+      |
+11958 |     doc.insert_text_native(0, 0, 0, "가나다라마바사아");
+      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      |
+      = note: this `Result` may be an `Err` variant, which should be handled
+      = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+help: use `let _ = ...` to ignore the resulting value
+      |
+11958 |     let _ = doc.insert_text_native(0, 0, 0, "가나다라마바사아");
+      |     +++++++
+
+warning: unused `Result` that must be used
+     --> src/wasm_api/tests.rs:16440:5
+      |
+16440 |     doc.convert_to_editable_native();
+      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      |
+      = note: this `Result` may be an `Err` variant, which should be handled
+help: use `let _ = ...` to ignore the resulting value
+      |
+16440 |     let _ = doc.convert_to_editable_native();
+      |     +++++++
+
+warning: `rhwp` (lib test) generated 4 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 12.51s
+     Running unittests src/lib.rs (target/debug/deps/rhwp-bc222e1c753caa0f)
+
+running 1 test
+
+thread 'serializer::hwpx::tests::form_attribute_entities_survive_two_hwpx_saves' (714345305) panicked at src/serializer/hwpx/mod.rs:430:9:
+assertion `left == right` failed: second save must reproduce the first section XML
+  left: "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\" ?><hs:sec xmlns:ha=\"http://www.hancom.co.kr/hwpml/2011/app\" xmlns:hp=\"http://www.hancom.co.kr/hwpml/2011/paragraph\" xmlns:hp10=\"http://www.hancom.co.kr/hwpml/2016/paragraph\" xmlns:hs=\"http://www.hancom.co.kr/hwpml/2011/section\" xmlns:hc=\"http://www.hancom.co.kr/hwpml/2011/core\" xmlns:hh=\"http://www.hancom.co.kr/hwpml/2011/head\" xmlns:hhs=\"http://www.hancom.co.kr/hwpml/2011/history\" xmlns:hm=\"http://www.hancom.co.kr/hwpml/2011/master-page\" xmlns:hpf=\"http://www.hancom.co.kr/schema/2011/hpf\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:opf=\"http://www.idpf.org/2007/opf/\" xmlns:ooxmlchart=\"http://www.hancom.co.kr/hwpml/2016/ooxmlchart\" xmlns:epub=\"http://www.idpf.org/2007/ops\" xmlns:config=\"urn:oasis:names:tc:opendocument:xmlns:config:1.0\"><hp:p id=\"0\" paraPrIDRef=\"0\" styleIDRef=\"0\" pageBreak=\"0\" columnBreak=\"0\" merged=\"0\"><hp:run charPrIDRef=\"0\"><hp:secPr id=\"\" textDirection=\"HORIZONTAL\" spaceColumns=\"1134\" tabStop=\"8000\" outlineShapeIDRef=\"1\" memoShapeIDRef=\"0\" textVerticalWidthHead=\"0\" masterPageCnt=\"0\"><hp:grid lineGrid=\"0\" charGrid=\"0\" wonggojiFormat=\"0\"/><hp:startNum pageStartsOn=\"BOTH\" page=\"0\" pic=\"0\" tbl=\"0\" equation=\"0\"/><hp:visibility hideFirstHeader=\"0\" hideFirstFooter=\"0\" hideFirstMasterPage=\"0\" border=\"SHOW_ALL\" fill=\"SHOW_ALL\" hideFirstPageNum=\"0\" hideFirstEmptyLine=\"0\" showLineNumber=\"0\"/><hp:lineNumberShape restartType=\"0\" countBy=\"0\" distance=\"0\" startNumber=\"0\"/><hp:pagePr landscape=\"WIDELY\" width=\"59528\" height=\"84186\" gutterType=\"LEFT_ONLY\"><hp:margin header=\"4252\" footer=\"4252\" gutter=\"0\" left=\"8504\" right=\"8504\" top=\"5668\" bottom=\"4252\"/></hp:pagePr><hp:footNotePr><hp:autoNumFormat type=\"DIGIT\" userChar=\"\" prefixChar=\"\" suffixChar=\")\" supscript=\"0\"/><hp:noteLine length=\"-1\" type=\"SOLID\" width=\"0.12 mm\" color=\"#000000\"/><hp:noteSpacing betweenNotes=\"283\" belowLine=\"567\" aboveLine=\"850\"/><hp:numbering type=\"CONTINUOUS\" newNum=\"1\"/><hp:placement place=\"EACH_COLUMN\" beneathText=\"0\"/></hp:footNotePr><hp:endNotePr><hp:autoNumFormat type=\"DIGIT\" userChar=\"\" prefixChar=\"\" suffixChar=\")\" supscript=\"0\"/><hp:noteLine length=\"14692344\" type=\"SOLID\" width=\"0.12 mm\" color=\"#000000\"/><hp:noteSpacing betweenNotes=\"0\" belowLine=\"567\" aboveLine=\"850\"/><hp:numbering type=\"CONTINUOUS\" newNum=\"1\"/><hp:placement place=\"END_OF_DOCUMENT\" beneathText=\"0\"/></hp:endNotePr><hp:pageBorderFill type=\"BOTH\" borderFillIDRef=\"1\" textBorder=\"PAPER\" headerInside=\"0\" footerInside=\"0\" fillArea=\"PAPER\"><hp:offset left=\"1417\" right=\"1417\" top=\"1417\" bottom=\"1417\"/></hp:pageBorderFill><hp:pageBorderFill type=\"EVEN\" borderFillIDRef=\"1\" textBorder=\"PAPER\" headerInside=\"0\" footerInside=\"0\" fillArea=\"PAPER\"><hp:offset left=\"1417\" right=\"1417\" top=\"1417\" bottom=\"1417\"/></hp:pageBorderFill><hp:pageBorderFill type=\"ODD\" borderFillIDRef=\"1\" textBorder=\"PAPER\" headerInside=\"0\" footerInside=\"0\" fillArea=\"PAPER\"><hp:offset left=\"1417\" right=\"1417\" top=\"1417\" bottom=\"1417\"/></hp:pageBorderFill></hp:secPr><hp:ctrl><hp:colPr id=\"\" type=\"NEWSPAPER\" layout=\"LEFT\" colCount=\"1\" sameSz=\"1\" sameGap=\"0\"/></hp:ctrl></hp:run><hp:run charPrIDRef=\"0\"><hp:t>R&amp;D 본문</hp:t></hp:run><hp:run charPrIDRef=\"0\"><hp:checkBtn name=\"Check&amp;Box &quot;1&quot;\" foreColor=\"#000000\" backColor=\"#FFFFFF\" enabled=\"1\" caption=\"IP R&amp;&amp;D연계\" value=\"CHECKED\"><hp:sz width=\"6803\" height=\"1700\"/></hp:checkBtn></hp:run><hp:run charPrIDRef=\"0\"><hp:btn name=\"Btn&lt;1&gt;\" foreColor=\"#000000\" backColor=\"#000000\" enabled=\"1\" caption=\"&lt;Say &quot;hi&quot;&gt; &apos;now&apos;\"><hp:sz width=\"5000\" height=\"1500\"/></hp:btn></hp:run><hp:run charPrIDRef=\"0\"><hp:radioBtn name=\"Radio1\" foreColor=\"#000000\" backColor=\"#000000\" enabled=\"1\" caption=\"가나 &amp; done\" value=\"UNCHECKED\"><hp:sz width=\"5000\" height=\"1500\"/></hp:radioBtn></hp:run><hp:run charPrIDRef=\"0\"><hp:comboBox name=\"Combo literal &amp;amp;\" foreColor=\"#000000\" backColor=\"#000000\" enabled=\"1\" selectedValue=\"A&amp;B &lt;sel&gt;\"><hp:sz width=\"9000\" height=\"1500\"/><hp:listItem value=\"A&amp;B &lt;sel&gt;\"/><hp:listItem value=\"literal &amp;amp; item\"/><hp:listItem value=\"&quot;q&quot; &amp; &apos;a&apos;\"/></hp:comboBox></hp:run><hp:linesegarray><hp:lineseg textpos=\"0\" vertpos=\"0\" vertsize=\"0\" textheight=\"0\" baseline=\"0\" spacing=\"0\" horzpos=\"0\" horzsize=\"0\" flags=\"393216\"/></hp:linesegarray></hp:p></hs:sec>"
+ right: "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\" ?><hs:sec xmlns:ha=\"http://www.hancom.co.kr/hwpml/2011/app\" xmlns:hp=\"http://www.hancom.co.kr/hwpml/2011/paragraph\" xmlns:hp10=\"http://www.hancom.co.kr/hwpml/2016/paragraph\" xmlns:hs=\"http://www.hancom.co.kr/hwpml/2011/section\" xmlns:hc=\"http://www.hancom.co.kr/hwpml/2011/core\" xmlns:hh=\"http://www.hancom.co.kr/hwpml/2011/head\" xmlns:hhs=\"http://www.hancom.co.kr/hwpml/2011/history\" xmlns:hm=\"http://www.hancom.co.kr/hwpml/2011/master-page\" xmlns:hpf=\"http://www.hancom.co.kr/schema/2011/hpf\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:opf=\"http://www.idpf.org/2007/opf/\" xmlns:ooxmlchart=\"http://www.hancom.co.kr/hwpml/2016/ooxmlchart\" xmlns:epub=\"http://www.idpf.org/2007/ops\" xmlns:config=\"urn:oasis:names:tc:opendocument:xmlns:config:1.0\"><hp:p id=\"0\" paraPrIDRef=\"0\" styleIDRef=\"0\" pageBreak=\"0\" columnBreak=\"0\" merged=\"0\"><hp:run charPrIDRef=\"0\"><hp:secPr id=\"\" textDirection=\"HORIZONTAL\" spaceColumns=\"1134\" tabStop=\"8000\" outlineShapeIDRef=\"1\" memoShapeIDRef=\"0\" textVerticalWidthHead=\"0\" masterPageCnt=\"0\"><hp:grid lineGrid=\"0\" charGrid=\"0\" wonggojiFormat=\"0\"/><hp:startNum pageStartsOn=\"BOTH\" page=\"0\" pic=\"0\" tbl=\"0\" equation=\"0\"/><hp:visibility hideFirstHeader=\"0\" hideFirstFooter=\"0\" hideFirstMasterPage=\"0\" border=\"SHOW_ALL\" fill=\"SHOW_ALL\" hideFirstPageNum=\"0\" hideFirstEmptyLine=\"0\" showLineNumber=\"0\"/><hp:lineNumberShape restartType=\"0\" countBy=\"0\" distance=\"0\" startNumber=\"0\"/><hp:pagePr landscape=\"WIDELY\" width=\"59528\" height=\"84186\" gutterType=\"LEFT_ONLY\"><hp:margin header=\"4252\" footer=\"4252\" gutter=\"0\" left=\"8504\" right=\"8504\" top=\"5668\" bottom=\"4252\"/></hp:pagePr><hp:footNotePr><hp:autoNumFormat type=\"DIGIT\" userChar=\"\" prefixChar=\"\" suffixChar=\")\" supscript=\"0\"/><hp:noteLine length=\"-1\" type=\"SOLID\" width=\"0.12 mm\" color=\"#000000\"/><hp:noteSpacing betweenNotes=\"283\" belowLine=\"567\" aboveLine=\"850\"/><hp:numbering type=\"CONTINUOUS\" newNum=\"1\"/><hp:placement place=\"EACH_COLUMN\" beneathText=\"0\"/></hp:footNotePr><hp:endNotePr><hp:autoNumFormat type=\"DIGIT\" userChar=\"\" prefixChar=\"\" suffixChar=\")\" supscript=\"0\"/><hp:noteLine length=\"14692344\" type=\"SOLID\" width=\"0.12 mm\" color=\"#000000\"/><hp:noteSpacing betweenNotes=\"0\" belowLine=\"567\" aboveLine=\"850\"/><hp:numbering type=\"CONTINUOUS\" newNum=\"1\"/><hp:placement place=\"END_OF_DOCUMENT\" beneathText=\"0\"/></hp:endNotePr><hp:pageBorderFill type=\"BOTH\" borderFillIDRef=\"1\" textBorder=\"PAPER\" headerInside=\"0\" footerInside=\"0\" fillArea=\"PAPER\"><hp:offset left=\"1417\" right=\"1417\" top=\"1417\" bottom=\"1417\"/></hp:pageBorderFill><hp:pageBorderFill type=\"EVEN\" borderFillIDRef=\"1\" textBorder=\"PAPER\" headerInside=\"0\" footerInside=\"0\" fillArea=\"PAPER\"><hp:offset left=\"1417\" right=\"1417\" top=\"1417\" bottom=\"1417\"/></hp:pageBorderFill><hp:pageBorderFill type=\"ODD\" borderFillIDRef=\"1\" textBorder=\"PAPER\" headerInside=\"0\" footerInside=\"0\" fillArea=\"PAPER\"><hp:offset left=\"1417\" right=\"1417\" top=\"1417\" bottom=\"1417\"/></hp:pageBorderFill></hp:secPr></hp:run><hp:run charPrIDRef=\"0\"><hp:ctrl><hp:colPr id=\"\" type=\"NEWSPAPER\" layout=\"LEFT\" colCount=\"1\" sameSz=\"1\" sameGap=\"0\"/></hp:ctrl></hp:run><hp:run charPrIDRef=\"0\"><hp:t>R&amp;D 본문</hp:t></hp:run><hp:run charPrIDRef=\"0\"><hp:checkBtn name=\"Check&amp;Box &quot;1&quot;\" foreColor=\"#000000\" backColor=\"#FFFFFF\" enabled=\"1\" caption=\"IP R&amp;&amp;D연계\" value=\"CHECKED\"><hp:sz width=\"6803\" height=\"1700\"/></hp:checkBtn></hp:run><hp:run charPrIDRef=\"0\"><hp:btn name=\"Btn&lt;1&gt;\" foreColor=\"#000000\" backColor=\"#000000\" enabled=\"1\" caption=\"&lt;Say &quot;hi&quot;&gt; &apos;now&apos;\"><hp:sz width=\"5000\" height=\"1500\"/></hp:btn></hp:run><hp:run charPrIDRef=\"0\"><hp:radioBtn name=\"Radio1\" foreColor=\"#000000\" backColor=\"#000000\" enabled=\"1\" caption=\"가나 &amp; done\" value=\"UNCHECKED\"><hp:sz width=\"5000\" height=\"1500\"/></hp:radioBtn></hp:run><hp:run charPrIDRef=\"0\"><hp:comboBox name=\"Combo literal &amp;amp;\" foreColor=\"#000000\" backColor=\"#000000\" enabled=\"1\" selectedValue=\"A&amp;B &lt;sel&gt;\"><hp:sz width=\"9000\" height=\"1500\"/><hp:listItem value=\"A&amp;B &lt;sel&gt;\"/><hp:listItem value=\"literal &amp;amp; item\"/><hp:listItem value=\"&quot;q&quot; &amp; &apos;a&apos;\"/></hp:comboBox></hp:run><hp:linesegarray><hp:lineseg textpos=\"0\" vertpos=\"0\" vertsize=\"0\" textheight=\"0\" baseline=\"0\" spacing=\"0\" horzpos=\"0\" horzsize=\"0\" flags=\"393216\"/></hp:linesegarray></hp:p></hs:sec>"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test serializer::hwpx::tests::form_attribute_entities_survive_two_hwpx_saves ... FAILED
+
+failures:
+
+failures:
+    serializer::hwpx::tests::form_attribute_entities_survive_two_hwpx_saves
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 960 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `--lib`

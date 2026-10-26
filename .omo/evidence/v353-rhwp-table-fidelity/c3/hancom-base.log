@@ -1,0 +1,10 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running tests/hwpx_table_fidelity.rs (target/debug/deps/hwpx_table_fidelity-8fba4dff0113d046)
+
+running 1 test
+T1_after_insert_row_base.hwpx 본문 표 #58 sz.height=5144 sz.width=47624
+T6_after_insert_row_base.hwpx 본문 표 #0 sz.height=7396 sz.width=47903
+test write_hancom_review_files ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 37 filtered out; finished in 3.26s
+

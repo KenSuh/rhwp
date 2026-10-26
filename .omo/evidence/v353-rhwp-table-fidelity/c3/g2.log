@@ -1,0 +1,14 @@
+CASE T1 file=T1_press_release_cell_logo.hwpx probe=OK tables=100->100 cells=10953->10953 pics=44->44 loss=0 info=210
+  info tbl.id=100
+  info tbl.zOrder=99
+  info tc.name=11
+CASE T2 file=T2_2026_oss_rst.hwpx probe=OK tables=10->10 cells=126->126 pics=0->0 loss=0 info=19
+  info tbl.id=10
+  info tbl.zOrder=9
+CASE T6 file=T6_table_giant_cell_overfill.hwpx probe=OK tables=22->22 cells=635->635 pics=13->13 loss=0 info=43
+  info tbl.id=22
+  info tbl.zOrder=21
+CASE T7 file=T7_nested_row_first_line_height.hwpx probe=OK tables=5->5 cells=110->110 pics=2->2 loss=0 info=9
+  info tbl.id=5
+  info tbl.zOrder=4
+ATTR_LOSS_TOTAL=0

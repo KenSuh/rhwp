@@ -1,0 +1,61 @@
+IMPACT at=code:e7c138ea1ccc0de19f57efe27cdcc464014403e4@e7c138ea1ccc query="gates/V353_RHWP_TABLE_FIDELITY_GATES.md" mode=path jev=used jev_threshold=0.45 files=22 rows=124 det_ms=318 total_ms=531 jev_requests=1 jev_http_attempts=1 jev_input_tokens=6322
+  ! cache stale (base code:0052deae929c53830d2ff573c9c8ec817a4693b6@0052deae929c → code:e7c138ea1ccc0de19f57efe27cdcc464014403e4@e7c138ea1ccc) · 재도출
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/intermediate-7668ec2/gate-run.log  channel=other binding=pin jev=0.54★ rows=26
+    :81 [basename/mention] V353_RHWP_TABLE_FIDELITY_GATES.md: 12 gates
+    :1 [stem/stem_weak] APPROVAL REQUIRED V353_RHWP_TABLE_FIDELITY_GATES:G4
+    :8 [stem/stem_weak] APPROVAL REQUIRED V353_RHWP_TABLE_FIDELITY_GATES:G5
+- [code] .omo/evidence/v353-rhwp-table-fidelity/REPORT.md  channel=doc binding=exec jev=0.53★ rows=2
+    :12 [path/exec] `gates/V353_RHWP_TABLE_FIDELITY_GATES.md` 를 unlazy `gate-check.mjs --approve --cwd <worktree> --timeout 3600` 으로 source HEAD `45d4f16` 에서 돌렸다 → `ALL M
+    :97 [path/exec] node "<unlazy>/scripts/gate-check.mjs" --status gates/V353_RHWP_TABLE_FIDELITY_GATES.md
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/C1_REPORT.md  channel=doc binding=exec jev=0.50★ rows=1
+    :31 [path/exec] `gates/V353_RHWP_TABLE_FIDELITY_GATES.md`: **12/12 met**, unmet 0, abandoned/deferred 0. G2·G4·G5·G6·G8·G9·G10·G11·G12를 source checkpoint에서 재실행했다. G1·
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/C2_REPORT.md  channel=doc binding=mention jev=0.50★ rows=1
+    :42 [path/mention] `gates/V353_RHWP_TABLE_FIDELITY_GATES.md`: **12/12 met**, unmet/abandoned/deferred 0. G4·G5·G6·G8·G9·G10·G11·G12를 최종 소스에서 실행했다. 재실행 8개의 원장 출력 SHA-256·
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/impact-summary.json  channel=other binding=pin jev=0.46★ rows=6
+    :17 [path/pin] "- [code] gates/V353_RHWP_TABLE_FIDELITY_GATES.md  channel=ledger_check binding=pin jev=0.39 rows=1\n    :54 [stem/pin] CHECK: git diff --name-only a3
+    :28 [path/pin] "- [code] gates/V353_RHWP_TABLE_FIDELITY_GATES.md  channel=ledger_check binding=pin jev=0.36 rows=1\n    :54 [stem/pin] CHECK: git diff --name-only a3
+    :40 [path/pin] "- [code] gates/V353_RHWP_TABLE_FIDELITY_GATES.md  channel=ledger_check binding=pin jev=0.52★ rows=4\n    :19 [stem/pin] CHECK: cargo test --test hwpx
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/gate-run.log  channel=other binding=mention jev=0.44 rows=17
+    :25 [basename/mention] V353_RHWP_TABLE_FIDELITY_GATES.md: 12 gates
+    :1 [stem/stem_weak] RUN  V353_RHWP_TABLE_FIDELITY_GATES:G4 shell=/bin/sh cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity PATH=/opt/homebrew/Caskroom/codex/0.
+    :2 [stem/stem_weak] RUN  V353_RHWP_TABLE_FIDELITY_GATES:G5 shell=/bin/sh cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity PATH=/opt/homebrew/Caskroom/codex/0.
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/impact-final-ledger.log  channel=other binding=pin jev=0.41 rows=10
+    :1 [path/mention] IMPACT at=code:9ac673ce16034fc03d819e5186485a920e5d2c16@9ac673ce1603 query="gates/V353_RHWP_TABLE_FIDELITY_GATES.md" mode=path jev=used jev_threshold=
+    :4 [path/exec] :12 [path/exec] `gates/V353_RHWP_TABLE_FIDELITY_GATES.md` 를 unlazy `gate-check.mjs --approve --cwd <worktree> --timeout 3600` 으로 source HEAD `45d4f16`
+    :5 [path/exec] :97 [path/exec] node "<unlazy>/scripts/gate-check.mjs" --status gates/V353_RHWP_TABLE_FIDELITY_GATES.md
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/impact-head-ledger.log  channel=other binding=pin jev=0.39 rows=10
+    :1 [path/mention] IMPACT at=code:7668ec27182792350b7aa8d43b52c0e14320919e@7668ec271827 query="gates/V353_RHWP_TABLE_FIDELITY_GATES.md" mode=path jev=used jev_threshold=
+    :4 [path/exec] :12 [path/exec] `gates/V353_RHWP_TABLE_FIDELITY_GATES.md` 를 unlazy `gate-check.mjs --approve --cwd <worktree> --timeout 3600` 으로 source HEAD `45d4f16`
+    :5 [path/exec] :97 [path/exec] node "<unlazy>/scripts/gate-check.mjs" --status gates/V353_RHWP_TABLE_FIDELITY_GATES.md
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/gate-run.log  channel=other binding=pin jev=0.37 rows=29
+    :91 [basename/mention] V353_RHWP_TABLE_FIDELITY_GATES.md: 12 gates
+    :1 [stem/stem_weak] APPROVAL REQUIRED V353_RHWP_TABLE_FIDELITY_GATES:G2
+    :8 [stem/stem_weak] APPROVAL REQUIRED V353_RHWP_TABLE_FIDELITY_GATES:G4
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/impact-ledger.log  channel=other binding=pin jev=0.30 rows=10
+    :1 [path/mention] IMPACT at=code:e6e5850ee07c952f2908df8e5845124c224c2f90@e6e5850ee07c query="gates/V353_RHWP_TABLE_FIDELITY_GATES.md" mode=path jev=used(cache) jev_thr
+    :3 [path/exec] :12 [path/exec] `gates/V353_RHWP_TABLE_FIDELITY_GATES.md` 를 unlazy `gate-check.mjs --approve --cwd <worktree> --timeout 3600` 으로 source HEAD `45d4f16`
+    :4 [path/exec] :97 [path/exec] node "<unlazy>/scripts/gate-check.mjs" --status gates/V353_RHWP_TABLE_FIDELITY_GATES.md
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/impact-final-text.log  channel=other binding=mention jev=0.26 rows=1
+    :27 [path/mention] - [code] gates/V353_RHWP_TABLE_FIDELITY_GATES.md  channel=ledger_check binding=pin jev=0.42 rows=1
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/impact-head-tests.log  channel=other binding=mention jev=0.24 rows=1
+    :14 [path/mention] - [code] gates/V353_RHWP_TABLE_FIDELITY_GATES.md  channel=ledger_check binding=pin jev=0.55★ rows=5
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/impact-final-tests.log  channel=other binding=mention jev=0.22 rows=1
+    :22 [path/mention] - [code] gates/V353_RHWP_TABLE_FIDELITY_GATES.md  channel=ledger_check binding=pin jev=0.51★ rows=5
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/impact-range-text.log  channel=other binding=mention jev=0.22 rows=1
+    :22 [path/mention] - [code] gates/V353_RHWP_TABLE_FIDELITY_GATES.md  channel=ledger_check binding=pin jev=0.41 rows=1
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/impact-tests.log  channel=other binding=mention jev=0.21 rows=1
+    :13 [path/mention] - [code] gates/V353_RHWP_TABLE_FIDELITY_GATES.md  channel=ledger_check binding=pin jev=0.53★ rows=5
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/gate-status.txt  channel=other binding=mention jev=0.20 rows=1
+    :1 [basename/mention] V353_RHWP_TABLE_FIDELITY_GATES.md: 12 gates
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/impact-head-text.log  channel=other binding=mention jev=0.20 rows=1
+    :23 [path/mention] - [code] gates/V353_RHWP_TABLE_FIDELITY_GATES.md  channel=ledger_check binding=pin jev=0.41 rows=1
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/impact-tests-all.log  channel=other binding=mention jev=0.20 rows=1
+    :13 [path/mention] - [code] gates/V353_RHWP_TABLE_FIDELITY_GATES.md  channel=ledger_check binding=pin jev=0.53★ rows=5
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/scope-paths.txt  channel=other binding=mention jev=0.20 rows=1
+    :95 [path/mention] gates/V353_RHWP_TABLE_FIDELITY_GATES.md
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/impact-range-tests.log  channel=other binding=mention jev=0.18 rows=1
+    :13 [path/mention] - [code] gates/V353_RHWP_TABLE_FIDELITY_GATES.md  channel=ledger_check binding=pin jev=0.55★ rows=5
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/impact-text-all.log  channel=other binding=mention jev=0.18 rows=1
+    :6 [path/mention] - [code] gates/V353_RHWP_TABLE_FIDELITY_GATES.md  channel=ledger_check binding=pin jev=0.51★ rows=1
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/impact-text.log  channel=other binding=mention jev=0.14 rows=1
+    :6 [path/mention] - [code] gates/V353_RHWP_TABLE_FIDELITY_GATES.md  channel=ledger_check binding=pin jev=0.51★ rows=1

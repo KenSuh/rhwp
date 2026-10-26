@@ -1,0 +1,192 @@
+{
+  "tool": "tools/roundtrip_diff.py",
+  "pipeline": "rhwp::DocumentCore::from_bytes -> export_hwpx_native",
+  "repo": "/private/var/folders/1j/_ggsky8n1bzfn0g2x5c8_wgm0000gn/T/rhwp-v353-c3-base-8sddr2vd",
+  "head": "01a67b3f77760b5a9dae9fc155d83f8ca84ab529",
+  "src_dirty": false,
+  "generated_at": "2026-10-26T04:41:19Z",
+  "fixtures": "tests/fixtures/table-fidelity",
+  "cases": [
+    "T1",
+    "T2"
+  ],
+  "counted_keys": {
+    "tbl": [
+      "textWrap",
+      "textFlow",
+      "lock",
+      "pageBreak",
+      "repeatHeader",
+      "noAdjust",
+      "cellSpacing",
+      "rowCnt",
+      "colCnt"
+    ],
+    "sz": [
+      "width",
+      "widthRelTo",
+      "height",
+      "heightRelTo",
+      "protect"
+    ],
+    "pos": [
+      "treatAsChar",
+      "affectLSpacing",
+      "flowWithText",
+      "allowOverlap",
+      "holdAnchorAndSO",
+      "vertRelTo",
+      "horzRelTo",
+      "vertAlign",
+      "horzAlign",
+      "vertOffset",
+      "horzOffset"
+    ],
+    "caption": [
+      "side",
+      "fullSz",
+      "width",
+      "gap",
+      "lastWidth",
+      "@paragraphs"
+    ],
+    "cellzone": [
+      "startRowAddr",
+      "startColAddr",
+      "endRowAddr",
+      "endColAddr",
+      "borderFillIDRef"
+    ],
+    "tc": [
+      "protect",
+      "editable",
+      "dirty"
+    ],
+    "subList": [
+      "lineWrap",
+      "vertAlign"
+    ]
+  },
+  "info_keys": {
+    "tbl": [
+      "id",
+      "zOrder",
+      "numberingType",
+      "dropcapstyle",
+      "borderFillIDRef"
+    ],
+    "tc": [
+      "name",
+      "header",
+      "hasMargin",
+      "borderFillIDRef"
+    ],
+    "subList": [
+      "textDirection"
+    ]
+  },
+  "T1": {
+    "src": "tests/fixtures/table-fidelity/T1_press_release_cell_logo.hwpx",
+    "dst": "target/c3-baseline/T1.roundtrip.hwpx",
+    "tables": [
+      100,
+      100
+    ],
+    "cells": [
+      10953,
+      10953
+    ],
+    "pics": [
+      44,
+      44
+    ],
+    "ATTR_LOSS_TOTAL": 448,
+    "INFO_DIFF_TOTAL": 210,
+    "losses": {
+      "pos.allowOverlap": 7,
+      "pos.flowWithText": 1,
+      "struct.cellzone": 5,
+      "subList.lineWrap": 435
+    },
+    "info": {
+      "tbl.id": 100,
+      "tbl.zOrder": 99,
+      "tc.name": 11
+    },
+    "examples": [
+      "info:tbl.id tbl[0]: '2086476618' -> '0'",
+      "info:tbl.zOrder tbl[0]: '52' -> '0'",
+      "info:tbl.id tbl[1]: '2086476621' -> '0'",
+      "info:tbl.zOrder tbl[1]: '55' -> '0'",
+      "loss:pos.flowWithText tbl[1]: '0' -> '1'",
+      "info:tc.name tbl[1].cell(0, 0): '기관명' -> ''",
+      "info:tbl.id tbl[2]: '2086476622' -> '0'",
+      "info:tbl.zOrder tbl[2]: '51' -> '0'",
+      "info:tc.name tbl[2].cell(0, 1): '보도일시' -> ''",
+      "info:tc.name tbl[2].cell(0, 3): '배포일시' -> ''",
+      "loss:struct.cellzone tbl[5]: 3 -> 0",
+      "loss:struct.cellzone tbl[6]: 3 -> 0",
+      "loss:pos.allowOverlap tbl[29]: '1' -> '0'",
+      "loss:pos.allowOverlap tbl[30]: '1' -> '0'",
+      "loss:pos.allowOverlap tbl[32]: '1' -> '0'",
+      "loss:subList.lineWrap tbl[38].cell(5, 2): 'SQUEEZE' -> 'BREAK'",
+      "loss:struct.cellzone tbl[44]: 1 -> 0",
+      "loss:subList.lineWrap tbl[50].cell(10, 1): 'SQUEEZE' -> 'BREAK'",
+      "loss:subList.lineWrap tbl[50].cell(10, 10): 'SQUEEZE' -> 'BREAK'"
+    ],
+    "probe": "OK",
+    "file": "T1_press_release_cell_logo.hwpx",
+    "sha256": "67cf6aa2f6042cd0c743c7ae03d46cc97a0c398df331606c98b26dacc6c62f1e"
+  },
+  "T2": {
+    "src": "tests/fixtures/table-fidelity/T2_2026_oss_rst.hwpx",
+    "dst": "target/c3-baseline/T2.roundtrip.hwpx",
+    "tables": [
+      10,
+      10
+    ],
+    "cells": [
+      126,
+      126
+    ],
+    "pics": [
+      0,
+      0
+    ],
+    "ATTR_LOSS_TOTAL": 18,
+    "INFO_DIFF_TOTAL": 19,
+    "losses": {
+      "subList.lineWrap": 6,
+      "tbl.lock": 3,
+      "tc.protect": 9
+    },
+    "info": {
+      "tbl.id": 10,
+      "tbl.zOrder": 9
+    },
+    "examples": [
+      "info:tbl.id tbl[0]: '1075989302' -> '0'",
+      "info:tbl.zOrder tbl[0]: '2' -> '0'",
+      "info:tbl.id tbl[1]: '1085359372' -> '0'",
+      "info:tbl.zOrder tbl[1]: '4' -> '0'",
+      "loss:tbl.lock tbl[2]: '1' -> '0'",
+      "info:tbl.id tbl[2]: '1085359374' -> '0'",
+      "info:tbl.zOrder tbl[2]: '5' -> '0'",
+      "loss:tc.protect tbl[2].cell(0, 0): '1' -> '0'",
+      "loss:tc.protect tbl[2].cell(2, 0): '1' -> '0'",
+      "loss:tbl.lock tbl[5]: '1' -> '0'",
+      "loss:tc.protect tbl[5].cell(0, 0): '1' -> '0'",
+      "loss:subList.lineWrap tbl[6].cell(1, 4): 'SQUEEZE' -> 'BREAK'",
+      "loss:subList.lineWrap tbl[6].cell(2, 4): 'SQUEEZE' -> 'BREAK'",
+      "loss:subList.lineWrap tbl[6].cell(3, 4): 'SQUEEZE' -> 'BREAK'",
+      "loss:tbl.lock tbl[7]: '1' -> '0'"
+    ],
+    "probe": "OK",
+    "file": "T2_2026_oss_rst.hwpx",
+    "sha256": "90858f0ecf9e95afe46b6dace6a61960b03552236a1204be530ce3d1866a8398"
+  },
+  "unmeasured": [],
+  "ATTR_LOSS_TOTAL": 466,
+  "observed_git_head": null,
+  "head_binding": "base-source-binding.json: every archived Git blob verified"
+}

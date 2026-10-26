@@ -1,0 +1,114 @@
+IMPACT at=code:e7c138ea1ccc0de19f57efe27cdcc464014403e4@e7c138ea1ccc query="rhwp-studio/package.json" mode=path jev=used jev_threshold=0.45 files=96 rows=183 det_ms=323 total_ms=1227 jev_requests=4 jev_http_attempts=4 jev_input_tokens=22195
+- [code] rhwp-studio/package-lock.json  channel=other binding=mention jev=0.60★ rows=1
+    :6 [stem/stem_weak] "packages": {
+- [code] THIRD_PARTY_LICENSES.md  channel=doc binding=mention jev=0.58★ rows=1
+    :127 [basename/mention] *이 문서는 `cargo metadata` 및 `package.json` 기반으로 생성되었으며, 의존성 업데이트 시 함께 갱신해야 한다.*
+- [code] mydocs/manual/publish_guide.md  channel=doc binding=mention jev=0.55★ rows=17
+    :79 [path/mention] | `rhwp-studio/package.json` | rhwp-studio (GitHub Pages 데모) | `"version": "0.7.0"` |
+    :82 [path/mention] > `rhwp-studio/package.json` 버전은 빌드 시 `__APP_VERSION__`으로 주입되어 제품정보 대화창에 표시된다.
+    :99 [path/mention] rhwp-studio/package.json:    0.7.0 → 0.8.0
+- [code] rhwp-chrome/vite.config.ts  channel=other binding=mention jev=0.55★ rows=2
+    :8 [basename/mention] // rhwp-studio 의 package.json 버전을 __APP_VERSION__ 으로 주입
+    :11 [basename/mention] readFileSync(resolve(__dirname, '..', 'rhwp-studio', 'package.json'), 'utf-8'),
+- [code] rhwp-studio/vite.config.ts  channel=other binding=mention jev=0.55★ rows=1
+    :5 [basename/mention] const pkg = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8'));
+- [code] mydocs/working/task_m100_196_stage3.md  channel=doc binding=mention jev=0.53★ rows=2
+    :102 [path/mention] | `rhwp-studio/package.json` | 0.7.2 → 0.7.3 |
+    :103 [basename/mention] | `rhwp-chrome/manifest.json` + `package.json` | 0.1.1 → 0.2.1 |
+- [code] scripts/prepare-npm.sh  channel=script binding=mention jev=0.50★ rows=3
+    :12 [basename/mention] # package.json 보완
+    :13 [basename/mention] cat > "${PKG_DIR}/package.json" << EOF
+    :59 [basename/mention] echo "✅ 완료: ${PKG_DIR}/package.json + README.md"
+- [code] mydocs/eng/tech/dev_roadmap_v1_backup.md  channel=doc binding=mention jev=0.46★ rows=6
+    :231 [basename/mention] - Complete `package.json` metadata (description, keywords, license, repository)
+    :210 [stem/stem_weak] |       |- __init__.py     # Python package entry point
+    :334 [stem/stem_weak] - PyPI package (`pip install rhwp`)
+- [code] mydocs/report/task_m100_133_report.md  channel=doc binding=mention jev=0.45★ rows=6
+    :23 [path/mention] | `rhwp-studio/package.json` | 0.7.1 | **0.7.2** |
+    :24 [basename/mention] | `npm/editor/package.json` | 0.7.0 | **0.7.2** |
+    :25 [basename/mention] | `rhwp-vscode/package.json` | 0.7.0 | **0.7.2** |
+- [code] npm/editor/README.md  channel=doc binding=link jev=0.44 rows=1
+    :5 [stem/link] [![npm](https://img.shields.io/npm/v/@rhwp/editor)](https://www.npmjs.com/package/@rhwp/editor)
+- [code] mydocs/plans/task_m100_133.md  channel=doc binding=mention jev=0.41 rows=9
+    :18 [path/mention] | `rhwp-studio/package.json` | 0.7.1 | 0.7.2 |
+    :68 [path/mention] - `rhwp-studio/package.json`: `"version": "0.7.1"` → `"0.7.2"`
+    :19 [basename/mention] | `npm/editor/package.json` | 0.7.0 | 0.7.2 (두 단계 점프) |
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/impact-manifest.log  channel=other binding=mention jev=0.37 rows=4
+    :6 [basename/mention] :81 [path/mention] > `pkg/package.json`은 직접 편집하지 않는다. `scripts/prepare-npm.sh`가 `Cargo.toml`에서 버전을 읽어 자동 생성한다.
+    :10 [basename/mention] :20 [path/mention] | `pkg/package.json` | 0.7.1 (prepare-npm.sh가 Cargo.toml에서 자동 생성) | 0.7.2 (자동 반영) |
+    :61 [basename/mention] :120 [path/mention] | 396 | LICENSE (MIT) + Cargo.toml/package.json 업데이트 | P0 | |
+- [code] mydocs/working/task_m100_132_stage1.md  channel=doc binding=mention jev=0.36 rows=2
+    :3 [basename/mention] **단계**: 1단계 — package.json commands + menus 등록
+    :8 [basename/mention] - `rhwp-vscode/package.json`
+- [code] mydocs/plans/task_m100_164_impl.md  channel=doc binding=mention jev=0.34 rows=2
+    :123 [stem/stem_weak] <opf:package xmlns:opf="http://www.idpf.org/2007/opf/" version="" unique-identifier="">
+    :132 [stem/stem_weak] </opf:package>
+- [code] mydocs/report/task_m100_127_report.md  channel=doc binding=mention jev=0.32 rows=2
+    :36 [path/mention] **변경 파일**: `rhwp-studio/package.json`, `rhwp-studio/tsconfig.json`
+    :38 [basename/mention] - `package.json`: `typescript: "^5.7.0"` → `"^6.0.2"`
+- [code] mydocs/plans/task_m100_126_impl.md  channel=doc binding=mention jev=0.31 rows=1
+    :28 [path/mention] **파일**: `rhwp-studio/package.json`, `rhwp-studio/tsconfig.json`
+- [code] mydocs/plans/task_m100_132.md  channel=doc binding=mention jev=0.31 rows=1
+    :38 [basename/mention] ### 1단계: package.json — commands + menus 등록
+- [code] mydocs/eng/tech/webgian_replacement_strategy.md  channel=doc binding=mention jev=0.30 rows=5
+    :258 [stem/stem_weak] - Compatibility adapter is implemented as a separate package from the core engine (physical separation)
+    :264 [stem/stem_weak] The rhwp core designs its own API, and the compatibility adapter is separated into a distinct package that delegates via the adapter pattern.
+    :269 [stem/stem_weak] [Compatibility Adapter Layer]    <- Separate package (rhwp-compat-hwpctrl/)
+- [code] mydocs/plans/archives/task_45_impl.md  channel=doc binding=mention jev=0.30 rows=3
+    :20 [basename/mention] ├── package.json
+    :26 [basename/mention] ### 1.2 package.json
+    :423 [basename/mention] ├── package.json
+- [code] mydocs/working/archives/task_45_step1.md  channel=doc binding=mention jev=0.30 rows=2
+    :65 [path/mention] | `rhwp-studio/package.json` | 프로젝트 메타 + 의존성 |
+    :21 [basename/mention] ├── package.json             ← Vite + TypeScript
+- [code] .github/workflows/npm-publish.yml  channel=workflow binding=mention jev=0.29 rows=1
+    :63 [stem/stem_weak] - name: Prepare npm package
+- [code] .omo/evidence/v318-engine-clippy-correction/baseline-clippy.log  channel=other binding=mention jev=0.29 rows=1
+    :2 [stem/stem_weak] Locking 153 packages to highest compatible versions
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-9.log  channel=other binding=mention jev=0.27 rows=1
+    :1887 [stem/stem_weak] - [code] rhwp-studio/package-lock.json  channel=other binding=mention jev=- rows=2
+- [code] rhwp-vscode/publish.sh  channel=other binding=exec jev=0.26 rows=1
+    :48 [basename/exec] VERSION=$(grep '"version"' package.json | head -1 | sed 's/.*: "\(.*\)".*/\1/')
+- [code] rhwp-vscode/package.json  channel=manifest binding=mention jev=0.26 rows=1
+    :104 [stem/stem_weak] "package": "vsce package"
+- [code] mydocs/plans/task_392.md  channel=doc binding=mention jev=0.25 rows=1
+    :120 [basename/mention] | 396 | LICENSE (MIT) + Cargo.toml/package.json 업데이트 | P0 | |
+- [code] mydocs/working/task_m100_126_report.md  channel=doc binding=mention jev=0.25 rows=1
+    :15 [path/mention] - `rhwp-studio/package.json` devDependencies에 `@types/chrome@0.1.40` 추가
+- [code] README.md  channel=doc binding=link jev=0.24 rows=3
+    :15 [stem/stem_weak] <a href="https://www.npmjs.com/package/@rhwp/core"><img src="https://img.shields.io/npm/v/@rhwp/core?label=npm" alt="npm" /></a>
+    :214 [stem/link] | [@rhwp/editor](https://www.npmjs.com/package/@rhwp/editor) | 완전한 에디터 UI (iframe) | `npm i @rhwp/editor` |
+    :215 [stem/link] | [@rhwp/core](https://www.npmjs.com/package/@rhwp/core) | WASM 파서/렌더러 (API) | `npm i @rhwp/core` |
+- [code] README_EN.md  channel=doc binding=link jev=0.24 rows=3
+    :15 [stem/stem_weak] <a href="https://www.npmjs.com/package/@rhwp/core"><img src="https://img.shields.io/npm/v/@rhwp/core?label=npm" alt="npm" /></a>
+    :232 [stem/link] | [@rhwp/editor](https://www.npmjs.com/package/@rhwp/editor) | Full editor UI (iframe embed) | `npm i @rhwp/editor` |
+    :233 [stem/link] | [@rhwp/core](https://www.npmjs.com/package/@rhwp/core) | WASM parser/renderer (API) | `npm i @rhwp/core` |
+- [code] mydocs/eng/orders/20260404.md  channel=doc binding=link jev=0.24 rows=3
+    :24 [stem/link] | [#57](https://github.com/edwardkim/rhwp/issues/57) | npm package publish (@rhwp/core) | Done | WASM module published to npmjs.com, beginner onboardi
+    :25 [stem/link] | [#58](https://github.com/edwardkim/rhwp/issues/58) | npm editor package (@rhwp/editor) | Done | iframe-based HWP editor embed, postMessage API |
+    :37 [stem/stem_weak] - npm package test projects (rhwp-test, rhwp-editor)
+- [code] CONTRIBUTING.md  channel=doc binding=link jev=0.21 rows=1
+    :15 [stem/link] - **[npm 패키지](https://www.npmjs.com/package/@rhwp/editor)** — 3줄로 HWP 에디터 임베드
+- [code] npm/README.md  channel=doc binding=link jev=0.21 rows=3
+    :5 [stem/link] [![npm](https://img.shields.io/npm/v/@rhwp/core)](https://www.npmjs.com/package/@rhwp/core)
+    :11 [stem/link] > 편집 기능(메뉴, 툴바, 서식)이 필요하면 **[@rhwp/editor](https://www.npmjs.com/package/@rhwp/editor)** 를 사용하세요.
+    :225 [stem/link] - **[@rhwp/editor](https://www.npmjs.com/package/@rhwp/editor)** — 에디터 UI 임베드
+- [code] mydocs/manual/local_web_server.md  channel=doc binding=mention jev=0.21 rows=1
+    :42 [basename/mention] > `npm run dev`도 동일하게 동작한다. (`package.json`의 dev 스크립트가 `vite`를 실행)
+- [code] mydocs/eng/plans/archives/task_196_impl.md  channel=doc binding=mention jev=0.20 rows=1
+    :14 [basename/mention] - Add `"e2e"` script to `package.json`
+- [code] rhwp-chrome/package-lock.json  channel=other binding=mention jev=0.20 rows=1
+    :6 [stem/stem_weak] "packages": {
+- [code] mydocs/eng/manual/local_web_server.md  channel=doc binding=mention jev=0.19 rows=1
+    :42 [basename/mention] > `npm run dev` works the same way. (The `dev` script in `package.json` runs `vite`)
+- [code] mydocs/plans/task_403_impl.md  channel=doc binding=mention jev=0.19 rows=1
+    :47 [basename/mention] - `package.json` — 확장 매니페스트 작성
+- [code] mydocs/tech/vscode_extension_design.md  channel=doc binding=mention jev=0.19 rows=1
+    :95 [basename/mention] ├── package.json              # 확장 매니페스트
+- [code] mydocs/eng/plans/nonfunctional_todo.md  channel=doc binding=mention jev=0.18 rows=3
+    :106 [stem/stem_weak] | npm package | Not published | Include logo + README |
+    :149 [stem/stem_weak] - Distribute WASM module as npm package
+    :184 [stem/stem_weak] 7. npm package distribution
+- [code] mydocs/report/task_m100_136_report.md  channel=doc binding=mention jev=0.18 rows=1
+    :45 [basename/mention] | `package.json` | 버전 0.7.3, 인쇄 커맨드 제거 |
+  … 56 more files (--top 0 으로 전부)

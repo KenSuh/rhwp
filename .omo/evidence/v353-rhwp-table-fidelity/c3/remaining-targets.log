@@ -1,0 +1,198 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.21s
+     Running unittests src/tools/font_metric_gen.rs (target/debug/deps/font_metric_gen-b3850ac5b9793ac8)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/rhwp-d39b7ea266b8d841)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cell_format_reflow.rs (target/debug/deps/cell_format_reflow-82a0a39737ce0baf)
+
+running 17 tests
+test font_size_change_in_cell_sets_line_height_from_new_size ... ok
+test cell_path_formats_wrap_at_cell_width ... ok
+test para_format_in_cell_wraps_at_cell_width ... ok
+test resized_table_caption_input_uses_current_geometry ... ok
+test cell_path_font_size_change_sets_line_height_from_new_size ... ok
+test table_caption_formats_reflow_at_caption_width ... ok
+test para_format_in_cell_applies_new_line_spacing ... ok
+test text_insert_in_cell_still_reflows_at_cell_width ... ok
+test textbox_char_format_reflows_at_textbox_width ... ok
+test char_format_in_cell_wraps_at_cell_width ... ok
+test vertical_cell_input_keeps_pre_l1_cell_width ... ok
+test cell_path_para_format_applies_new_line_spacing ... ok
+test resized_table_caption_line_spacing_uses_current_geometry ... ok
+test resized_table_caption_font_size_uses_current_geometry ... ok
+test vertical_cell_font_size_keeps_pre_l1_section_width ... ok
+test vertical_cell_line_spacing_keeps_pre_l1_section_width ... ok
+test composer_cell_sequence_survives_hwpx_roundtrip ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/cell_reflow_geometry.rs (target/debug/deps/cell_reflow_geometry-9761ecbdc2d024ef)
+
+running 68 tests
+test caption_right_spacing ... ok
+test caption_bottom_font ... ok
+test caption_spaced_spacing ... ok
+test caption_bottom_spacing ... ok
+test caption_spaced_font ... ok
+test caption_spaced_input ... ok
+test caption_left_font ... ok
+test caption_right_font ... ok
+test caption_right_input ... ok
+test caption_merged_input ... ok
+test caption_merged_font ... ok
+test caption_left_spacing ... ok
+test caption_bottom_input ... ok
+test caption_merged_spacing ... ok
+test caption_left_input ... ok
+test caption_top_input ... ok
+test caption_top_font ... ok
+test inherited_vertical_input ... ok
+test caption_top_spacing ... ok
+test inherited_vertical_font ... ok
+test cell_input ... ok
+test inherited_vertical_spacing ... ok
+test cell_font ... ok
+test cell_spacing ... ok
+test merged_vertical_input ... ok
+test merged_font ... ok
+test merged_vertical_font ... ok
+test merged_vertical_spacing ... ok
+test merged_spacing ... ok
+test nested_upright_font ... ok
+test automatic_height_vertical_cell_keeps_pre_l1_rendered_text ... ok
+test merged_input ... ok
+test nested_upright_input ... ok
+test nested_input ... ok
+test picture_bottom_font ... ok
+test nested_upright_spacing ... ok
+test nested_font ... ok
+test picture_bottom_spacing ... ok
+test nested_vertical_input ... ok
+test picture_left_font ... ok
+test nested_vertical_font ... ok
+test picture_bottom_input ... ok
+test nested_vertical_spacing ... ok
+test picture_left_input ... ok
+test picture_left_spacing ... ok
+test picture_right_input ... ok
+test picture_top_font ... ok
+test nested_spacing ... ok
+test picture_top_spacing ... ok
+test picture_right_font ... ok
+test textbox_font ... ok
+test rotated_textbox_spacing ... ok
+test picture_top_input ... ok
+test picture_right_spacing ... ok
+test textbox_spacing ... ok
+test rotated_textbox_font ... ok
+test rotated_textbox_input ... ok
+test textbox_input ... ok
+test vertical_rotate_font ... ok
+test vertical_rotate_spacing ... ok
+test vertical_rotate_input ... ok
+test vertical_upright_font ... ok
+test vertical_upright_input ... ok
+test vertical_upright_spacing ... ok
+test vertical_latin_rotated_and_upright_geometry_keeps_pre_l1_rendered_text ... ok
+test zero_cross_axis_reflows_horizontal_and_keeps_vertical_baseline ... ok
+test unusable_table_caption_geometry_preserves_segments ... ok
+test unavailable_geometry_matrix_preserves_horizontal_segments_and_vertical_baseline ... ok
+
+test result: ok. 68 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s
+
+     Running tests/cell_vertical_baseline.rs (target/debug/deps/cell_vertical_baseline-d2ec16edae7c1d28)
+
+running 2 tests
+test vertical_positive_geometry_renders_all_text_after_input_and_different_font_size ... ok
+test vertical_cells_match_pre_l1_rendered_text_after_actual_edits ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.42s
+
+     Running tests/cell_vertical_geometry_matrix.rs (target/debug/deps/cell_vertical_geometry_matrix-8be4a5dd58e7a087)
+
+running 1 test
+test vertical_geometry_matrix_matches_pre_l1_segments_text_and_content_height ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 43.92s
+
+     Running tests/form_caption_display.rs (target/debug/deps/form_caption_display-cfa0d50f93deb227)
+
+running 1 test
+test form_002_form_caption_display_folds_ampamp_in_svg_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s
+
+     Running tests/hwpx_page_def_roundtrip.rs (target/debug/deps/hwpx_page_def_roundtrip-8e20b5a678107bbb)
+
+running 13 tests
+test default_page_def_keeps_template_page_pr ... ok
+test every_page_def_field_is_written_to_its_own_attribute ... ok
+test out_of_schema_page_def_values_are_written_verbatim ... ok
+test landscape_and_binding_use_owpml_values ... ok
+test native_render_interprets_landscape_once_without_rewriting_stored_dimensions ... ok
+test form_002_noedit_export_keeps_original_page_pr ... ok
+test landscape_does_not_infer_or_normalize_dimension_order ... ok
+test missing_orientation_and_binding_keep_legacy_defaults_and_explicit_zero_margins ... ok
+test form_002_noedit_reload_keeps_page_def_ir ... ok
+test one_char_body_edit_keeps_original_page_def ... ok
+test input_mutations_are_detected_without_changing_engine_source ... ok
+test hwpx_h_01_each_section_keeps_its_own_page_pr ... ok
+test file_roundtrip_preserves_orientation_and_all_binding_modes ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.16s
+
+     Running tests/hwpx_phase1_corpus.rs (target/debug/deps/hwpx_phase1_corpus-c1388bcce3640e72)
+
+running 1 test
+test phase1_hwpx_fixture_corpus_export_reparse_matrix ... ignored, Phase 1 GA gate: run manually with --ignored --nocapture until all fixture regressions are fixed
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/hwpx_to_hwp_adapter.rs (target/debug/deps/hwpx_to_hwp_adapter-063eb7c04526eaf7)
+
+running 25 tests
+test adapter_skips_hwp_source ... ok
+test stage2_hwp_source_unchanged ... ok
+test stage2_idempotent_does_not_double_synthesize ... ok
+test stage5_export_hwp_with_adapter_hwp_source_unchanged ... ok
+test stage2_raw_ctrl_data_synthesized_for_hwpx_h_01 ... ok
+test stage4_section_def_control_inserted ... ok
+test stage4_section_def_idempotent ... ok
+test stage6_verify_for_hwp_source_also_recovered ... ok
+test stage2_diagnostics_no_longer_flag_table_ctrl_data ... ok
+test baseline_page_count_explosion_hwpx_h_01 ... ok
+test baseline_page_count_explosion_hwpx_h_02 ... ok
+test stage4_page_count_recovered_hwpx_h_03 ... ok
+test baseline_diff_inventory_hwpx_h_01 ... ok
+test stage4_page_count_recovered_hwpx_h_02 ... ok
+test adapter_deterministic_across_clones ... ok
+test stage4_page_count_recovered_hwpx_h_01 ... ok
+test stage4_page_def_preserved_after_roundtrip ... ok
+test stage5_export_hwp_with_adapter_hwpx_source_recovers_pages ... ok
+test baseline_page_count_explosion_hwpx_h_03 ... ok
+test stage5_export_hwp_with_adapter_idempotent_on_repeated_calls ... ok
+test stage5_wasm_api_export_hwp_uses_adapter ... ok
+test stage6_verify_recovered_for_hwpx_h_01 ... ok
+test stage2_page_count_after_adapter_hwpx_h_01 ... ok
+test stage5_all_three_samples_recover_via_unified_entry_point ... ok
+test stage6_verify_recovered_for_all_three_samples ... ok
+
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.71s
+
+     Running tests/pagination_square_wrap.rs (target/debug/deps/pagination_square_wrap-7f1d5bc9f925d51b)
+
+running 3 tests
+test square_wrap_table_that_fills_page_paginates_following_paragraph ... ok
+test in_front_table_does_not_disable_tac_height_correction ... ok
+test mixed_tac_heading_and_square_table_reserves_square_table_height ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

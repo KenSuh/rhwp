@@ -1,0 +1,106 @@
+IMPACT at=code:dbf294757690e723c614c22e467022522ea3b44e@dbf294757690 query="Cargo.toml" mode=path jev=used jev_threshold=0.45 files=69 rows=167 det_ms=214 total_ms=865 jev_requests=3 jev_http_attempts=3 jev_input_tokens=15906
+  ! cache stale (base code:0052deae929c53830d2ff573c9c8ec817a4693b6@0052deae929c → code:dbf294757690e723c614c22e467022522ea3b44e@dbf294757690) · 재도출
+- [code] scripts/prepare-npm.sh  channel=script binding=exec jev=0.64★ rows=1
+    :8 [path/exec] VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+- [code] mydocs/manual/publish_guide.md  channel=doc binding=mention jev=0.48★ rows=9
+    :76 [path/mention] | `Cargo.toml` | rhwp (Rust) + @rhwp/core 원본 | `version = "0.7.0"` |
+    :81 [path/mention] > `pkg/package.json`은 직접 편집하지 않는다. `scripts/prepare-npm.sh`가 `Cargo.toml`에서 버전을 읽어 자동 생성한다.
+    :86 [path/mention] - **Cargo.toml이 기준**이다. MINOR 버전은 모든 패키지가 동일하게 맞춘다.
+- [code] mydocs/plans/task_m100_133.md  channel=doc binding=mention jev=0.42 rows=3
+    :17 [path/mention] | `Cargo.toml` | 0.7.1 | 0.7.2 |
+    :20 [path/mention] | `pkg/package.json` | 0.7.1 (prepare-npm.sh가 Cargo.toml에서 자동 생성) | 0.7.2 (자동 반영) |
+    :67 [path/mention] - `Cargo.toml`: `version = "0.7.1"` → `"0.7.2"`
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/carry-inputs.json  channel=other binding=mention jev=0.35 rows=1
+    :17 [path/mention] "Cargo.toml": "885d0647d7fae87fbea9e608d5028d09ad934398555a115908a63f16a4902a2c",
+- [code] mydocs/working/archives/task_89_report.md  channel=doc binding=mention jev=0.34 rows=2
+    :16 [path/mention] | `Cargo.toml` | `zip = "2.4"`, `quick-xml = "0.37"` 추가 |
+    :92 [path/mention] - `Cargo.toml` — zip, quick-xml 의존성 추가
+- [code] scripts/metrics.sh  channel=script binding=exec jev=0.31 rows=4
+    :43 [path/exec] CLIPPY_OUTPUT=$(cargo clippy --manifest-path "$PROJECT_DIR/Cargo.toml" 2>&1 || true)
+    :59 [path/exec] CC_OUTPUT=$(cargo clippy --manifest-path "$PROJECT_DIR/Cargo.toml" -- -W clippy::cognitive_complexity 2>&1 || true)
+    :91 [path/exec] TEST_OUTPUT=$(cargo test --manifest-path "$PROJECT_DIR/Cargo.toml" 2>&1 || true)
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/intermediate-7668ec2/carry-inputs.json  channel=other binding=mention jev=0.30 rows=1
+    :17 [path/mention] "Cargo.toml": "885d0647d7fae87fbea9e608d5028d09ad934398555a115908a63f16a4902a2c",
+- [code] mydocs/plans/task_392.md  channel=doc binding=mention jev=0.30 rows=1
+    :120 [path/mention] | 396 | LICENSE (MIT) + Cargo.toml/package.json 업데이트 | P0 | |
+- [code] mydocs/working/task_68_step2_complete.md  channel=doc binding=mention jev=0.30 rows=1
+    :7 [path/mention] - `Cargo.toml` — `subsetter = "0.2"`, `ttf-parser = "0.25"` 추가 (네이티브 전용)
+- [code] mydocs/tech/dev_roadmap_v1_backup.md  channel=doc binding=exec jev=0.28 rows=2
+    :193 [path/mention] - `Cargo.toml`에 PyO3 의존성 추가 + feature flag (`python` feature)
+    :205 [path/exec] ├── Cargo.toml              # python feature flag
+- [code] mydocs/plans/archives/task_142.md  channel=doc binding=mention jev=0.28 rows=3
+    :196 [path/mention] - **목표**: **경고 0개** + `Cargo.toml`에 `[lints.clippy]` 룰셋 설정
+    :199 [path/mention] # Cargo.toml에 추가할 룰셋
+    :284 [path/mention] | 0단계 | 정량 측정 기준선 + Clippy 경고 0 달성 + 대시보드 구축 | Cargo.toml, 전체 소스, scripts/metrics.sh, output/dashboard.html |
+- [code] tools/roundtrip_diff.py  channel=other binding=mention jev=0.28 rows=3
+    :267 [path/mention] (probe / "Cargo.toml").write_text(manifest, encoding="utf-8")
+    :274 [path/mention] ["cargo", "build", "--release", "--quiet", "--manifest-path", str(probe / "Cargo.toml")],
+    :313 [path/mention] "src_dirty": bool(git(repo, "status", "--porcelain", "--", "src", "Cargo.toml")),
+- [code] mydocs/plans/task_m100_164_impl.md  channel=doc binding=mention jev=0.27 rows=1
+    :461 [path/mention] | WASM 빌드에서 `zip` Deflate 플래그 | `Cargo.toml`에 이미 `features=["deflate"]` 설정. 1단계에서 WASM 빌드 실행해 사전 확인. |
+- [code] mydocs/report/task_68_report.md  channel=doc binding=mention jev=0.26 rows=1
+    :19 [path/mention] | `Cargo.toml` | `subsetter`, `ttf-parser` 추가 (네이티브 전용) |
+- [code] mydocs/working/archives/task_1_step_3.md  channel=doc binding=mention jev=0.25 rows=1
+    :5 [path/mention] ### Cargo.toml 의존성 추가
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/impact-manifest.log  channel=other binding=exec jev=0.24 rows=63
+    :1 [path/mention] IMPACT at=code:e6e5850ee07c952f2908df8e5845124c224c2f90@e6e5850ee07c query="Cargo.toml" mode=path jev=used(cache) jev_threshold=0.45 files=66 rows=102
+    :3 [path/exec] :8 [path/exec] VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+    :5 [path/mention] :76 [path/mention] | `Cargo.toml` | rhwp (Rust) + @rhwp/core 원본 | `version = "0.7.0"` |
+- [code] mydocs/eng/plans/archives/task_142.md  channel=doc binding=mention jev=0.23 rows=3
+    :196 [path/mention] - **Target**: **0 warnings** + `[lints.clippy]` ruleset in `Cargo.toml`
+    :199 [path/mention] # Ruleset to add to Cargo.toml
+    :284 [path/mention] | Step 0 | Quantitative measurement baseline + Clippy 0 warnings + Dashboard build | Cargo.toml, all sources, scripts/metrics.sh, output/dashboard.htm
+- [code] mydocs/plans/archives/task_125.md  channel=doc binding=mention jev=0.23 rows=1
+    :188 [path/mention] | `Cargo.toml` | woff2/brotli 의존성 (도구 빌드 시만) | 수정 |
+- [code] mydocs/plans/task_m100_68.md  channel=doc binding=mention jev=0.22 rows=1
+    :51 [path/mention] - `Cargo.toml` — 서브셋 crate 추가
+- [code] mydocs/report/task_m100_133_report.md  channel=doc binding=mention jev=0.22 rows=1
+    :22 [path/mention] | `Cargo.toml` | 0.7.1 | **0.7.2** |
+- [code] mydocs/working/archives/task_125_step1234_done.md  channel=doc binding=mention jev=0.22 rows=1
+    :46 [path/mention] | `Cargo.toml` | font-metric-gen 바이너리 타겟 | 수정 |
+- [code] .omo/evidence/v318-engine-clippy-correction/library-carry-check.json  channel=other binding=mention jev=0.21 rows=1
+    :16 [path/mention] "Cargo.toml",
+- [code] mydocs/eng/plans/archives/task_3.md  channel=doc binding=mention jev=0.21 rows=1
+    :16 [path/mention] | External Crates (cfb, flate2, byteorder) | Ready | Registered in Cargo.toml |
+- [code] mydocs/plans/task_m100_68_impl.md  channel=doc binding=mention jev=0.21 rows=2
+    :90 [path/mention] **대상 파일:** `src/renderer/svg.rs`, `Cargo.toml`
+    :93 [path/mention] 1. `Cargo.toml`에 `subsetter = "0.2"` 추가 (`cfg(not(wasm32))`)
+- [code] mydocs/plans/archives/task_89.md  channel=doc binding=mention jev=0.20 rows=1
+    :90 [path/mention] # Cargo.toml
+- [code] mydocs/report/task_m100_127_report.md  channel=doc binding=mention jev=0.20 rows=2
+    :22 [path/mention] **변경 파일**: `Cargo.toml`, `src/parser/hwpx/section.rs`
+    :24 [path/mention] - `Cargo.toml`: `quick-xml = "0.37"` → `"0.39"`
+- [code] mydocs/eng/tech/dev_roadmap_v1_backup.md  channel=doc binding=exec jev=0.19 rows=2
+    :193 [path/mention] - Add PyO3 dependency to `Cargo.toml` + feature flag (`python` feature)
+    :205 [path/exec] |- Cargo.toml              # python feature flag
+- [code] mydocs/eng/plans/archives/task_89_impl.md  channel=doc binding=mention jev=0.19 rows=2
+    :12 [path/mention] - `Cargo.toml` — add `zip`, `quick-xml` dependencies
+    :147 [path/mention] | `Cargo.toml` | 1 | Add `zip`, `quick-xml` dependencies |
+- [code] mydocs/plans/task_m100_164.md  channel=doc binding=mention jev=0.19 rows=1
+    :154 [path/mention] | WASM 대상에서 `zip` crate deflate 의존성 | `Cargo.toml`에 `default-features = false, features = ["deflate"]` 이미 설정됨 → 문제 없음 (검증 필요). |
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-10.log  channel=other binding=mention jev=0.18 rows=1
+    :1239 [path/mention] :22 [basename/mention] **변경 파일**: `Cargo.toml`, `src/parser/hwpx/section.rs`
+- [code] mydocs/orders/20260327.md  channel=doc binding=mention jev=0.18 rows=1
+    :15 [path/mention] | 395 | LICENSE (MIT) + Cargo.toml/package.json 업데이트 | 완료 | MIT License + repository URL |
+- [code] mydocs/plans/archives/task_124.md  channel=doc binding=mention jev=0.18 rows=1
+    :41 [path/mention] | `Cargo.toml` | `ttf-parser` 크레이트 추가 |
+- [code] mydocs/plans/archives/task_142_impl.md  channel=doc binding=mention jev=0.18 rows=1
+    :327 [path/mention] Rust 파일 분할이 완료되면 `Cargo.toml [lints.clippy]` 정책을 전환:
+- [code] mydocs/report/task_1_final.md  channel=doc binding=mention jev=0.18 rows=1
+    :21 [path/mention] | `Cargo.toml` | 프로젝트 설정 (rhwp, edition 2021) |
+- [code] mydocs/working/archives/task_142_step0.md  channel=doc binding=mention jev=0.18 rows=2
+    :42 [path/mention] #### 전략: 단계적 린트 정책 (`Cargo.toml [lints.clippy]`)
+    :92 [path/mention] | `Cargo.toml` [lints] | Clippy/Rust 린트 정책 |
+- [code] mydocs/working/archives/task_1_step_1.md  channel=doc binding=mention jev=0.18 rows=1
+    :5 [path/mention] - `Cargo.toml` 생성 (프로젝트명: rhwp, edition: 2021)
+- [code] mydocs/eng/working/archives/task_142_step0.md  channel=doc binding=mention jev=0.17 rows=2
+    :42 [path/mention] #### Strategy: Phased Lint Policy (`Cargo.toml [lints.clippy]`)
+    :92 [path/mention] | `Cargo.toml` [lints] | Clippy/Rust lint policy |
+- [code] mydocs/plans/archives/task_89_impl.md  channel=doc binding=mention jev=0.17 rows=2
+    :12 [path/mention] - `Cargo.toml` — `zip`, `quick-xml` 의존성 추가
+    :147 [path/mention] | `Cargo.toml` | 1 | `zip`, `quick-xml` 의존성 추가 |
+- [code] .omo/evidence/v318-engine-clippy-correction/source-input-check.json  channel=other binding=mention jev=0.16 rows=1
+    :6 [path/mention] "const fs=require(\"fs\"),c=require(\"crypto\"),a=require(\"assert/strict\"),cp=require(\"child_process\"),d=\".omo/evidence/v318-engine-clippy-correc
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-main.log  channel=other binding=mention jev=0.15 rows=1
+    :5 [path/mention] - [code] Cargo.toml  channel=other binding=mention jev=0.23 rows=1
+  … 29 more files (--top 0 으로 전부)

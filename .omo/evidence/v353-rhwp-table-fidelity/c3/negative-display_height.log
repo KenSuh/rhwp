@@ -1,0 +1,106 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.05s
+     Running tests/hwpx_table_fidelity.rs (target/debug/deps/hwpx_table_fidelity-8fba4dff0113d046)
+
+running 18 tests
+test display_height_grows_when_fitting_text_exceeds_declared_height ... FAILED
+test display_height_grows_by_path_when_fitting_text_exceeds_declared_height ... FAILED
+test display_height_grows_after_reflow_when_fitting_text_exceeds_declaration ... FAILED
+test display_height_grows_by_display_row_height_on_row_insert ... FAILED
+test display_height_shrinks_by_display_row_height_on_row_delete ... FAILED
+test display_height_survives_column_insert ... FAILED
+test display_height_follows_text_edit_rule_on_overfilled_cell ... ok
+test display_height_noop_delete_zero_with_reflow ... FAILED
+test display_height_noop_insert_without_reflow ... ok
+test display_height_noop_delete_zero_without_reflow ... ok
+test display_height_noop_delete_zero_by_path ... ok
+test display_height_noop_insert_with_reflow ... FAILED
+test display_height_noop_delete_end_without_reflow ... ok
+test display_height_noop_delete_end_by_path ... ok
+test display_height_noop_insert_by_path ... ok
+test display_height_survives_cell_text_edit ... FAILED
+test display_height_keeps_larger_declaration_when_text_fits ... ok
+test display_height_noop_cell_range_delete ... FAILED
+
+failures:
+
+---- display_height_grows_when_fitting_text_exceeds_declared_height stdout ----
+
+thread 'display_height_grows_when_fitting_text_exceeds_declared_height' (714269165) panicked at tests/hwpx_table_fidelity.rs:777:5:
+assertion `left == right` failed
+  left: 1000
+ right: 200000
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- display_height_grows_by_path_when_fitting_text_exceeds_declared_height stdout ----
+
+thread 'display_height_grows_by_path_when_fitting_text_exceeds_declared_height' (714269164) panicked at tests/hwpx_table_fidelity.rs:777:5:
+assertion `left == right` failed
+  left: 1000
+ right: 200100
+
+---- display_height_grows_after_reflow_when_fitting_text_exceeds_declaration stdout ----
+
+thread 'display_height_grows_after_reflow_when_fitting_text_exceeds_declaration' (714269162) panicked at tests/hwpx_table_fidelity.rs:777:5:
+assertion `left == right` failed
+  left: 1000
+ right: 200100
+
+---- display_height_grows_by_display_row_height_on_row_insert stdout ----
+
+thread 'display_height_grows_by_display_row_height_on_row_insert' (714269163) panicked at tests/hwpx_table_fidelity.rs:473:5:
+assertion `left == right` failed: IR 표시 높이
+  left: 7396
+ right: 93179
+
+---- display_height_shrinks_by_display_row_height_on_row_delete stdout ----
+
+thread 'display_height_shrinks_by_display_row_height_on_row_delete' (714269176) panicked at tests/hwpx_table_fidelity.rs:473:5:
+assertion `left == right` failed: IR 표시 높이
+  left: 4264
+ right: 53721
+
+---- display_height_survives_column_insert stdout ----
+
+thread 'display_height_survives_column_insert' (714269199) panicked at tests/hwpx_table_fidelity.rs:473:5:
+assertion `left == right` failed: IR 표시 높이
+  left: 5830
+ right: 73450
+
+---- display_height_noop_delete_zero_with_reflow stdout ----
+
+thread 'display_height_noop_delete_zero_with_reflow' (714269171) panicked at tests/hwpx_table_fidelity.rs:1094:5:
+무변경 요청은 HWPX 바이트를 보존해야 한다
+
+---- display_height_noop_insert_with_reflow stdout ----
+
+thread 'display_height_noop_insert_with_reflow' (714269174) panicked at tests/hwpx_table_fidelity.rs:1094:5:
+무변경 요청은 HWPX 바이트를 보존해야 한다
+
+---- display_height_survives_cell_text_edit stdout ----
+
+thread 'display_height_survives_cell_text_edit' (714269198) panicked at tests/hwpx_table_fidelity.rs:473:5:
+assertion `left == right` failed: IR 표시 높이
+  left: 4650
+ right: 14901
+
+---- display_height_noop_cell_range_delete stdout ----
+
+thread 'display_height_noop_cell_range_delete' (714269167) panicked at tests/hwpx_table_fidelity.rs:1173:13:
+cell=1, count=1
+
+
+failures:
+    display_height_grows_after_reflow_when_fitting_text_exceeds_declaration
+    display_height_grows_by_display_row_height_on_row_insert
+    display_height_grows_by_path_when_fitting_text_exceeds_declared_height
+    display_height_grows_when_fitting_text_exceeds_declared_height
+    display_height_noop_cell_range_delete
+    display_height_noop_delete_zero_with_reflow
+    display_height_noop_insert_with_reflow
+    display_height_shrinks_by_display_row_height_on_row_delete
+    display_height_survives_cell_text_edit
+    display_height_survives_column_insert
+
+test result: FAILED. 8 passed; 10 failed; 0 ignored; 0 measured; 20 filtered out; finished in 5.10s
+
+error: test failed, to rerun pass `--test hwpx_table_fidelity`

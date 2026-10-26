@@ -1,0 +1,12 @@
+--- save1
+
++++ save2
+
+@@ -35,4 +35,6 @@
+
+ </hp:pageBorderFill>
+ </hp:secPr>
++</hp:run>
++<hp:run charPrIDRef="0">
+ <hp:ctrl>
+ <hp:colPr id="" type="NEWSPAPER" layout="LEFT" colCount="1" sameSz="1" sameGap="0"/>
