@@ -8,52 +8,52 @@
 - [x] G2: 문단 run/컨트롤 순서 — 원본과 재저장본의 각 문단 run·컨트롤 순서열이 같다(본문·셀·중첩 표, fixture 전부)
   CHECK: cargo test --test hwpx_save_fidelity_l2 run_order 2>&1 | tail -3
   EXPECT: /test result: ok\. [1-9]\d* passed; 0 failed/
-  EVIDENCE: automatic-evidence=v1; definition-sha256=1f8be6726c361c60fdf2f23c680c73a02f790249b8ba975b37b4766c5f4ec0ac; exit=0; EXPECT=matched; output-sha256=bcdbc93cc94513b98bedb867e4ebdce45390878272abdd1488e651125b3b6d3d; output-bytes=97; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=802bd5fa384c/47 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=1f8be6726c361c60fdf2f23c680c73a02f790249b8ba975b37b4766c5f4ec0ac; exit=0; EXPECT=matched; output-sha256=8546936eb01e615cbaf0b01b7614bd115e04c13d4b003b4eb9c83f958e734a94; output-bytes=97; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=43712a571703/49 entries
 
 - [x] G3: 두 번 저장 — secPr/colPr/pageNum run 구성 유지, 기존 G8 시험 통과
   CHECK: cargo test --lib serializer::hwpx::tests::form_attribute_entities_survive_two_hwpx_saves 2>&1 | tail -3
   EXPECT: /test result: ok\. 1 passed; 0 failed/
-  EVIDENCE: automatic-evidence=v1; definition-sha256=f4b9052439b84f4a4bceaf9768a1c8660ee84880fd71edf0d7e5d45eb3f3073e; exit=0; EXPECT=matched; output-sha256=8dfc7d202aad63fd82d5c261b55e83fbf6922b238cc20a271f7c12e199e83a2a; output-bytes=99; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=802bd5fa384c/47 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=f4b9052439b84f4a4bceaf9768a1c8660ee84880fd71edf0d7e5d45eb3f3073e; exit=0; EXPECT=matched; output-sha256=8dfc7d202aad63fd82d5c261b55e83fbf6922b238cc20a271f7c12e199e83a2a; output-bytes=99; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=43712a571703/49 entries
 
 - [x] G4: 도형·필드·header 잔여 결함 측정과 수정 — 새 base 에서 측정한 결함 목록과, 그 각각의 회귀 시험
   CHECK: cargo test --test hwpx_save_fidelity_l2 residual 2>&1 | tail -3
   EXPECT: /test result: ok\. [1-9]\d* passed; 0 failed/
-  EVIDENCE: automatic-evidence=v1; definition-sha256=d6d98cda6ebeffa990fe4459455f282f349524f9cee3f3f7e7a0b7ea3e591715; exit=0; EXPECT=matched; output-sha256=3228dacc7911f1eea6f132f0d9e950456b705853d9359bb1851d6b873523585e; output-bytes=96; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=802bd5fa384c/47 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=d6d98cda6ebeffa990fe4459455f282f349524f9cee3f3f7e7a0b7ea3e591715; exit=0; EXPECT=matched; output-sha256=9b6f1dd8c2396068c5ed649470cf14147b1cad958c0b691f00194c4518f83bd2; output-bytes=98; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=43712a571703/49 entries
 
 - [x] G5: 음성 대조 — G2·G3·G4 시험이 59c2285 에서는 실패한다
-  CHECK: python3 -c 'import json;d=json.load(open(".omo/evidence/v353-rhwp-hwpx-save-l2/negative-control.json"));assert d["base"]=="59c2285efe616211cd147dfa849d2f9f9df767dd";assert d["run_order_failed"]>0 and d["two_save_failed"]>0;print("NEG_OK")'
+  CHECK: python3 -c 'import json,hashlib,pathlib,re;d=json.load(open(".omo/evidence/v353-rhwp-hwpx-save-l2/negative-control.json"));assert d["base"]=="59c2285efe616211cd147dfa849d2f9f9df767dd";assert d["run_order_failed"]>0 and d["two_save_failed"]>0 and d["residual_failed"]>0;assert d["test_file_sha256"]==hashlib.sha256(pathlib.Path("tests/hwpx_save_fidelity_l2.rs").read_bytes()).hexdigest();s=pathlib.Path(".omo/evidence/v353-rhwp-hwpx-save-l2/c1/red-8027a28-final.log").read_text();assert re.search(r"test result: FAILED\. 1 passed; 5 failed",s);print("NEG_OK")'
   EXPECT: /^NEG_OK$/m
-  EVIDENCE: automatic-evidence=v1; definition-sha256=fbef2c60d063a1d0e2df13c60463afd88fe083299aacf34d8001fb8db92a062f; exit=0; EXPECT=matched; output-sha256=b5568d8ad4ed8d6a9fab8348e510711f8358c218705c2d8f502ebf2bbb470a0f; output-bytes=7; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=802bd5fa384c/47 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=191200e74da1f39ebe0ffc4ffc263ae0454c5f7ecb664655b0e0c4656310570a; exit=0; EXPECT=matched; output-sha256=b5568d8ad4ed8d6a9fab8348e510711f8358c218705c2d8f502ebf2bbb470a0f; output-bytes=7; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=43712a571703/49 entries
 
 - [x] G6: 레인 1 회귀 없음 — 표 충실도 시험 전부
   CHECK: cargo test --test hwpx_table_fidelity 2>&1 | tail -3
   EXPECT: /test result: ok\. [1-9]\d* passed; 0 failed/
-  EVIDENCE: automatic-evidence=v1; definition-sha256=9a2a0ae422a6e8a93e9228879468f37b3f9bb2dc2b7af3f04efc72afb4818b5d; exit=0; EXPECT=matched; output-sha256=5370ddbbb04253354dcb05753df101d568a8419efa1d3de134fe1d0772c05543; output-bytes=97; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=802bd5fa384c/47 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=9a2a0ae422a6e8a93e9228879468f37b3f9bb2dc2b7af3f04efc72afb4818b5d; exit=0; EXPECT=matched; output-sha256=8080cd2a72ca687efd45532dfe8f5bfcc9a191231d7f91ee4a06a52bf8e9a20d; output-bytes=97; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=43712a571703/49 entries
 
 - [x] G7: 전체 시험
-  CHECK: cargo test --no-fail-fast 2>&1 | grep -E "^test result:" | awk '{f+=$6} END {print "FAILED_TOTAL=" f+0}'
+  CHECK: bash .omo/evidence/v353-rhwp-hwpx-save-l2/c1/clean-cargo.sh test --no-fail-fast > .omo/evidence/v353-rhwp-hwpx-save-l2/c1/g7-full.log 2>&1 && python3 -c 'import pathlib,re;s=pathlib.Path(".omo/evidence/v353-rhwp-hwpx-save-l2/c1/g7-full.log").read_text();r=re.findall(r"test result: ok\. (\d+) passed; (\d+) failed; (\d+) ignored",s);assert r and all(int(x[1])==0 for x in r);print("FAILED_TOTAL=0")'
   EXPECT: /^FAILED_TOTAL=0$/m
-  EVIDENCE: automatic-evidence=v1; definition-sha256=8b76cb978ae602b0722f0afa86a8d080e46a9bc1bd10adf2b6044b41aaffea59; exit=0; EXPECT=matched; output-sha256=34acd69d8c8337c7c993bc0a99093bb0f4dfc879c5cea9515b73e5957c9ccf55; output-bytes=15; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=802bd5fa384c/47 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=68973d8e72bba97554bf2d826267e99ed285ef0d3dd007b6e2fa9c2f90e4c5de; exit=0; EXPECT=matched; output-sha256=34acd69d8c8337c7c993bc0a99093bb0f4dfc879c5cea9515b73e5957c9ccf55; output-bytes=15; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=43712a571703/49 entries
 
-- [x] G8: clippy
-  CHECK: cargo clippy -- -D warnings 2>&1 | tail -1
+- [ ] G8: clippy
+  CHECK: bash .omo/evidence/v353-rhwp-hwpx-save-l2/c1/clean-cargo.sh clippy -- -D warnings > .omo/evidence/v353-rhwp-hwpx-save-l2/c1/g8-clippy.log 2>&1 && tail -1 .omo/evidence/v353-rhwp-hwpx-save-l2/c1/g8-clippy.log
   EXPECT: /Finished/
-  EVIDENCE: automatic-evidence=v1; definition-sha256=3e5152971bf36fdc9ab776f4b17d0cafba7ae0c8abd875897bc61c40f185c672; exit=0; EXPECT=matched; output-sha256=6cba2ebd8a8603b7dea4caef78ad2b9cb7b358fcad27d07ba7762c2f0d9a4d11; output-bytes=72; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=802bd5fa384c/47 entries
+  EVIDENCE: pending
 
 - [x] G9: WASM 빌드
-  CHECK: cargo build --lib --target wasm32-unknown-unknown --release 2>&1 | tail -1
+  CHECK: bash .omo/evidence/v353-rhwp-hwpx-save-l2/c1/clean-cargo.sh build --lib --target wasm32-unknown-unknown --release > .omo/evidence/v353-rhwp-hwpx-save-l2/c1/g9-wasm.log 2>&1 && tail -1 .omo/evidence/v353-rhwp-hwpx-save-l2/c1/g9-wasm.log
   EXPECT: /Finished/
-  EVIDENCE: automatic-evidence=v1; definition-sha256=8899a6f30c11d7ccf6aa324d8401238a5f8b4d29522bff113e76443728fa1769; exit=0; EXPECT=matched; output-sha256=9eb551e7d21ec858c36cc0698e35b5e2e3e4bb156bcc5b17a4df16c7c2f00fbc; output-bytes=63; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=802bd5fa384c/47 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=bf02372c67b1959fdbf6a4efb651b8e8ba3440a9d25c2a2c6972ddbdc023a91b; exit=0; EXPECT=matched; output-sha256=7bf5ae2b3f792e49eb1b5d0f51ebce57ad07c3204f04aecc9bb4a502986e02a2; output-bytes=63; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=43712a571703/49 entries
 
 - [x] G10: 범위 — 59c2285 대비 변경 파일이 §3.1 안
-  CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape|field|mod)\.rs|src/parser/hwpx/header\.rs|tests/hwpx_save_fidelity_l2\.rs|tests/hwpx_roundtrip_integration\.rs|tests/fixtures/save-fidelity-l2/.*|gates/V353_RHWP_HWPX_SAVE_L2_GATES\.md|\.omo/evidence/v353-rhwp-hwpx-save-l2/.*)$' | wc -l | tr -d ' ' | sed 's/^/OUT_OF_SCOPE=/'
+  CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape|field|mod)\.rs|src/parser/hwpx/(header|section)\.rs|src/model/document\.rs|tests/hwpx_save_fidelity_l2\.rs|tests/hwpx_roundtrip_integration\.rs|tests/fixtures/save-fidelity-l2/.*|gates/V353_RHWP_HWPX_SAVE_L2_GATES\.md|\.omo/evidence/v353-rhwp-hwpx-save-l2/.*)$' | wc -l | tr -d ' ' | sed 's/^/OUT_OF_SCOPE=/'
   EXPECT: /^OUT_OF_SCOPE=0$/m
-  EVIDENCE: automatic-evidence=v1; definition-sha256=577e3995aeb653c0ed9686600f7d4e97a09252a8edf0c9e6be49faec0b64bc85; exit=0; EXPECT=matched; output-sha256=13a10730bd1c382bb5fe6ac3f0e5a982453970f00ca15e1b5fda9516047c9824; output-bytes=15; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=802bd5fa384c/47 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=44feb6533ebefeda55f4f76bd49abe56b16561cde5e6204ae77e6e4853787e00; exit=0; EXPECT=matched; output-sha256=13a10730bd1c382bb5fe6ac3f0e5a982453970f00ca15e1b5fda9516047c9824; output-bytes=15; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=43712a571703/49 entries
 
 - [x] G11: 한컴 확인용 산출물 — fixture 2개 × (열고 저장 / 행 삽입 / 셀 글자 입력) 을 .omo/evidence/v353-rhwp-hwpx-save-l2/hancom/ 에 저장(한컴 열기·시각 확인은 Parent)
   CHECK: ls .omo/evidence/v353-rhwp-hwpx-save-l2/hancom/*.hwpx | wc -l | tr -d ' ' | sed 's/^/HANCOM_FILES=/'
   EXPECT: /^HANCOM_FILES=([6-9]|[1-9][0-9])$/m
-  EVIDENCE: automatic-evidence=v1; definition-sha256=135f77ee1dc8eb0787e171e9d12461a00a9d93c710125c4a8b85fb49f5f3973e; exit=0; EXPECT=matched; output-sha256=62f24220e0b5abf0f9e344091f298c6d33b749ca253b1b996878ce867b588c7d; output-bytes=15; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=802bd5fa384c/47 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=135f77ee1dc8eb0787e171e9d12461a00a9d93c710125c4a8b85fb49f5f3973e; exit=0; EXPECT=matched; output-sha256=62f24220e0b5abf0f9e344091f298c6d33b749ca253b1b996878ce867b588c7d; output-bytes=15; shell=/bin/sh; cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity; path=43712a571703/49 entries
 
 ## NOTE
 
@@ -65,3 +65,21 @@
 - NOTE G10 (Parent 처분 2, `outputs/v353-rhwp-table/RHWP_HWPX_SAVE_FIDELITY_L2_PACKET_DISPOSITION2.md`): 허용 목록에 `tests/hwpx_roundtrip_integration.rs`(c10 세 시험·c9 여백 시험의 기대값만)와 `src/parser/hwpx/header.rs`(switch case unit=CHAR 홀수 처리만)를 더했다. 근거 대조 — 한컴 12.30 MAC64 저장본 5개의 case unit=CHAR 값 43개가 모두 default = case×2+1(예외 0, `char-unit-evidence.json`).
 - 결과 G7 독립 측정(source HEAD `c3059ef6cf372bb201bf4a36e36fc9092439db9b`): `bash -o pipefail` cargo_exit=0 · 시험 바이너리 17개 시작 · `test result:` 17줄 · 1246 passed / 0 failed / 7 ignored(`.omo/evidence/v353-rhwp-hwpx-save-l2/gate-raw-output.txt`).
 - 결과: source HEAD `c3059ef6cf372bb201bf4a36e36fc9092439db9b` 에서 unlazy `gate-check.mjs --approve --cwd <worktree> --timeout 3600` → `ALL MET (11 met)`(`gate-check-output.txt`). 수정 뒤 측정 `after.json`: C6·FACF 열고 저장본 모두 C6 대비 순서가 다른 문단 1개(p195, Parent 처분 1)·인라인 표 앞 공백 run 0·header switch 463(원본과 같음)·묶음 자식 구성 차이 0·T6 선 자식 구성 원본과 같음.
+
+
+## C1 correction delta (source c0d6a342c186a3d57c416ddb262783cc7a064c23)
+
+- NOTE G1 carry: baseline.json and its CHECK inputs are byte-identical to 8027a28e4d1429f11cec0860d11484d1d9e6e3fe; 8027a28..5315315 changes only the six source/test paths listed below. The original c3059ef G1 evidence remains applicable; it is not resealed as a new baseline.
+- NOTE G10 scope addition (Parent C1 brief): src/parser/hwpx/header.rs may read trackchageConfig@flags and correct F2/F3 read-back; src/model/document.rs adds only hwpx_track_change_flags (u32, default 0). Parent answer msg_f68ad7c08797 / outputs/v353-rhwp-table/RHWP_HWPX_SAVE_L2_CORRECTION_C1_V353_DISPOSITION1.md additionally permits src/parser/hwpx/section.rs for begin_order/end_order calculations only. Both parser paths and the model path are included in CHECK. No other model field, renderer, table geometry, pageBreak, or V318 ledger change.
+- NOTE G2 F1: fields and ordinary controls are merged into one ordered event stream in table.rs, shared by body section.rs and cell/nested paragraphs. HWPX field order counts control starts plus completed field ends; char_offsets placement is unchanged. New raw-XML cases cover [begin,end,tbl], [begin,tbl,end], [tbl,begin,end], nested and adjacent empty fields, in body/cell/nested-cell owners, over two native saves; the reviewer's binary-field IR case is retained as a separate test.
+- NOTE G4 F2/F3 halving-path inventory: TabItem.position; ParaShape.indent (hc:intent), margin_left (hc:left), margin_right (hc:right), spacing_before (hc:prev), spacing_after (hc:next); ParaShape.line_spacing for Fixed, SpaceOnly/BETWEEN_LINES, Minimum/AT_LEAST. Percent is unscaled. Odd case values use floor(value/2) with unit=CHAR, even values HWPUNIT; default values retain the full original. The reader restores case*2+CHAR. SpaceOnly's emitted BETWEEN_LINES spelling is recognized in the plain and switch read paths.
+- NOTE G4 signed coverage: all five margins and all three scaled line-spacing types test -1001/-1000/-1/0/1/1000/1001/i32::MIN/i32::MIN+1/i32::MAX-1/i32::MAX across two saves; Percent is checked unchanged over the same values. Tab positions use 0/1/1000/1001/2^31/2^31+1/u32::MAX-1/u32::MAX. Parent answer to the second C1 ask (persisted in Orca) approves treating negative tabs as unrepresentable in the u32 model; no signed-tab model expansion is made.
+- NOTE G4 F4: C6's original flags=56, explicit 0 and u32::MAX survive two native saves for both empty and paired element spellings. An absent element is compared with explicit-zero output at each save and retains today's behavior. The model carries raw flags without assigning meanings to its bits.
+- NOTE G5 C1: latest test SHA256=31b58bbaf1a8d7a1426c192aa1113190d801c350124dc4ac89249aef517bd066. Isolated 8027a28 archive: 1 passed / 5 failed (the absent-element control passes). Updated 59c2285 negative-control.json: L2 2 passed / 16 failed / 2 ignored, run_order_failed=5, two_save_failed=3 (including G3), residual_failed=9. This supplements the original base evidence rather than replacing its meaning.
+- NOTE G7/G8/G9: clean-cargo.sh executes the declared cargo command from git archive HEAD plus a byte-identical copy of the untracked Cargo.lock, using the existing target cache. Cargo exit codes are propagated; a compilation failure can no longer turn into FAILED_TOTAL=0 through an empty awk input. Each log records the exact source HEAD and command. These are local checks; no CI or Hancom UI result is claimed.
+- NOTE dependency delta: c1/impact-0.log through impact-5.log record mah impact --code-ref HEAD for every changed source/test file at 8027a28 (Jev used). All deterministic pin/exec results were retained. Related lane-1/G0 executable coverage is supplied by G6/G7 and the direct green-g0.log (57 passed / 2 ignored); their historical ledgers are untouched.
+- NOTE assurance: current-session diff inspection and actual scenarios are executor checks only; no self-review receipt was created. Separate Codex re-review and Parent Hancom visual confirmation remain externally dispatched stages.
+
+- NOTE C1 lint follow-up: initial clean-source run at 5315315 passed G2-G7 and G9-G11, but G8 failed with manual_is_multiple_of on the new unsigned tab parity expression. Source c0d6a34 replaces only that expression with is_multiple_of(2); initial raw outputs are retained as *-initial-5315315.log. Per Parent STOP-SAVE msg_450f6ddd4d0d, the obtained G2-G7/G9-G11 evidence at 5315315 is retained and G8 remains pending. Source c0d6a34 has only the parity lint edit and has not been revalidated. G1 remains the unchanged baseline carry.
+
+- NOTE PAUSED (Parent STOP-SAVE, 2026-10-26T08:10:19Z): G7 obtained 1252 passed / 0 failed / 7 ignored in 17 groups and G9 obtained Finished at exact source 5315315566c6fe75826fe05a9d59880aae62948a. G8's one lint is fixed in c0d6a342c186a3d57c416ddb262783cc7a064c23 but has not been rerun; its box and EVIDENCE remain pending. The checked rows record the already obtained source-5315315 evidence, not a claim of final-head validation; final correction validation/re-review and final-head Hancom regeneration remain for resumption. No new cargo/clippy/WASM was started after STOP-SAVE. No worker_done or successful mah finish is issued while this task is paused.

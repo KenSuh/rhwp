@@ -1,0 +1,23 @@
+IMPACT at=code:HEAD@5315315566c6 query="tests/hwpx_save_fidelity_l2.rs" mode=path jev=used jev_threshold=0.45 files=7 rows=14 det_ms=943 total_ms=1141 jev_requests=1 jev_http_attempts=1 jev_input_tokens=2205
+  ! cache stale (base code:HEAD@8027a28e4d14 → code:HEAD@5315315566c6) · 재도출
+- [code] gates/V353_RHWP_HWPX_SAVE_L2_GATES.md  channel=ledger_check binding=pin jev=0.61★ rows=3
+    :9 [stem/pin] CHECK: cargo test --test hwpx_save_fidelity_l2 run_order 2>&1 | tail -3
+    :19 [stem/pin] CHECK: cargo test --test hwpx_save_fidelity_l2 residual 2>&1 | tail -3
+    :49 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape|field|mod)\.rs
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/gate-check-output.txt  channel=other binding=pin jev=0.57★ rows=3
+    :10 [stem/pin] CHECK: cargo test --test hwpx_save_fidelity_l2 run_order 2>&1 | tail -3
+    :24 [stem/pin] CHECK: cargo test --test hwpx_save_fidelity_l2 residual 2>&1 | tail -3
+    :66 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape|field|mod)\.rs
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/negative_control.py  channel=other binding=mention jev=0.40 rows=2
+    :8 [path/mention] TEST = "tests/hwpx_save_fidelity_l2.rs"
+    :35 [stem/stem_weak] l2 = run(["--test", "hwpx_save_fidelity_l2"])
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/gate-raw-output.txt  channel=other binding=mention jev=0.33 rows=3
+    :8 [stem/stem_weak] $ cargo test --test hwpx_save_fidelity_l2 run_order 2>&1 | tail -3
+    :16 [stem/stem_weak] $ cargo test --test hwpx_save_fidelity_l2 residual 2>&1 | tail -3
+    :40 [stem/stem_weak] $ git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape|field|mod)\.rs|src/
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/REPORT.md  channel=doc binding=mention jev=0.24 rows=1
+    :30 [path/mention] - AC1: met (Parent 처분 1 의 알려진 한계 1 문단 제외) — `tests/hwpx_save_fidelity_l2.rs` `run_order_*` 4개. C6·FACF 열고 저장본의 2,050 문단(본문 436·셀 1,567·중첩 셀 47)을 한컴 원본
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/baseline.py  channel=other binding=mention jev=0.14 rows=1
+    :30 [stem/stem_weak] ["cargo", "test", "--test", "hwpx_save_fidelity_l2", "dump_open_save", "--", "--ignored"],
+- [code] tests/fixtures/save-fidelity-l2/README.md  channel=doc binding=mention jev=0.12 rows=1
+    :3 [path/mention] `tests/hwpx_save_fidelity_l2.rs` 가 쓰는 표본이다. 기대값은 한컴이 저장한 C6 의 XML 에서 낸다.

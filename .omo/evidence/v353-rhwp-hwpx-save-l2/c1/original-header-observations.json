@@ -1,0 +1,104 @@
+{
+  "C6_hancom_original.hwpx": {
+    "tabItem": {
+      "count_including_case_and_default": 76,
+      "min": 468,
+      "max": 248000,
+      "negative": 0,
+      "at_least_2_31": 0
+    },
+    "lineSpacing": {
+      "count_including_case_and_default": 850,
+      "min": 100,
+      "max": 230,
+      "negative": 0,
+      "at_least_2_31": 0
+    },
+    "intent": {
+      "count_including_case_and_default": 850,
+      "min": -47656,
+      "max": 2000,
+      "negative": 640,
+      "at_least_2_31": 0
+    },
+    "left": {
+      "count_including_case_and_default": 850,
+      "min": -200,
+      "max": 14000,
+      "negative": 14,
+      "at_least_2_31": 0
+    },
+    "right": {
+      "count_including_case_and_default": 850,
+      "min": 0,
+      "max": 2000,
+      "negative": 0,
+      "at_least_2_31": 0
+    },
+    "prev": {
+      "count_including_case_and_default": 850,
+      "min": 0,
+      "max": 2400,
+      "negative": 0,
+      "at_least_2_31": 0
+    },
+    "next": {
+      "count_including_case_and_default": 850,
+      "min": 0,
+      "max": 1400,
+      "negative": 0,
+      "at_least_2_31": 0
+    }
+  },
+  "FACF_gearup_template.hwpx": {
+    "tabItem": {
+      "count_including_case_and_default": 38,
+      "min": 936,
+      "max": 248000,
+      "negative": 0,
+      "at_least_2_31": 0
+    },
+    "lineSpacing": {
+      "count_including_case_and_default": 425,
+      "min": 100,
+      "max": 230,
+      "negative": 0,
+      "at_least_2_31": 0
+    },
+    "intent": {
+      "count_including_case_and_default": 425,
+      "min": -47656,
+      "max": 2000,
+      "negative": 320,
+      "at_least_2_31": 0
+    },
+    "left": {
+      "count_including_case_and_default": 425,
+      "min": -200,
+      "max": 14000,
+      "negative": 7,
+      "at_least_2_31": 0
+    },
+    "right": {
+      "count_including_case_and_default": 425,
+      "min": 0,
+      "max": 2000,
+      "negative": 0,
+      "at_least_2_31": 0
+    },
+    "prev": {
+      "count_including_case_and_default": 425,
+      "min": 0,
+      "max": 2400,
+      "negative": 0,
+      "at_least_2_31": 0
+    },
+    "next": {
+      "count_including_case_and_default": 425,
+      "min": 0,
+      "max": 1400,
+      "negative": 0,
+      "at_least_2_31": 0
+    }
+  }
+}
