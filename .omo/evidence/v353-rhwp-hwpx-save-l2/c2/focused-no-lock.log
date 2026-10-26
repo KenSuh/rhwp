@@ -1,0 +1,166 @@
+CWD=/tmp/v353-c2.wjOeCn/green
+COMMAND= env TMPDIR=/tmp/v353-c2.wjOeCn/snapshots bash /Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity/.omo/evidence/v353-rhwp-hwpx-save-l2/c1/clean-cargo.sh test --offline --test hwpx_save_fidelity_l2 residual_c1_tab_halving_path_survives_two_saves -- --exact
+CLEAN_SOURCE_HEAD=7370ec9fdcf89eb4a372143bcb555ddd9bfe0b46
+CLEAN_SOURCE_METHOD=git-archive
+DEPENDENCY_INPUT=absent
+DEPENDENCY_INPUT_SHA256=absent
+COMMAND=cargo test --offline --test hwpx_save_fidelity_l2 residual_c1_tab_halving_path_survives_two_saves -- --exact
+CARGO_TARGET_DIR=/private/tmp/v353-c2.wjOeCn/green/target
+     Locking 157 packages to latest compatible versions
+      Adding base64 v0.22.1 (available: v0.23.1)
+      Adding minicov v0.3.8 (available: v0.3.9)
+   Compiling unicode-ident v1.0.27
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling cfg-if v1.0.5
+   Compiling rustversion v1.0.23
+   Compiling simd-adler32 v0.3.10
+   Compiling libm v0.2.16
+   Compiling crc32fast v1.5.3
+   Compiling log v0.4.34
+   Compiling adler2 v2.0.1
+   Compiling wasm-bindgen-shared v0.2.129
+   Compiling arrayvec v0.7.8
+   Compiling libc v0.2.191
+   Compiling zlib-rs v0.6.8
+   Compiling bumpalo v3.20.3
+   Compiling smallvec v1.16.4
+   Compiling bitflags v2.13.2
+   Compiling miniz_oxide v0.9.1
+   Compiling version_check v0.9.5
+   Compiling autocfg v1.5.1
+   Compiling miniz_oxide v0.8.9
+   Compiling fdeflate v0.3.7
+   Compiling float-cmp v0.9.0
+   Compiling memchr v2.8.3
+   Compiling once_cell v1.21.4
+   Compiling strict-num v0.1.1
+   Compiling arrayref v0.3.9
+   Compiling slotmap v1.1.1
+   Compiling equivalent v1.0.3
+   Compiling color_quant v1.1.0
+   Compiling hashbrown v0.17.1
+   Compiling num-traits v0.2.19
+   Compiling weezl v0.1.12
+   Compiling kurbo v0.11.3
+   Compiling polycool v0.4.0
+   Compiling heck v0.5.0
+   Compiling unicode-script v0.5.8
+   Compiling indexmap v2.14.2
+   Compiling itoa v1.0.18
+   Compiling unicode-ccc v0.4.0
+   Compiling bitflags v1.3.2
+   Compiling tinyvec v1.13.3
+   Compiling siphasher v1.0.4
+   Compiling byteorder-lite v0.1.0
+   Compiling unicode-bidi-mirroring v0.4.0
+   Compiling unicode-properties v0.1.4
+   Compiling cfg_aliases v0.2.2
+   Compiling nix v0.31.3
+   Compiling svgtypes v0.15.3
+   Compiling kurbo v0.13.1
+   Compiling simplecss v0.2.2
+   Compiling pxfm v0.1.30
+   Compiling roxmltree v0.20.0
+   Compiling base64 v0.22.1
+   Compiling unicode-bidi v0.3.18
+   Compiling xmlwriter v0.1.0
+   Compiling pico-args v0.5.0
+   Compiling zune-core v0.4.12
+   Compiling quick-error v2.0.1
+   Compiling imagesize v0.13.0
+   Compiling getrandom v0.4.3
+   Compiling zune-core v0.5.3
+   Compiling unicode-vo v0.1.0
+   Compiling data-url v0.3.2
+   Compiling core_maths v0.1.1
+   Compiling zune-jpeg v0.4.21
+   Compiling ttf-parser v0.25.1
+   Compiling zune-jpeg v0.5.15
+   Compiling image-webp v0.2.4
+   Compiling gif v0.14.2
+   Compiling gif v0.13.3
+   Compiling ryu v1.0.23
+   Compiling simdutf8 v0.1.5
+   Compiling rustc-hash v2.1.3
+   Compiling scopeguard v1.2.0
+   Compiling multiversion_no_op v1.0.0
+   Compiling paste v1.0.15
+   Compiling memmap2 v0.9.12
+   Compiling serde_core v1.0.229
+   Compiling syn v3.0.9
+   Compiling syn v2.0.119
+   Compiling pdf-writer v0.12.1
+   Compiling futures-core v0.3.34
+   Compiling fnv v1.0.7
+   Compiling futures-task v0.3.34
+   Compiling pin-project-lite v0.2.17
+   Compiling fontdb v0.23.0
+   Compiling typed-path v0.13.0
+   Compiling web-time v1.1.0
+   Compiling zmij v1.0.23
+   Compiling flate2 v1.1.10
+   Compiling wasm-bindgen v0.2.129
+   Compiling encoding_rs v0.8.42
+   Compiling zopfli v0.8.4
+   Compiling png v0.17.16
+   Compiling png v0.18.1
+   Compiling slab v0.4.12
+   Compiling uuid v1.29.0
+   Compiling futures-util v0.3.34
+   Compiling moxcms v0.8.1
+   Compiling quick-xml v0.39.4
+   Compiling byteorder v1.5.0
+   Compiling cfb v0.14.0
+   Compiling unicode-width v0.2.2
+   Compiling serde_json v1.0.154
+   Compiling unicode-segmentation v1.13.3
+   Compiling serde v1.0.229
+   Compiling embedded-io v0.7.1
+   Compiling cast v0.3.0
+   Compiling nu-ansi-term v0.50.3
+   Compiling zip v9.1.1
+   Compiling wasm-bindgen-macro-support v0.2.129
+   Compiling wasm-bindgen-test-shared v0.2.129
+   Compiling oorandom v11.1.5
+   Compiling strum_macros v0.28.0
+   Compiling snafu-derive v0.9.2
+   Compiling bytemuck_derive v1.12.1
+   Compiling serde_derive v1.0.229
+   Compiling wasm-bindgen-test-macro v0.3.79
+   Compiling async-trait v0.1.92
+   Compiling bytemuck v1.25.2
+   Compiling snafu v0.9.2
+   Compiling strum v0.28.0
+   Compiling wasm-bindgen-macro v0.2.129
+   Compiling font-types v0.11.3
+   Compiling tiny-skia-path v0.11.4
+   Compiling rustybuzz v0.20.1
+   Compiling rgb v0.8.53
+   Compiling image v0.25.10
+   Compiling read-fonts v0.39.2
+   Compiling tiny-skia v0.11.4
+   Compiling usvg v0.45.1
+   Compiling codepage v0.1.3
+   Compiling resvg v0.45.1
+   Compiling console_error_panic_hook v0.1.7
+   Compiling js-sys v0.3.106
+   Compiling write-fonts v0.48.1
+   Compiling skrifa v0.42.1
+   Compiling wasm-bindgen-futures v0.4.79
+   Compiling wasm-bindgen-test v0.3.79
+   Compiling subsetter v0.2.6
+   Compiling svg2pdf v0.13.0
+   Compiling rhwp v0.7.3 (/private/tmp/v353-c2.wjOeCn/snapshots/v353-c1-clean.fxGacL)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 30.47s
+     Running tests/hwpx_save_fidelity_l2.rs (/private/tmp/v353-c2.wjOeCn/green/target/debug/deps/hwpx_save_fidelity_l2-04aed1ada98de9e7)
+
+running 1 test
+test residual_c1_tab_halving_path_survives_two_saves ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 0.01s
+
+RESOLVED_CARGO_LOCK_SHA256=e3bc5a141eb24b2ed63b11a6ddcb7979c855615e926cc8a575423f0e0c5ab8d1
+CARGO_EXIT_STATUS=0
+
+EXIT=0

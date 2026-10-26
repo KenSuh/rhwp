@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ ${1:-} == archive ]]; then
+    tar -cf - -T /dev/null
+    printf 'C2 injected archive failure after a valid empty tar stream\n' >&2
+    exit 73
+fi
+exec /usr/bin/git "$@"

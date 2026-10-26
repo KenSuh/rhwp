@@ -1,0 +1,4 @@
+CWD=/tmp/v353-c2.wjOeCn/red
+COMMAND= git status --porcelain -uall
+
+EXIT=0

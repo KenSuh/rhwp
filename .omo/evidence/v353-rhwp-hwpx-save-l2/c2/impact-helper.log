@@ -1,0 +1,14 @@
+IMPACT at=code:HEAD@7370ec9fdcf8 query=".omo/evidence/v353-rhwp-hwpx-save-l2/c1/clean-cargo.sh" mode=path jev=used jev_threshold=0.45 files=3 rows=10 det_ms=289 total_ms=506 jev_requests=1 jev_http_attempts=1 jev_input_tokens=1521
+  ! cache stale (base code:7370ec9fdcf89eb4a372143bcb555ddd9bfe0b46@7370ec9fdcf8 → code:HEAD@7370ec9fdcf8) · 재도출
+- [code] gates/V353_RHWP_HWPX_SAVE_L2_GATES.md  channel=ledger_check binding=pin jev=0.43 rows=4
+    :34 [path/pin] CHECK: bash .omo/evidence/v353-rhwp-hwpx-save-l2/c1/clean-cargo.sh test --no-fail-fast > .omo/evidence/v353-rhwp-hwpx-save-l2/c1/g7-full.log 2>&1 && p
+    :39 [path/pin] CHECK: bash .omo/evidence/v353-rhwp-hwpx-save-l2/c1/clean-cargo.sh clippy -- -D warnings > .omo/evidence/v353-rhwp-hwpx-save-l2/c1/g8-clippy.log 2>&1
+    :44 [path/pin] CHECK: bash .omo/evidence/v353-rhwp-hwpx-save-l2/c1/clean-cargo.sh build --lib --target wasm32-unknown-unknown --release > .omo/evidence/v353-rhwp-hwp
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/gate-run-initial-5315315.log  channel=other binding=pin jev=0.31 rows=3
+    :37 [path/pin] CHECK: bash .omo/evidence/v353-rhwp-hwpx-save-l2/c1/clean-cargo.sh test --no-fail-fast > .omo/evidence/v353-rhwp-hwpx-save-l2/c1/g7-full.log 2>&1 && p
+    :44 [path/pin] CHECK: bash .omo/evidence/v353-rhwp-hwpx-save-l2/c1/clean-cargo.sh clippy -- -D warnings > .omo/evidence/v353-rhwp-hwpx-save-l2/c1/g8-clippy.log 2>&1
+    :51 [path/pin] CHECK: bash .omo/evidence/v353-rhwp-hwpx-save-l2/c1/clean-cargo.sh build --lib --target wasm32-unknown-unknown --release > .omo/evidence/v353-rhwp-hwp
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/gate-run.log  channel=other binding=pin jev=0.30 rows=3
+    :37 [path/pin] CHECK: bash .omo/evidence/v353-rhwp-hwpx-save-l2/c1/clean-cargo.sh test --no-fail-fast > .omo/evidence/v353-rhwp-hwpx-save-l2/c1/g7-full.log 2>&1 && p
+    :44 [path/pin] CHECK: bash .omo/evidence/v353-rhwp-hwpx-save-l2/c1/clean-cargo.sh clippy -- -D warnings > .omo/evidence/v353-rhwp-hwpx-save-l2/c1/g8-clippy.log 2>&1
+    :51 [path/pin] CHECK: bash .omo/evidence/v353-rhwp-hwpx-save-l2/c1/clean-cargo.sh build --lib --target wasm32-unknown-unknown --release > .omo/evidence/v353-rhwp-hwp

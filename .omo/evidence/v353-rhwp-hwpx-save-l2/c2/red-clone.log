@@ -1,0 +1,6 @@
+CWD=/tmp/v353-c2.wjOeCn
+COMMAND= git clone --shared --no-checkout /Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity /tmp/v353-c2.wjOeCn/red
+Cloning into '/tmp/v353-c2.wjOeCn/red'...
+done.
+
+EXIT=0
