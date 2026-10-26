@@ -628,7 +628,7 @@ fn write_tab_item_switch<W: Write>(
             ("leader", tab_leader_str(tab.fill_type)),
             (
                 "unit",
-                if tab.position % 2 == 0 { "HWPUNIT" } else { "CHAR" },
+                if tab.position.is_multiple_of(2) { "HWPUNIT" } else { "CHAR" },
             ),
         ],
     )?;
