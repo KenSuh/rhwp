@@ -2541,7 +2541,7 @@ fn push_field_begin(
     if let Control::Field(f) = &mut ctrl {
         if let Some(h) = &mut f.hwpx {
             h.begin_char_shape_id = char_shape_id;
-            h.begin_order = field_marker_count(parts);
+            h.begin_order = controls.len() + completed_field_count(parts);
         }
     }
     let pos = visible_char_count(parts);
@@ -2576,6 +2576,7 @@ fn finish_field(
         .iter()
         .find(|(k, _)| k == "beginIDRef")
         .map(|(_, v)| v.as_str());
+    let end_order = controls.len() + completed_field_count(parts);
     for range in ranges.iter_mut().rev() {
         if let Some(Control::Field(f)) = controls.get_mut(range.control_idx) {
             if let Some(h) = &mut f.hwpx {
@@ -2587,7 +2588,7 @@ fn finish_field(
                 if h.end_attributes.is_none() && begin == id {
                     h.end_attributes = Some(attrs);
                     h.end_char_shape_id = char_shape_id;
-                    h.end_order = field_marker_count(parts);
+                    h.end_order = end_order;
                     range.end_char_idx = visible_char_count(parts);
                     parts.push("\u{0004}".to_string());
                     return Ok(());
@@ -2600,11 +2601,11 @@ fn finish_field(
     ))
 }
 
-fn field_marker_count(parts: &[String]) -> usize {
+fn completed_field_count(parts: &[String]) -> usize {
     parts
         .iter()
         .flat_map(|s| s.chars())
-        .filter(|c| matches!(c, '\u{0003}' | '\u{0004}'))
+        .filter(|c| *c == '\u{0004}')
         .count()
 }
 

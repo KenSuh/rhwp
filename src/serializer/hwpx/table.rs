@@ -467,7 +467,7 @@ fn inline_control_positions(para: &Paragraph) -> Option<Vec<(usize, usize)>> {
     Some(placed)
 }
 
-/// 글자 run 과 필드 run 을 쓰고, `placed` 의 컨트롤은 그 글자 인덱스 앞(필드 표지보다 먼저)에 끼운다.
+/// 글자 인덱스로 run 을 나누고, 같은 위치의 필드·컨트롤은 원래 순서로 합친다.
 fn write_text_runs<W, F>(
     w: &mut Writer<W>,
     para: &Paragraph,
@@ -499,13 +499,19 @@ where
     }
     let mut events = Vec::with_capacity(para.field_ranges.len() * 2);
     let mut binary_ranges = Vec::new();
+    let mut hwpx_end_orders = Vec::new();
     for range in &para.field_ranges {
         let Some(Control::Field(field)) = para.controls.get(range.control_idx) else {
             return Err(SerializeError::XmlError("field 컨트롤 누락".into()));
         };
         if let Some(h) = &field.hwpx {
-            events.push((range.start_char_idx, h.begin_order, range.control_idx, true));
-            events.push((range.end_char_idx, h.end_order, range.control_idx, false));
+            events.push((
+                range.start_char_idx, h.begin_order, range.control_idx, Some(true),
+            ));
+            events.push((
+                range.end_char_idx, h.end_order, range.control_idx, Some(false),
+            ));
+            hwpx_end_orders.push(h.end_order);
         } else {
             binary_ranges.push(range);
         }
@@ -516,48 +522,62 @@ where
         .collect();
     boundaries.sort_unstable();
     boundaries.dedup();
-    for pos in boundaries {
+    for &pos in &boundaries {
         let mut starts: Vec<_> = binary_ranges
             .iter()
             .filter(|r| r.start_char_idx == pos)
+            .map(|r| (r.control_idx, Some(true)))
+            .chain(
+                placed.iter().filter(|&&(p, _)| p == pos).map(|&(_, ci)| (ci, None)),
+            )
             .collect();
         // Binary controls retain begin order; field_ranges retain end order.
-        starts.sort_by_key(|r| r.control_idx);
+        starts.sort_by_key(|&(ci, _)| ci);
         let mut starts = starts.into_iter().peekable();
         let mut order = 0;
         for end in binary_ranges.iter().filter(|r| r.end_char_idx == pos) {
             while starts
                 .peek()
-                .is_some_and(|r| r.control_idx <= end.control_idx)
+                .is_some_and(|&(ci, _)| ci <= end.control_idx)
             {
-                let start = starts.next().unwrap();
-                events.push((pos, order, start.control_idx, true));
+                if let Some((ci, begin)) = starts.next() {
+                    events.push((pos, order, ci, begin));
+                }
                 order += 1;
             }
-            events.push((pos, order, end.control_idx, false));
+            events.push((pos, order, end.control_idx, Some(false)));
             order += 1;
         }
-        for start in starts {
-            events.push((pos, order, start.control_idx, true));
+        for (ci, begin) in starts {
+            events.push((pos, order, ci, begin));
             order += 1;
         }
+    }
+    hwpx_end_orders.sort_unstable();
+    for &(pos, ci) in placed.iter().filter(|(pos, _)| !boundaries.contains(pos)) {
+        let mut order = ci;
+        for &end in &hwpx_end_orders {
+            if end <= order {
+                order += 1;
+            }
+        }
+        events.push((pos, order, ci, None));
     }
     events.sort_by_key(|(pos, order, _, _)| (*pos, *order));
     let mut current_shape = None;
     let mut current_text = String::new();
     let mut fallback_utf16_pos = 0;
     for idx in 0..=chars.len() {
-        let has_controls = placed.iter().any(|&(pos, _)| pos == idx);
-        if has_controls || events.iter().any(|(pos, _, _, _)| *pos == idx) {
+        if events.iter().any(|(pos, _, _, _)| *pos == idx) {
             if !current_text.is_empty() {
                 write_cell_text_run(w, current_shape.unwrap_or(0), &current_text)?;
                 current_text.clear();
             }
-            for &(_, ci) in placed.iter().filter(|&&(pos, _)| pos == idx) {
-                write_control(w, &para.controls[ci])?;
-            }
             for &(_, _, ci, begin) in events.iter().filter(|(pos, _, _, _)| *pos == idx) {
-                write_field_run(w, para, ci, begin, fallback_utf16_pos)?;
+                match begin {
+                    Some(begin) => write_field_run(w, para, ci, begin, fallback_utf16_pos)?,
+                    None => write_control(w, &para.controls[ci])?,
+                }
             }
         }
         let Some(&ch) = chars.get(idx) else {

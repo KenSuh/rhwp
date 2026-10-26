@@ -7,16 +7,17 @@
 //! 그대로 돌려 결함을 실제로 잡는지 보기 위해서다.
 
 use std::collections::BTreeMap;
-use std::io::Read;
+use std::io::{Read, Write};
 
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::Reader;
 
 use rhwp::document_core::DocumentCore;
-use rhwp::model::control::Control;
+use rhwp::model::control::{Control, Field, FieldType};
 use rhwp::model::document::Document;
-use rhwp::model::paragraph::{CharShapeRef, Paragraph};
+use rhwp::model::paragraph::{CharShapeRef, FieldRange, Paragraph};
 use rhwp::model::shape::ShapeObject;
+use rhwp::model::style::{LineSpacingType, ParaShape, TabDef, TabItem};
 use rhwp::model::Point;
 
 /// 한컴 원본 — 중소벤처기업부 공고 사업신청서(C6, 한컴 12 저장).
@@ -88,6 +89,27 @@ fn open_doc(hwpx: &[u8]) -> Document {
         .expect("HWPX 로드")
         .document()
         .clone()
+}
+
+fn replace_zip_text(hwpx: &[u8], name: &str, text: &str) -> Vec<u8> {
+    let mut input = zip::ZipArchive::new(std::io::Cursor::new(hwpx)).unwrap();
+    let mut output = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    for i in 0..input.len() {
+        let mut entry = input.by_index(i).unwrap();
+        let mut bytes = Vec::new();
+        entry.read_to_end(&mut bytes).unwrap();
+        output
+            .start_file(entry.name().unwrap(), zip::write::SimpleFileOptions::default())
+            .unwrap();
+        output
+            .write_all(if entry.name().unwrap() == name {
+                text.as_bytes()
+            } else {
+                &bytes
+            })
+            .unwrap();
+    }
+    output.finish().unwrap().into_inner()
 }
 
 // ---------- 최소 XML 트리 ----------
@@ -532,6 +554,74 @@ fn run_order_paragraph_without_offsets_keeps_text_first() {
     );
 }
 
+#[test]
+fn run_order_c1_binary_field_begin_precedes_table_at_same_position() {
+    let mut para = table_paragraph("x", vec![16]);
+    para.controls.insert(0, Control::Field(Field {
+        field_type: FieldType::Hyperlink,
+        command: "https://example.org".into(),
+        ..Default::default()
+    }));
+    para.field_ranges.push(FieldRange {
+        start_char_idx: 0,
+        end_char_idx: 1,
+        control_idx: 0,
+    });
+    assert_eq!(
+        save_appended_paragraph(para),
+        vec![
+            Atom::Ctrl("fieldBegin".into()),
+            Atom::Obj("tbl".into()),
+            Atom::Text("x".into()),
+            Atom::Ctrl("fieldEnd".into()),
+        ]
+    );
+}
+
+#[test]
+fn run_order_c1_empty_fields_and_controls_keep_relative_order_two_saves() {
+    let paragraph = |inner: &str| format!(r#"<hp:p paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="0">{inner}</hp:run></hp:p>"#);
+    let table = |inner: &str| format!(r#"<hp:tbl rowCnt="1" colCnt="1" borderFillIDRef="1"><hp:sz width="10000" height="3000"/><hp:tr><hp:tc borderFillIDRef="1"><hp:subList>{inner}</hp:subList><hp:cellAddr colAddr="0" rowAddr="0"/><hp:cellSpan colSpan="1" rowSpan="1"/><hp:cellSz width="10000" height="3000"/></hp:tc></hp:tr></hp:tbl>"#);
+    let begin = |id| format!(r#"<hp:ctrl><hp:fieldBegin id="{id}" type="CLICK_HERE" name="empty" editable="1"/></hp:ctrl>"#);
+    let end = |id| format!(r#"<hp:ctrl><hp:fieldEnd beginIDRef="{id}"/></hp:ctrl>"#);
+    let (b1, b2, e1, e2) = (begin(1), begin(2), end(1), end(2));
+    let object = table(&paragraph("<hp:t>cell</hp:t>"));
+    let cases = [
+        format!("{b1}{e1}{object}"),
+        format!("{b1}{object}{e1}"),
+        format!("{object}{b1}{e1}"),
+        format!("{b1}{b2}{e2}{object}{e1}"),
+        format!("{b1}{object}{b2}{e2}{e1}"),
+        format!("{b1}{e1}{object}{b2}{e2}{object}"),
+    ];
+    let mut failures = Vec::new();
+    for (case, raw) in cases.iter().enumerate() {
+        let owner = paragraph(raw);
+        let body = paragraph("<hp:t>prologue</hp:t>") + &owner
+            + &paragraph(&table(&owner)) + &paragraph(&table(&paragraph(&table(&owner))));
+        let xml = format!(r#"<hs:sec xmlns:hs="http://www.hancom.co.kr/hwpml/2011/section" xmlns:hp="http://www.hancom.co.kr/hwpml/2011/paragraph">{body}</hs:sec>"#);
+        let input = replace_zip_text(C6, "Contents/section0.xml", &xml);
+        let expected: Vec<_> = paragraph_atoms(&input)
+            .into_iter()
+            .map(|p| p.atoms)
+            .collect();
+        let mut bytes = input;
+        for pass in 1..=2 {
+            bytes = open_save(&bytes);
+            // The first paragraph additionally receives the serializer's section defaults.
+            let actual: Vec<_> = paragraph_atoms(&bytes)
+                .into_iter()
+                .skip(1)
+                .map(|p| p.atoms)
+                .collect();
+            if actual != expected[1..] {
+                failures.push(format!("case {case}, save {pass}: {actual:?} != {:?}", &expected[1..]));
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
 // ---------- G3: 두 번 저장 — 첫 문단 구역 run 구성 ----------
 
 /// 구역0 첫 최상위 `<hp:p>` 의 run 마다 직속 내용 종류 (secPr · ctrl:<자식> · t · t0(빈 t) · 개체 이름).
@@ -879,6 +969,125 @@ fn residual_header_tab_items_use_hancom_switch() {
         let saved = tab_items(&zip_text(&open_save(fixture), "Contents/header.xml"));
         // Then: 같은 switch 와 값 (평문 default 값이면 한컴이 탭 위치를 두 배로 읽는다)
         assert_eq!(saved, original, "{name}: tabItem switch");
+    }
+}
+
+#[test]
+fn residual_c1_tab_halving_path_survives_two_saves() {
+    let values = [0, 1, 1000, 1001, 1 << 31, (1 << 31) + 1, u32::MAX - 1, u32::MAX];
+    let mut doc = Document::default();
+    doc.doc_info.tab_defs.push(TabDef {
+        tabs: values.iter().map(|&position| TabItem {
+            position,
+            ..Default::default()
+        }).collect(),
+        ..Default::default()
+    });
+    for pass in 1..=2 {
+        let bytes = rhwp::serializer::serialize_hwpx(&doc).unwrap();
+        let branches = tab_items(&zip_text(&bytes, "Contents/header.xml"));
+        assert_eq!(branches[0].len(), values.len());
+        for (&value, branch) in values.iter().zip(&branches[0]) {
+            assert_eq!(
+                (&branch.0, branch.1.as_str(), &branch.2),
+                (
+                    &(value / 2).to_string(),
+                    if value % 2 == 0 { "HWPUNIT" } else { "CHAR" },
+                    &value.to_string(),
+                ),
+                "tab {value}, save {pass}"
+            );
+        }
+        doc = rhwp::parser::hwpx::parse_hwpx(&bytes).unwrap();
+        assert_eq!(
+            doc.doc_info.tab_defs[0].tabs.iter().map(|t| t.position).collect::<Vec<_>>(),
+            values,
+            "tab read {pass}"
+        );
+    }
+}
+
+#[test]
+fn residual_c1_signed_halving_paths_survive_two_saves() {
+    let values = [-1001, -1000, -1, 0, 1, 1000, 1001, i32::MIN, i32::MIN + 1, i32::MAX - 1, i32::MAX];
+    let types = [LineSpacingType::Fixed, LineSpacingType::SpaceOnly, LineSpacingType::Minimum, LineSpacingType::Percent];
+    let mut doc = Document::default();
+    for spacing_type in types {
+        for value in values {
+            doc.doc_info.para_shapes.push(ParaShape {
+                indent: value,
+                margin_left: value,
+                margin_right: value,
+                spacing_before: value,
+                spacing_after: value,
+                line_spacing_type: spacing_type,
+                line_spacing: value,
+                ..Default::default()
+            });
+        }
+    }
+    let mut failures = Vec::new();
+    for pass in 1..=2 {
+        let bytes = rhwp::serializer::serialize_hwpx(&doc).unwrap();
+        doc = rhwp::parser::hwpx::parse_hwpx(&bytes).unwrap();
+        assert_eq!(doc.doc_info.para_shapes.len(), types.len() * values.len());
+        for (ps, (spacing_type, value)) in doc.doc_info.para_shapes.iter().zip(types.into_iter().flat_map(|t| values.into_iter().map(move |v| (t, v)))) {
+            let actual = [
+                ps.indent, ps.margin_left, ps.margin_right,
+                ps.spacing_before, ps.spacing_after, ps.line_spacing,
+            ];
+            if actual != [value; 6] || ps.line_spacing_type != spacing_type {
+                failures.push(format!("{spacing_type:?} {value}, read {pass}: {actual:?}, {:?}", ps.line_spacing_type));
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn residual_c1_track_change_flags_survive_two_native_saves() {
+    let header = zip_text(C6, "Contents/header.xml");
+    assert!(header.contains(r#"<hh:trackchageConfig flags="56"/>"#));
+    for flags in [56, 0, u32::MAX] {
+        for paired in [false, true] {
+            let element = if paired {
+                format!(r#"<hh:trackchageConfig flags="{flags}"></hh:trackchageConfig>"#)
+            } else {
+                format!(r#"<hh:trackchageConfig flags="{flags}"/>"#)
+            };
+            let raw = header.replace(r#"<hh:trackchageConfig flags="56"/>"#, &element);
+            let mut bytes = replace_zip_text(C6, "Contents/header.xml", &raw);
+            for pass in 1..=2 {
+                bytes = open_save(&bytes);
+                let tree = Tree::parse(&zip_text(&bytes, "Contents/header.xml"));
+                let config = tree.descendants_named(0, "trackchageConfig");
+                assert_eq!(config.len(), 1);
+                assert_eq!(
+                    tree.attr(config[0], "flags"), Some(flags.to_string().as_str()),
+                    "flags {flags}, paired {paired}, save {pass}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn residual_c1_missing_track_change_config_keeps_existing_zero_output() {
+    let header = zip_text(C6, "Contents/header.xml");
+    let raw = header.replace(r#"<hh:trackchageConfig flags="56"/>"#, "");
+    assert!(!raw.contains("trackchageConfig"));
+    let input = replace_zip_text(C6, "Contents/header.xml", &raw);
+    let mut zero = replace_zip_text(C6, "Contents/header.xml", &header.replace(r#"flags="56""#, r#"flags="0""#));
+    let mut bytes = input;
+    for pass in 1..=2 {
+        bytes = open_save(&bytes);
+        zero = open_save(&zero);
+        let expected = zip_text(&zero, "Contents/header.xml");
+        assert!(expected.contains(r#"<hh:trackchageConfig flags="0"/>"#));
+        assert!(
+            zip_text(&bytes, "Contents/header.xml") == expected,
+            "missing config matches explicit zero, save {pass}"
+        );
     }
 }
 

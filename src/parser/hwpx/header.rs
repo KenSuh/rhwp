@@ -98,6 +98,7 @@ pub fn parse_hwpx_header(xml: &str) -> Result<(DocInfo, DocProperties), HwpxErro
                         }
                     }
                     b"beginNum" => parse_begin_num(e, &mut doc_props),
+                    b"trackchageConfig" => parse_track_change_config(e, &mut doc_info),
                     b"font" => parse_font(e, &mut doc_info, current_font_group),
                     b"charPr" => {
                         parse_char_shape(e, &mut reader, &mut doc_info)?;
@@ -123,6 +124,7 @@ pub fn parse_hwpx_header(xml: &str) -> Result<(DocInfo, DocProperties), HwpxErro
                 let local = local_name(name.as_ref());
                 match local {
                     b"beginNum" => parse_begin_num(e, &mut doc_props),
+                    b"trackchageConfig" => parse_track_change_config(e, &mut doc_info),
                     b"font" => parse_font(e, &mut doc_info, current_font_group),
                     b"style" => parse_style(e, &mut doc_info),
                     b"tabPr" => {
@@ -150,6 +152,14 @@ pub fn parse_hwpx_header(xml: &str) -> Result<(DocInfo, DocProperties), HwpxErro
     doc_props.section_count = 1; // content.hpf에서 갱신됨
 
     Ok((doc_info, doc_props))
+}
+
+fn parse_track_change_config(e: &quick_xml::events::BytesStart, doc_info: &mut DocInfo) {
+    for attr in e.attributes().flatten() {
+        if attr.key.as_ref() == b"flags" {
+            doc_info.hwpx_track_change_flags = parse_u32(&attr);
+        }
+    }
 }
 
 // ─── beginNum ───
@@ -508,7 +518,7 @@ fn parse_para_shape(
                                         ps.line_spacing_type = match val.as_str() {
                                             "PERCENT" => LineSpacingType::Percent,
                                             "FIXED" => LineSpacingType::Fixed,
-                                            "SPACEONLY" | "SPACE_ONLY" => {
+                                            "SPACEONLY" | "SPACE_ONLY" | "BETWEEN_LINES" => {
                                                 LineSpacingType::SpaceOnly
                                             }
                                             "MINIMUM" | "AT_LEAST" => LineSpacingType::Minimum,
@@ -770,7 +780,7 @@ fn parse_para_shape_switch(
                                         ls_type = Some(match attr_str(&attr).as_str() {
                                             "PERCENT" => LineSpacingType::Percent,
                                             "FIXED" => LineSpacingType::Fixed,
-                                            "SPACEONLY" | "SPACE_ONLY" => {
+                                            "SPACEONLY" | "SPACE_ONLY" | "BETWEEN_LINES" => {
                                                 LineSpacingType::SpaceOnly
                                             }
                                             "MINIMUM" | "AT_LEAST" => LineSpacingType::Minimum,
@@ -790,7 +800,12 @@ fn parse_para_shape_switch(
                                     let effective_type = ls_type.unwrap_or(ps.line_spacing_type);
                                     ps.line_spacing = match effective_type {
                                         LineSpacingType::Percent => v,
-                                        _ => v * 2,
+                                        _ => {
+                                            let char_unit = ce.attributes().flatten().any(|a| {
+                                                a.key.as_ref() == b"unit" && attr_str(&a) == "CHAR"
+                                            });
+                                            v * 2 + i32::from(char_unit)
+                                        }
                                     };
                                 }
                                 found_case = true;
@@ -1147,7 +1162,10 @@ fn parse_tab_def(
                         if in_hwpunitchar_case {
                             // HwpUnitChar 값은 실제 HWPUNIT(1× 스케일)이므로
                             // HWP 바이너리와 동일한 2× 스케일로 변환
-                            item.position *= 2;
+                            let char_unit = ce.attributes().flatten().any(|a| {
+                                a.key.as_ref() == b"unit" && attr_str(&a) == "CHAR"
+                            });
+                            item.position = item.position * 2 + u32::from(char_unit);
                             td.tabs.push(item);
                             found_case = true;
                         } else if in_default {

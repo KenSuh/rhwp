@@ -82,7 +82,7 @@ pub fn write_header(doc: &Document, ctx: &SerializeContext) -> Result<Vec<u8>, S
 
     write_compatible_document(&mut w)?;
     write_doc_option(&mut w)?;
-    write_track_change_config(&mut w)?;
+    write_track_change_config(&mut w, &doc.doc_info)?;
 
     end_tag(&mut w, "hh:head")?;
     Ok(w.into_inner())
@@ -611,7 +611,7 @@ fn write_tab_pr<W: Write>(w: &mut Writer<W>, id: u16, td: &TabDef) -> Result<(),
     Ok(())
 }
 
-/// tabItem 하나를 한컴 원본처럼 `<hp:switch>` 로 쓴다 — HwpUnitChar case 는 위치의 절반(`unit="HWPUNIT"`),
+/// tabItem 하나를 한컴 원본처럼 `<hp:switch>` 로 쓴다 — HwpUnitChar case 는 위치의 절반(홀수는 CHAR),
 /// default 는 IR 위치. 한컴은 switch 없는 평문 위치를 case 척도로 읽어 탭이 두 배 자리로 간다.
 fn write_tab_item_switch<W: Write>(
     w: &mut Writer<W>,
@@ -626,7 +626,10 @@ fn write_tab_item_switch<W: Write>(
             ("pos", &(tab.position / 2).to_string()),
             ("type", tab_type_str(tab.tab_type)),
             ("leader", tab_leader_str(tab.fill_type)),
-            ("unit", "HWPUNIT"),
+            (
+                "unit",
+                if tab.position % 2 == 0 { "HWPUNIT" } else { "CHAR" },
+            ),
         ],
     )?;
     end_tag(w, "hp:case")?;
@@ -869,7 +872,7 @@ fn write_para_pr<W: Write>(
 
 /// margin·lineSpacing 을 한컴 원본처럼 `<hp:switch>` 로 쓴다 — HwpUnitChar case 는 IR 값의 절반,
 /// default 는 IR 값. 한컴은 switch 없는 평문 값을 case 척도로 읽어 들여쓰기·여백이 두 배가 된다.
-/// 파서는 case 값을 두 배 해 IR 에 담으므로 짝수 값은 그대로 돌아온다.
+/// 홀수는 CHAR 단위로 나머지 1을 보존한다.
 fn write_para_margin_switch<W: Write>(
     w: &mut Writer<W>,
     ps: &ParaShape,
@@ -907,18 +910,17 @@ fn write_para_line_spacing<W: Write>(
     ps: &ParaShape,
     case: bool,
 ) -> Result<(), SerializeError> {
-    let value = if case && !matches!(ps.line_spacing_type, LineSpacingType::Percent) {
-        ps.line_spacing / 2
-    } else {
-        ps.line_spacing
-    };
+    let (value, unit) = hwpunitchar_value_unit(
+        ps.line_spacing,
+        case && !matches!(ps.line_spacing_type, LineSpacingType::Percent),
+    );
     empty_tag(
         w,
         "hh:lineSpacing",
         &[
             ("type", line_spacing_type_str(ps.line_spacing_type)),
             ("value", &value.to_string()),
-            ("unit", "HWPUNIT"),
+            ("unit", unit),
         ],
     )
 }
@@ -931,12 +933,16 @@ fn write_margin_child<W: Write>(
     stored: i32,
     case: bool,
 ) -> Result<(), SerializeError> {
-    let (value, unit) = match (case, stored % 2 != 0) {
+    let (value, unit) = hwpunitchar_value_unit(stored, case);
+    empty_tag(w, name, &[("value", &value.to_string()), ("unit", unit)])
+}
+
+fn hwpunitchar_value_unit(stored: i32, case: bool) -> (i32, &'static str) {
+    match (case, stored % 2 != 0) {
         (false, _) => (stored, "HWPUNIT"),
         (true, false) => (stored / 2, "HWPUNIT"),
         (true, true) => ((stored - 1) / 2, "CHAR"),
-    };
-    empty_tag(w, name, &[("value", &value.to_string()), ("unit", unit)])
+    }
 }
 
 fn alignment_str(a: Alignment) -> &'static str {
@@ -1041,8 +1047,15 @@ fn write_doc_option<W: Write>(w: &mut Writer<W>) -> Result<(), SerializeError> {
     Ok(())
 }
 
-fn write_track_change_config<W: Write>(w: &mut Writer<W>) -> Result<(), SerializeError> {
-    empty_tag(w, "hh:trackchageConfig", &[("flags", "0")])
+fn write_track_change_config<W: Write>(
+    w: &mut Writer<W>,
+    doc_info: &DocInfo,
+) -> Result<(), SerializeError> {
+    empty_tag(
+        w,
+        "hh:trackchageConfig",
+        &[("flags", &doc_info.hwpx_track_change_flags.to_string())],
+    )
 }
 
 // 내부에서 쓰는 start_tag 별명
