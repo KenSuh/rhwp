@@ -263,6 +263,31 @@ fn hwpx_hwp5_hwpx(hwpx: &[u8]) -> Vec<u8> {
         .expect("HWPX 저장")
 }
 
+#[test]
+fn no_adjust_survives_hwpx_and_hwp5_with_g0_table_flag() {
+    let xml = section_xmls(T2)[0].replace("noAdjust=\"1\"", "noAdjust=\"0\"");
+    assert!(xml.contains("noAdjust=\"0\""));
+    for enabled in [false, true] {
+        let xml = xml.replace(
+            "noAdjust=\"0\"",
+            if enabled { "noAdjust=\"1\"" } else { "noAdjust=\"0\"" },
+        );
+        let input = rezip_with_section(T2, "Contents/section0.xml", &xml);
+        let expected: Vec<_> = tables_xml(&input)
+            .iter()
+            .map(|table| table.tbl["noAdjust"].clone())
+            .collect();
+        assert!(!expected.is_empty());
+        for output in [hwpx_ir_hwpx(&input), hwpx_hwp5_hwpx(&input)] {
+            let actual: Vec<_> = tables_xml(&output)
+                .iter()
+                .map(|table| table.tbl["noAdjust"].clone())
+                .collect();
+            assert_eq!(actual, expected);
+        }
+    }
+}
+
 // ---------- pageBreak (게이트 G4) ----------
 //
 // 한컴은 HWPX TABLE·CELL·NONE 을 HWP5 값 1·2·0 으로 저장한다(같은 이름 HWP/HWPX 표본 쌍 대조).

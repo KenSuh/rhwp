@@ -255,6 +255,7 @@ fn parse_table_record(data: &[u8], table: &mut Table) {
         _ => TablePageBreak::None,
     };
     table.repeat_header = attr & 0x04 != 0;
+    table.no_adjust = attr & crate::model::table::TABLE_RECORD_NO_ADJUST != 0;
     // 원본 attr 전체 보존 (라운드트립용)
     table.raw_table_record_attr = attr;
 

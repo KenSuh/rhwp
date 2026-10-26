@@ -480,7 +480,7 @@ impl Table {
 
     /// HWPX `noAdjust` (HWPTAG_TABLE 속성 bit 3).
     pub fn no_adjust(&self) -> bool {
-        self.raw_table_record_attr & TABLE_RECORD_NO_ADJUST != 0
+        self.no_adjust
     }
 
     /// 열별 폭을 추출한다 (col_span==1인 셀 기준).

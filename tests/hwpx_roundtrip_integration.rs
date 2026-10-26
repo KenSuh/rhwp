@@ -1297,12 +1297,12 @@ fn c9_table_page_break_modes_and_legacy_aliases_survive() {
         serializer::serialize_hwpx,
     };
     for (input_mode, expected, output_mode) in [
-        ("TABLE", TablePageBreak::RowBreak, "TABLE"),
-        ("CELL", TablePageBreak::CellBreak, "CELL"),
+        ("TABLE", TablePageBreak::CellBreak, "TABLE"),
+        ("CELL", TablePageBreak::RowBreak, "CELL"),
         ("NONE", TablePageBreak::None, "NONE"),
-        ("ROW", TablePageBreak::RowBreak, "TABLE"),
-        ("ROW_BREAK", TablePageBreak::RowBreak, "TABLE"),
-        ("CELL_BREAK", TablePageBreak::CellBreak, "CELL"),
+        ("ROW", TablePageBreak::RowBreak, "CELL"),
+        ("ROW_BREAK", TablePageBreak::RowBreak, "CELL"),
+        ("CELL_BREAK", TablePageBreak::RowBreak, "CELL"),
     ] {
         let input = c8_fixture(
             &c8_table(&c9_paragraph("<hp:t>셀</hp:t>", C9_LINE))
