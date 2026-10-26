@@ -1,0 +1,187 @@
+{
+ "head": "c3059ef6cf372bb201bf4a36e36fc9092439db9b",
+ "src_dirty": false,
+ "src_diff_vs_base": [
+  "src/parser/hwpx/header.rs",
+  "src/serializer/hwpx/header.rs",
+  "src/serializer/hwpx/section.rs",
+  "src/serializer/hwpx/shape.rs",
+  "src/serializer/hwpx/table.rs"
+ ],
+ "generated_at": "2026-10-26T06:35:52Z",
+ "g8_test": "serializer::hwpx::tests::form_attribute_entities_survive_two_hwpx_saves",
+ "g8_failed": false,
+ "g8_result_line": "test result: ok. 1 passed; 0 failed",
+ "g8_panic_first_line": [],
+ "order_defects": 1,
+ "order": {
+  "C6_open_save": {
+   "order_diff_paras": 1,
+   "ws_before_inline_tbl": 0,
+   "text_only_diff_paras": 0,
+   "order_diff_patterns": [
+    "1x T O:tbl  ->  O:tbl T"
+   ]
+  },
+  "FACF_open_save": {
+   "order_diff_paras": 1,
+   "ws_before_inline_tbl": 0,
+   "text_only_diff_paras": 0,
+   "order_diff_patterns": [
+    "1x T O:tbl  ->  O:tbl T"
+   ]
+  },
+  "FACF_template_itself": {
+   "order_diff_paras": 56,
+   "ws_before_inline_tbl": 7,
+   "text_only_diff_paras": 0,
+   "order_diff_patterns": [
+    "38x C:colPr T  ->  T C:colPr",
+    "10x O:rect T  ->  T O:rect",
+    "7x O:tbl T  ->  T O:tbl",
+    "1x S:secPr C:colPr C:pageNum T  ->  S:secPr T C:colPr C:pageNum"
+   ]
+  }
+ },
+ "residual": {
+  "header": {
+   "C6_original": {
+    "hh:intent": 0,
+    "hc:intent": 850,
+    "hh:left": 0,
+    "hc:left": 850,
+    "hh:right": 0,
+    "hc:right": 850,
+    "hh:prev": 0,
+    "hc:prev": 850,
+    "hh:next": 0,
+    "hc:next": 850,
+    "paraPr": 425,
+    "switch": 463,
+    "margin_in_switch_case": 425,
+    "margin_total": 850,
+    "breakNonLatinWord": {
+     "KEEP_WORD": 314,
+     "BREAK_WORD": 111
+    }
+   },
+   "C6_open_save": {
+    "hh:intent": 0,
+    "hc:intent": 850,
+    "hh:left": 0,
+    "hc:left": 850,
+    "hh:right": 0,
+    "hc:right": 850,
+    "hh:prev": 0,
+    "hc:prev": 850,
+    "hh:next": 0,
+    "hc:next": 850,
+    "paraPr": 425,
+    "switch": 463,
+    "margin_in_switch_case": 425,
+    "margin_total": 850,
+    "breakNonLatinWord": {
+     "KEEP_WORD": 314,
+     "BREAK_WORD": 111
+    }
+   }
+  },
+  "fields": {
+   "C6_original": {
+    "raw_ctrl_chars": 0,
+    "fieldBegin": 11,
+    "fieldEnd": 11
+   },
+   "C6_open_save": {
+    "raw_ctrl_chars": 0,
+    "fieldBegin": 11,
+    "fieldEnd": 11
+   }
+  },
+  "shapes_C6_open_save": {
+   "rect": {
+    "ref": 26,
+    "out": 26,
+    "child_diffs": {},
+    "attr_diffs": {
+     "id": 26,
+     "numberingType": 18
+    }
+   },
+   "container": {
+    "ref": 4,
+    "out": 4,
+    "child_diffs": {},
+    "attr_diffs": {
+     "id": 4,
+     "numberingType": 2
+    }
+   },
+   "line": {
+    "ref": 0,
+    "out": 0
+   },
+   "ellipse": {
+    "ref": 0,
+    "out": 0
+   },
+   "pic": {
+    "ref": 1,
+    "out": 1,
+    "child_diffs": {},
+    "attr_diffs": {}
+   },
+   "tbl": {
+    "ref": 82,
+    "out": 82,
+    "child_diffs": {},
+    "attr_diffs": {
+     "id": 82,
+     "zOrder": 81
+    }
+   }
+  },
+  "line_children": {
+   "T6_original": [
+    [
+     "offset",
+     "orgSz",
+     "curSz",
+     "flip",
+     "rotationInfo",
+     "renderingInfo",
+     "transMatrix",
+     "scaMatrix",
+     "rotMatrix",
+     "lineShape",
+     "shadow",
+     "startPt",
+     "endPt",
+     "sz",
+     "pos",
+     "outMargin"
+    ]
+   ],
+   "T6_open_save": [
+    [
+     "offset",
+     "orgSz",
+     "curSz",
+     "flip",
+     "rotationInfo",
+     "renderingInfo",
+     "transMatrix",
+     "scaMatrix",
+     "rotMatrix",
+     "lineShape",
+     "shadow",
+     "startPt",
+     "endPt",
+     "sz",
+     "pos",
+     "outMargin"
+    ]
+   ]
+  }
+ }
+}

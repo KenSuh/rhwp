@@ -1,0 +1,48 @@
+source HEAD c3059ef6cf372bb201bf4a36e36fc9092439db9b · 2026-10-26T06:32:01Z · 각 CHECK 를 /bin/sh 로 다시 돌린 원 출력
+
+## G1 (exit 0)
+$ python3 -c 'import json;d=json.load(open(".omo/evidence/v353-rhwp-hwpx-save-l2/baseline.json"));assert d["head"]=="59c2285efe616211cd147dfa849d2f9f9df767dd";assert d["g8_failed"] is True and d["order_defects"]>0;print("BASELINE_OK",d["order_defects"])'
+BASELINE_OK 55
+
+## G2 (exit 0)
+$ cargo test --test hwpx_save_fidelity_l2 run_order 2>&1 | tail -3
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.90s
+
+## G3 (exit 0)
+$ cargo test --lib serializer::hwpx::tests::form_attribute_entities_survive_two_hwpx_saves 2>&1 | tail -3
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1001 filtered out; finished in 0.03s
+
+## G4 (exit 0)
+$ cargo test --test hwpx_save_fidelity_l2 residual 2>&1 | tail -3
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.65s
+
+## G5 (exit 0)
+$ python3 -c 'import json;d=json.load(open(".omo/evidence/v353-rhwp-hwpx-save-l2/negative-control.json"));assert d["base"]=="59c2285efe616211cd147dfa849d2f9f9df767dd";assert d["run_order_failed"]>0 and d["two_save_failed"]>0;print("NEG_OK")'
+NEG_OK
+
+## G6 (exit 0)
+$ cargo test --test hwpx_table_fidelity 2>&1 | tail -3
+test result: ok. 39 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 8.17s
+
+## G7 (exit 0)
+$ cargo test --no-fail-fast 2>&1 | grep -E "^test result:" | awk '{f+=$6} END {print "FAILED_TOTAL=" f+0}'
+FAILED_TOTAL=0
+
+## G8 (exit 0)
+$ cargo clippy -- -D warnings 2>&1 | tail -1
+Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.21s
+
+## G9 (exit 0)
+$ cargo build --lib --target wasm32-unknown-unknown --release 2>&1 | tail -1
+Finished `release` profile [optimized] target(s) in 0.11s
+
+## G10 (exit 0)
+$ git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape|field|mod)\.rs|src/parser/hwpx/header\.rs|tests/hwpx_save_fidelity_l2\.rs|tests/hwpx_roundtrip_integration\.rs|tests/fixtures/save-fidelity-l2/.*|gates/V353_RHWP_HWPX_SAVE_L2_GATES\.md|\.omo/evidence/v353-rhwp-hwpx-save-l2/.*)$' | wc -l | tr -d ' ' | sed 's/^/OUT_OF_SCOPE=/'
+OUT_OF_SCOPE=0
+
+## G11 (exit 0)
+$ ls .omo/evidence/v353-rhwp-hwpx-save-l2/hancom/*.hwpx | wc -l | tr -d ' ' | sed 's/^/HANCOM_FILES=/'
+HANCOM_FILES=6
+cargo_exit=0
+G7 independent: test_result_lines=17 passed=1246 failed=0 ignored=7
+G7 independent: test_binaries_started=17
