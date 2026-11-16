@@ -27,7 +27,7 @@ fn test_roundtrip_section_def() {
     };
 
     let para = {
-        let mut paragraph_value = Paragraph::with_text("A".to_string(), vec![8]);
+        let mut paragraph_value = Paragraph::with_text("A".to_string(), vec![8], Vec::new());
 
         paragraph_value.char_count = 3;
         // 0~7 = secd 컨트롤
@@ -72,7 +72,7 @@ fn test_roundtrip_column_def() {
     };
 
     let para = {
-        let mut paragraph_value = Paragraph::with_text("".to_string(), vec![]);
+        let mut paragraph_value = Paragraph::with_text("".to_string(), vec![], Vec::new());
 
         paragraph_value.char_count = 2;
 
@@ -118,7 +118,7 @@ fn test_roundtrip_table() {
         height: 5000,
         border_fill_id: 1,
         paragraphs: vec![{
-            let mut paragraph_value = Paragraph::with_text("test".to_string(), vec![0, 1, 2, 3]);
+            let mut paragraph_value = Paragraph::with_text("test".to_string(), vec![0, 1, 2, 3], Vec::new());
 
             paragraph_value.char_count = 5;
 
@@ -147,7 +147,7 @@ fn test_roundtrip_table() {
     };
 
     let para = {
-        let mut paragraph_value = Paragraph::with_text("".to_string(), vec![]);
+        let mut paragraph_value = Paragraph::with_text("".to_string(), vec![], Vec::new());
 
         paragraph_value.char_count = 2;
 
@@ -194,7 +194,7 @@ fn test_roundtrip_auto_number() {
     };
 
     let para = {
-        let mut paragraph_value = Paragraph::with_text("".to_string(), vec![]);
+        let mut paragraph_value = Paragraph::with_text("".to_string(), vec![], Vec::new());
 
         paragraph_value.char_count = 2;
 
@@ -230,7 +230,7 @@ fn test_roundtrip_bookmark() {
     };
 
     let para = {
-        let mut paragraph_value = Paragraph::with_text("".to_string(), vec![]);
+        let mut paragraph_value = Paragraph::with_text("".to_string(), vec![], Vec::new());
 
         paragraph_value.char_count = 2;
 
@@ -271,7 +271,7 @@ fn test_roundtrip_page_hide() {
     };
 
     let para = {
-        let mut paragraph_value = Paragraph::with_text("".to_string(), vec![]);
+        let mut paragraph_value = Paragraph::with_text("".to_string(), vec![], Vec::new());
 
         paragraph_value.char_count = 2;
 
@@ -310,7 +310,7 @@ fn test_roundtrip_footnote() {
     let fn_ = Footnote {
         number: 3,
         paragraphs: vec![{
-            let mut paragraph_value = Paragraph::with_text("각주".to_string(), vec![0, 1]);
+            let mut paragraph_value = Paragraph::with_text("각주".to_string(), vec![0, 1], Vec::new());
 
             paragraph_value.char_count = 3;
 
@@ -328,7 +328,7 @@ fn test_roundtrip_footnote() {
     };
 
     let para = {
-        let mut paragraph_value = Paragraph::with_text("".to_string(), vec![]);
+        let mut paragraph_value = Paragraph::with_text("".to_string(), vec![], Vec::new());
 
         paragraph_value.char_count = 2;
 
@@ -366,7 +366,7 @@ fn test_roundtrip_header() {
     let header = Header {
         apply_to: HeaderFooterApply::Both,
         paragraphs: vec![{
-            let mut paragraph_value = Paragraph::with_text("머리말".to_string(), vec![0, 1, 2]);
+            let mut paragraph_value = Paragraph::with_text("머리말".to_string(), vec![0, 1, 2], Vec::new());
 
             paragraph_value.char_count = 4;
 
@@ -385,7 +385,7 @@ fn test_roundtrip_header() {
     };
 
     let para = {
-        let mut paragraph_value = Paragraph::with_text("".to_string(), vec![]);
+        let mut paragraph_value = Paragraph::with_text("".to_string(), vec![], Vec::new());
 
         paragraph_value.char_count = 2;
 

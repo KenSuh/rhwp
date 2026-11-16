@@ -179,7 +179,7 @@ fn compute_control_mask(para: &Paragraph) -> u32 {
         mask |= 1u32 << char_code;
     }
     // FIELD_END (0x0004): field_ranges가 있으면 비트 4 설정
-    if !para.field_ranges.is_empty() {
+    if !para.field_ranges().is_empty() {
         mask |= 1u32 << 0x0004;
     }
     // TAB (0x0009): text에 탭이 있으면 비트 9 설정
@@ -297,7 +297,7 @@ fn serialize_para_text(para: &Paragraph) -> Vec<u8> {
     // trailing FIELD_END 중 FIELD_BEGIN이 이미 본문에 배치된 경우 (orphan)
     let mut trailing_orphan_ends: Vec<u32> = Vec::new();
 
-    for fr in &para.field_ranges {
+    for fr in &para.field_ranges() {
         let ctrl_id = if let Some(crate::model::control::Control::Field(f)) =
             para.controls.get(fr.control_idx)
         {
@@ -506,7 +506,7 @@ mod tests {
     fn test_roundtrip_simple_text() {
         let para = {
             let mut paragraph_value =
-                Paragraph::with_text("Hello".to_string(), vec![0, 1, 2, 3, 4]);
+                Paragraph::with_text("Hello".to_string(), vec![0, 1, 2, 3, 4], Vec::new());
 
             paragraph_value.char_count = 6;
 
@@ -546,6 +546,7 @@ mod tests {
             let mut paragraph_value = Paragraph::with_text(
                 "한글 테스트입니다.".to_string(),
                 vec![0, 1, 2, 3, 4, 5, 6, 7, 8],
+                Vec::new(),
             );
 
             paragraph_value.char_count = 10;
@@ -578,7 +579,7 @@ mod tests {
     #[test]
     fn test_roundtrip_with_tab() {
         let para = {
-            let mut paragraph_value = Paragraph::with_text("A\tB".to_string(), vec![0, 1, 9]);
+            let mut paragraph_value = Paragraph::with_text("A\tB".to_string(), vec![0, 1, 9], Vec::new());
 
             paragraph_value.char_count = 4;
 
@@ -611,7 +612,7 @@ mod tests {
     #[test]
     fn test_roundtrip_with_linebreak() {
         let para = {
-            let mut paragraph_value = Paragraph::with_text("A\nB".to_string(), vec![0, 1, 2]);
+            let mut paragraph_value = Paragraph::with_text("A\nB".to_string(), vec![0, 1, 2], Vec::new());
 
             paragraph_value.char_count = 4;
 
@@ -666,7 +667,7 @@ mod tests {
     #[test]
     fn test_roundtrip_multiple_paragraphs() {
         let para1 = {
-            let mut paragraph_value = Paragraph::with_text("ABC".to_string(), vec![0, 1, 2]);
+            let mut paragraph_value = Paragraph::with_text("ABC".to_string(), vec![0, 1, 2], Vec::new());
 
             paragraph_value.char_count = 4;
 
@@ -687,7 +688,7 @@ mod tests {
         };
 
         let para2 = {
-            let mut paragraph_value = Paragraph::with_text("DEF".to_string(), vec![0, 1, 2]);
+            let mut paragraph_value = Paragraph::with_text("DEF".to_string(), vec![0, 1, 2], Vec::new());
 
             paragraph_value.char_count = 4;
 
@@ -726,7 +727,7 @@ mod tests {
     #[test]
     fn test_roundtrip_char_shapes() {
         let para = {
-            let mut paragraph_value = Paragraph::with_text("ABCD".to_string(), vec![0, 1, 2, 3]);
+            let mut paragraph_value = Paragraph::with_text("ABCD".to_string(), vec![0, 1, 2, 3], Vec::new());
 
             paragraph_value.char_count = 5;
 
@@ -768,7 +769,7 @@ mod tests {
     #[test]
     fn test_roundtrip_line_segs() {
         let para = {
-            let mut paragraph_value = Paragraph::with_text("AB".to_string(), vec![0, 1]);
+            let mut paragraph_value = Paragraph::with_text("AB".to_string(), vec![0, 1], Vec::new());
 
             paragraph_value.char_count = 3;
 
@@ -813,7 +814,7 @@ mod tests {
     fn test_roundtrip_range_tags() {
         let para = {
             let mut paragraph_value =
-                Paragraph::with_text("ABCDEFGHIJKLMNOPQRS".to_string(), (0..19).collect());
+                Paragraph::with_text("ABCDEFGHIJKLMNOPQRS".to_string(), (0..19).collect(), Vec::new());
 
             paragraph_value.char_count = 20;
 
@@ -874,7 +875,7 @@ mod tests {
         };
 
         let para = {
-            let mut paragraph_value = Paragraph::with_text("AB".to_string(), vec![0, 9]);
+            let mut paragraph_value = Paragraph::with_text("AB".to_string(), vec![0, 9], Vec::new());
 
             paragraph_value.char_count = 4;
             // 0~7 = secd 컨트롤, 8~8 gap? 아니, 0=A, 1~8=secd, 9=B
@@ -910,7 +911,7 @@ mod tests {
     #[test]
     fn test_roundtrip_break_type() {
         let para = {
-            let mut paragraph_value = Paragraph::with_text("A".to_string(), vec![0]);
+            let mut paragraph_value = Paragraph::with_text("A".to_string(), vec![0], Vec::new());
 
             paragraph_value.char_count = 2;
 

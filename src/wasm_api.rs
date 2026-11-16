@@ -350,6 +350,31 @@ impl HwpDocument {
         .map_err(|e| e.into())
     }
 
+    #[wasm_bindgen(js_name = beginTextEdit)]
+    pub fn begin_text_edit(
+        &mut self,
+        section: u32,
+        paragraph: u32,
+        structural: bool,
+    ) -> Result<u32, JsValue> {
+        self.begin_text_edit_native(
+            usize::try_from(section).map_err(|e| HwpError::RenderError(e.to_string()))?,
+            usize::try_from(paragraph).map_err(|e| HwpError::RenderError(e.to_string()))?,
+            structural,
+        )
+        .map_err(Into::into)
+    }
+
+    #[wasm_bindgen(js_name = undoEdit)]
+    pub fn undo_edit(&mut self, token: u32) -> Result<u32, JsValue> {
+        self.undo_edit_native(token).map_err(Into::into)
+    }
+
+    #[wasm_bindgen(js_name = discardEdit)]
+    pub fn discard_edit(&mut self, token: u32) {
+        self.discard_edit_native(token);
+    }
+
     /// 논리적 오프셋으로 텍스트를 삽입한다.
     ///
     /// logical_offset: 텍스트 문자 + 인라인 컨트롤을 각각 1로 세는 위치.

@@ -1,7 +1,7 @@
 //! 텍스트 삽입/삭제/문단 분리·병합/범위 삭제/문단 쿼리 관련 native 메서드
 
 use super::super::helpers::get_textbox_from_shape;
-use crate::document_core::DocumentCore;
+use crate::document_core::{DocumentCore, TextEditState};
 use crate::error::HwpError;
 use crate::model::control::Control;
 use crate::model::event::DocumentEvent;
@@ -14,6 +14,109 @@ use crate::renderer::page_layout::PageLayoutInfo;
 use crate::renderer::px_to_hwpunit;
 
 impl DocumentCore {
+    /// Additive undo API: capture the owner before edits, including cell subtrees.
+    /// Structural commands capture the section's paragraph list instead.
+    pub fn begin_text_edit_native(
+        &mut self,
+        section: usize,
+        paragraph: usize,
+        structural: bool,
+    ) -> Result<u32, HwpError> {
+        let state = self.text_edit_state(section, paragraph, structural)?;
+        self.store_text_edit(state)
+    }
+
+    fn text_edit_state(
+        &self,
+        section: usize,
+        paragraph: usize,
+        structural: bool,
+    ) -> Result<TextEditState, HwpError> {
+        let paragraphs = &self
+            .document
+            .sections
+            .get(section)
+            .ok_or_else(|| HwpError::RenderError("undo section out of range".into()))?
+            .paragraphs;
+        let para = paragraphs
+            .get(paragraph)
+            .ok_or_else(|| HwpError::RenderError("undo paragraph out of range".into()))?;
+        Ok(if structural {
+            TextEditState::ParagraphList {
+                section,
+                before: paragraphs.clone(),
+            }
+        } else {
+            TextEditState::Paragraph {
+                section,
+                paragraph,
+                inverse: para.edit_checkpoint(),
+            }
+        })
+    }
+
+    fn store_text_edit(&mut self, state: TextEditState) -> Result<u32, HwpError> {
+        // The editor owns 1000 commands; reserve 24 slots for pending edits.
+        // Fail before editing if a consumer retains more, never evict live undo.
+        if self.text_edit_store.len() >= 1024 {
+            return Err(HwpError::RenderError("text edit token limit (1024)".into()));
+        }
+        let id = self.next_text_edit_id;
+        self.next_text_edit_id = id
+            .checked_add(1)
+            .ok_or_else(|| HwpError::RenderError("text edit token id exhausted".into()))?;
+        self.text_edit_store.push((id, state));
+        Ok(id)
+    }
+
+    /// Consumes the token and returns a reciprocal token for redo/undo.
+    pub fn undo_edit_native(&mut self, token: u32) -> Result<u32, HwpError> {
+        self.next_text_edit_id
+            .checked_add(1)
+            .ok_or_else(|| HwpError::RenderError("text edit token id exhausted".into()))?;
+        let index = self
+            .text_edit_store
+            .iter()
+            .position(|(id, _)| *id == token)
+            .ok_or_else(|| HwpError::RenderError("text edit token missing".into()))?;
+        let (section, paragraph, structural) = match &self.text_edit_store[index].1 {
+            TextEditState::Paragraph {
+                section, paragraph, ..
+            } => (*section, *paragraph, false),
+            TextEditState::ParagraphList { section, .. } => (*section, 0, true),
+        };
+        let reciprocal = self.text_edit_state(section, paragraph, structural)?;
+        let (_, state) = self.text_edit_store.remove(index);
+        match state {
+            TextEditState::Paragraph {
+                section,
+                paragraph,
+                inverse,
+            } => {
+                self.document.sections[section].paragraphs[paragraph].undo_edit(inverse);
+            }
+            TextEditState::ParagraphList { section, before } => {
+                self.document.sections[section].paragraphs = before;
+            }
+        }
+        self.document.sections[section].raw_stream = None;
+        self.composed[section] =
+            crate::renderer::composer::compose_section(&self.document.sections[section]);
+        self.mark_section_dirty(section);
+        self.measured_tables.clear();
+        self.measured_sections.clear();
+        self.dirty_paragraphs.clear();
+        self.para_column_map.clear();
+        self.page_tree_cache.borrow_mut().clear();
+        self.overflow_links_cache.borrow_mut().clear();
+        self.paginate();
+        self.store_text_edit(reciprocal)
+    }
+
+    pub fn discard_edit_native(&mut self, token: u32) {
+        self.text_edit_store.retain(|(id, _)| *id != token);
+    }
+
     pub fn insert_text_native(
         &mut self,
         section_idx: usize,
@@ -343,7 +446,7 @@ impl DocumentCore {
             cell_idx,
             cell_para_idx,
         )?;
-        if cell_para.delete_text_at(char_offset, count) == 0 {
+        if cell_para.delete_text_at(char_offset, count).deleted_chars == 0 {
             return Ok(super::super::helpers::json_ok_with(&format!(
                 "\"charOffset\":{}",
                 char_offset
@@ -1257,7 +1360,7 @@ impl DocumentCore {
                 let count = end_offset - start_offset;
                 let cell_para =
                     self.get_cell_paragraph_mut(section_idx, ppi, ci, cei, start_para)?;
-                if cell_para.delete_text_at(start_offset, count) == 0 {
+                if cell_para.delete_text_at(start_offset, count).deleted_chars == 0 {
                     return Ok(super::super::helpers::json_ok_with(&format!(
                         "\"paraIdx\":{},\"charOffset\":{}",
                         start_para, start_offset
@@ -1513,8 +1616,9 @@ impl DocumentCore {
         self.document.sections[section_idx].raw_stream = None;
 
         // 문단 분리
-        let new_para =
-            self.document.sections[section_idx].paragraphs[para_idx].split_at(char_offset);
+        let new_para = self.document.sections[section_idx].paragraphs[para_idx]
+            .split_at(char_offset)
+            .paragraph;
 
         // 새 문단을 현재 문단 뒤에 삽입
         let new_para_idx = para_idx + 1;
@@ -1597,8 +1701,9 @@ impl DocumentCore {
         self.document.sections[section_idx].raw_stream = None;
 
         // 문단 분리
-        let new_para =
-            self.document.sections[section_idx].paragraphs[para_idx].split_at(char_offset);
+        let new_para = self.document.sections[section_idx].paragraphs[para_idx]
+            .split_at(char_offset)
+            .paragraph;
         let new_para_idx = para_idx + 1;
         self.document.sections[section_idx]
             .paragraphs
@@ -1662,8 +1767,9 @@ impl DocumentCore {
         self.document.sections[section_idx].raw_stream = None;
 
         // 문단 분리
-        let new_para =
-            self.document.sections[section_idx].paragraphs[para_idx].split_at(char_offset);
+        let new_para = self.document.sections[section_idx].paragraphs[para_idx]
+            .split_at(char_offset)
+            .paragraph;
         let new_para_idx = para_idx + 1;
         self.document.sections[section_idx]
             .paragraphs
@@ -1810,8 +1916,9 @@ impl DocumentCore {
             .paragraphs
             .remove(para_idx);
         let prev_idx = para_idx - 1;
-        let merge_point =
-            self.document.sections[section_idx].paragraphs[prev_idx].merge_from(&current_para);
+        let merge_point = self.document.sections[section_idx].paragraphs[prev_idx]
+            .merge_from(&current_para)
+            .offset;
 
         // 병합된 문단 리플로우 → vpos 재계산 → 재구성 → 재페이지네이션 + 다단 수렴 루프
         let old_col = self
@@ -1876,7 +1983,7 @@ impl DocumentCore {
             cell_idx,
             cell_para_idx,
         )?;
-        let new_para = cell_para.split_at(char_offset);
+        let new_para = cell_para.split_at(char_offset).paragraph;
 
         // 새 문단을 셀/글상자에 삽입
         let new_cell_para_idx = cell_para_idx + 1;
@@ -1974,13 +2081,15 @@ impl DocumentCore {
         {
             Some(Control::Table(table)) => {
                 let removed = table.cells[cell_idx].paragraphs.remove(cell_para_idx);
-                merge_point = table.cells[cell_idx].paragraphs[prev_idx].merge_from(&removed);
+                merge_point = table.cells[cell_idx].paragraphs[prev_idx]
+                    .merge_from(&removed)
+                    .offset;
                 table.dirty = true;
             }
             Some(Control::Shape(shape)) => {
                 if let Some(tb) = super::super::helpers::get_textbox_from_shape_mut(shape) {
                     let removed = tb.paragraphs.remove(cell_para_idx);
-                    merge_point = tb.paragraphs[prev_idx].merge_from(&removed);
+                    merge_point = tb.paragraphs[prev_idx].merge_from(&removed).offset;
                 } else {
                     return Err(HwpError::RenderError(
                         "지정된 Shape 컨트롤에 텍스트 박스가 없습니다".to_string(),
@@ -1990,7 +2099,7 @@ impl DocumentCore {
             Some(Control::Picture(pic)) => {
                 if let Some(ref mut cap) = pic.caption {
                     let removed = cap.paragraphs.remove(cell_para_idx);
-                    merge_point = cap.paragraphs[prev_idx].merge_from(&removed);
+                    merge_point = cap.paragraphs[prev_idx].merge_from(&removed).offset;
                 } else {
                     return Err(HwpError::RenderError(
                         "지정된 그림 컨트롤에 캡션이 없습니다".to_string(),
@@ -2705,7 +2814,8 @@ mod tests {
         raw.margin_left = 0;
         raw.margin_right = 0;
         raw.alignment = crate::model::style::Alignment::Center;
-        core.styles = crate::renderer::style_resolver::resolve_styles(&core.document.doc_info, core.dpi);
+        core.styles =
+            crate::renderer::style_resolver::resolve_styles(&core.document.doc_info, core.dpi);
         let mut paragraph = Paragraph::new_empty();
         paragraph.insert_text_at(0, &"contact www.hometax.go.kr 문의 안내 ".repeat(4));
         paragraph.char_shapes = vec![crate::model::paragraph::CharShapeRef::default()];
@@ -2731,7 +2841,13 @@ mod tests {
         if nested {
             let mut outer = Cell::new_empty(0, 0, 16000, 50000, 1);
             outer.paragraphs[0].controls = vec![Control::Table(Box::new(table))];
-            table = Table { row_count: 1, col_count: 1, border_fill_id: 1, cells: vec![outer], ..Default::default() };
+            table = Table {
+                row_count: 1,
+                col_count: 1,
+                border_fill_id: 1,
+                cells: vec![outer],
+                ..Default::default()
+            };
             table.update_ctrl_dimensions();
             path.push((0, 0, 0));
         }
@@ -2779,12 +2895,19 @@ mod tests {
         let (mut core, _) = c20_cell_core(0, false);
         core.document.doc_info.char_shapes[0].base_size = 1000;
         core.document.doc_info.char_shapes[0].spacings = [-19; 7];
-        core.styles = crate::renderer::style_resolver::resolve_styles(&core.document.doc_info, core.dpi);
+        core.styles =
+            crate::renderer::style_resolver::resolve_styles(&core.document.doc_info, core.dpi);
         let css = core.char_style_to_css(0);
         eprintln!("C20 actual clipboard CSS: {css}");
-        assert!(css.contains("letter-spacing:-2.5px;"), "the existing HWP clipboard CSS projection must survive");
+        assert!(
+            css.contains("letter-spacing:-2.5px;"),
+            "the existing HWP clipboard CSS projection must survive"
+        );
         let measured = crate::renderer::layout::resolved_to_text_style(&core.styles, 0, 1);
-        assert_eq!(measured.letter_spacing, 0.0, "legacy CSS projection must not be counted again in glyph advances");
+        assert_eq!(
+            measured.letter_spacing, 0.0,
+            "legacy CSS projection must not be counted again in glyph advances"
+        );
         assert_eq!(measured.hwp_letter_spacing_ratio, -0.19);
     }
 
@@ -2808,8 +2931,12 @@ mod tests {
             .insert_text_in_cell_by_path(0, 0, &path, end, "편😀")
             .unwrap();
         c20_assert_cell_wrap(&horizontal, &reference, 0, &path, "nested Unicode edit");
-        horizontal.apply_para_format_in_cell_by_path_native(0, 0, &path, "{\"lineSpacing\":180}").unwrap();
-        reference.apply_para_format_in_cell_by_path_native(0, 0, &path, "{\"lineSpacing\":180}").unwrap();
+        horizontal
+            .apply_para_format_in_cell_by_path_native(0, 0, &path, "{\"lineSpacing\":180}")
+            .unwrap();
+        reference
+            .apply_para_format_in_cell_by_path_native(0, 0, &path, "{\"lineSpacing\":180}")
+            .unwrap();
         c20_assert_cell_wrap(&horizontal, &reference, 0, &path, "nested paragraph format");
     }
 
@@ -2828,19 +2955,32 @@ mod tests {
         );
         assert!(core.reflow_cell_paragraph_by_path(0, 0, &path));
         let actual = core.get_cell_paragraph_ref_by_path(0, 0, &path).unwrap();
-        assert_eq!(format!("{:?}", actual.line_segs), format!("{:?}", expected.line_segs));
+        assert_eq!(
+            format!("{:?}", actual.line_segs),
+            format!("{:?}", expected.line_segs)
+        );
     }
 
     #[test]
     fn c20_document_load_synthesizes_uncomputed_horizontal_cell_geometry() {
         let (mut subject, path) = c20_cell_core(0, true);
         let (mut reference, _) = c20_cell_core(0, true);
-        reference.apply_para_format_in_cell_by_path_native(0, 0, &path, "{\"indent\":0}").unwrap();
-        subject.get_cell_paragraph_mut_by_path(0, 0, &path).unwrap().line_segs = vec![Default::default()];
-        reference.get_cell_paragraph_mut_by_path(0, 0, &path).unwrap().line_segs = vec![Default::default()];
+        reference
+            .apply_para_format_in_cell_by_path_native(0, 0, &path, "{\"indent\":0}")
+            .unwrap();
+        subject
+            .get_cell_paragraph_mut_by_path(0, 0, &path)
+            .unwrap()
+            .line_segs = vec![Default::default()];
+        reference
+            .get_cell_paragraph_mut_by_path(0, 0, &path)
+            .unwrap()
+            .line_segs = vec![Default::default()];
         let mut loaded = Vec::new();
         for (name, mut core) in [("subject", subject), ("reference", reference)] {
-            core.document.sections[0].paragraphs.insert(0, Paragraph::new_empty());
+            core.document.sections[0]
+                .paragraphs
+                .insert(0, Paragraph::new_empty());
             let input = crate::serializer::serialize_hwpx(&core.document).unwrap();
             if let Some(dir) = std::env::var_os("RHWP_C20_ARTIFACT_DIR") {
                 std::fs::write(
@@ -2851,13 +2991,21 @@ mod tests {
             }
             let parsed = crate::parser::hwpx::parse_hwpx(&input).unwrap();
             assert_eq!(parsed.sections[0].paragraphs.len(), 2);
-            assert!(matches!(parsed.sections[0].paragraphs[0].controls[0], Control::ColumnDef(_)));
+            assert!(matches!(
+                parsed.sections[0].paragraphs[0].controls[0],
+                Control::ColumnDef(_)
+            ));
             let mut paragraph = &parsed.sections[0].paragraphs[1];
             for &(control, cell, para) in &path {
-                let Control::Table(table) = &paragraph.controls[control] else { panic!("the exact nested owner must remain a table") };
+                let Control::Table(table) = &paragraph.controls[control] else {
+                    panic!("the exact nested owner must remain a table")
+                };
                 paragraph = &table.cells[cell].paragraphs[para];
             }
-            assert!(paragraph.line_segs.iter().all(|line| line.line_height == 0), "serialized owner must actually lack computed geometry");
+            assert!(
+                paragraph.line_segs.iter().all(|line| line.line_height == 0),
+                "serialized owner must actually lack computed geometry"
+            );
             loaded.push(DocumentCore::from_bytes(&input).unwrap());
         }
         let subject = &loaded[0];
@@ -2871,7 +3019,10 @@ mod tests {
         );
         let paragraph = subject.get_cell_paragraph_ref_by_path(0, 1, &path).unwrap();
         assert!(paragraph.line_segs.iter().all(|line| line.line_height > 0));
-        assert_eq!(subject.document.doc_info.para_shapes[paragraph.para_shape_id as usize].indent, -41000);
+        assert_eq!(
+            subject.document.doc_info.para_shapes[paragraph.para_shape_id as usize].indent,
+            -41000
+        );
     }
 
     #[test]
@@ -2888,11 +3039,13 @@ mod tests {
             .chars()
             .count();
         for core in [&mut subject, &mut reference] {
-            core.apply_char_format_in_cell_native(0, 0, 0, 0, 0, 0, end, "{\"fontSize\":1200}").unwrap();
+            core.apply_char_format_in_cell_native(0, 0, 0, 0, 0, 0, end, "{\"fontSize\":1200}")
+                .unwrap();
         }
         c20_assert_cell_wrap(&subject, &reference, 0, &path, "character format");
         for core in [&mut subject, &mut reference] {
-            core.apply_para_format_in_cell_native(0, 0, 0, 0, 0, "{\"lineSpacing\":180}").unwrap();
+            core.apply_para_format_in_cell_native(0, 0, 0, 0, 0, "{\"lineSpacing\":180}")
+                .unwrap();
         }
         c20_assert_cell_wrap(&subject, &reference, 0, &path, "paragraph format");
         for core in [&mut subject, &mut reference] {
@@ -2931,8 +3084,14 @@ mod tests {
         );
         let paragraph = subject.get_cell_paragraph_ref_by_path(0, 0, &path).unwrap();
         assert!(paragraph.controls.is_empty());
-        assert!(paragraph.line_segs.iter().all(|line| line.segment_width == 10750));
-        assert_eq!(subject.document.doc_info.para_shapes[paragraph.para_shape_id as usize].indent, -41000);
+        assert!(paragraph
+            .line_segs
+            .iter()
+            .all(|line| line.segment_width == 10750));
+        assert_eq!(
+            subject.document.doc_info.para_shapes[paragraph.para_shape_id as usize].indent,
+            -41000
+        );
     }
 
     #[test]
@@ -3512,7 +3671,7 @@ impl DocumentCore {
         count: usize,
     ) -> Result<String, HwpError> {
         let cell_para = self.get_cell_paragraph_mut_by_path(section_idx, parent_para_idx, path)?;
-        if cell_para.delete_text_at(char_offset, count) == 0 {
+        if cell_para.delete_text_at(char_offset, count).deleted_chars == 0 {
             return Ok(super::super::helpers::json_ok_with(&format!(
                 "\"charOffset\":{}",
                 char_offset
@@ -3576,7 +3735,9 @@ impl DocumentCore {
                 if cell_para_idx >= cell.paragraphs.len() {
                     return Err(HwpError::RenderError("셀문단 범위 초과".to_string()));
                 }
-                let new_para = cell.paragraphs[cell_para_idx].split_at(char_offset);
+                let new_para = cell.paragraphs[cell_para_idx]
+                    .split_at(char_offset)
+                    .paragraph;
                 cell.paragraphs.insert(cell_para_idx + 1, new_para);
                 break;
             }

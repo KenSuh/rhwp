@@ -422,16 +422,13 @@ pub(super) fn field_marks_for_list(
     }
     let mut fields = std::collections::HashMap::new();
     for para in paragraphs {
-        for (ci, control) in para.controls.iter().enumerate() {
+        for control in &para.controls {
             let Control::Field(field) = control else {
                 continue;
             };
             let Some(h) = &field.hwpx else {
                 continue;
             };
-            if para.field_ranges.iter().any(|r| r.control_idx == ci) {
-                continue;
-            }
             let id = h
                 .begin_attributes
                 .iter()
@@ -446,15 +443,15 @@ pub(super) fn field_marks_for_list(
     let mut marks = vec![Vec::new(); paragraphs.len()];
     let mut endpoints = std::collections::HashMap::new();
     for (pi, para) in paragraphs.iter().enumerate() {
-        for marker in &para.hwpx_field_markers {
-            let field = fields
-                .get(marker.id.as_str())
-                .copied()
-                .ok_or_else(invalid)?;
+        for marker in para.field_markers() {
+            let crate::model::paragraph::FieldId::Hwpx(id) = &marker.id else {
+                continue;
+            };
+            let field = fields.get(id.as_str()).copied().ok_or_else(invalid)?;
             if marker.char_idx > para.text().chars().count() {
                 return Err(invalid());
             }
-            let pair = endpoints.entry(marker.id.as_str()).or_insert((None, None));
+            let pair = endpoints.entry(id.as_str()).or_insert((None, None));
             let slot = match marker.endpoint {
                 FieldEndpoint::Begin => &mut pair.0,
                 FieldEndpoint::End => &mut pair.1,
@@ -538,15 +535,10 @@ fn inline_control_positions(para: &Paragraph) -> Option<Vec<(usize, usize)>> {
     for (idx, (&ch, &offset)) in chars.iter().zip(para.char_offsets()).enumerate() {
         let slots = (offset.saturating_sub(previous_end) / 8) as usize;
         let field_marks = para
-            .field_ranges
+            .field_markers()
             .iter()
-            .map(|r| usize::from(r.start_char_idx == idx) + usize::from(r.end_char_idx == idx))
-            .sum::<usize>()
-            + para
-                .hwpx_field_markers
-                .iter()
-                .filter(|m| m.char_idx == idx)
-                .count();
+            .filter(|m| m.char_idx == idx)
+            .count();
         for ci in pending.by_ref().take(slots.saturating_sub(field_marks)) {
             placed.push((idx, ci));
         }
@@ -569,7 +561,7 @@ where
     F: FnMut(&mut Writer<W>, &Control) -> Result<(), SerializeError>,
 {
     let chars: Vec<char> = para.text().chars().collect();
-    for range in &para.field_ranges {
+    for range in &para.field_ranges() {
         if range.start_char_idx > range.end_char_idx
             || range.end_char_idx > chars.len()
             || !matches!(
@@ -582,33 +574,20 @@ where
     }
     for (ci, ctrl) in para.controls.iter().enumerate() {
         if let Control::Field(field) = ctrl {
-            if field.hwpx.is_none() && !para.field_ranges.iter().any(|r| r.control_idx == ci) {
+            if field.hwpx.is_none() && !para.field_ranges().iter().any(|r| r.control_idx == ci) {
                 return Err(SerializeError::XmlError("위치 없는 field 컨트롤".into()));
             }
         }
     }
-    let mut events = Vec::with_capacity(para.field_ranges.len() * 2);
+    let mut events = Vec::with_capacity(para.field_ranges().len() * 2);
     let mut binary_ranges = Vec::new();
+    let ranges = para.field_ranges();
     let mut hwpx_end_orders = Vec::new();
-    for range in &para.field_ranges {
+    for range in &ranges {
         let Some(Control::Field(field)) = para.controls.get(range.control_idx) else {
             return Err(SerializeError::XmlError("field 컨트롤 누락".into()));
         };
-        if let Some(h) = &field.hwpx {
-            events.push((
-                range.start_char_idx,
-                h.begin_order,
-                range.control_idx,
-                Some(true),
-            ));
-            events.push((
-                range.end_char_idx,
-                h.end_order,
-                range.control_idx,
-                Some(false),
-            ));
-            hwpx_end_orders.push(h.end_order);
-        } else {
+        if field.hwpx.is_none() {
             binary_ranges.push(range);
         }
     }
@@ -715,7 +694,7 @@ where
         current_shape = Some(shape_id);
         current_text.push(ch);
     }
-    if !current_text.is_empty() || (chars.is_empty() && para.field_ranges.is_empty()) {
+    if !current_text.is_empty() || (chars.is_empty() && para.field_markers().is_empty()) {
         write_cell_text_run(
             w,
             current_shape.unwrap_or_else(|| first_char_shape_id(&para.char_shapes)),

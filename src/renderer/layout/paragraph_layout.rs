@@ -2368,7 +2368,7 @@ impl LayoutEngine {
                 }
                 let mut markers: Vec<MarkerInsert> = Vec::new();
 
-                for fr in &p.field_ranges {
+                for fr in &p.field_ranges() {
                     if let Some(Control::Field(field)) = p.controls.get(fr.control_idx) {
                         if field.field_type != crate::model::control::FieldType::ClickHere {
                             continue;

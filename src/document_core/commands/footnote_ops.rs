@@ -241,7 +241,7 @@ impl DocumentCore {
                             fn_para_idx
                         )));
                     }
-                    f.paragraphs[fn_para_idx].split_at(char_offset)
+                    f.paragraphs[fn_para_idx].split_at(char_offset).paragraph
                 }
                 _ => {
                     return Err(HwpError::RenderError(

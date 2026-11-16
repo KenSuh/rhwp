@@ -243,6 +243,21 @@ export class WasmBridge {
     return this.doc.insertText(sec, para, charOffset, text);
   }
 
+  beginTextEdit(sec: number, para: number, structural = false): number {
+    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');
+    return this.doc.beginTextEdit(sec, para, structural);
+  }
+
+  undoEdit(token: number): number {
+    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');
+    return this.doc.undoEdit(token);
+  }
+
+  discardEdit(token: number): void {
+    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');
+    this.doc.discardEdit(token);
+  }
+
   deleteText(sec: number, para: number, charOffset: number, count: number): string {
     if (!this.doc) throw new Error('문서가 로드되지 않았습니다');
     return this.doc.deleteText(sec, para, charOffset, count);

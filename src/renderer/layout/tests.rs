@@ -79,7 +79,7 @@ fn c20_cell_reflow_recovers_only_impossible_unoccupied_hanging_width() {
         let mut subject = paragraph.clone();
         let mut excluded_styles = c20_indent_paragraph(-200.0, Alignment::Center).1;
         match excluded {
-            "tab" => subject.insert_text_at(0, "\t"),
+            "tab" => { subject.insert_text_at(0, "\t"); }
             "number" => {
                 excluded_styles.para_styles[0].head_type = crate::model::style::HeadType::Number
             }
@@ -250,7 +250,7 @@ fn test_build_page_with_paragraph() {
     let layout = PageLayoutInfo::from_page_def_default(&a4_page_def(), &ColumnDef::default());
 
     let paragraphs = vec![{
-        let mut paragraph_value = Paragraph::with_text("안녕하세요".to_string(), Vec::new());
+        let mut paragraph_value = Paragraph::with_text("안녕하세요".to_string(), Vec::new(), Vec::new());
 
         paragraph_value.line_segs = vec![LineSeg {
             line_height: 400,
@@ -322,7 +322,7 @@ fn test_layout_with_composed_styles() {
 
     let paragraphs = vec![{
         let mut paragraph_value =
-            Paragraph::with_text("AAABBB".to_string(), vec![0, 1, 2, 3, 4, 5]);
+            Paragraph::with_text("AAABBB".to_string(), vec![0, 1, 2, 3, 4, 5], Vec::new());
 
         paragraph_value.char_count = 7;
 
@@ -452,7 +452,7 @@ fn test_layout_multi_run_x_position() {
     let layout = PageLayoutInfo::from_page_def_default(&a4_page_def(), &ColumnDef::default());
 
     let paragraphs = vec![{
-        let mut paragraph_value = Paragraph::with_text("AB가나".to_string(), vec![0, 1, 2, 3]);
+        let mut paragraph_value = Paragraph::with_text("AB가나".to_string(), vec![0, 1, 2, 3], Vec::new());
 
         paragraph_value.char_count = 5;
 
@@ -790,7 +790,7 @@ fn test_layout_table_basic() {
                 width: 3000,
                 height: 1200,
                 border_fill_id: 1,
-                paragraphs: vec![Paragraph::with_text("A".to_string(), Vec::new())],
+                paragraphs: vec![Paragraph::with_text("A".to_string(), Vec::new(), Vec::new())],
                 ..Default::default()
             },
             Cell {
@@ -801,7 +801,7 @@ fn test_layout_table_basic() {
                 width: 3000,
                 height: 1200,
                 border_fill_id: 1,
-                paragraphs: vec![Paragraph::with_text("B".to_string(), Vec::new())],
+                paragraphs: vec![Paragraph::with_text("B".to_string(), Vec::new(), Vec::new())],
                 ..Default::default()
             },
             Cell {
@@ -812,7 +812,7 @@ fn test_layout_table_basic() {
                 width: 3000,
                 height: 1200,
                 border_fill_id: 1,
-                paragraphs: vec![Paragraph::with_text("C".to_string(), Vec::new())],
+                paragraphs: vec![Paragraph::with_text("C".to_string(), Vec::new(), Vec::new())],
                 ..Default::default()
             },
             Cell {
@@ -823,7 +823,7 @@ fn test_layout_table_basic() {
                 width: 3000,
                 height: 1200,
                 border_fill_id: 1,
-                paragraphs: vec![Paragraph::with_text("D".to_string(), Vec::new())],
+                paragraphs: vec![Paragraph::with_text("D".to_string(), Vec::new(), Vec::new())],
                 ..Default::default()
             },
         ],
@@ -831,7 +831,7 @@ fn test_layout_table_basic() {
     };
 
     let paragraphs = vec![{
-        let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new());
+        let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new(), Vec::new());
 
         paragraph_value.controls = vec![Control::Table(Box::new(table))];
 
@@ -967,7 +967,7 @@ fn c15_inline_tree(
     };
     let paragraphs = vec![{
         let mut paragraph_value =
-            Paragraph::with_text(text.into(), (8..8 + text.chars().count() as u32).collect());
+            Paragraph::with_text(text.into(), (8..8 + text.chars().count() as u32).collect(), Vec::new());
 
         paragraph_value.char_shapes = vec![CharShapeRef {
             start_pos: 0,
@@ -1120,7 +1120,7 @@ fn c13_table(offset: u32) -> crate::model::table::Table {
                 height: if row == 0 { 13400 } else { 13401 },
                 paragraphs: vec![{
                     let mut paragraph_value =
-                        Paragraph::with_text(format!("C13 row {row}"), Vec::new());
+                        Paragraph::with_text(format!("C13 row {row}"), Vec::new(), Vec::new());
 
                     paragraph_value.line_segs = vec![LineSeg {
                         line_height: 1000,
@@ -1158,7 +1158,7 @@ fn c13_tree(name: &str, table: crate::model::table::Table) -> PageRenderTree {
         },
         {
             let mut paragraph_value =
-                Paragraph::with_text("C13 following instructions".into(), Vec::new());
+                Paragraph::with_text("C13 following instructions".into(), Vec::new(), Vec::new());
 
             paragraph_value.line_segs = vec![LineSeg {
                 line_height: 1000,
@@ -1271,7 +1271,7 @@ fn c13_inline_top_and_bottom_captions_stay_in_reserved_flow() {
                 spacing: 300,
                 paragraphs: vec![{
                     let mut paragraph_value =
-                        Paragraph::with_text("C13 caption".into(), Vec::new());
+                        Paragraph::with_text("C13 caption".into(), Vec::new(), Vec::new());
 
                     paragraph_value.line_segs = vec![LineSeg {
                         line_height: 1000,
@@ -1370,7 +1370,7 @@ fn test_layout_table_cell_positions() {
     };
 
     let paragraphs = vec![{
-        let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new());
+        let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new(), Vec::new());
 
         paragraph_value.controls = vec![Control::Table(Box::new(table))];
 

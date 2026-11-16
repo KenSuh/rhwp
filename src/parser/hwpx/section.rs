@@ -17,7 +17,9 @@ use crate::model::footnote::{Endnote, Footnote};
 use crate::model::header_footer::{Footer, Header, HeaderFooterApply};
 use crate::model::image::{CropInfo, HwpxImageReference, ImageAttr, ImageEffect};
 use crate::model::page::{BindingMethod, ColumnDef, ColumnDirection, ColumnType, PageDef};
-use crate::model::paragraph::{CharShapeRef, FieldEndpoint, HwpxFieldMarker, LineSeg, Paragraph};
+use crate::model::paragraph::{
+    CharShapeRef, FieldEndpoint, FieldId, HwpxFieldMarker, LineSeg, Paragraph,
+};
 use crate::model::shape::{
     ArcShape, CommonObjAttr, CurveShape, DrawingObjAttr, EllipseShape, GroupShape, HorzAlign,
     HorzRelTo, LineShape, PolygonShape, RectangleShape, ShapeComponentAttr, ShapeObject, TextBox,
@@ -93,7 +95,7 @@ fn validate_field_lists(
                                 "fieldEnd가 없는 HWPX fieldBegin".into(),
                             ));
                         }
-                        if !para.field_ranges.iter().any(|r| r.control_idx == ci) {
+                        if !para.field_ranges().iter().any(|r| r.control_idx == ci) {
                             return Err(HwpxError::XmlError("HWPX_FIELD_LIST_UNSUPPORTED: 문단을 건너는 필드를 저장하지 않는 목록".into()));
                         }
                     }
@@ -272,6 +274,7 @@ fn parse_paragraph(
     reader: &mut Reader<&[u8]>,
 ) -> Result<(Paragraph, Option<SectionDef>, Vec<PendingFieldEnd>), HwpxError> {
     let mut para = Paragraph::default();
+    let mut parsed_ranges = Vec::new();
     let mut sec_def: Option<SectionDef> = None;
     let mut pending_field_ends: Vec<PendingFieldEnd> = Vec::new();
 
@@ -370,7 +373,7 @@ fn parse_paragraph(
                             reader,
                             &mut para.controls,
                             &mut text_parts,
-                            &mut para.field_ranges,
+                            &mut parsed_ranges,
                             &mut pending_field_ends,
                             current_char_shape_id,
                         )?;
@@ -495,8 +498,37 @@ fn parse_paragraph(
             }
         }
     }
-    para.replace_text(parsed_text);
-    para.set_char_offsets(parsed_offsets);
+    let mut markers = Vec::new();
+    for range in parsed_ranges {
+        if let Some(Control::Field(field)) = para.controls.get(range.control_idx) {
+            if let Some(h) = &field.hwpx {
+                let id = FieldId::Hwpx(hwpx_begin_id(h).unwrap_or_default().to_string());
+                markers.push(HwpxFieldMarker {
+                    id: id.clone(),
+                    char_idx: range.start_char_idx,
+                    endpoint: FieldEndpoint::Begin,
+                    order: range.begin_order,
+                });
+                if h.end_attributes.is_some() {
+                    markers.push(HwpxFieldMarker {
+                        id,
+                        char_idx: range.end_char_idx,
+                        endpoint: FieldEndpoint::End,
+                        order: range.end_order,
+                    });
+                }
+            }
+        }
+    }
+    for end in &pending_field_ends {
+        markers.push(HwpxFieldMarker {
+            id: FieldId::Hwpx(end.id.clone().unwrap_or_default()),
+            char_idx: end.char_idx,
+            endpoint: FieldEndpoint::End,
+            order: end.order,
+        });
+    }
+    para = para.with_parsed_text(parsed_text, parsed_offsets, markers);
     para.char_count = utf16_pos + ctrl_offset + 1;
     para.has_para_text = !para.text().is_empty() || !para.controls.is_empty();
     para.char_shapes = char_shape_changes
@@ -2418,7 +2450,7 @@ fn parse_ctrl(
     reader: &mut Reader<&[u8]>,
     controls: &mut Vec<Control>,
     text_parts: &mut Vec<String>,
-    field_ranges: &mut Vec<crate::model::paragraph::FieldRange>,
+    field_ranges: &mut Vec<ParsedFieldRange>,
     pending_field_ends: &mut Vec<PendingFieldEnd>,
     char_shape_id: u32,
 ) -> Result<(), HwpxError> {
@@ -2714,23 +2746,32 @@ fn push_field_begin(
     mut ctrl: Control,
     controls: &mut Vec<Control>,
     parts: &mut Vec<String>,
-    ranges: &mut Vec<crate::model::paragraph::FieldRange>,
+    ranges: &mut Vec<ParsedFieldRange>,
     char_shape_id: u32,
 ) {
     if let Control::Field(f) = &mut ctrl {
         if let Some(h) = &mut f.hwpx {
             h.begin_char_shape_id = char_shape_id;
-            h.begin_order = controls.len() + completed_field_count(parts);
         }
     }
     let pos = visible_char_count(parts);
-    ranges.push(crate::model::paragraph::FieldRange {
+    ranges.push(ParsedFieldRange {
         start_char_idx: pos,
         end_char_idx: pos,
         control_idx: controls.len(),
+        begin_order: controls.len() + completed_field_count(parts),
+        end_order: 0,
     });
     controls.push(ctrl);
     parts.push("\u{0003}".to_string());
+}
+
+struct ParsedFieldRange {
+    start_char_idx: usize,
+    end_char_idx: usize,
+    control_idx: usize,
+    begin_order: usize,
+    end_order: usize,
 }
 
 /// 문단 안에서 짝 fieldBegin 을 찾지 못한 fieldEnd. 같은 문단 목록의 앞 문단에서 짝을 찾는다.
@@ -2774,38 +2815,16 @@ impl FieldPairing {
                 .ok_or_else(unmatched_field_end)?;
             let (pi, ci) = self.open.remove(pos);
             let begin_para = &mut paragraphs[pi];
-            let ri = begin_para
-                .field_ranges
-                .iter()
-                .position(|r| r.control_idx == ci)
-                .ok_or_else(unmatched_field_end)?;
-            let range = begin_para.field_ranges.remove(ri);
             if let Some(Control::Field(f)) = begin_para.controls.get_mut(ci) {
                 if let Some(h) = &mut f.hwpx {
-                    let id = hwpx_begin_id(h)
-                        .ok_or_else(unmatched_field_end)?
-                        .to_string();
-                    begin_para.hwpx_field_markers.push(HwpxFieldMarker {
-                        id: id.clone(),
-                        char_idx: range.start_char_idx,
-                        endpoint: FieldEndpoint::Begin,
-                        order: h.begin_order,
-                    });
-                    para.hwpx_field_markers.push(HwpxFieldMarker {
-                        id,
-                        char_idx: end.char_idx,
-                        endpoint: FieldEndpoint::End,
-                        order: end.order,
-                    });
                     h.end_attributes = Some(end.attributes);
                     h.end_char_shape_id = end.char_shape_id;
-                    h.end_order = end.order;
                 }
             }
         }
-        for range in &para.field_ranges {
-            if open_field(&para.controls[range.control_idx]).is_some() {
-                self.open.push((end_pi, range.control_idx));
+        for (ci, control) in para.controls.iter().enumerate() {
+            if open_field(control).is_some() {
+                self.open.push((end_pi, ci));
             }
         }
         paragraphs.push(para);
@@ -2850,7 +2869,7 @@ fn finish_field(
     e: &quick_xml::events::BytesStart,
     controls: &mut [Control],
     parts: &mut Vec<String>,
-    ranges: &mut [crate::model::paragraph::FieldRange],
+    ranges: &mut [ParsedFieldRange],
     pending: &mut Vec<PendingFieldEnd>,
     char_shape_id: u32,
 ) {
@@ -2881,7 +2900,7 @@ fn finish_field(
                 if h.end_attributes.is_none() && begin == id {
                     h.end_attributes = Some(attrs);
                     h.end_char_shape_id = char_shape_id;
-                    h.end_order = end_order;
+                    range.end_order = end_order;
                     range.end_char_idx = visible_char_count(parts);
                     parts.push("\u{0004}".to_string());
                     return;

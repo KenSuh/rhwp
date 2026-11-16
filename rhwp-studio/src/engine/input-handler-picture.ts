@@ -602,6 +602,7 @@ export function finishPictureMoveDrag(this: any): void {
             totalDeltaH, totalDeltaV,
             r.origHorzOffset, r.origVertOffset,
           ),
+          this.wasm,
         );
       }
     }

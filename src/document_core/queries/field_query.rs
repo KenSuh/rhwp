@@ -240,13 +240,14 @@ impl DocumentCore {
         }
         let para = self.get_para_mut_at_location(location)?;
         let fr = para
-            .field_ranges
+            .field_ranges()
             .get(field_range_index)
             .ok_or_else(|| HwpError::InvalidField("field_range 인덱스 초과".into()))?
             .clone();
 
         // 필드 범위 내 텍스트 교체
-        para.replace_text_range(fr.start_char_idx..fr.end_char_idx, value);
+        para.replace_field_content(fr.control_idx, value)
+            .ok_or_else(|| HwpError::InvalidField("field endpoints missing".into()))?;
 
         // char_offsets 재생성: 컨트롤 문자(8 code unit)와 일반 문자(1~2 code unit) 반영
         rebuild_char_offsets(para);
@@ -587,7 +588,7 @@ impl DocumentCore {
 
 /// 문단 내 커서 위치의 필드 범위 정보를 JSON으로 반환한다.
 fn field_info_at_in_para(para: &Paragraph, char_offset: usize) -> String {
-    for fr in &para.field_ranges {
+    for fr in &para.field_ranges() {
         if let Some(Control::Field(field)) = para.controls.get(fr.control_idx) {
             if field.field_type != FieldType::ClickHere {
                 continue;
@@ -619,7 +620,7 @@ fn collect_fields_from_paragraph(
     result: &mut Vec<FieldInfo>,
 ) {
     // 현재 문단의 field_ranges에서 필드 수집
-    for (fri, fr) in para.field_ranges.iter().enumerate() {
+    for (fri, fr) in para.field_ranges().iter().enumerate() {
         if let Some(Control::Field(field)) = para.controls.get(fr.control_idx) {
             let value = if fr.start_char_idx < fr.end_char_idx {
                 let chars: Vec<char> = para.text().chars().collect();
@@ -790,7 +791,7 @@ impl DocumentCore {
 
 /// 문단에서 커서 위치의 ClickHere 필드 컨트롤 인덱스를 반환한다.
 fn find_field_ctrl_idx_in_para(para: &Paragraph, char_offset: usize) -> Option<usize> {
-    for fr in &para.field_ranges {
+    for fr in &para.field_ranges() {
         if let Some(Control::Field(field)) = para.controls.get(fr.control_idx) {
             if field.field_type != FieldType::ClickHere {
                 continue;
@@ -805,7 +806,7 @@ fn find_field_ctrl_idx_in_para(para: &Paragraph, char_offset: usize) -> Option<u
 
 /// 문단 내 커서 위치의 누름틀 필드를 제거한다 (FieldRange만 삭제, 텍스트 유지).
 fn remove_field_in_para(para: &mut Paragraph, char_offset: usize) -> Result<(), HwpError> {
-    let idx = para.field_ranges.iter().position(|fr| {
+    let idx = para.field_ranges().iter().position(|fr| {
         if let Some(Control::Field(field)) = para.controls.get(fr.control_idx) {
             if field.field_type != FieldType::ClickHere {
                 return false;
@@ -817,7 +818,7 @@ fn remove_field_in_para(para: &mut Paragraph, char_offset: usize) -> Result<(), 
     });
     match idx {
         Some(i) => {
-            para.field_ranges.remove(i);
+            para.remove_field_range(i);
             Ok(())
         }
         None => Err(HwpError::InvalidField(
@@ -835,6 +836,10 @@ fn rebuild_char_offsets(para: &mut Paragraph) {
     let text_chars: Vec<char> = para.text().chars().collect();
     let text_len = text_chars.len();
 
+    if para.field_markers().iter().any(|m| matches!(m.id, crate::model::paragraph::FieldId::Hwpx(_))) {
+        return;
+    }
+
     if text_len == 0 {
         para.set_char_offsets(Vec::new());
         return;
@@ -850,14 +855,9 @@ fn rebuild_char_offsets(para: &mut Paragraph) {
 
     // FIELD_END 수: field_ranges에서 end가 텍스트 범위 내인 것
     let mut field_end_at: Vec<usize> = vec![0; text_len + 1];
-    for fr in &para.field_ranges {
+    for fr in &para.field_ranges() {
         let idx = fr.end_char_idx.min(text_len);
         field_end_at[idx] += 1;
-    }
-    for marker in &para.hwpx_field_markers {
-        if marker.char_idx > 0 {
-            field_end_at[marker.char_idx.min(text_len)] += 1;
-        }
     }
 
     let mut offset: u32 = ctrls_before_text as u32 * 8;
@@ -882,15 +882,6 @@ fn rebuild_char_offsets(para: &mut Paragraph) {
     }
 
     para.set_char_offsets(new_offsets);
-    if !para.hwpx_field_markers.is_empty() {
-        para.char_count = offset
-            .saturating_add(
-                u32::try_from(field_end_at[text_len])
-                    .unwrap_or(u32::MAX)
-                    .saturating_mul(8),
-            )
-            .saturating_add(1);
-    }
 }
 
 fn json_escape(s: &str) -> String {

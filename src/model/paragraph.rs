@@ -15,6 +15,23 @@ mod text;
 /// let mut paragraph = rhwp::model::paragraph::Paragraph::default();
 /// paragraph.char_offsets = Vec::new();
 /// ```
+///
+/// ```compile_fail
+/// use rhwp::model::paragraph::Paragraph;
+/// let paragraph = Paragraph::with_text("text".into(), vec![0,1,2,3]);
+/// ```
+///
+/// ```compile_fail
+/// use rhwp::model::paragraph::Paragraph;
+/// let mut paragraph = Paragraph::default();
+/// paragraph.field_ranges = Vec::new();
+/// ```
+///
+/// ```compile_fail
+/// use rhwp::model::paragraph::Paragraph;
+/// let mut paragraph = Paragraph::default();
+/// paragraph.field_markers().clear();
+/// ```
 #[derive(Debug, Default, Clone)]
 pub struct Paragraph {
     /// 문자 수 (제어 문자 포함)
@@ -40,9 +57,8 @@ pub struct Paragraph {
     pub line_segs: Vec<LineSeg>,
     /// 영역 태그 정보
     pub range_tags: Vec<RangeTag>,
-    /// 필드 텍스트 범위 (0x03~0x04 사이 텍스트 인덱스 + 컨트롤 인덱스)
-    pub field_ranges: Vec<FieldRange>,
-    pub hwpx_field_markers: Vec<HwpxFieldMarker>,
+    /// Text and zero-width field endpoints form one sequence, ordered by (char_idx, order).
+    hwpx_field_markers: Vec<HwpxFieldMarker>,
     /// 컨트롤 목록 (표, 그림, 각주 등)
     pub controls: Vec<Control>,
     /// 각 컨트롤에 대응하는 CTRL_DATA 레코드 (라운드트립 보존용)
@@ -201,12 +217,38 @@ pub enum FieldEndpoint {
     End,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FieldId {
+    Hwpx(String),
+    Binary(usize),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HwpxFieldMarker {
-    pub id: String,
+    pub id: FieldId,
     pub char_idx: usize,
     pub endpoint: FieldEndpoint,
     pub order: usize,
+}
+
+/// Exact inverse of a paragraph-owner edit. The complete prior state includes
+/// text, endpoint sequence slots, raw offsets, controls, and formatting.
+#[derive(Debug, Clone)]
+pub struct ParagraphEdit {
+    before: Box<Paragraph>,
+    pub deleted_chars: usize,
+}
+
+#[derive(Debug)]
+pub struct ParagraphSplit {
+    pub paragraph: Paragraph,
+    pub inverse: ParagraphEdit,
+}
+
+#[derive(Debug)]
+pub struct ParagraphMerge {
+    pub offset: usize,
+    pub inverse: ParagraphEdit,
 }
 
 impl Paragraph {
@@ -245,9 +287,10 @@ impl Paragraph {
     ///
     /// char_offset이 text.chars().count()를 초과하면 인라인 컨트롤 뒤의
     /// 위치로 간주하여 올바른 UTF-16 위치에 삽입한다.
-    pub fn insert_text_at(&mut self, char_offset: usize, new_text: &str) {
+    pub fn insert_text_at(&mut self, char_offset: usize, new_text: &str) -> ParagraphEdit {
+        let inverse = self.edit_checkpoint();
         if new_text.is_empty() {
-            return;
+            return inverse;
         }
 
         let utf16_width = |ch: char| {
@@ -265,6 +308,7 @@ impl Paragraph {
         // 이 경우 char_offset을 text_len으로 clamp하되, UTF-16 위치는
         // 마지막 문자 + 후행 컨트롤 갭을 포함한 값으로 계산
         let effective_char_offset = char_offset.min(text_len);
+        let insertion_slot = self.field_insertion_slot(effective_char_offset);
 
         // 바이트 삽입 위치 계산
         let byte_offset: usize = text_chars[..effective_char_offset]
@@ -286,25 +330,13 @@ impl Paragraph {
                 self.char_offsets[idx] + utf16_width(text_chars[idx])
             });
             let field_end_gap = self
-                .field_ranges
+                .hwpx_field_markers
                 .iter()
-                .filter(|range| {
-                    range.end_char_idx == effective_char_offset
-                        && matches!(
-                            self.controls.get(range.control_idx),
-                            Some(Control::Field(_))
-                        )
+                .enumerate()
+                .filter(|(slot, marker)| {
+                    marker.char_idx == effective_char_offset && *slot >= insertion_slot
                 })
-                .count()
-                .saturating_add(
-                    self.hwpx_field_markers
-                        .iter()
-                        .filter(|marker| {
-                            marker.endpoint == FieldEndpoint::End
-                                && marker.char_idx == effective_char_offset
-                        })
-                        .count(),
-                );
+                .count();
             let field_end_gap = u32::try_from(field_end_gap)
                 .unwrap_or(u32::MAX)
                 .saturating_mul(8);
@@ -319,7 +351,20 @@ impl Paragraph {
             self.char_offsets[last_idx] + utf16_width(text_chars[last_idx])
         } else {
             // 텍스트가 비어있을 때: 기존 컨트롤 뒤에 삽입 (각 컨트롤 = 8 code units)
-            (self.controls.len() as u32) * 8
+            let begins = self
+                .hwpx_field_markers
+                .iter()
+                .filter(|m| m.endpoint == FieldEndpoint::Begin)
+                .count();
+            let prefix = self
+                .hwpx_field_markers
+                .iter()
+                .take(insertion_slot)
+                .filter(|m| m.char_idx == effective_char_offset)
+                .count();
+            u32::try_from(self.controls.len().saturating_sub(begins) + prefix)
+                .unwrap_or(u32::MAX)
+                .saturating_mul(8)
         };
         let char_offset = effective_char_offset;
 
@@ -378,21 +423,13 @@ impl Paragraph {
             }
         }
 
-        // 5-1. field_ranges: 삽입 지점 이후의 char 인덱스 시프트
         let inserted_len = new_chars.len();
-        for fr in &mut self.field_ranges {
-            if fr.start_char_idx > char_offset {
-                fr.start_char_idx += inserted_len;
-            }
-            if fr.end_char_idx >= char_offset {
-                fr.end_char_idx += inserted_len;
-            }
-        }
 
-        self.shift_hwpx_field_markers(char_offset..char_offset, inserted_len);
+        self.shift_hwpx_field_markers(char_offset..char_offset, inserted_len, insertion_slot);
 
         // 6. char_count 갱신
         self.char_count += utf16_delta;
+        inverse
     }
 
     /// char_offset 위치에서 count개의 문자를 삭제한다.
@@ -400,16 +437,17 @@ impl Paragraph {
     /// char_offset은 Rust 문자(char) 인덱스이다 (바이트 인덱스가 아님).
     /// 삭제 후 char_offsets, char_shapes, line_segs, char_count가 자동 갱신된다.
     /// 반환값: 실제 삭제된 문자 수.
-    pub fn delete_text_at(&mut self, char_offset: usize, count: usize) -> usize {
+    pub fn delete_text_at(&mut self, char_offset: usize, count: usize) -> ParagraphEdit {
+        let mut inverse = self.edit_checkpoint();
         if count == 0 {
-            return 0;
+            return inverse;
         }
 
         let text_chars: Vec<char> = self.text.chars().collect();
         let text_len = text_chars.len();
 
         if char_offset >= text_len {
-            return 0;
+            return inverse;
         }
 
         // 실제 삭제할 문자 수 (범위 클램핑)
@@ -474,37 +512,21 @@ impl Paragraph {
             rt.end = shift_position(rt.end);
         }
 
-        // 5-1. field_ranges: 삭제 범위에 따라 축소/조정
-        for fr in &mut self.field_ranges {
-            if fr.start_char_idx >= del_end {
-                fr.start_char_idx -= actual_count;
-            } else if fr.start_char_idx > char_offset {
-                fr.start_char_idx = char_offset;
-            }
-            if fr.end_char_idx >= del_end {
-                fr.end_char_idx -= actual_count;
-            } else if fr.end_char_idx > char_offset {
-                fr.end_char_idx = char_offset;
-            }
-        }
-        // start > end (역전)인 경우만 제거. start == end (빈 필드)는 유효한 상태이므로 유지.
-        // IME 조합 중 delete→insert 사이클에서 필드가 일시적으로 비워질 수 있음.
-        self.field_ranges
-            .retain(|fr| fr.start_char_idx <= fr.end_char_idx);
-
-        self.shift_hwpx_field_markers(char_offset..del_end, 0);
+        self.shift_hwpx_field_markers(char_offset..del_end, 0, 0);
 
         // 6. char_count 갱신
         self.char_count -= utf16_delta;
 
-        actual_count
+        inverse.deleted_chars = actual_count;
+        inverse
     }
 
     /// char_offset 위치에서 문단을 분할한다.
     ///
     /// 현재 문단은 char_offset 이전까지만 유지되고,
     /// char_offset 이후의 텍스트와 메타데이터로 새 문단을 생성하여 반환한다.
-    pub fn split_at(&mut self, char_offset: usize) -> Paragraph {
+    pub fn split_at(&mut self, char_offset: usize) -> ParagraphSplit {
+        let inverse = self.edit_checkpoint();
         let text_chars: Vec<char> = self.text.chars().collect();
         let text_len = text_chars.len();
         let split_pos = char_offset.min(text_len);
@@ -636,44 +658,22 @@ impl Paragraph {
         }
         self.range_tags = kept_range_tags;
 
-        // 5-1. field_ranges 분할 (controls는 split되지 않으므로 원래 문단에만 유지)
-        for range in &self.field_ranges {
-            if range.end_char_idx > split_pos {
-                if let Some(Control::Field(field)) = self.controls.get(range.control_idx) {
-                    if let Some(h) = &field.hwpx {
-                        if let Some((_, id)) =
-                            h.begin_attributes.iter().find(|(key, _)| key == "id")
-                        {
-                            for (char_idx, endpoint, order) in [
-                                (range.start_char_idx, FieldEndpoint::Begin, h.begin_order),
-                                (range.end_char_idx, FieldEndpoint::End, h.end_order),
-                            ] {
-                                self.hwpx_field_markers.push(HwpxFieldMarker {
-                                    id: id.clone(),
-                                    char_idx,
-                                    endpoint,
-                                    order,
-                                });
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        self.field_ranges.retain(|fr| fr.end_char_idx <= split_pos);
-        let mut new_field_markers = Vec::new();
-        self.hwpx_field_markers.retain(|marker| {
-            let moves = match marker.endpoint {
-                FieldEndpoint::Begin => marker.char_idx >= split_pos,
-                FieldEndpoint::End => marker.char_idx > split_pos,
-            };
-            if moves {
-                let mut moved = marker.clone();
-                moved.char_idx -= split_pos;
-                new_field_markers.push(moved);
-            }
-            !moves
-        });
+        let marker_slot = self
+            .hwpx_field_markers
+            .iter()
+            .position(|m| {
+                m.char_idx > split_pos
+                    || (m.char_idx == split_pos && m.endpoint == FieldEndpoint::Begin)
+            })
+            .unwrap_or(self.hwpx_field_markers.len());
+        let new_field_markers = self
+            .hwpx_field_markers
+            .drain(marker_slot..)
+            .map(|mut marker| {
+                marker.char_idx -= split_pos;
+                marker
+            })
+            .collect();
 
         // 6. char_count 갱신
         //    원본 문단에 남은 controls는 각각 8 code unit을 차지하므로 반영 필요
@@ -700,27 +700,29 @@ impl Paragraph {
         }
         let new_has_para_text = !new_text.is_empty(); // 새 문단은 controls가 없으므로 텍스트 유무로 판단
 
-        Paragraph {
-            text: new_text,
-            char_offsets: new_char_offsets,
-            char_shapes: new_char_shapes,
-            line_segs: new_line_segs,
-            range_tags: new_range_tags,
-            field_ranges: Vec::new(), // controls가 이동하지 않으므로 새 문단에는 필드 없음
-            hwpx_field_markers: new_field_markers,
-            char_count: new_char_count,
-            para_shape_id: self.para_shape_id,
-            style_id: self.style_id,
-            column_type: ColumnBreakType::None,
-            raw_break_type: 0,
-            control_mask: 0,
-            controls: Vec::new(),
-            ctrl_data_records: Vec::new(),
-            char_count_msb: false,
-            raw_header_extra: self.raw_header_extra.clone(),
-            has_para_text: new_has_para_text,
-            tab_extended: Vec::new(),
-            numbering_restart: None,
+        ParagraphSplit {
+            paragraph: Paragraph {
+                text: new_text,
+                char_offsets: new_char_offsets,
+                char_shapes: new_char_shapes,
+                line_segs: new_line_segs,
+                range_tags: new_range_tags,
+                hwpx_field_markers: new_field_markers,
+                char_count: new_char_count,
+                para_shape_id: self.para_shape_id,
+                style_id: self.style_id,
+                column_type: ColumnBreakType::None,
+                raw_break_type: 0,
+                control_mask: 0,
+                controls: Vec::new(),
+                ctrl_data_records: Vec::new(),
+                char_count_msb: false,
+                raw_header_extra: self.raw_header_extra.clone(),
+                has_para_text: new_has_para_text,
+                tab_extended: Vec::new(),
+                numbering_restart: None,
+            },
+            inverse,
         }
     }
 
@@ -728,21 +730,13 @@ impl Paragraph {
     ///
     /// 병합 후 other 문단의 내용은 현재 문단에 포함된다.
     /// 반환값: 병합 지점의 char offset (원래 텍스트의 길이).
-    pub fn merge_from(&mut self, other: &Paragraph) -> usize {
+    pub fn merge_from(&mut self, other: &Paragraph) -> ParagraphMerge {
+        let inverse = self.edit_checkpoint();
         let self_text_len = self.text.chars().count();
         let marker_order_offset = self
             .hwpx_field_markers
             .iter()
             .map(|m| m.order + 1)
-            .chain(
-                self.controls
-                    .iter()
-                    .filter_map(|control| match control {
-                        Control::Field(field) => field.hwpx.as_ref(),
-                        _ => None,
-                    })
-                    .flat_map(|h| [h.begin_order + 1, h.end_order + 1]),
-            )
             .max()
             .unwrap_or(0)
             .max(self.controls.len());
@@ -750,34 +744,24 @@ impl Paragraph {
             .extend(other.hwpx_field_markers.iter().cloned().map(|mut marker| {
                 marker.char_idx += self_text_len;
                 marker.order += marker_order_offset;
+                if let FieldId::Binary(ci) = &mut marker.id {
+                    *ci += self.controls.len();
+                }
                 marker
             }));
         let ctrl_offset = self.controls.len();
-        self.controls
-            .extend(other.controls.iter().cloned().map(|mut control| {
-                if let Control::Field(field) = &mut control {
-                    if let Some(h) = &mut field.hwpx {
-                        h.begin_order += marker_order_offset;
-                        h.end_order += marker_order_offset;
-                    }
-                }
-                control
-            }));
+        self.controls.extend(other.controls.iter().cloned());
         self.ctrl_data_records.resize(ctrl_offset, None);
         self.ctrl_data_records.extend(
             (0..other.controls.len()).map(|ci| other.ctrl_data_records.get(ci).cloned().flatten()),
         );
-        for fr in &other.field_ranges {
-            self.field_ranges.push(FieldRange {
-                start_char_idx: fr.start_char_idx + self_text_len,
-                end_char_idx: fr.end_char_idx + self_text_len,
-                control_idx: fr.control_idx + ctrl_offset,
-            });
-        }
         self.control_mask |= other.control_mask;
         self.has_para_text |= other.has_para_text;
         if other.text.is_empty() {
-            return self_text_len;
+            return ParagraphMerge {
+                offset: self_text_len,
+                inverse,
+            };
         }
 
         // 현재 문단 끝의 UTF-16 위치
@@ -857,7 +841,10 @@ impl Paragraph {
                 .map_or(1, |(&offset, ch)| offset + Self::char_utf16_len(ch) + 1),
         );
 
-        self_text_len
+        ParagraphMerge {
+            offset: self_text_len,
+            inverse,
+        }
     }
 
     /// 주어진 문자 오프셋(char index)에 해당하는 CharShapeRef의 char_shape_id를 반환한다.

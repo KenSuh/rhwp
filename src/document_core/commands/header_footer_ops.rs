@@ -373,7 +373,7 @@ impl DocumentCore {
                     hf_para_idx
                 )));
             }
-            paragraphs[hf_para_idx].split_at(char_offset)
+            paragraphs[hf_para_idx].split_at(char_offset).paragraph
         };
 
         // 새 문단 삽입

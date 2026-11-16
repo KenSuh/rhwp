@@ -219,8 +219,8 @@ fn body_field_spanning_paragraphs_round_trips_two_saves() {
 
     // 시작 문단은 이 필드의 field_ranges 를 갖지 않는다(같은 문단 안 필드만 범위를 갖는다).
     let paras = &doc.sections[0].paragraphs;
-    assert!(paras[0].field_ranges.is_empty());
-    assert_eq!(paras[1].field_ranges.len(), 1);
+    assert!(paras[0].field_ranges().is_empty());
+    assert_eq!(paras[1].field_ranges().len(), 1);
     assert_eq!(paras[0].text(), "앞😀시작");
     assert_eq!(paras[2].text(), "끝뒤");
 
@@ -574,7 +574,7 @@ fn c1_boundary_insert_undo_redo_keeps_membership() {
                 .export_hwpx_native()
                 .unwrap_or_else(|e| panic!("{endpoint}/{action}: {e}"));
             let expected = if endpoint == "begin" && action != "undo" {
-                "XY12AB"
+                "12AB"
             } else {
                 expected
             };
@@ -646,6 +646,301 @@ fn wrapped_field_list(kind: &str, content: &str) -> String {
         _ => format!("<hp:ctrl><hp:{kind}>{sublist}</hp:{kind}></hp:ctrl>"),
     };
     paragraph(&object)
+}
+
+#[test]
+fn c1_c3_adjacent_replacement_preserves_order() {
+    c3_adjacent_replacement("A", "B");
+}
+
+#[test]
+fn c1_c3_empty_field_replacement_preserves_neighbor() {
+    c3_adjacent_replacement("", "B");
+}
+
+#[test]
+fn c1_c3_replacement_preserves_empty_neighbor() {
+    c3_adjacent_replacement("A", "");
+}
+
+#[test]
+fn c1_c3_two_empty_fields_replace_independently() {
+    c3_adjacent_replacement("", "");
+}
+
+fn c3_adjacent_replacement(first: &str, second: &str) {
+    let body = |a: &str| {
+        paragraph(&format!(
+            "{}<hp:t>{a}</hp:t>{}{}<hp:t>{second}</hp:t>{}",
+            begin(1),
+            end(1),
+            begin(2),
+            end(2)
+        ))
+    };
+    let mut doc = rhwp::DocumentCore::from_bytes(&fixture(&body(first))).unwrap();
+    doc.set_field_value_by_id(501, "XY").unwrap();
+    let saved = doc.export_hwpx_native().unwrap();
+    assert_eq!(
+        field_tokens(&section_xml(&saved)),
+        field_tokens(&section_xml(&fixture(&body("XY")))),
+        "first={first:?} second={second:?}"
+    );
+    let reopened = parse_hwpx(&saved).unwrap();
+    let ranges = reopened.sections[0].paragraphs[0].field_ranges();
+    assert_eq!(
+        ranges
+            .iter()
+            .map(|r| (r.start_char_idx, r.end_char_idx))
+            .collect::<Vec<_>>(),
+        vec![(0, 2), (2, 2 + second.chars().count())]
+    );
+    assert_eq!(serialize_hwpx(&reopened).unwrap(), saved);
+}
+
+#[test]
+fn c1_c3_typing_at_adjacent_and_empty_markers_uses_one_slot() {
+    for (first, second) in [("A", "B"), ("", "")] {
+        let input = fixture(&paragraph(&format!(
+            "{}<hp:t>{first}</hp:t>{}{}<hp:t>{second}</hp:t>{}",
+            begin(1),
+            end(1),
+            begin(2),
+            end(2)
+        )));
+        let mut doc = rhwp::wasm_api::HwpDocument::from_bytes(&input).unwrap();
+        let position = u32::try_from(first.chars().count()).unwrap();
+        doc.insert_text(0, 0, position, "Q").unwrap();
+        let saved = doc.export_hwpx_native().unwrap();
+        let expected = if first.is_empty() {
+            paragraph(&format!(
+                "<hp:t>Q</hp:t>{}{}{}{}",
+                begin(1),
+                end(1),
+                begin(2),
+                end(2)
+            ))
+        } else {
+            paragraph(&format!(
+                "{}<hp:t>AQ</hp:t>{}{}<hp:t>B</hp:t>{}",
+                begin(1),
+                end(1),
+                begin(2),
+                end(2)
+            ))
+        };
+        assert_eq!(
+            field_tokens(&section_xml(&saved)),
+            field_tokens(&section_xml(&fixture(&expected)))
+        );
+        assert_eq!(serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(), saved);
+    }
+}
+
+fn c3_boundary_fixture() -> Vec<u8> {
+    fixture(&format!(
+        "{}{}",
+        paragraph(&format!("<hp:t>ZZ</hp:t>{}<hp:t>12</hp:t>", begin(1))),
+        paragraph(&format!("<hp:t>AB</hp:t>{}<hp:t>CD</hp:t>", end(1)))
+    ))
+}
+
+#[test]
+fn c1_c3_delete_inverse_at_begin() {
+    c3_delete_inverse(0, 0, "ZZ");
+}
+
+#[test]
+fn c1_c3_delete_inverse_at_end() {
+    c3_delete_inverse(1, 2, "CD");
+}
+
+fn c3_delete_inverse(para: u32, pos: u32, text: &str) {
+    let mut doc = rhwp::wasm_api::HwpDocument::from_bytes(&c3_boundary_fixture()).unwrap();
+    let token = doc.begin_text_edit(0, para, false).unwrap();
+    doc.delete_text(0, para, pos, 2).unwrap();
+    let deleted = doc.export_hwpx_native().unwrap();
+    assert_eq!(
+        serialize_hwpx(&parse_hwpx(&deleted).unwrap()).unwrap(),
+        deleted
+    );
+    let redo = doc.undo_edit(token).unwrap();
+    let saved = doc.export_hwpx_native().unwrap();
+    assert_eq!(field_content(&field_tokens(&section_xml(&saved))), "12AB");
+    assert_eq!(serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(), saved);
+    let undo = doc.undo_edit(redo).unwrap();
+    assert_eq!(doc.export_hwpx_native().unwrap(), deleted);
+    doc.undo_edit(undo).unwrap();
+    assert_eq!(doc.export_hwpx_native().unwrap(), saved);
+
+    doc.delete_text(0, para, pos, 2).unwrap();
+    doc.insert_text(0, para, pos, text).unwrap();
+    let normal = doc.export_hwpx_native().unwrap();
+    let expected = if para == 0 { "12AB" } else { "12ABCD" };
+    assert_eq!(
+        field_content(&field_tokens(&section_xml(&normal))),
+        expected
+    );
+    assert_eq!(
+        serialize_hwpx(&parse_hwpx(&normal).unwrap()).unwrap(),
+        normal
+    );
+}
+
+#[test]
+fn c1_c3_insert_inverse_and_redo_at_each_boundary() {
+    for para in [0, 1] {
+        let mut doc = rhwp::wasm_api::HwpDocument::from_bytes(&c3_boundary_fixture()).unwrap();
+        let original = doc.export_hwpx_native().unwrap();
+        let original_markers = doc.document().sections[0].paragraphs
+            [usize::try_from(para).unwrap()]
+        .field_markers()
+        .to_vec();
+        let original_offsets = doc.document().sections[0].paragraphs
+            [usize::try_from(para).unwrap()]
+        .char_offsets()
+        .to_vec();
+        let token = doc.begin_text_edit(0, para, false).unwrap();
+        doc.insert_text(0, para, 2, "XY").unwrap();
+        let inserted = doc.export_hwpx_native().unwrap();
+        let expected = if para == 0 { "12AB" } else { "12ABXY" };
+        assert_eq!(
+            field_content(&field_tokens(&section_xml(&inserted))),
+            expected
+        );
+        assert_eq!(
+            serialize_hwpx(&parse_hwpx(&inserted).unwrap()).unwrap(),
+            inserted
+        );
+        let redo = doc.undo_edit(token).unwrap();
+        let restored = doc.export_hwpx_native().unwrap();
+        assert_eq!(
+            field_tokens(&section_xml(&restored)),
+            field_tokens(&section_xml(&original))
+        );
+        let owner = &doc.document().sections[0].paragraphs[usize::try_from(para).unwrap()];
+        assert_eq!(owner.field_markers(), original_markers);
+        assert_eq!(owner.char_offsets(), original_offsets);
+        assert_eq!(
+            serialize_hwpx(&parse_hwpx(&restored).unwrap()).unwrap(),
+            restored
+        );
+        doc.undo_edit(redo).unwrap();
+        assert_eq!(doc.export_hwpx_native().unwrap(), inserted);
+    }
+}
+
+#[test]
+fn c1_c3_collapsed_adjacent_markers_have_exact_inverse() {
+    let body = paragraph(&format!(
+        "{}<hp:t>A</hp:t>{}{}<hp:t>B</hp:t>{}",
+        begin(1),
+        end(1),
+        begin(2),
+        end(2)
+    ));
+    for (start, count) in [(0, 1), (1, 1), (0, 2)] {
+        let mut doc = rhwp::wasm_api::HwpDocument::from_bytes(&fixture(&body)).unwrap();
+        let original = doc.export_hwpx_native().unwrap();
+        let token = doc.begin_text_edit(0, 0, false).unwrap();
+        doc.delete_text(0, 0, start, count).unwrap();
+        if count == 2 {
+            assert!(doc.export_hwpx_native().is_err());
+        } else {
+            let deleted = doc.export_hwpx_native().unwrap();
+            assert_eq!(
+                serialize_hwpx(&parse_hwpx(&deleted).unwrap()).unwrap(),
+                deleted
+            );
+        }
+        let redo = doc.undo_edit(token).unwrap();
+        assert_eq!(doc.export_hwpx_native().unwrap(), original);
+        let saved = doc.export_hwpx_native().unwrap();
+        assert_eq!(serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(), saved);
+        let undo = doc.undo_edit(redo).unwrap();
+        doc.undo_edit(undo).unwrap();
+        assert_eq!(doc.export_hwpx_native().unwrap(), original);
+    }
+}
+
+#[test]
+fn c1_c3_cell_merge_preserves_whole_paragraphs() {
+    let content = format!(
+        "{}{}{}",
+        paragraph(&begin(1)),
+        paragraph("<hp:t>HEADTAIL</hp:t>"),
+        paragraph(&end(1))
+    );
+    let cell = |col: u16, inner: &str| {
+        format!(
+            r#"<hp:tc borderFillIDRef="1"><hp:subList>{inner}</hp:subList><hp:cellAddr colAddr="{col}" rowAddr="0"/><hp:cellSpan colSpan="1" rowSpan="1"/><hp:cellSz width="1000" height="1000"/></hp:tc>"#
+        )
+    };
+    let body = paragraph(&format!(
+        r#"<hp:tbl rowCnt="1" colCnt="2" borderFillIDRef="1"><hp:tr>{}{}</hp:tr></hp:tbl>"#,
+        cell(0, &paragraph("<hp:t>PRIMARY</hp:t>")),
+        cell(1, &content)
+    ));
+    let mut doc = rhwp::DocumentCore::from_bytes(&fixture(&body)).unwrap();
+    doc.merge_table_cells_native(0, 0, 0, 0, 0, 0, 1).unwrap();
+    let saved = doc.export_hwpx_native().unwrap();
+    assert_eq!(
+        field_content(&field_tokens(&section_xml(&saved))),
+        "HEADTAIL"
+    );
+    assert_eq!(serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(), saved);
+}
+
+#[test]
+fn c1_c3_split_at_adjacent_empty_fields_preserves_sequence() {
+    let input = fixture(&paragraph(&format!(
+        "{}{}{}{}",
+        begin(1),
+        end(1),
+        begin(2),
+        end(2)
+    )));
+    let mut doc = rhwp::wasm_api::HwpDocument::from_bytes(&input).unwrap();
+    let original = field_tokens(&section_xml(&doc.export_hwpx_native().unwrap()));
+    let token = doc.begin_text_edit(0, 0, true).unwrap();
+    doc.split_paragraph(0, 0, 0).unwrap();
+    let split = doc.export_hwpx_native().unwrap();
+    assert_eq!(serialize_hwpx(&parse_hwpx(&split).unwrap()).unwrap(), split);
+    doc.merge_paragraph(0, 1).unwrap();
+    let merged = doc.export_hwpx_native().unwrap();
+    assert_eq!(field_tokens(&section_xml(&merged)), original);
+    assert_eq!(
+        serialize_hwpx(&parse_hwpx(&merged).unwrap()).unwrap(),
+        merged
+    );
+    doc.undo_edit(token).unwrap();
+    let restored = doc.export_hwpx_native().unwrap();
+    assert_eq!(field_tokens(&section_xml(&restored)), original);
+    assert_eq!(
+        serialize_hwpx(&parse_hwpx(&restored).unwrap()).unwrap(),
+        restored
+    );
+}
+
+#[test]
+fn c1_c3_undo_tokens_are_bounded_consumed_and_dropped_on_reload() {
+    let mut doc = rhwp::DocumentCore::from_bytes(&c3_boundary_fixture()).unwrap();
+    let mut tokens = Vec::new();
+    for _ in 0..1024 {
+        tokens.push(doc.begin_text_edit_native(0, 0, false).unwrap());
+    }
+    assert!(doc.begin_text_edit_native(0, 0, false).is_err());
+    let oldest = tokens[0];
+    let redo = doc.undo_edit_native(oldest).unwrap();
+    assert!(doc.undo_edit_native(oldest).is_err());
+    doc.discard_edit_native(redo);
+    let released = doc.begin_text_edit_native(0, 0, false).unwrap();
+    doc.create_blank_document_native().unwrap();
+    assert!(doc.undo_edit_native(released).is_err());
+    doc.set_document(parse_hwpx(&c3_boundary_fixture()).unwrap());
+    assert!(doc.undo_edit_native(released).is_err());
+    let saved = doc.export_hwpx_native().unwrap();
+    assert_eq!(serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(), saved);
 }
 
 #[test]

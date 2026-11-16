@@ -512,7 +512,7 @@ fn first_table_control(doc: &Document) -> Control {
 fn table_paragraph(text: &str, char_offsets: Vec<u32>) -> Paragraph {
     let doc = open_doc(C6);
     {
-        let mut paragraph_value = Paragraph::with_text(text.to_string(), char_offsets);
+        let mut paragraph_value = Paragraph::with_text(text.to_string(), char_offsets, Vec::new());
 
         paragraph_value.char_count = 13;
 
@@ -570,7 +570,7 @@ fn run_order_c1_binary_field_begin_precedes_table_at_same_position() {
             ..Default::default()
         }),
     );
-    para.field_ranges.push(FieldRange {
+    para.field_ranges().push(FieldRange {
         start_char_idx: 0,
         end_char_idx: 1,
         control_idx: 0,

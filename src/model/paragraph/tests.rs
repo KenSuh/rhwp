@@ -203,7 +203,7 @@ fn test_delete_text_at_middle() {
         ..Default::default()
     };
     let deleted = para.delete_text_at(2, 1); // '하' 삭제
-    assert_eq!(deleted, 1);
+    assert_eq!(deleted.deleted_chars, 1);
     assert_eq!(para.text, "안녕세계");
     assert_eq!(para.char_count, 4);
     assert_eq!(para.char_offsets, vec![0, 1, 2, 3]);
@@ -226,7 +226,7 @@ fn test_delete_text_at_beginning() {
         ..Default::default()
     };
     let deleted = para.delete_text_at(0, 2); // '안녕' 삭제
-    assert_eq!(deleted, 2);
+    assert_eq!(deleted.deleted_chars, 2);
     assert_eq!(para.text, "세계");
     assert_eq!(para.char_count, 2);
     assert_eq!(para.char_offsets, vec![0, 1]);
@@ -249,7 +249,7 @@ fn test_delete_text_at_end() {
         ..Default::default()
     };
     let deleted = para.delete_text_at(3, 1); // '계' 삭제
-    assert_eq!(deleted, 1);
+    assert_eq!(deleted.deleted_chars, 1);
     assert_eq!(para.text, "안녕세");
     assert_eq!(para.char_count, 3);
     assert_eq!(para.char_offsets, vec![0, 1, 2]);
@@ -323,7 +323,7 @@ fn test_delete_text_empty_range() {
         ..Default::default()
     };
     let deleted = para.delete_text_at(1, 0);
-    assert_eq!(deleted, 0);
+    assert_eq!(deleted.deleted_chars, 0);
     assert_eq!(para.text, "AB");
     assert_eq!(para.char_count, 2);
 }
@@ -347,7 +347,7 @@ fn test_split_at_middle() {
         ..Default::default()
     };
 
-    let new_para = para.split_at(2);
+    let new_para = para.split_at(2).paragraph;
 
     // 원래 문단: "안녕"
     assert_eq!(para.text, "안녕");
@@ -379,7 +379,7 @@ fn test_split_at_beginning() {
         ..Default::default()
     };
 
-    let new_para = para.split_at(0);
+    let new_para = para.split_at(0).paragraph;
 
     assert_eq!(para.text, "");
     assert_eq!(para.char_offsets.len(), 0);
@@ -405,7 +405,7 @@ fn test_split_at_end() {
         ..Default::default()
     };
 
-    let new_para = para.split_at(3);
+    let new_para = para.split_at(3).paragraph;
 
     assert_eq!(para.text, "ABC");
     assert_eq!(new_para.text, "");
@@ -435,7 +435,7 @@ fn test_split_at_preserves_char_shapes() {
     };
 
     // 위치 2에서 분리 → "AA" / "BBB"
-    let new_para = para.split_at(2);
+    let new_para = para.split_at(2).paragraph;
 
     // 원래: style 1만 유지
     assert_eq!(para.char_shapes.len(), 1);
@@ -466,7 +466,7 @@ fn test_split_at_preserves_para_shape() {
         ..Default::default()
     };
 
-    let new_para = para.split_at(2);
+    let new_para = para.split_at(2).paragraph;
     assert_eq!(new_para.para_shape_id, 42);
     assert_eq!(new_para.style_id, 3);
 }
@@ -505,7 +505,7 @@ fn test_merge_from_basic() {
         ..Default::default()
     };
 
-    let merge_pos = para1.merge_from(&para2);
+    let merge_pos = para1.merge_from(&para2).offset;
 
     assert_eq!(merge_pos, 2); // 원래 "안녕"의 길이
     assert_eq!(para1.text, "안녕하세요");
@@ -573,7 +573,7 @@ fn test_merge_from_empty() {
 
     let para2 = Paragraph::default();
 
-    let merge_pos = para1.merge_from(&para2);
+    let merge_pos = para1.merge_from(&para2).offset;
     assert_eq!(merge_pos, 2);
     assert_eq!(para1.text, "안녕");
 }
@@ -596,7 +596,7 @@ fn test_split_and_merge_roundtrip() {
     };
 
     // 분리 후 재병합 → 원본 텍스트 복원
-    let new_para = para.split_at(2);
+    let new_para = para.split_at(2).paragraph;
     assert_eq!(para.text, "안녕");
     assert_eq!(new_para.text, "하세요");
 

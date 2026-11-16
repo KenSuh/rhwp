@@ -50,7 +50,7 @@ impl DocumentCore {
         }
 
         let has_controls = parsed_paras.iter().any(|para| !para.controls.is_empty());
-        let right_half = cell_paras[cell_para_idx].split_at(char_offset);
+        let right_half = cell_paras[cell_para_idx].split_at(char_offset).paragraph;
 
         if has_controls {
             let left_empty = !Self::paragraph_has_content(&cell_paras[cell_para_idx]);
@@ -87,7 +87,7 @@ impl DocumentCore {
             }
 
             let last_para_idx = insert_idx - 1;
-            let merge_point = cell_paras[last_para_idx].merge_from(&right_half);
+            let merge_point = cell_paras[last_para_idx].merge_from(&right_half).offset;
             Ok((last_para_idx, merge_point))
         }
     }
@@ -162,7 +162,7 @@ impl DocumentCore {
         if has_controls {
             // 컨트롤 포함 문단은 merge 불가 → 직접 삽입
             let right_half =
-                self.document.sections[section_idx].paragraphs[para_idx].split_at(char_offset);
+                self.document.sections[section_idx].paragraphs[para_idx].split_at(char_offset).paragraph;
 
             // 현재 문단 (왼쪽 반)이 비어있으면 첫 번째 파싱 문단으로 대체
             let left_empty = self.document.sections[section_idx].paragraphs[para_idx]
@@ -229,7 +229,7 @@ impl DocumentCore {
 
         // 다중 문단 삽입 (컨트롤 없는 텍스트만)
         let right_half =
-            self.document.sections[section_idx].paragraphs[para_idx].split_at(char_offset);
+            self.document.sections[section_idx].paragraphs[para_idx].split_at(char_offset).paragraph;
 
         self.document.sections[section_idx].paragraphs[para_idx].merge_from(&parsed_paras[0]);
 
@@ -243,7 +243,7 @@ impl DocumentCore {
 
         let last_para_idx = insert_idx - 1;
         let merge_point =
-            self.document.sections[section_idx].paragraphs[last_para_idx].merge_from(&right_half);
+            self.document.sections[section_idx].paragraphs[last_para_idx].merge_from(&right_half).offset;
 
         for i in para_idx..=last_para_idx {
             self.reflow_paragraph(section_idx, i);

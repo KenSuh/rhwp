@@ -985,7 +985,7 @@ impl DocumentCore {
         };
 
         // 이 문단의 ClickHere 필드 범위 검색
-        for fr in &para.field_ranges {
+        for fr in &para.field_ranges() {
             if let Some(Control::Field(field)) = para.controls.get(fr.control_idx) {
                 if field.field_type == FieldType::ClickHere {
                     // 필드 시작 위치로 커서를 보낸다

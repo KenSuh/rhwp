@@ -75,7 +75,7 @@ fn test_document_with_paragraphs() {
         paragraphs: vec![
             {
                 let mut paragraph_value =
-                    Paragraph::with_text("첫 번째 문단".to_string(), Vec::new());
+                    Paragraph::with_text("첫 번째 문단".to_string(), Vec::new(), Vec::new());
 
                 paragraph_value.line_segs = vec![LineSeg {
                     line_height: 400,
@@ -86,7 +86,7 @@ fn test_document_with_paragraphs() {
             },
             {
                 let mut paragraph_value =
-                    Paragraph::with_text("두 번째 문단".to_string(), Vec::new());
+                    Paragraph::with_text("두 번째 문단".to_string(), Vec::new(), Vec::new());
 
                 paragraph_value.line_segs = vec![LineSeg {
                     line_height: 400,
@@ -212,7 +212,7 @@ fn create_doc_with_table() -> HwpDocument {
                 height: 3000,
                 paragraphs: vec![{
                     let mut paragraph_value =
-                        Paragraph::with_text("셀A".to_string(), make_char_offsets("셀A"));
+                        Paragraph::with_text("셀A".to_string(), make_char_offsets("셀A"), Vec::new());
 
                     paragraph_value.char_count = 2;
 
@@ -234,7 +234,7 @@ fn create_doc_with_table() -> HwpDocument {
                 height: 3000,
                 paragraphs: vec![{
                     let mut paragraph_value =
-                        Paragraph::with_text("셀B".to_string(), make_char_offsets("셀B"));
+                        Paragraph::with_text("셀B".to_string(), make_char_offsets("셀B"), Vec::new());
 
                     paragraph_value.char_count = 2;
 
@@ -256,7 +256,7 @@ fn create_doc_with_table() -> HwpDocument {
                 height: 3000,
                 paragraphs: vec![{
                     let mut paragraph_value =
-                        Paragraph::with_text("셀C".to_string(), make_char_offsets("셀C"));
+                        Paragraph::with_text("셀C".to_string(), make_char_offsets("셀C"), Vec::new());
 
                     paragraph_value.char_count = 2;
 
@@ -278,7 +278,7 @@ fn create_doc_with_table() -> HwpDocument {
                 height: 3000,
                 paragraphs: vec![{
                     let mut paragraph_value =
-                        Paragraph::with_text("셀D".to_string(), make_char_offsets("셀D"));
+                        Paragraph::with_text("셀D".to_string(), make_char_offsets("셀D"), Vec::new());
 
                     paragraph_value.char_count = 2;
 
@@ -296,7 +296,7 @@ fn create_doc_with_table() -> HwpDocument {
     };
 
     let parent_para = {
-        let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new());
+        let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new(), Vec::new());
 
         paragraph_value.controls = vec![Control::Table(Box::new(table))];
 
@@ -2540,7 +2540,7 @@ fn test_clipboard_paste_control_uses_requested_target_paragraph() {
     fn text_para(text: &str) -> Paragraph {
         {
             let mut paragraph_value =
-                Paragraph::with_text(text.to_string(), make_char_offsets(text));
+                Paragraph::with_text(text.to_string(), make_char_offsets(text), Vec::new());
 
             paragraph_value.char_count = text.chars().count() as u32 + 1;
 
@@ -2603,7 +2603,7 @@ fn test_clipboard_paste_table_resets_source_anchor_offsets() {
     fn text_para(text: &str) -> Paragraph {
         {
             let mut paragraph_value =
-                Paragraph::with_text(text.to_string(), make_char_offsets(text));
+                Paragraph::with_text(text.to_string(), make_char_offsets(text), Vec::new());
 
             paragraph_value.char_count = text.chars().count() as u32 + 1;
 
@@ -13046,7 +13046,7 @@ fn test_save_table_1x1() {
     // 셀 내부 문단: 빈 문단 (CR만, char_count=1, MSB set)
     let cell_seg_width = 40932; // 참조: cell_width - 패딩(510+510) - 2
     let cell_para = {
-        let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new());
+        let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new(), Vec::new());
 
         paragraph_value.char_count = 1;
 
@@ -13193,7 +13193,7 @@ fn test_save_table_1x1() {
 
     // 두 번째 빈 문단 추가 (HWP는 표 삽입 시 아래에 빈 문단을 자동 추가)
     let empty_para = {
-        let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new());
+        let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new(), Vec::new());
 
         paragraph_value.char_count = 1;
         // CR만
@@ -13942,7 +13942,7 @@ fn test_save_picture() {
     // 참조 문단의 정확한 값 사용
     let ref_para = &ref_doc.document.sections[0].paragraphs[0];
     let pic_para = {
-        let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new());
+        let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new(), Vec::new());
 
         paragraph_value.char_count = 25;
         // secd(8) + cold(8) + gso(8) + CR(1) = 25
@@ -15129,7 +15129,7 @@ fn test_save_pic_in_table() {
 
     // 6. 셀 내부 문단 구성 (cc=9: gso(8)+CR(1), mask=0x00000800)
     let cell_para = {
-        let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new());
+        let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new(), Vec::new());
 
         paragraph_value.char_count = ref_cell_para.char_count;
         // 9
@@ -15226,7 +15226,7 @@ fn test_save_pic_in_table() {
 
     // 10. 두 번째 빈 문단 추가 (표 아래)
     let empty_para = {
-        let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new());
+        let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new(), Vec::new());
 
         paragraph_value.char_count = ref_para1.char_count;
         // 1
@@ -19860,7 +19860,7 @@ fn test_task229_field_parsing() {
     let mut total_field_ranges = 0;
     for (si, section) in doc.sections.iter().enumerate() {
         for (pi, para) in section.paragraphs.iter().enumerate() {
-            if !para.field_ranges.is_empty() {
+            if !para.field_ranges().is_empty() {
                 eprintln!(
                     "[Task229] 구역[{}] 문단[{}] text=\"{}\" (len={})",
                     si,
@@ -19869,7 +19869,7 @@ fn test_task229_field_parsing() {
                     para.text().chars().count()
                 );
             }
-            for fr in &para.field_ranges {
+            for fr in &para.field_ranges() {
                 total_field_ranges += 1;
                 let field_text: String = para
                     .text()
@@ -19958,7 +19958,7 @@ fn test_task229_field_svg_guide_text() {
                     if let Some(drawing) = s.drawing() {
                         if let Some(tb) = &drawing.text_box {
                             for tb_para in &tb.paragraphs {
-                                shape_field_count += tb_para.field_ranges.len();
+                                shape_field_count += tb_para.field_ranges().len();
                             }
                         }
                     }
@@ -20126,12 +20126,12 @@ fn test_task231_field_survives_text_insert() {
 
     // field_ranges 직접 확인
     let para = &doc.document.sections[0].paragraphs[7];
-    eprintln!("[After] field_ranges: {:?}", para.field_ranges);
+    eprintln!("[After] field_ranges: {:?}", para.field_ranges());
     assert!(
-        !para.field_ranges.is_empty(),
+        !para.field_ranges().is_empty(),
         "field_ranges가 비어있으면 안됨"
     );
-    let fr = &para.field_ranges[0];
+    let fr = &para.field_ranges()[0];
     assert_eq!(fr.start_char_idx, 7, "필드 시작은 7");
     assert_eq!(fr.end_char_idx, 8, "필드 끝은 8 (1글자 삽입 후)");
 }
@@ -20148,7 +20148,7 @@ fn test_task231_field_survives_ime_cycle() {
 
     // IME 1단계: "ㅁ" 삽입 (compositionLength=0이므로 삭제 없음)
     doc.insert_text_native(0, 7, 7, "ㅁ").expect("삽입 실패");
-    let fr = &doc.document.sections[0].paragraphs[7].field_ranges[0];
+    let fr = &doc.document.sections[0].paragraphs[7].field_ranges()[0];
     assert_eq!(
         (fr.start_char_idx, fr.end_char_idx),
         (7, 8),
@@ -20159,12 +20159,12 @@ fn test_task231_field_survives_ime_cycle() {
     doc.delete_text_native(0, 7, 7, 1).expect("삭제 실패");
     // *** 핵심: 삭제 후 필드가 비어도 field_ranges가 유지되어야 함 ***
     let para = &doc.document.sections[0].paragraphs[7];
-    eprintln!("[After delete] field_ranges: {:?}", para.field_ranges);
+    eprintln!("[After delete] field_ranges: {:?}", para.field_ranges());
     assert!(
-        !para.field_ranges.is_empty(),
+        !para.field_ranges().is_empty(),
         "삭제 후에도 빈 필드 범위가 유지되어야 함"
     );
-    let fr = &para.field_ranges[0];
+    let fr = &para.field_ranges()[0];
     assert_eq!(
         (fr.start_char_idx, fr.end_char_idx),
         (7, 7),
@@ -20172,7 +20172,7 @@ fn test_task231_field_survives_ime_cycle() {
     );
 
     doc.insert_text_native(0, 7, 7, "마").expect("삽입 실패");
-    let fr = &doc.document.sections[0].paragraphs[7].field_ranges[0];
+    let fr = &doc.document.sections[0].paragraphs[7].field_ranges()[0];
     assert_eq!(
         (fr.start_char_idx, fr.end_char_idx),
         (7, 8),
@@ -20183,12 +20183,12 @@ fn test_task231_field_survives_ime_cycle() {
     doc.delete_text_native(0, 7, 7, 1).expect("삭제 실패");
     assert!(
         !doc.document.sections[0].paragraphs[7]
-            .field_ranges
+            .field_ranges()
             .is_empty(),
         "3단계 삭제 후 필드 유지"
     );
     doc.insert_text_native(0, 7, 7, "만").expect("삽입 실패");
-    let fr = &doc.document.sections[0].paragraphs[7].field_ranges[0];
+    let fr = &doc.document.sections[0].paragraphs[7].field_ranges()[0];
     assert_eq!(
         (fr.start_char_idx, fr.end_char_idx),
         (7, 8),
@@ -20367,17 +20367,17 @@ fn test_task231_field_roundtrip() {
     }
     // field_ranges 보존 확인
     let orig_para = &doc.document.sections[0].paragraphs[7];
-    eprintln!("[roundtrip] orig field_ranges={:?}", orig_para.field_ranges);
-    eprintln!("[roundtrip] reload field_ranges={:?}", para.field_ranges);
+    eprintln!("[roundtrip] orig field_ranges={:?}", orig_para.field_ranges());
+    eprintln!("[roundtrip] reload field_ranges={:?}", para.field_ranges());
     assert_eq!(
-        para.field_ranges.len(),
-        orig_para.field_ranges.len(),
+        para.field_ranges().len(),
+        orig_para.field_ranges().len(),
         "field_ranges 개수 보존"
     );
     for (i, (a, b)) in orig_para
-        .field_ranges
+        .field_ranges()
         .iter()
-        .zip(para.field_ranges.iter())
+        .zip(para.field_ranges().iter())
         .enumerate()
     {
         assert_eq!(
@@ -20417,7 +20417,7 @@ fn diag_para_text_field_markers() {
         let serialized = crate::serializer::body_text::test_serialize_para_text(para);
 
         eprintln!("\n[para={}] text={:?}", pi, para.text());
-        eprintln!("  field_ranges={:?}", para.field_ranges);
+        eprintln!("  field_ranges={:?}", para.field_ranges());
         eprintln!("  char_offsets={:?}", para.char_offsets());
 
         // 직렬화된 바이트에서 컨트롤 문자 위치 추출
@@ -20848,8 +20848,8 @@ fn diag_field07_vs_field03h() {
                 }
 
                 // field_ranges
-                eprintln!("    field_ranges({} entries):", para.field_ranges.len());
-                for (i, fr) in para.field_ranges.iter().enumerate() {
+                eprintln!("    field_ranges({} entries):", para.field_ranges().len());
+                for (i, fr) in para.field_ranges().iter().enumerate() {
                     eprintln!(
                         "      [{}] start_char={} end_char={} ctrl_idx={}",
                         i, fr.start_char_idx, fr.end_char_idx, fr.control_idx
@@ -21960,7 +21960,7 @@ fn diag_memo_controls() {
                 eprintln!();
                 // field_ranges 정보
                 let chars: Vec<char> = para.text().chars().collect();
-                for (fri, fr) in para.field_ranges.iter().enumerate() {
+                for (fri, fr) in para.field_ranges().iter().enumerate() {
                     let field_text: String =
                         if fr.start_char_idx < fr.end_char_idx && fr.end_char_idx <= chars.len() {
                             chars[fr.start_char_idx..fr.end_char_idx].iter().collect()

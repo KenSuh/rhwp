@@ -251,7 +251,8 @@ impl Cell {
             }
 
             {
-                let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new());
+                let mut paragraph_value =
+                    Paragraph::with_text(String::new(), Vec::new(), Vec::new());
 
                 paragraph_value.char_count = 1;
                 // 빈 문단: 끝 마커(0x000D) 포함
@@ -1004,34 +1005,11 @@ impl Table {
                 && cell.row <= end_row;
             if in_range {
                 for para in &cell.paragraphs {
-                    if !para.text().is_empty() {
-                        extra_paragraphs.push({
-                            let mut paragraph_value = Paragraph::with_text(
-                                para.text().to_owned(),
-                                para.char_offsets().to_owned(),
-                            );
-
-                            paragraph_value.char_count = para.char_count;
-
-                            paragraph_value.char_count_msb = para.char_count_msb;
-
-                            paragraph_value.control_mask = para.control_mask;
-
-                            paragraph_value.char_shapes = para.char_shapes.clone();
-
-                            paragraph_value.line_segs = para.line_segs.clone();
-
-                            paragraph_value.range_tags = para.range_tags.clone();
-
-                            paragraph_value.para_shape_id = para.para_shape_id;
-
-                            paragraph_value.style_id = para.style_id;
-
-                            paragraph_value.raw_header_extra = para.raw_header_extra.clone();
-
-                            paragraph_value.has_para_text = para.has_para_text;
-                            paragraph_value
-                        });
+                    if !para.text().is_empty()
+                        || !para.controls.is_empty()
+                        || !para.field_markers().is_empty()
+                    {
+                        extra_paragraphs.push(para.clone());
                     }
                 }
             }

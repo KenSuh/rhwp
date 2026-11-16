@@ -653,7 +653,7 @@ impl DocumentCore {
         table_raw_header_extra[6..10].copy_from_slice(&0x80000000u32.to_le_bytes());
 
         let table_para = {
-            let mut paragraph_value = Paragraph::with_text(String::new(), vec![]);
+            let mut paragraph_value = Paragraph::with_text(String::new(), vec![], Vec::new());
 
             paragraph_value.char_count = 9;
             // 확장 제어문자(8 code units) + 문단끝(1 code unit)

@@ -15,7 +15,7 @@ pub mod validation;
 
 use crate::model::document::Document;
 use crate::model::event::DocumentEvent;
-use crate::model::paragraph::Paragraph;
+use crate::model::paragraph::{Paragraph, ParagraphEdit};
 use crate::renderer::composer::ComposedParagraph;
 use crate::renderer::height_measurer::{MeasuredSection, MeasuredTable};
 use crate::renderer::layout::LayoutEngine;
@@ -25,6 +25,18 @@ use crate::renderer::style_resolver::ResolvedStyleSet;
 use crate::renderer::DEFAULT_DPI;
 use std::cell::RefCell;
 use std::collections::HashMap;
+
+pub(crate) enum TextEditState {
+    Paragraph {
+        section: usize,
+        paragraph: usize,
+        inverse: ParagraphEdit,
+    },
+    ParagraphList {
+        section: usize,
+        before: Vec<Paragraph>,
+    },
+}
 
 /// 기본 폰트 fallback 경로
 pub const DEFAULT_FALLBACK_FONT: &str = "/usr/share/fonts/truetype/nanum/NanumGothic.ttf";
@@ -94,6 +106,8 @@ pub struct DocumentCore {
     pub(crate) snapshot_store: Vec<(u32, Document)>,
     /// 다음 스냅샷 ID
     pub(crate) next_snapshot_id: u32,
+    pub(crate) text_edit_store: Vec<(u32, TextEditState)>,
+    pub(crate) next_text_edit_id: u32,
     /// 머리말/꼬리말 감추기: (global_page_index, is_header) 조합
     pub(crate) hidden_header_footer: std::collections::HashSet<(u32, bool)>,
     /// 파일 이름 (머리말/꼬리말 필드 치환용)
@@ -230,6 +244,8 @@ impl DocumentCore {
             overflow_links_cache: RefCell::new(HashMap::new()),
             snapshot_store: Vec::new(),
             next_snapshot_id: 0,
+            text_edit_store: Vec::new(),
+            next_text_edit_id: 0,
             hidden_header_footer: std::collections::HashSet::new(),
             file_name: String::new(),
             active_field: None,

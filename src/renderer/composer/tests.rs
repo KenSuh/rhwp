@@ -6,7 +6,7 @@ use crate::model::paragraph::{CharShapeRef, LineSeg, Paragraph};
 fn test_compose_single_line_single_style() {
     let para = {
         let mut paragraph_value =
-            Paragraph::with_text("안녕하세요".to_string(), vec![0, 1, 2, 3, 4]);
+            Paragraph::with_text("안녕하세요".to_string(), vec![0, 1, 2, 3, 4], Vec::new());
 
         paragraph_value.char_count = 6;
         // 5 chars + 1 (paragraph end)
@@ -35,7 +35,7 @@ fn test_compose_single_line_single_style() {
 #[test]
 fn test_compose_single_line_multi_style() {
     let para = {
-        let mut paragraph_value = Paragraph::with_text("ABCDE".to_string(), vec![0, 1, 2, 3, 4]);
+        let mut paragraph_value = Paragraph::with_text("ABCDE".to_string(), vec![0, 1, 2, 3, 4], Vec::new());
 
         paragraph_value.char_count = 6;
 
@@ -75,6 +75,7 @@ fn test_compose_multi_line() {
         let mut paragraph_value = Paragraph::with_text(
             "첫줄텍스트두번째줄".to_string(),
             vec![0, 1, 2, 3, 4, 5, 6, 7, 8],
+            Vec::new(),
         );
 
         paragraph_value.char_count = 10;
@@ -112,7 +113,7 @@ fn test_compose_multi_line() {
 fn test_compose_multi_line_multi_style() {
     let para = {
         let mut paragraph_value =
-            Paragraph::with_text("AAABBBCCCC".to_string(), vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+            Paragraph::with_text("AAABBBCCCC".to_string(), vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9], Vec::new());
 
         paragraph_value.char_count = 11;
 
@@ -177,7 +178,7 @@ fn test_compose_empty_paragraph() {
 #[test]
 fn test_compose_no_line_segs() {
     let para = {
-        let mut paragraph_value = Paragraph::with_text("텍스트만 있음".to_string(), Vec::new());
+        let mut paragraph_value = Paragraph::with_text("텍스트만 있음".to_string(), Vec::new(), Vec::new());
 
         paragraph_value.char_shapes = vec![CharShapeRef {
             start_pos: 0,
@@ -200,7 +201,7 @@ fn test_compose_with_ctrl_char_gap() {
     // char_offsets = [8, 9, 10]
     // LineSeg.text_start = 0 (첫 줄은 처음부터)
     let para = {
-        let mut paragraph_value = Paragraph::with_text("ABC".to_string(), vec![8, 9, 10]);
+        let mut paragraph_value = Paragraph::with_text("ABC".to_string(), vec![8, 9, 10], Vec::new());
 
         paragraph_value.char_count = 12;
 
@@ -230,7 +231,7 @@ fn test_identify_inline_controls_table() {
     use crate::model::table::Table;
 
     let para = {
-        let mut paragraph_value = Paragraph::with_text("표 앞 텍스트".to_string(), Vec::new());
+        let mut paragraph_value = Paragraph::with_text("표 앞 텍스트".to_string(), Vec::new(), Vec::new());
 
         paragraph_value.controls = vec![Control::Table(Box::new(Table::default()))];
         paragraph_value
@@ -312,7 +313,7 @@ fn make_styles_with_font_size(font_size: f64) -> ResolvedStyleSet {
 fn test_reflow_short_text_single_line() {
     let styles = make_styles_with_font_size(16.0);
     let mut para = {
-        let mut paragraph_value = Paragraph::with_text("안녕".to_string(), vec![0, 1]);
+        let mut paragraph_value = Paragraph::with_text("안녕".to_string(), vec![0, 1], Vec::new());
 
         paragraph_value.char_count = 3;
 
@@ -343,6 +344,7 @@ fn test_reflow_long_text_multi_line() {
         let mut paragraph_value = Paragraph::with_text(
             "가나다라마바사아자차".to_string(),
             vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+            Vec::new(),
         );
 
         paragraph_value.char_count = 11;
@@ -384,7 +386,7 @@ fn test_reflow_latin_text() {
     // 라틴 10글자: 각 8px → 총 80px
     let mut para = {
         let mut paragraph_value =
-            Paragraph::with_text("ABCDEFGHIJ".to_string(), vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+            Paragraph::with_text("ABCDEFGHIJ".to_string(), vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9], Vec::new());
 
         paragraph_value.char_count = 11;
 
@@ -412,7 +414,7 @@ fn test_reflow_latin_text() {
 fn test_reflow_line_height() {
     let styles = make_styles_with_font_size(16.0);
     let mut para = {
-        let mut paragraph_value = Paragraph::with_text("가".to_string(), vec![0]);
+        let mut paragraph_value = Paragraph::with_text("가".to_string(), vec![0], Vec::new());
 
         paragraph_value.char_count = 2;
 
@@ -568,7 +570,7 @@ fn test_reflow_lang_aware_mixed() {
     // 한영 혼합 텍스트 (충분히 좁은 너비 → 여러 줄)
     let mut para = {
         let mut paragraph_value =
-            Paragraph::with_text("가나다ABC".to_string(), vec![0, 1, 2, 3, 4, 5]);
+            Paragraph::with_text("가나다ABC".to_string(), vec![0, 1, 2, 3, 4, 5], Vec::new());
 
         paragraph_value.char_count = 7;
 
@@ -634,6 +636,7 @@ fn test_reflow_korean_eojeol_wrap() {
         let mut paragraph_value = Paragraph::with_text(
             "안녕하세요 반갑습니다".to_string(),
             vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+            Vec::new(),
         );
 
         paragraph_value.char_count = 12;
@@ -669,6 +672,7 @@ fn test_reflow_english_word_wrap() {
         let mut paragraph_value = Paragraph::with_text(
             "Hello World".to_string(),
             vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+            Vec::new(),
         );
 
         paragraph_value.char_count = 12;
@@ -699,7 +703,7 @@ fn test_reflow_forced_line_break() {
     let styles = make_styles_with_font_size(16.0);
     let mut para = {
         let mut paragraph_value =
-            Paragraph::with_text("가나\n다라".to_string(), vec![0, 1, 2, 3, 4]);
+            Paragraph::with_text("가나\n다라".to_string(), vec![0, 1, 2, 3, 4], Vec::new());
 
         paragraph_value.char_count = 6;
 

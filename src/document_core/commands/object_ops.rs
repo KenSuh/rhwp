@@ -1238,7 +1238,7 @@ impl DocumentCore {
         table_raw_header_extra[4..6].copy_from_slice(&1u16.to_le_bytes());
 
         let table_para = {
-            let mut paragraph_value = Paragraph::with_text(String::new(), vec![]);
+            let mut paragraph_value = Paragraph::with_text(String::new(), vec![], Vec::new());
 
             paragraph_value.char_count = 9;
             // 확장 제어문자(8 code units) + 문단끝(1)
@@ -1297,7 +1297,7 @@ impl DocumentCore {
             // 문단 중간이면 분할 후 삽입
             if char_offset > 0 && !para.text().is_empty() {
                 let new_para =
-                    self.document.sections[section_idx].paragraphs[para_idx].split_at(char_offset);
+                    self.document.sections[section_idx].paragraphs[para_idx].split_at(char_offset).paragraph;
                 self.document.sections[section_idx]
                     .paragraphs
                     .insert(para_idx + 1, new_para);
@@ -1320,7 +1320,7 @@ impl DocumentCore {
         empty_raw_header_extra[0..2].copy_from_slice(&1u16.to_le_bytes());
         empty_raw_header_extra[4..6].copy_from_slice(&1u16.to_le_bytes());
         let empty_para = {
-            let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new());
+            let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new(), Vec::new());
 
             paragraph_value.char_count = 1;
 
@@ -1883,7 +1883,7 @@ impl DocumentCore {
         pic_raw_header_extra[4..6].copy_from_slice(&1u16.to_le_bytes()); // n_line_segs=1
 
         let pic_para = {
-            let mut paragraph_value = Paragraph::with_text(String::new(), vec![]);
+            let mut paragraph_value = Paragraph::with_text(String::new(), vec![], Vec::new());
 
             paragraph_value.char_count = 9;
             // 확장 제어문자(8 code units) + 문단끝(1)
@@ -1939,7 +1939,7 @@ impl DocumentCore {
         } else {
             if char_offset > 0 && !para.text().is_empty() {
                 let new_para =
-                    self.document.sections[section_idx].paragraphs[para_idx].split_at(char_offset);
+                    self.document.sections[section_idx].paragraphs[para_idx].split_at(char_offset).paragraph;
                 self.document.sections[section_idx]
                     .paragraphs
                     .insert(para_idx + 1, new_para);
@@ -1960,7 +1960,7 @@ impl DocumentCore {
         empty_raw_header_extra[0..2].copy_from_slice(&1u16.to_le_bytes());
         empty_raw_header_extra[4..6].copy_from_slice(&1u16.to_le_bytes());
         let empty_para = {
-            let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new());
+            let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new(), Vec::new());
 
             paragraph_value.char_count = 1;
 
@@ -3192,7 +3192,7 @@ impl DocumentCore {
         inner_raw_header_extra[0..2].copy_from_slice(&1u16.to_le_bytes());
         inner_raw_header_extra[4..6].copy_from_slice(&1u16.to_le_bytes());
         let inner_para = {
-            let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new());
+            let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new(), Vec::new());
 
             paragraph_value.char_count = 1;
 
@@ -5163,7 +5163,7 @@ impl DocumentCore {
         };
 
         let inner_para = {
-            let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new());
+            let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new(), Vec::new());
 
             paragraph_value.char_count = 1;
 

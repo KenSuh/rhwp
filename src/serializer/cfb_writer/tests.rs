@@ -54,7 +54,7 @@ fn test_serialize_hwp_cfb_streams() {
         sections: vec![crate::model::document::Section {
             section_def: SectionDef::default(),
             paragraphs: vec![{
-                let mut paragraph_value = Paragraph::with_text("테스트".to_string(), Vec::new());
+                let mut paragraph_value = Paragraph::with_text("테스트".to_string(), Vec::new(), Vec::new());
 
                 paragraph_value.line_segs = vec![LineSeg {
                     line_height: 400,
@@ -189,7 +189,7 @@ fn test_full_roundtrip_uncompressed() {
             section_def: SectionDef::default(),
             paragraphs: vec![{
                 let mut paragraph_value =
-                    Paragraph::with_text("안녕하세요".to_string(), Vec::new());
+                    Paragraph::with_text("안녕하세요".to_string(), Vec::new(), Vec::new());
 
                 paragraph_value.char_count = 6;
                 // 5문자 + 문단 끝
@@ -268,7 +268,7 @@ fn test_full_roundtrip_compressed() {
             section_def: SectionDef::default(),
             paragraphs: vec![{
                 let mut paragraph_value =
-                    Paragraph::with_text("Hello World".to_string(), Vec::new());
+                    Paragraph::with_text("Hello World".to_string(), Vec::new(), Vec::new());
 
                 paragraph_value.char_count = 12;
 

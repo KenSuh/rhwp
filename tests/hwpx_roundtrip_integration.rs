@@ -1114,7 +1114,7 @@ fn c20_contact_identity(
         "{:?}\n{:?}\n{:?}\n{:?}\n{:?}",
         p.text(),
         p.char_offsets(),
-        p.field_ranges,
+        p.field_ranges(),
         p.controls,
         (
             doc.doc_info.para_shapes[p.para_shape_id as usize].indent,
@@ -2021,7 +2021,7 @@ fn c23_field_state(para: &rhwp::model::paragraph::Paragraph) -> C23FieldState {
         offsets: para.char_offsets().to_owned(),
         count: para.char_count,
         ranges: para
-            .field_ranges
+            .field_ranges()
             .iter()
             .map(|range| (range.start_char_idx, range.end_char_idx))
             .collect(),
@@ -3473,11 +3473,11 @@ fn c8_native_field_ranges_follow_unicode_edits_in_body_and_cell() {
     let mut core = DocumentCore::from_bytes(&input).unwrap();
     let para = &core.document().sections[0].paragraphs[0];
     assert_eq!(para.text(), "앞😀링😀크뒤");
-    assert_eq!(para.field_ranges.len(), 1);
+    assert_eq!(para.field_ranges().len(), 1);
     assert_eq!(
         (
-            para.field_ranges[0].start_char_idx,
-            para.field_ranges[0].end_char_idx
+            para.field_ranges()[0].start_char_idx,
+            para.field_ranges()[0].end_char_idx
         ),
         (2, 5)
     );
@@ -3492,8 +3492,8 @@ fn c8_native_field_ranges_follow_unicode_edits_in_body_and_cell() {
     assert_eq!(body.text(), "앞😀링편😀😀크뒤");
     assert_eq!(
         (
-            body.field_ranges[0].start_char_idx,
-            body.field_ranges[0].end_char_idx
+            body.field_ranges()[0].start_char_idx,
+            body.field_ranges()[0].end_char_idx
         ),
         (2, 7)
     );
@@ -3515,7 +3515,7 @@ fn c8_native_empty_nested_fields_and_current_property_edits_survive() {
     let inner = r#"<hp:p paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="0"><hp:ctrl><hp:fieldBegin id="1" fieldid="101" type="CLICK_HERE" name="old" editable="1"><hp:parameters cnt="2" name=""><hp:stringParam name="Command">old</hp:stringParam><hp:listParam name="Nested" cnt="2"><hp:integerParam name="Value">42</hp:integerParam><hp:stringParam name="Value">a&amp;b</hp:stringParam></hp:listParam></hp:parameters></hp:fieldBegin><hp:fieldBegin id="2" type="VENDOR_FIELD" name="inner"/><hp:fieldEnd beginIDRef="2"/><hp:fieldEnd beginIDRef="1" fieldid="101"/></hp:ctrl><hp:t>끝😀</hp:t></hp:run></hp:p>"#;
     let input = c8_fixture(inner, false);
     let mut doc = parse_hwpx(&input).unwrap();
-    assert_eq!(doc.sections[0].paragraphs[0].field_ranges.len(), 2);
+    assert_eq!(doc.sections[0].paragraphs[0].field_ranges().len(), 2);
     let saved = serialize_hwpx(&doc).unwrap();
     assert_eq!(
         c8_inline_events(&hwpx_section_xml(&saved)),
@@ -3632,8 +3632,8 @@ fn c8_native_field_binary_defaults_and_invalid_references_are_explicit() {
     let empty = parse_hwpx(&empty_saved).expect("empty binary field begin must precede end");
     assert_eq!(
         (
-            empty.sections[0].paragraphs[0].field_ranges[0].start_char_idx,
-            empty.sections[0].paragraphs[0].field_ranges[0].end_char_idx
+            empty.sections[0].paragraphs[0].field_ranges()[0].start_char_idx,
+            empty.sections[0].paragraphs[0].field_ranges()[0].end_char_idx
         ),
         (2, 2)
     );
@@ -3670,7 +3670,7 @@ fn c8_native_field_binary_defaults_and_invalid_references_are_explicit() {
         }
         // Binary parsing records controls at begin and field ranges at end.
         if nested {
-            para.field_ranges.reverse();
+            para.field_ranges().reverse();
         }
         let saved = serialize_hwpx(&binary).unwrap();
         let boundaries: Vec<_> = c8_inline_events(&hwpx_section_xml(&saved))
@@ -3690,7 +3690,7 @@ fn c8_native_field_binary_defaults_and_invalid_references_are_explicit() {
         assert_eq!(boundaries, expected);
         assert_eq!(
             parse_hwpx(&saved).unwrap().sections[0].paragraphs[0]
-                .field_ranges
+                .field_ranges()
                 .len(),
             2
         );

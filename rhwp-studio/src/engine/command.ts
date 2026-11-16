@@ -10,7 +10,7 @@ export interface EditCommand {
   /** 역실행 — 실행 전 커서 위치 반환 */
   undo(wasm: WasmBridge): DocumentPosition;
   /** 연속 명령 병합 시도 */
-  mergeWith(other: EditCommand): EditCommand | null;
+  mergeWith(other: EditCommand, wasm?: WasmBridge): EditCommand | null;
   /** 리소스 해제 (스냅샷 명령의 메모리 반환 등). 스택에서 제거될 때 호출. */
   discard?(wasm: WasmBridge): void;
 }
@@ -29,6 +29,52 @@ export type OperationDescriptor =
   | { kind: 'command'; command: EditCommand }
   | { kind: 'snapshot'; operationType: string; operation: (wasm: WasmBridge) => DocumentPosition }
   | { kind: 'record'; command: EditCommand };
+
+class TextEditInverse {
+  private token: number | null = null;
+  private undone = false;
+  private after: DocumentPosition | null = null;
+
+  run(wasm: WasmBridge, position: DocumentPosition, structural: boolean, operation: () => DocumentPosition): DocumentPosition {
+    if (this.undone && this.token !== null && this.after !== null) {
+      this.token = wasm.undoEdit(this.token);
+      this.undone = false;
+      return this.after;
+    }
+    this.token = wasm.beginTextEdit(position.sectionIndex, position.parentParaIndex ?? position.paragraphIndex, structural && !isCell(position));
+    try {
+      this.after = operation();
+      return this.after;
+    } catch (error) {
+      wasm.discardEdit(wasm.undoEdit(this.token));
+      this.token = null;
+      throw error;
+    }
+  }
+
+  undo(wasm: WasmBridge): void {
+    if (this.token === null) throw new Error('텍스트 편집 복원 토큰이 없습니다');
+    this.token = wasm.undoEdit(this.token);
+    this.undone = true;
+  }
+
+  adopt(token: number, after: DocumentPosition): void {
+    this.token = token;
+    this.after = after;
+  }
+
+  merge(first: TextEditInverse, last: TextEditInverse, wasm: WasmBridge): void {
+    this.token = first.token;
+    this.after = last.after;
+    first.token = null;
+    last.discard(wasm);
+  }
+
+  discard(wasm: WasmBridge): void {
+    if (this.token !== null) wasm.discardEdit(this.token);
+    this.token = null;
+  }
+}
 
 // ─── 본문/셀 분기 헬퍼 ────────────────────────────────
 
@@ -188,6 +234,8 @@ function deleteRangeInNestedCell(wasm: WasmBridge, start: DocumentPosition, end:
 // ─── 텍스트 삽입 명령 ─────────────────────────────────
 
 export class InsertTextCommand implements EditCommand {
+  private readonly inverse = new TextEditInverse();
+
   readonly type = 'insertText';
   readonly timestamp: number;
 
@@ -199,18 +247,30 @@ export class InsertTextCommand implements EditCommand {
     this.timestamp = timestamp ?? Date.now();
   }
 
+  static recorded(position: DocumentPosition, text: string, token: number): InsertTextCommand {
+    const command = new InsertTextCommand(position, text);
+    command.inverse.adopt(token, { ...position, charOffset: position.charOffset + text.length });
+    return command;
+  }
+
   execute(wasm: WasmBridge): DocumentPosition {
-    doInsertText(wasm, this.position, this.text);
-    return { ...this.position, charOffset: this.position.charOffset + this.text.length };
+    return this.inverse.run(wasm, this.position, false, () => {
+      doInsertText(wasm, this.position, this.text);
+      return { ...this.position, charOffset: this.position.charOffset + this.text.length };
+    });
   }
 
   undo(wasm: WasmBridge): DocumentPosition {
-    doDeleteText(wasm, this.position, this.text.length);
+    this.inverse.undo(wasm);
     return { ...this.position };
   }
 
-  mergeWith(other: EditCommand): EditCommand | null {
+  discard(wasm: WasmBridge): void { this.inverse.discard(wasm); }
+
+  mergeWith(other: EditCommand, wasm?: WasmBridge): EditCommand | null {
+    if (!wasm) return null;
     if (!(other instanceof InsertTextCommand)) return null;
+    if ((isNestedCell(this.position) || isNestedCell(other.position)) && !sameNestedCellTarget(this.position, other.position)) return null;
     // 같은 문단/셀인지 확인
     if (other.position.sectionIndex !== this.position.sectionIndex) return null;
     if (other.position.paragraphIndex !== this.position.paragraphIndex) return null;
@@ -229,13 +289,17 @@ export class InsertTextCommand implements EditCommand {
     // 줄바꿈/탭 포함 시 병합 불가
     if (other.text.includes('\n') || other.text.includes('\t')) return null;
 
-    return new InsertTextCommand(this.position, this.text + other.text, this.timestamp);
+    const merged = new InsertTextCommand(this.position, this.text + other.text, this.timestamp);
+    merged.inverse.merge(this.inverse, other.inverse, wasm);
+    return merged;
   }
 }
 
 // ─── 텍스트 삭제 명령 ─────────────────────────────────
 
 export class DeleteTextCommand implements EditCommand {
+  private readonly inverse = new TextEditInverse();
+
   readonly type = 'deleteText';
   readonly timestamp: number;
 
@@ -254,22 +318,27 @@ export class DeleteTextCommand implements EditCommand {
   }
 
   execute(wasm: WasmBridge): DocumentPosition {
-    // 삭제 전 텍스트 보존
-    if (!this.deletedText) {
-      this.deletedText = doGetTextRange(wasm, this.position, this.count);
-    }
-    doDeleteText(wasm, this.position, this.count);
-    return { ...this.position };
+    return this.inverse.run(wasm, this.position, false, () => {
+      // 삭제 전 텍스트 보존
+      if (!this.deletedText) {
+        this.deletedText = doGetTextRange(wasm, this.position, this.count);
+      }
+      doDeleteText(wasm, this.position, this.count);
+      return { ...this.position };
+    });
   }
 
   undo(wasm: WasmBridge): DocumentPosition {
-    doInsertText(wasm, this.position, this.deletedText);
-    const restoredLen = this.deletedText.length;
-    return { ...this.position, charOffset: this.position.charOffset + restoredLen };
+    this.inverse.undo(wasm);
+    return { ...this.position, charOffset: this.position.charOffset + this.deletedText.length };
   }
 
-  mergeWith(other: EditCommand): EditCommand | null {
+  discard(wasm: WasmBridge): void { this.inverse.discard(wasm); }
+
+  mergeWith(other: EditCommand, wasm?: WasmBridge): EditCommand | null {
+    if (!wasm) return null;
     if (!(other instanceof DeleteTextCommand)) return null;
+    if ((isNestedCell(this.position) || isNestedCell(other.position)) && !sameNestedCellTarget(this.position, other.position)) return null;
     if (other.direction !== this.direction) return null;
     if (other.timestamp - this.timestamp > 300) return null;
     // 같은 문단/셀 확인
@@ -286,18 +355,22 @@ export class DeleteTextCommand implements EditCommand {
     if (this.direction === 'backward') {
       // Backspace: 연속 앞쪽 삭제
       if (other.position.charOffset === this.position.charOffset - other.count) {
-        return new DeleteTextCommand(
+        const merged = new DeleteTextCommand(
           other.position, this.count + other.count, 'backward',
           other.deletedText + this.deletedText, this.timestamp,
         );
+        merged.inverse.merge(this.inverse, other.inverse, wasm);
+        return merged;
       }
     } else {
       // Delete: 같은 위치에서 연속 삭제
       if (other.position.charOffset === this.position.charOffset) {
-        return new DeleteTextCommand(
+        const merged = new DeleteTextCommand(
           this.position, this.count + other.count, 'forward',
           this.deletedText + other.deletedText, this.timestamp,
         );
+        merged.inverse.merge(this.inverse, other.inverse, wasm);
+        return merged;
       }
     }
     return null;
@@ -307,21 +380,27 @@ export class DeleteTextCommand implements EditCommand {
 // ─── 강제 줄바꿈 명령 (Shift+Enter) ─────────────────────
 
 export class InsertLineBreakCommand implements EditCommand {
+  private readonly inverse = new TextEditInverse();
+
   readonly type = 'insertLineBreak';
   readonly timestamp = Date.now();
 
   constructor(private position: DocumentPosition) {}
 
   execute(wasm: WasmBridge): DocumentPosition {
-    doInsertText(wasm, this.position, '\n');
-    const newPos = { ...this.position, charOffset: this.position.charOffset + 1 };
-    return newPos;
+    return this.inverse.run(wasm, this.position, false, () => {
+      doInsertText(wasm, this.position, '\n');
+      const newPos = { ...this.position, charOffset: this.position.charOffset + 1 };
+      return newPos;
+    });
   }
 
   undo(wasm: WasmBridge): DocumentPosition {
-    doDeleteText(wasm, this.position, 1);
+    this.inverse.undo(wasm);
     return { ...this.position };
   }
+
+  discard(wasm: WasmBridge): void { this.inverse.discard(wasm); }
 
   mergeWith(): null { return null; }
 }
@@ -329,21 +408,27 @@ export class InsertLineBreakCommand implements EditCommand {
 // ─── 탭 삽입 명령 (Tab) ──────────────────────────────
 
 export class InsertTabCommand implements EditCommand {
+  private readonly inverse = new TextEditInverse();
+
   readonly type = 'insertTab';
   readonly timestamp = Date.now();
 
   constructor(private position: DocumentPosition) {}
 
   execute(wasm: WasmBridge): DocumentPosition {
-    doInsertText(wasm, this.position, '\t');
-    const newPos = { ...this.position, charOffset: this.position.charOffset + 1 };
-    return newPos;
+    return this.inverse.run(wasm, this.position, false, () => {
+      doInsertText(wasm, this.position, '\t');
+      const newPos = { ...this.position, charOffset: this.position.charOffset + 1 };
+      return newPos;
+    });
   }
 
   undo(wasm: WasmBridge): DocumentPosition {
-    doDeleteText(wasm, this.position, 1);
+    this.inverse.undo(wasm);
     return { ...this.position };
   }
+
+  discard(wasm: WasmBridge): void { this.inverse.discard(wasm); }
 
   mergeWith(): null { return null; }
 }
@@ -351,25 +436,30 @@ export class InsertTabCommand implements EditCommand {
 // ─── 문단 분할 명령 (Enter) ───────────────────────────
 
 export class SplitParagraphCommand implements EditCommand {
+  private readonly inverse = new TextEditInverse();
+
   readonly type = 'splitParagraph';
   readonly timestamp = Date.now();
 
   constructor(private position: DocumentPosition) {}
 
   execute(wasm: WasmBridge): DocumentPosition {
-    const { sectionIndex: sec, paragraphIndex: para, charOffset } = this.position;
-    const result = JSON.parse(wasm.splitParagraph(sec, para, charOffset));
-    if (result.ok) {
-      return { sectionIndex: sec, paragraphIndex: result.paraIdx, charOffset: 0 };
-    }
-    return this.position;
+    return this.inverse.run(wasm, this.position, true, () => {
+      const { sectionIndex: sec, paragraphIndex: para, charOffset } = this.position;
+      const result = JSON.parse(wasm.splitParagraph(sec, para, charOffset));
+      if (result.ok) {
+        return { sectionIndex: sec, paragraphIndex: result.paraIdx, charOffset: 0 };
+      }
+      return this.position;
+    });
   }
 
   undo(wasm: WasmBridge): DocumentPosition {
-    const { sectionIndex: sec, paragraphIndex: para } = this.position;
-    wasm.mergeParagraph(sec, para + 1);
+    this.inverse.undo(wasm);
     return { ...this.position };
   }
+
+  discard(wasm: WasmBridge): void { this.inverse.discard(wasm); }
 
   mergeWith(): null { return null; }
 }
@@ -377,6 +467,8 @@ export class SplitParagraphCommand implements EditCommand {
 // ─── 문단 병합 명령 (문단 시작에서 Backspace) ─────────
 
 export class MergeParagraphCommand implements EditCommand {
+  private readonly inverse = new TextEditInverse();
+
   readonly type = 'mergeParagraph';
   readonly timestamp = Date.now();
 
@@ -386,18 +478,21 @@ export class MergeParagraphCommand implements EditCommand {
   constructor(private position: DocumentPosition) {}
 
   execute(wasm: WasmBridge): DocumentPosition {
-    const { sectionIndex: sec, paragraphIndex: para } = this.position;
-    // 병합 전 이전 문단 길이 기억
-    this.mergePointOffset = wasm.getParagraphLength(sec, para - 1);
-    wasm.mergeParagraph(sec, para);
-    return { sectionIndex: sec, paragraphIndex: para - 1, charOffset: this.mergePointOffset };
+    return this.inverse.run(wasm, this.position, true, () => {
+      const { sectionIndex: sec, paragraphIndex: para } = this.position;
+      // 병합 전 이전 문단 길이 기억
+      this.mergePointOffset = wasm.getParagraphLength(sec, para - 1);
+      wasm.mergeParagraph(sec, para);
+      return { sectionIndex: sec, paragraphIndex: para - 1, charOffset: this.mergePointOffset };
+    });
   }
 
   undo(wasm: WasmBridge): DocumentPosition {
-    const { sectionIndex: sec, paragraphIndex: para } = this.position;
-    wasm.splitParagraph(sec, para - 1, this.mergePointOffset);
+    this.inverse.undo(wasm);
     return { ...this.position };
   }
+
+  discard(wasm: WasmBridge): void { this.inverse.discard(wasm); }
 
   mergeWith(): null { return null; }
 }
@@ -405,13 +500,10 @@ export class MergeParagraphCommand implements EditCommand {
 // ─── 선택 영역 삭제 명령 ─────────────────────────────
 
 export class DeleteSelectionCommand implements EditCommand {
+  private readonly inverse = new TextEditInverse();
+
   readonly type = 'deleteSelection';
   readonly timestamp = Date.now();
-
-  /** undo용: 삭제 전 선택 영역의 텍스트 (문단별) */
-  private savedTexts: string[] = [];
-  /** undo용: 삭제 전 다중 문단 여부 */
-  private multiPara = false;
 
   constructor(
     private start: DocumentPosition,
@@ -419,93 +511,33 @@ export class DeleteSelectionCommand implements EditCommand {
   ) {}
 
   execute(wasm: WasmBridge): DocumentPosition {
-    const { start, end } = this;
+    return this.inverse.run(wasm, this.start, true, () => {
+      const { start, end } = this;
 
-    // 삭제 전 텍스트 보존 (undo용)
-    this.savedTexts = [];
-    if (isCell(start)) {
-      const sec = start.sectionIndex;
-      const startPara = cellParaIndexOf(start);
-      const endPara = cellParaIndexOf(end);
-      this.multiPara = startPara !== endPara;
-      for (let p = startPara; p <= endPara; p++) {
-        const paraPos = withCellParaIndex(start, p);
-        const pLen = doGetParagraphLength(wasm, paraPos);
-        const from = p === startPara ? start.charOffset : 0;
-        const to = p === endPara ? end.charOffset : pLen;
-        if (to > from) {
-          this.savedTexts.push(doGetTextRange(wasm, { ...paraPos, charOffset: from }, to - from));
-        } else {
-          this.savedTexts.push('');
-        }
-      }
-      if (isNestedCell(start)) {
-        deleteRangeInNestedCell(wasm, start, end);
-      } else {
-        wasm.deleteRangeInCell(sec, start.parentParaIndex!, start.controlIndex!, start.cellIndex!, startPara, start.charOffset, endPara, end.charOffset);
-      }
-    } else {
-      const sec = start.sectionIndex;
-      this.multiPara = start.paragraphIndex !== end.paragraphIndex;
-      for (let p = start.paragraphIndex; p <= end.paragraphIndex; p++) {
-        const pLen = wasm.getParagraphLength(sec, p);
-        const from = p === start.paragraphIndex ? start.charOffset : 0;
-        const to = p === end.paragraphIndex ? end.charOffset : pLen;
-        if (to > from) {
-          this.savedTexts.push(wasm.getTextRange(sec, p, from, to - from));
-        } else {
-          this.savedTexts.push('');
-        }
-      }
-      wasm.deleteRange(sec, start.paragraphIndex, start.charOffset, end.paragraphIndex, end.charOffset);
-    }
-
-    return { ...start };
-  }
-
-  undo(wasm: WasmBridge): DocumentPosition {
-    const { start } = this;
-
-    if (!this.multiPara) {
-      // 같은 문단 내 삭제 → 텍스트 재삽입
-      const text = this.savedTexts[0] || '';
-      if (text) doInsertText(wasm, start, text);
-    } else {
-      // 다중 문단: 마지막 텍스트부터 역순으로 복원
-      // 1) 첫 문단 뒷부분 텍스트 삽입
-      const firstText = this.savedTexts[0] || '';
-      if (firstText) doInsertText(wasm, start, firstText);
-
-      // 2) 중간 문단 + 마지막 문단: splitParagraph로 분리 후 텍스트 삽입
       if (isCell(start)) {
-        // 셀 내 다중 문단 undo는 복잡하므로 단순 텍스트 삽입으로 대체
-        // (셀 내 다중 문단 선택 삭제의 undo는 한계가 있음)
-        for (let i = 1; i < this.savedTexts.length; i++) {
-          const text = this.savedTexts[i];
-          if (text || i < this.savedTexts.length - 1) {
-            // splitParagraph는 셀 내에서 미지원 → 텍스트만 이어붙이기
-            const restorePos = { ...start, charOffset: start.charOffset + firstText.length };
-            if (text) doInsertText(wasm, restorePos, '\n' + text);
-          }
+        const sec = start.sectionIndex;
+        const startPara = cellParaIndexOf(start);
+        const endPara = cellParaIndexOf(end);
+        if (isNestedCell(start)) {
+          deleteRangeInNestedCell(wasm, start, end);
+        } else {
+          wasm.deleteRangeInCell(sec, start.parentParaIndex!, start.controlIndex!, start.cellIndex!, startPara, start.charOffset, endPara, end.charOffset);
         }
       } else {
         const sec = start.sectionIndex;
-        let currentPara = start.paragraphIndex;
-        let currentOffset = start.charOffset + firstText.length;
-        for (let i = 1; i < this.savedTexts.length; i++) {
-          wasm.splitParagraph(sec, currentPara, currentOffset);
-          currentPara++;
-          currentOffset = 0;
-          const text = this.savedTexts[i];
-          if (text) {
-            wasm.insertText(sec, currentPara, 0, text);
-          }
-        }
+        wasm.deleteRange(sec, start.paragraphIndex, start.charOffset, end.paragraphIndex, end.charOffset);
       }
-    }
 
+      return { ...start };
+    });
+  }
+
+  undo(wasm: WasmBridge): DocumentPosition {
+    this.inverse.undo(wasm);
     return { ...this.end };
   }
+
+  discard(wasm: WasmBridge): void { this.inverse.discard(wasm); }
 
   mergeWith(): null { return null; }
 }
@@ -606,22 +638,27 @@ export class ApplyCharFormatCommand implements EditCommand {
 // ─── 문단 끝에서 Delete로 다음 문단 병합 ─────────────
 
 export class MergeNextParagraphCommand implements EditCommand {
+  private readonly inverse = new TextEditInverse();
+
   readonly type = 'mergeNextParagraph';
   readonly timestamp = Date.now();
 
   constructor(private position: DocumentPosition) {}
 
   execute(wasm: WasmBridge): DocumentPosition {
-    const { sectionIndex: sec, paragraphIndex: para } = this.position;
-    wasm.mergeParagraph(sec, para + 1);
-    return { ...this.position };
+    return this.inverse.run(wasm, this.position, true, () => {
+      const { sectionIndex: sec, paragraphIndex: para } = this.position;
+      wasm.mergeParagraph(sec, para + 1);
+      return { ...this.position };
+    });
   }
 
   undo(wasm: WasmBridge): DocumentPosition {
-    const { sectionIndex: sec, paragraphIndex: para, charOffset } = this.position;
-    wasm.splitParagraph(sec, para, charOffset);
+    this.inverse.undo(wasm);
     return { ...this.position };
   }
+
+  discard(wasm: WasmBridge): void { this.inverse.discard(wasm); }
 
   mergeWith(): null { return null; }
 }
@@ -629,43 +666,38 @@ export class MergeNextParagraphCommand implements EditCommand {
 // ─── 셀 내부 문단 분할 명령 (셀 내 Enter) ──────────────
 
 export class SplitParagraphInCellCommand implements EditCommand {
+  private readonly inverse = new TextEditInverse();
+
   readonly type = 'splitParagraphInCell';
   readonly timestamp = Date.now();
 
   constructor(private position: DocumentPosition) {}
 
   execute(wasm: WasmBridge): DocumentPosition {
-    const pos = this.position;
-    const sec = pos.sectionIndex;
-    const ppi = pos.parentParaIndex!;
-    const cpi = cellParaIndexOf(pos);
-    if (isNestedCell(pos)) {
-      wasm.splitParagraphInCellByPath(sec, ppi, cellPathJson(pos), pos.charOffset);
-    } else {
-      wasm.splitParagraphInCell(sec, ppi, pos.controlIndex!, pos.cellIndex!, cpi, pos.charOffset);
-    }
-    const nextCellParaIndex = cpi + 1;
-    return {
-      ...withCellParaIndex(pos, nextCellParaIndex),
-      charOffset: 0,
-    };
+    return this.inverse.run(wasm, this.position, true, () => {
+      const pos = this.position;
+      const sec = pos.sectionIndex;
+      const ppi = pos.parentParaIndex!;
+      const cpi = cellParaIndexOf(pos);
+      if (isNestedCell(pos)) {
+        wasm.splitParagraphInCellByPath(sec, ppi, cellPathJson(pos), pos.charOffset);
+      } else {
+        wasm.splitParagraphInCell(sec, ppi, pos.controlIndex!, pos.cellIndex!, cpi, pos.charOffset);
+      }
+      const nextCellParaIndex = cpi + 1;
+      return {
+        ...withCellParaIndex(pos, nextCellParaIndex),
+        charOffset: 0,
+      };
+    });
   }
 
   undo(wasm: WasmBridge): DocumentPosition {
-    const pos = this.position;
-    const sec = pos.sectionIndex;
-    const ppi = pos.parentParaIndex!;
-    const cpi = cellParaIndexOf(pos);
-    if (isNestedCell(pos)) {
-      // undo: 분할된 다음 문단을 병합 → cellPath의 cellParaIndex를 +1로 변경
-      const undoPath = [...pos.cellPath!];
-      undoPath[undoPath.length - 1] = { ...undoPath[undoPath.length - 1], cellParaIndex: cpi + 1 };
-      wasm.mergeParagraphInCellByPath(sec, ppi, JSON.stringify(undoPath));
-    } else {
-      wasm.mergeParagraphInCell(sec, ppi, pos.controlIndex!, pos.cellIndex!, cpi + 1);
-    }
-    return { ...pos };
+    this.inverse.undo(wasm);
+    return { ...this.position };
   }
+
+  discard(wasm: WasmBridge): void { this.inverse.discard(wasm); }
 
   mergeWith(): null { return null; }
 }
@@ -673,6 +705,8 @@ export class SplitParagraphInCellCommand implements EditCommand {
 // ─── 셀 내부 문단 병합 명령 (셀 문단 시작에서 Backspace) ──
 
 export class MergeParagraphInCellCommand implements EditCommand {
+  private readonly inverse = new TextEditInverse();
+
   readonly type = 'mergeParagraphInCell';
   readonly timestamp = Date.now();
 
@@ -681,34 +715,28 @@ export class MergeParagraphInCellCommand implements EditCommand {
   constructor(private position: DocumentPosition) {}
 
   execute(wasm: WasmBridge): DocumentPosition {
-    const pos = this.position;
-    const sec = pos.sectionIndex;
-    const ppi = pos.parentParaIndex!;
-    const cpi = cellParaIndexOf(pos);
-    // 병합 전 이전 셀 문단 길이 기억
-    this.mergePointOffset = doGetParagraphLength(wasm, withCellParaIndex(pos, cpi - 1));
-    if (isNestedCell(pos)) {
-      wasm.mergeParagraphInCellByPath(sec, ppi, cellPathJson(pos));
-    } else {
-      wasm.mergeParagraphInCell(sec, ppi, pos.controlIndex!, pos.cellIndex!, cpi);
-    }
-    return { ...withCellParaIndex(pos, cpi - 1), charOffset: this.mergePointOffset };
+    return this.inverse.run(wasm, this.position, true, () => {
+      const pos = this.position;
+      const sec = pos.sectionIndex;
+      const ppi = pos.parentParaIndex!;
+      const cpi = cellParaIndexOf(pos);
+      // 병합 전 이전 셀 문단 길이 기억
+      this.mergePointOffset = doGetParagraphLength(wasm, withCellParaIndex(pos, cpi - 1));
+      if (isNestedCell(pos)) {
+        wasm.mergeParagraphInCellByPath(sec, ppi, cellPathJson(pos));
+      } else {
+        wasm.mergeParagraphInCell(sec, ppi, pos.controlIndex!, pos.cellIndex!, cpi);
+      }
+      return { ...withCellParaIndex(pos, cpi - 1), charOffset: this.mergePointOffset };
+    });
   }
 
   undo(wasm: WasmBridge): DocumentPosition {
-    const pos = this.position;
-    const sec = pos.sectionIndex;
-    const ppi = pos.parentParaIndex!;
-    const cpi = cellParaIndexOf(pos);
-    if (isNestedCell(pos)) {
-      const undoPath = [...pos.cellPath!];
-      undoPath[undoPath.length - 1] = { ...undoPath[undoPath.length - 1], cellParaIndex: cpi - 1 };
-      wasm.splitParagraphInCellByPath(sec, ppi, JSON.stringify(undoPath), this.mergePointOffset);
-    } else {
-      wasm.splitParagraphInCell(sec, ppi, pos.controlIndex!, pos.cellIndex!, cpi - 1, this.mergePointOffset);
-    }
-    return { ...pos };
+    this.inverse.undo(wasm);
+    return { ...this.position };
   }
+
+  discard(wasm: WasmBridge): void { this.inverse.discard(wasm); }
 
   mergeWith(): null { return null; }
 }
@@ -716,38 +744,36 @@ export class MergeParagraphInCellCommand implements EditCommand {
 // ─── 셀 내부 다음 문단 병합 명령 (셀 문단 끝에서 Delete) ──
 
 export class MergeNextParagraphInCellCommand implements EditCommand {
+  private readonly inverse = new TextEditInverse();
+
   readonly type = 'mergeNextParagraphInCell';
   readonly timestamp = Date.now();
 
   constructor(private position: DocumentPosition) {}
 
   execute(wasm: WasmBridge): DocumentPosition {
-    const pos = this.position;
-    const sec = pos.sectionIndex;
-    const ppi = pos.parentParaIndex!;
-    const cpi = cellParaIndexOf(pos);
-    if (isNestedCell(pos)) {
-      const nextPath = [...pos.cellPath!];
-      nextPath[nextPath.length - 1] = { ...nextPath[nextPath.length - 1], cellParaIndex: cpi + 1 };
-      wasm.mergeParagraphInCellByPath(sec, ppi, JSON.stringify(nextPath));
-    } else {
-      wasm.mergeParagraphInCell(sec, ppi, pos.controlIndex!, pos.cellIndex!, cpi + 1);
-    }
-    return { ...pos };
+    return this.inverse.run(wasm, this.position, true, () => {
+      const pos = this.position;
+      const sec = pos.sectionIndex;
+      const ppi = pos.parentParaIndex!;
+      const cpi = cellParaIndexOf(pos);
+      if (isNestedCell(pos)) {
+        const nextPath = [...pos.cellPath!];
+        nextPath[nextPath.length - 1] = { ...nextPath[nextPath.length - 1], cellParaIndex: cpi + 1 };
+        wasm.mergeParagraphInCellByPath(sec, ppi, JSON.stringify(nextPath));
+      } else {
+        wasm.mergeParagraphInCell(sec, ppi, pos.controlIndex!, pos.cellIndex!, cpi + 1);
+      }
+      return { ...pos };
+    });
   }
 
   undo(wasm: WasmBridge): DocumentPosition {
-    const pos = this.position;
-    const sec = pos.sectionIndex;
-    const ppi = pos.parentParaIndex!;
-    const cpi = cellParaIndexOf(pos);
-    if (isNestedCell(pos)) {
-      wasm.splitParagraphInCellByPath(sec, ppi, cellPathJson(pos), pos.charOffset);
-    } else {
-      wasm.splitParagraphInCell(sec, ppi, pos.controlIndex!, pos.cellIndex!, cpi, pos.charOffset);
-    }
-    return { ...pos };
+    this.inverse.undo(wasm);
+    return { ...this.position };
   }
+
+  discard(wasm: WasmBridge): void { this.inverse.discard(wasm); }
 
   mergeWith(): null { return null; }
 }

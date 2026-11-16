@@ -147,10 +147,12 @@ pub fn parse_paragraph(records: &[Record]) -> Result<Paragraph, BodyTextError> {
             tags::HWPTAG_PARA_TEXT => {
                 let (text, offsets, field_ranges, tab_ext) = parse_para_text(&record.data);
                 let char_count = para.char_count;
-                para.replace_text(text);
+                para = para.with_parsed_text(
+                    text,
+                    offsets,
+                    Paragraph::markers_from_binary_ranges(&field_ranges),
+                );
                 para.char_count = char_count;
-                para.set_char_offsets(offsets);
-                para.field_ranges = field_ranges;
                 para.tab_extended = tab_ext;
                 para.has_para_text = true;
             }

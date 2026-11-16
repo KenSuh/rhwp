@@ -22,7 +22,7 @@ export class CommandHistory {
     // 직전 명령과 병합 시도
     if (this.undoStack.length > 0) {
       const last = this.undoStack[this.undoStack.length - 1];
-      const merged = last.mergeWith(command);
+      const merged = last.mergeWith(command, wasm);
       if (merged) {
         this.undoStack[this.undoStack.length - 1] = merged;
         // redo 스택 정리 (리소스 해제 후 비움)
@@ -67,30 +67,26 @@ export class CommandHistory {
   }
 
   /** execute() 없이 히스토리에만 기록 (IME compositionend용 — 텍스트가 이미 문서에 있는 경우) */
-  recordWithoutExecute(command: EditCommand, wasm?: WasmBridge): void {
+  recordWithoutExecute(command: EditCommand, wasm: WasmBridge): void {
     // 직전 명령과 병합 시도
     if (this.undoStack.length > 0) {
       const last = this.undoStack[this.undoStack.length - 1];
-      const merged = last.mergeWith(command);
+      const merged = last.mergeWith(command, wasm);
       if (merged) {
         this.undoStack[this.undoStack.length - 1] = merged;
-        if (wasm) {
-          discardAll(this.redoStack, wasm);
-        }
+        discardAll(this.redoStack, wasm);
         this.redoStack = [];
         return;
       }
     }
 
     this.undoStack.push(command);
-    if (wasm) {
-      discardAll(this.redoStack, wasm);
-    }
+    discardAll(this.redoStack, wasm);
     this.redoStack = [];
 
     if (this.undoStack.length > this.maxSize) {
       const evicted = this.undoStack.shift();
-      if (wasm) evicted?.discard?.(wasm);
+      evicted?.discard?.(wasm);
     }
   }
 

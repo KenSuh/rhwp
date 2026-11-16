@@ -862,7 +862,7 @@ mod tests {
     #[test]
     fn secpr_run_uses_first_char_shape() {
         let para = {
-            let mut paragraph_value = Paragraph::with_text("x".to_string(), Vec::new());
+            let mut paragraph_value = Paragraph::with_text("x".to_string(), Vec::new(), Vec::new());
 
             paragraph_value.char_shapes = vec![cs(0, 9)];
             paragraph_value

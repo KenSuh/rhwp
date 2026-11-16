@@ -234,9 +234,6 @@ pub struct HwpxField {
     pub parameters: Option<FieldParameters>,
     pub begin_char_shape_id: u32,
     pub end_char_shape_id: u32,
-    /// 같은 문자 위치에 있는 중첩/빈 필드 경계의 원래 순서.
-    pub begin_order: usize,
-    pub end_order: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

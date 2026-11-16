@@ -85,11 +85,11 @@ impl DocumentCore {
 
             // 오른쪽 잘라내기 (end_offset 이후 제거)
             if end_char_offset < text_len {
-                let _ = para.split_at(end_char_offset);
+                let _ = para.split_at(end_char_offset).paragraph;
             }
             // 왼쪽 잘라내기 (start_offset 이전 제거)
             if start_char_offset > 0 {
-                para = para.split_at(start_char_offset);
+                para = para.split_at(start_char_offset).paragraph;
             }
 
             clip_paragraphs.push(para);
@@ -98,7 +98,7 @@ impl DocumentCore {
             // 첫 번째 문단: start_offset부터 끝까지
             let mut first = section.paragraphs[start_para_idx].clone();
             if start_char_offset > 0 {
-                first = first.split_at(start_char_offset);
+                first = first.split_at(start_char_offset).paragraph;
             }
             clip_paragraphs.push(first);
 
@@ -111,7 +111,7 @@ impl DocumentCore {
             let mut last = section.paragraphs[end_para_idx].clone();
             let last_text_len = last.text().chars().count();
             if end_char_offset < last_text_len {
-                let _ = last.split_at(end_char_offset);
+                let _ = last.split_at(end_char_offset).paragraph;
             }
             clip_paragraphs.push(last);
         }
@@ -188,16 +188,16 @@ impl DocumentCore {
             let mut para = cell_paragraphs[start_cell_para_idx].clone();
             let text_len = para.text().chars().count();
             if end_char_offset < text_len {
-                let _ = para.split_at(end_char_offset);
+                let _ = para.split_at(end_char_offset).paragraph;
             }
             if start_char_offset > 0 {
-                para = para.split_at(start_char_offset);
+                para = para.split_at(start_char_offset).paragraph;
             }
             clip_paragraphs.push(para);
         } else {
             let mut first = cell_paragraphs[start_cell_para_idx].clone();
             if start_char_offset > 0 {
-                first = first.split_at(start_char_offset);
+                first = first.split_at(start_char_offset).paragraph;
             }
             clip_paragraphs.push(first);
 
@@ -208,7 +208,7 @@ impl DocumentCore {
             let mut last = cell_paragraphs[end_cell_para_idx].clone();
             let last_text_len = last.text().chars().count();
             if end_char_offset < last_text_len {
-                let _ = last.split_at(end_char_offset);
+                let _ = last.split_at(end_char_offset).paragraph;
             }
             clip_paragraphs.push(last);
         }
@@ -448,7 +448,7 @@ impl DocumentCore {
         };
 
         let clip_para = {
-            let mut paragraph_value = Paragraph::with_text(String::new(), vec![]);
+            let mut paragraph_value = Paragraph::with_text(String::new(), vec![], Vec::new());
 
             paragraph_value.char_count = 9;
 
@@ -581,7 +581,7 @@ impl DocumentCore {
         // 다중 문단 또는 컨트롤 포함 붙여넣기
         // 1. 현재 문단을 캐럿 위치에서 분할
         let right_half =
-            self.document.sections[section_idx].paragraphs[para_idx].split_at(char_offset);
+            self.document.sections[section_idx].paragraphs[para_idx].split_at(char_offset).paragraph;
 
         // 2. 왼쪽 절반에 첫 번째 클립보드 문단 병합
         self.document.sections[section_idx].paragraphs[para_idx].merge_from(&clip_paras[0]);
@@ -598,7 +598,7 @@ impl DocumentCore {
         // 4. 마지막 삽입된 문단에 오른쪽 절반 병합
         let last_para_idx = insert_idx - 1;
         let merge_point =
-            self.document.sections[section_idx].paragraphs[last_para_idx].merge_from(&right_half);
+            self.document.sections[section_idx].paragraphs[last_para_idx].merge_from(&right_half).offset;
 
         // 5. 영향받는 모든 문단 리플로우
         for i in para_idx..=last_para_idx {
@@ -747,7 +747,7 @@ impl DocumentCore {
         }
 
         // 다중 문단 붙여넣기
-        let right_half = cell_paras[cell_para_idx].split_at(char_offset);
+        let right_half = cell_paras[cell_para_idx].split_at(char_offset).paragraph;
         cell_paras[cell_para_idx].merge_from(&clip_paras[0]);
 
         let mut insert_idx = cell_para_idx + 1;
@@ -757,7 +757,7 @@ impl DocumentCore {
         }
 
         let last_para_idx = insert_idx - 1;
-        let merge_point = cell_paras[last_para_idx].merge_from(&right_half);
+        let merge_point = cell_paras[last_para_idx].merge_from(&right_half).offset;
 
         // 셀 리플로우 (모든 영향받는 문단)
         let _ = cell_paras;
@@ -908,7 +908,7 @@ impl DocumentCore {
                 )));
             }
 
-            let right_half = cell_paras[target_cell_para_idx].split_at(char_offset);
+            let right_half = cell_paras[target_cell_para_idx].split_at(char_offset).paragraph;
             cell_paras[target_cell_para_idx].merge_from(&clip_paras[0]);
 
             let mut insert_idx = target_cell_para_idx + 1;
@@ -918,7 +918,7 @@ impl DocumentCore {
             }
 
             let last_para_idx = insert_idx - 1;
-            let merge_point = cell_paras[last_para_idx].merge_from(&right_half);
+            let merge_point = cell_paras[last_para_idx].merge_from(&right_half).offset;
             (last_para_idx, merge_point)
         };
 
@@ -1160,7 +1160,7 @@ impl DocumentCore {
         } else {
             if char_offset > 0 && !para.text().is_empty() {
                 let new_para =
-                    self.document.sections[section_idx].paragraphs[para_idx].split_at(char_offset);
+                    self.document.sections[section_idx].paragraphs[para_idx].split_at(char_offset).paragraph;
                 self.document.sections[section_idx]
                     .paragraphs
                     .insert(para_idx + 1, new_para);
@@ -1203,7 +1203,7 @@ impl DocumentCore {
         empty_raw[0..2].copy_from_slice(&1u16.to_le_bytes());
         empty_raw[4..6].copy_from_slice(&1u16.to_le_bytes());
         let empty_para = {
-            let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new());
+            let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new(), Vec::new());
 
             paragraph_value.char_count = 1;
 

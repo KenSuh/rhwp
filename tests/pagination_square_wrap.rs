@@ -23,7 +23,7 @@ fn a4_page_def() -> PageDef {
 
 fn make_text_paragraph(text: &str, line_height: i32) -> Paragraph {
     {
-        let mut paragraph_value = Paragraph::with_text(text.to_string(), Vec::new());
+        let mut paragraph_value = Paragraph::with_text(text.to_string(), Vec::new(), Vec::new());
 
         paragraph_value.line_segs = vec![LineSeg {
             line_height,

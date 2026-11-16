@@ -191,6 +191,8 @@ export function onCompositionStart(this: any): void {
 export function onCompositionEnd(this: any): void {
   const anchor = this.compositionAnchor;
   const finalLength = this.compositionLength;
+  const editToken = this.compositionEditToken;
+  this.compositionEditToken = null;
 
   this.isComposing = false;
   this.compositionAnchor = null;
@@ -205,12 +207,16 @@ export function onCompositionEnd(this: any): void {
   // 조합 중 WASM 직접 호출로 이미 문서에 삽입된 텍스트를
   // Command로 기록하여 Undo 가능하게 한다.
   // 머리말/꼬리말·각주 모드에서는 Undo 기록 생략 (별도 Undo 시스템 없음)
-  if (anchor && finalLength > 0 && !this.cursor.isInHeaderFooter() && !this.cursor.isInFootnote()) {
+  if (anchor && editToken !== null && finalLength > 0 && !this.cursor.isInHeaderFooter() && !this.cursor.isInFootnote()) {
     const insertedText = this.getTextAt(anchor, finalLength);
     if (insertedText) {
       // execute() 없이 히스토리에만 기록 (텍스트는 이미 문서에 있음)
-      this.executeOperation({ kind: 'record', command: new InsertTextCommand(anchor, insertedText) });
+      this.executeOperation({ kind: 'record', command: InsertTextCommand.recorded(anchor, insertedText, editToken) });
+    } else {
+      this.wasm.discardEdit(editToken);
     }
+  } else if (editToken !== null) {
+    this.wasm.discardEdit(editToken);
   }
 
   // 조합 종료 후 대기 중인 탐색 키 처리 (IME 조합 중 방향키 등)
@@ -249,7 +255,12 @@ export function onInput(this: any, e?: InputEvent): void {
     const anchor = this.compositionAnchor;
 
     // 이전 조합 텍스트 삭제
-    if (this.compositionLength > 0) {
+    if (!this.cursor.isInHeaderFooter() && !this.cursor.isInFootnote()) {
+      if (this.compositionEditToken !== null) {
+        this.wasm.discardEdit(this.wasm.undoEdit(this.compositionEditToken));
+      }
+      this.compositionEditToken = this.wasm.beginTextEdit(anchor.sectionIndex, anchor.parentParaIndex ?? anchor.paragraphIndex);
+    } else if (this.compositionLength > 0) {
       this.deleteTextAt(anchor, this.compositionLength);
     }
 
@@ -303,7 +314,12 @@ export function onInput(this: any, e?: InputEvent): void {
     }
 
     // 이전 삽입 전부 삭제
-    if (this._iosLength > 0 && this._iosAnchor) {
+    if (!this.cursor.isInHeaderFooter() && !this.cursor.isInFootnote()) {
+      if (this._iosEditToken !== null) {
+        this.wasm.discardEdit(this.wasm.undoEdit(this._iosEditToken));
+      }
+      this._iosEditToken = this.wasm.beginTextEdit(this._iosAnchor.sectionIndex, this._iosAnchor.parentParaIndex ?? this._iosAnchor.paragraphIndex);
+    } else if (this._iosLength > 0 && this._iosAnchor) {
       this.deleteTextAt(this._iosAnchor, this._iosLength);
     }
 
