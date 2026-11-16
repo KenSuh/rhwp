@@ -2159,17 +2159,19 @@ fn c23_public_insert_delete_preserves_retained_field_gaps_two_saves() {
         core.insert_text_native(0, 1, 5, "편😀").unwrap();
         core.insert_text_in_cell_native(0, 2, 0, 0, 0, 5, "편😀")
             .unwrap();
-        let inverse = if label == "across-begin" {
-            Some((
-                core.begin_text_edit_native(0, 1, false).unwrap(),
-                core.begin_text_edit_native(0, 2, false).unwrap(),
-            ))
-        } else {
-            None
-        };
+        let body = (label == "across-begin")
+            .then(|| core.begin_text_edit_native(0, 1, false).unwrap());
         core.delete_text_native(0, 1, at, count).unwrap();
+        if let Some(token) = &body {
+            core.finish_text_edit_native(token).unwrap();
+        }
+        let cell = body.as_ref().map(|_| core.begin_text_edit_native(0, 2, false).unwrap());
         core.delete_text_in_cell_native(0, 2, 0, 0, 0, at, count)
             .unwrap();
+        if let Some(token) = &cell {
+            core.finish_text_edit_native(token).unwrap();
+        }
+        let inverse = body.zip(cell);
         let expected_events = c8_inline_events(&expected_xml);
         if let Some((body, cell)) = inverse {
             assert_eq!(c23_field_state(&core.document().sections[0].paragraphs[1]), expected);
