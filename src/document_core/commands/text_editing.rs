@@ -84,7 +84,7 @@ impl DocumentCore {
         let epoch = history
             .epoch
             .as_ref()
-            .map_err(|reason| HwpError::RenderError(reason.clone()))?;
+            .map_err(|reason| HwpError::InvalidEditHandle(reason.clone()))?;
         if token.split_once(':').map(|(value, _)| value) != Some(epoch.as_str()) {
             return Err(HwpError::InvalidEditHandle("document epoch differs".into()));
         }
@@ -98,14 +98,18 @@ impl DocumentCore {
                     "handle is not the current undo or redo top".into(),
                 ));
             };
-        let handle = self.next_edit_handle()?;
+        let handle = self
+            .next_edit_handle()
+            .map_err(|error| HwpError::InvalidEditHandle(error.to_string()))?;
         let (section, paragraph, structural) = match state {
             TextEditState::Paragraph {
                 section, paragraph, ..
             } => (*section, *paragraph, false),
             TextEditState::ParagraphList { section, .. } => (*section, 0, true),
         };
-        let reciprocal = self.text_edit_state(section, paragraph, structural)?;
+        let reciprocal = self
+            .text_edit_state(section, paragraph, structural)
+            .map_err(|error| HwpError::InvalidEditHandle(error.to_string()))?;
         let history = &mut self.text_edit_history;
         let source = if undoing {
             &mut history.undo

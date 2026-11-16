@@ -323,10 +323,14 @@ test('missing entropy disables handles while the document still opens and edits'
   const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
   const wasm = new WasmBridge(), history = new CommandHistory();
   try {
+    wasm.loadDocument(fixture(body), 'with-entropy.hwpx');
+    history.execute(new InsertTextCommand(position(1, 4), 'OLD'), wasm);
     Object.defineProperty(globalThis, 'crypto', { configurable: true, value: {
       getRandomValues() { throw new Error('entropy unavailable'); },
     }});
     wasm.loadDocument(fixture(body), 'without-entropy.hwpx');
+    assert.equal(history.undo(wasm), null);
+    history.clear(wasm);
     assert.equal(wasm.beginTextEdit(0, 1), null);
     assert.match(wasm.editHistoryDisabledReason ?? '', /EDIT_HISTORY_UNAVAILABLE:/);
     history.execute(new InsertTextCommand(position(1, 4), 'NEW'), wasm);
