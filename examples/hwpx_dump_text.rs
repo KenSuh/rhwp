@@ -36,7 +36,8 @@ fn write_paragraphs(path: &str, texts: &[&str]) -> Result<(), Box<dyn std::error
     let mut core = rhwp::DocumentCore::new_empty();
     core.set_document(doc);
     for (index, text) in texts.iter().enumerate() {
-        core.insert_text_native(0, index, 0, text)?;
+        core.insert_text_native(0, index, 0, text)
+            .map_err(|error| std::io::Error::other(error.to_string()))?;
     }
     let bytes = serialize_hwpx(core.document())?;
     let p = Path::new(path);
