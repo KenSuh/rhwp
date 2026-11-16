@@ -28,14 +28,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn write_paragraphs(path: &str, texts: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
     let mut doc = Document::default();
     let mut section = Section::default();
-    for t in texts {
-        let mut para = Paragraph::default();
-        para.replace_text(t.to_string());
-        section.paragraphs.push(para);
+    for _ in texts {
+        section.paragraphs.push(Paragraph::default());
     }
     doc.sections.push(section);
 
-    let bytes = serialize_hwpx(&doc)?;
+    let mut core = rhwp::DocumentCore::new_empty();
+    core.set_document(doc);
+    for (index, text) in texts.iter().enumerate() {
+        core.insert_text_native(0, index, 0, text)?;
+    }
+    let bytes = serialize_hwpx(core.document())?;
     let p = Path::new(path);
     if let Some(dir) = p.parent() {
         fs::create_dir_all(dir)?;
