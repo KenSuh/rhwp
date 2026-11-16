@@ -90,8 +90,7 @@ impl DocumentCore {
             overflow_links_cache: RefCell::new(HashMap::new()),
             snapshot_store: Vec::new(),
             next_snapshot_id: 0,
-            text_edit_store: Vec::new(),
-            next_text_edit_id: 0,
+            text_edit_history: crate::document_core::TextEditHistory::new(),
             hidden_header_footer: std::collections::HashSet::new(),
             file_name: String::new(),
             active_field: None,
@@ -631,7 +630,7 @@ impl DocumentCore {
         self.para_column_map = Vec::new();
         self.page_tree_cache.borrow_mut().clear();
         self.snapshot_store.clear();
-        self.text_edit_store.clear();
+        self.text_edit_history = crate::document_core::TextEditHistory::new();
         self.next_snapshot_id = 0;
 
         self.convert_to_editable_native()?;
@@ -710,7 +709,7 @@ impl DocumentCore {
     /// 문서 IR을 직접 설정한다 (테스트/네이티브 전용).
     pub fn set_document(&mut self, doc: Document) {
         self.document = doc;
-        self.text_edit_store.clear();
+        self.text_edit_history = crate::document_core::TextEditHistory::new();
         self.styles = resolve_styles(&self.document.doc_info, self.dpi);
         self.composed = self
             .document
@@ -744,6 +743,7 @@ impl DocumentCore {
     /// 현재 Document를 클론하여 스냅샷 저장소에 보관한다.
     /// 반환값: 스냅샷 ID (u32)
     pub fn save_snapshot_native(&mut self) -> u32 {
+        self.invalidate_edit_redo();
         let id = self.next_snapshot_id;
         self.next_snapshot_id += 1;
         self.snapshot_store.push((id, self.document.clone()));

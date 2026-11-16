@@ -280,6 +280,300 @@ pub struct ParagraphMerge {
 }
 
 impl Paragraph {
+    pub fn clipboard_fragment(
+        source: &[Paragraph],
+        start: (usize, usize),
+        end: (usize, usize),
+    ) -> Vec<Paragraph> {
+        let mut included = Vec::new();
+        for (pi, para) in source.iter().enumerate() {
+            for (ci, control) in para.controls.iter().enumerate() {
+                let Control::Field(field) = control else {
+                    continue;
+                };
+                let id = field
+                    .endpoint_id
+                    .as_ref()
+                    .map_or(FieldId::Binary(ci), |id| FieldId::Hwpx(id.clone()));
+                let mut begin = None;
+                let mut finish = None;
+                for (index, p) in source.iter().enumerate() {
+                    for m in p.field_markers() {
+                        if m.id == id && (!matches!(id, FieldId::Binary(_)) || index == pi) {
+                            let endpoint = Some((m.endpoint, (index, m.char_idx)));
+                            match m.endpoint {
+                                FieldEndpoint::Begin => begin = endpoint,
+                                FieldEndpoint::End => finish = endpoint,
+                            }
+                        }
+                    }
+                }
+                if matches!((begin, finish), (Some((_, b)), Some((_, e))) if start <= b && b <= e && e <= end)
+                {
+                    included.push((pi, ci, id));
+                }
+            }
+        }
+        source
+            .iter()
+            .enumerate()
+            .take(end.0 + 1)
+            .skip(start.0)
+            .map(|(pi, original)| {
+                let first = if pi == start.0 { start.1 } else { 0 };
+                let last = if pi == end.0 {
+                    end.1
+                } else {
+                    original.text.chars().count()
+                };
+                let mut para = original.clone();
+                let styles: Vec<_> = (first..last)
+                    .map(|i| original.char_shape_id_at(i).unwrap_or(0))
+                    .collect();
+                para.delete_text_at(last, original.text.chars().count() - last);
+                para.delete_text_at(0, first);
+                let mut control_map = Vec::new();
+                para.controls.clear();
+                para.ctrl_data_records.clear();
+                for (ci, control) in original.controls.iter().enumerate() {
+                    if matches!(control, Control::SectionDef(_) | Control::ColumnDef(_))
+                        || (matches!(control, Control::Field(_))
+                            && !included.iter().any(|(p, c, _)| (*p, *c) == (pi, ci)))
+                    {
+                        continue;
+                    }
+                    control_map.push((ci, para.controls.len()));
+                    para.controls.push(control.clone());
+                    para.ctrl_data_records
+                        .push(original.ctrl_data_records.get(ci).cloned().flatten());
+                }
+                para.hwpx_field_markers = original
+                    .field_markers()
+                    .iter()
+                    .filter_map(|m| {
+                        let belongs = included.iter().any(|(p, _, id)| {
+                            *id == m.id && (!matches!(id, FieldId::Binary(_)) || *p == pi)
+                        });
+                        if !belongs || m.char_idx < first || m.char_idx > last {
+                            return None;
+                        }
+                        let mut marker = m.clone();
+                        marker.char_idx -= first;
+                        if let FieldId::Binary(ci) = &mut marker.id {
+                            *ci = control_map.iter().find(|(old, _)| old == ci)?.1;
+                        }
+                        Some(marker)
+                    })
+                    .collect();
+                para.rebuild_hwpx_field_offsets();
+                para.char_shapes.clear();
+                for (i, id) in styles.into_iter().enumerate() {
+                    if para
+                        .char_shapes
+                        .last()
+                        .is_none_or(|shape| shape.char_shape_id != id)
+                    {
+                        para.char_shapes.push(CharShapeRef {
+                            start_pos: para.char_offsets[i],
+                            char_shape_id: id,
+                        });
+                    }
+                }
+                para
+            })
+            .collect()
+    }
+
+    pub(crate) fn remap_clipboard_fields(
+        fragment: &mut [Paragraph],
+        used: &mut std::collections::HashSet<String>,
+        next: &mut u32,
+    ) -> Result<(), crate::error::HwpError> {
+        for para in fragment.iter() {
+            for control in &para.controls {
+                if let Control::Field(field) = control {
+                    used.insert(field.field_id.to_string());
+                    used.extend(field.endpoint_id.iter().cloned());
+                }
+            }
+        }
+        let mut identities = Vec::new();
+        for (pi, para) in fragment.iter_mut().enumerate() {
+            for (ci, control) in para.controls.iter_mut().enumerate() {
+                let Control::Field(field) = control else {
+                    continue;
+                };
+                loop {
+                    *next = next.checked_add(1).ok_or_else(|| {
+                        crate::error::HwpError::InvalidField("CLIPBOARD_FIELD_ID_EXHAUSTED".into())
+                    })?;
+                    if used.insert(next.to_string()) {
+                        break;
+                    }
+                }
+                let new = next.to_string();
+                let old = field
+                    .endpoint_id
+                    .replace(new.clone())
+                    .map_or(FieldId::Binary(ci), FieldId::Hwpx);
+                identities.push((pi, old, new.clone()));
+                field.field_id = *next;
+                if let Some(hwpx) = &mut field.hwpx {
+                    for (key, value) in &mut hwpx.begin_attributes {
+                        if key == "id" || key == "fieldid" {
+                            *value = new.clone();
+                        }
+                    }
+                    if let Some(end) = &mut hwpx.end_attributes {
+                        for (key, value) in end {
+                            if key == "beginIDRef" || key == "fieldid" {
+                                *value = new.clone();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        for (pi, para) in fragment.iter_mut().enumerate() {
+            for marker in &mut para.hwpx_field_markers {
+                if let Some((_, _, id)) = identities.iter().find(|(p, old, _)| {
+                    *old == marker.id && (!matches!(old, FieldId::Binary(_)) || *p == pi)
+                }) {
+                    marker.id = FieldId::Hwpx(id.clone());
+                }
+            }
+        }
+        for para in fragment {
+            for control in &mut para.controls {
+                match control {
+                    Control::Table(table) => {
+                        for cell in &mut table.cells {
+                            Self::remap_clipboard_fields(&mut cell.paragraphs, used, next)?;
+                        }
+                        if let Some(caption) = &mut table.caption {
+                            Self::remap_clipboard_fields(&mut caption.paragraphs, used, next)?;
+                        }
+                    }
+                    Control::Shape(shape) => Self::remap_clipboard_shape(shape, used, next)?,
+                    Control::Picture(picture) => {
+                        if let Some(caption) = &mut picture.caption {
+                            Self::remap_clipboard_fields(&mut caption.paragraphs, used, next)?;
+                        }
+                    }
+                    Control::Header(header) => {
+                        Self::remap_clipboard_fields(&mut header.paragraphs, used, next)?
+                    }
+                    Control::Footer(footer) => {
+                        Self::remap_clipboard_fields(&mut footer.paragraphs, used, next)?
+                    }
+                    Control::Footnote(note) => {
+                        Self::remap_clipboard_fields(&mut note.paragraphs, used, next)?
+                    }
+                    Control::Endnote(note) => {
+                        Self::remap_clipboard_fields(&mut note.paragraphs, used, next)?
+                    }
+                    Control::HiddenComment(comment) => {
+                        Self::remap_clipboard_fields(&mut comment.paragraphs, used, next)?
+                    }
+                    Control::SectionDef(_)
+                    | Control::ColumnDef(_)
+                    | Control::AutoNumber(_)
+                    | Control::NewNumber(_)
+                    | Control::PageNumberPos(_)
+                    | Control::Bookmark(_)
+                    | Control::Hyperlink(_)
+                    | Control::Ruby(_)
+                    | Control::CharOverlap(_)
+                    | Control::PageHide(_)
+                    | Control::Equation(_)
+                    | Control::Field(_)
+                    | Control::Form(_)
+                    | Control::Unknown(_) => {}
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn remap_clipboard_shape(
+        shape: &mut crate::model::shape::ShapeObject,
+        used: &mut std::collections::HashSet<String>,
+        next: &mut u32,
+    ) -> Result<(), crate::error::HwpError> {
+        if let Some(drawing) = shape.drawing_mut() {
+            if let Some(text_box) = &mut drawing.text_box {
+                Self::remap_clipboard_fields(&mut text_box.paragraphs, used, next)?;
+            }
+            if let Some(caption) = &mut drawing.caption {
+                Self::remap_clipboard_fields(&mut caption.paragraphs, used, next)?;
+            }
+        }
+        if let crate::model::shape::ShapeObject::Group(group) = shape {
+            for child in &mut group.children {
+                Self::remap_clipboard_shape(child, used, next)?;
+            }
+            if let Some(caption) = &mut group.caption {
+                Self::remap_clipboard_fields(&mut caption.paragraphs, used, next)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn paste_fragment(
+        target: &mut Vec<Paragraph>,
+        paragraph: usize,
+        offset: usize,
+        fragment: &[Paragraph],
+    ) -> Result<(usize, usize), crate::error::HwpError> {
+        let owner = target.get(paragraph).ok_or_else(|| {
+            crate::error::HwpError::RenderError("CLIPBOARD_PARAGRAPH_RANGE".into())
+        })?;
+        if offset > owner.text.chars().count() {
+            return Err(crate::error::HwpError::RenderError(
+                "CLIPBOARD_CHARACTER_RANGE".into(),
+            ));
+        }
+        let mut fragment = fragment.to_vec();
+        let mut used = std::collections::HashSet::new();
+        let mut next = 0u32;
+        for para in target.iter().chain(fragment.iter()) {
+            for control in &para.controls {
+                if let Control::Field(field) = control {
+                    used.insert(field.field_id.to_string());
+                    used.extend(field.endpoint_id.iter().cloned());
+                }
+            }
+            for marker in para.field_markers() {
+                if let FieldId::Hwpx(id) = &marker.id {
+                    used.insert(id.clone());
+                }
+            }
+        }
+        Self::remap_clipboard_fields(&mut fragment, &mut used, &mut next)?;
+        let Some(first) = fragment.first() else {
+            return Ok((paragraph, offset));
+        };
+        let last = paragraph + fragment.len() - 1;
+        let slot = target[paragraph].field_insertion_slot(offset);
+        let markers = target[paragraph].hwpx_field_markers.clone();
+        let mut right = target[paragraph].split_at(offset).paragraph;
+        target[paragraph].hwpx_field_markers = markers[..slot].to_vec();
+        right.hwpx_field_markers = markers[slot..]
+            .iter()
+            .cloned()
+            .map(|mut marker| {
+                marker.char_idx -= offset;
+                marker
+            })
+            .collect();
+        target[paragraph].merge_from(first);
+        for (index, para) in fragment.into_iter().enumerate().skip(1) {
+            target.insert(paragraph + index, para);
+        }
+        let end = target[last].merge_from(&right).offset;
+        Ok((last, end))
+    }
+
     /// 빈 문단을 생성한다 (문단 끝 마커만 포함).
     ///
     /// 표 셀 생성 등에서 최소한의 유효한 문단이 필요할 때 사용한다.

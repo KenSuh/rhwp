@@ -14,6 +14,10 @@ use crate::renderer::page_layout::PageLayoutInfo;
 use crate::renderer::px_to_hwpunit;
 
 impl DocumentCore {
+    pub(crate) fn invalidate_edit_redo(&mut self) {
+        self.text_edit_history.redo.clear();
+    }
+
     /// Additive undo API: capture the owner before edits, including cell subtrees.
     /// Structural commands capture the section's paragraph list instead.
     pub fn begin_text_edit_native(
@@ -21,9 +25,16 @@ impl DocumentCore {
         section: usize,
         paragraph: usize,
         structural: bool,
-    ) -> Result<u32, HwpError> {
+    ) -> Result<String, HwpError> {
         let state = self.text_edit_state(section, paragraph, structural)?;
-        self.store_text_edit(state)
+        let handle = self.next_edit_handle()?;
+        if self.text_edit_history.undo.len() >= 1024 {
+            return Err(HwpError::RenderError("text edit token limit (1024)".into()));
+        }
+        self.text_edit_history.redo.clear();
+        self.text_edit_history.next_sequence += 1;
+        self.text_edit_history.undo.push((handle.clone(), state));
+        Ok(handle)
     }
 
     fn text_edit_state(
@@ -55,38 +66,55 @@ impl DocumentCore {
         })
     }
 
-    fn store_text_edit(&mut self, state: TextEditState) -> Result<u32, HwpError> {
-        // The editor owns 1000 commands; reserve 24 slots for pending edits.
-        // Fail before editing if a consumer retains more, never evict live undo.
-        if self.text_edit_store.len() >= 1024 {
-            return Err(HwpError::RenderError("text edit token limit (1024)".into()));
-        }
-        let id = self.next_text_edit_id;
-        self.next_text_edit_id = id
-            .checked_add(1)
-            .ok_or_else(|| HwpError::RenderError("text edit token id exhausted".into()))?;
-        self.text_edit_store.push((id, state));
-        Ok(id)
+    fn next_edit_handle(&self) -> Result<String, HwpError> {
+        let history = &self.text_edit_history;
+        let epoch = history
+            .epoch
+            .as_ref()
+            .map_err(|reason| HwpError::RenderError(reason.clone()))?;
+        history.next_sequence.checked_add(1).ok_or_else(|| {
+            HwpError::RenderError("EDIT_HISTORY_UNAVAILABLE: sequence exhausted".into())
+        })?;
+        Ok(format!("{epoch}:{}", history.next_sequence))
     }
 
     /// Consumes the token and returns a reciprocal token for redo/undo.
-    pub fn undo_edit_native(&mut self, token: u32) -> Result<u32, HwpError> {
-        self.next_text_edit_id
-            .checked_add(1)
-            .ok_or_else(|| HwpError::RenderError("text edit token id exhausted".into()))?;
-        let index = self
-            .text_edit_store
-            .iter()
-            .position(|(id, _)| *id == token)
-            .ok_or_else(|| HwpError::RenderError("text edit token missing".into()))?;
-        let (section, paragraph, structural) = match &self.text_edit_store[index].1 {
+    pub fn undo_edit_native(&mut self, token: &str) -> Result<String, HwpError> {
+        let history = &self.text_edit_history;
+        let epoch = history
+            .epoch
+            .as_ref()
+            .map_err(|reason| HwpError::RenderError(reason.clone()))?;
+        if token.split_once(':').map(|(value, _)| value) != Some(epoch.as_str()) {
+            return Err(HwpError::InvalidEditHandle("document epoch differs".into()));
+        }
+        let (undoing, state) =
+            if let Some((_, state)) = history.undo.last().filter(|(id, _)| id == token) {
+                (true, state)
+            } else if let Some((_, state)) = history.redo.last().filter(|(id, _)| id == token) {
+                (false, state)
+            } else {
+                return Err(HwpError::InvalidEditHandle(
+                    "handle is not the current undo or redo top".into(),
+                ));
+            };
+        let handle = self.next_edit_handle()?;
+        let (section, paragraph, structural) = match state {
             TextEditState::Paragraph {
                 section, paragraph, ..
             } => (*section, *paragraph, false),
             TextEditState::ParagraphList { section, .. } => (*section, 0, true),
         };
         let reciprocal = self.text_edit_state(section, paragraph, structural)?;
-        let (_, state) = self.text_edit_store.remove(index);
+        let history = &mut self.text_edit_history;
+        let source = if undoing {
+            &mut history.undo
+        } else {
+            &mut history.redo
+        };
+        let (_, state) = source
+            .pop()
+            .ok_or_else(|| HwpError::InvalidEditHandle("history is empty".into()))?;
         match state {
             TextEditState::Paragraph {
                 section,
@@ -110,11 +138,24 @@ impl DocumentCore {
         self.page_tree_cache.borrow_mut().clear();
         self.overflow_links_cache.borrow_mut().clear();
         self.paginate();
-        self.store_text_edit(reciprocal)
+        let history = &mut self.text_edit_history;
+        history.next_sequence += 1;
+        let target = if undoing {
+            &mut history.redo
+        } else {
+            &mut history.undo
+        };
+        target.push((handle.clone(), reciprocal));
+        Ok(handle)
     }
 
-    pub fn discard_edit_native(&mut self, token: u32) {
-        self.text_edit_store.retain(|(id, _)| *id != token);
+    pub fn discard_edit_native(&mut self, token: &str) {
+        self.text_edit_history.undo.retain(|(id, _)| id != token);
+        self.text_edit_history.redo.retain(|(id, _)| id != token);
+    }
+
+    pub fn live_edit_count_native(&self) -> usize {
+        self.text_edit_history.undo.len() + self.text_edit_history.redo.len()
     }
 
     pub fn insert_text_native(
@@ -142,6 +183,7 @@ impl DocumentCore {
         }
 
         // 편집 시 raw 스트림 무효화 (재직렬화 유도)
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
 
         // 텍스트 삽입
@@ -254,6 +296,7 @@ impl DocumentCore {
         }
 
         // 편집 시 raw 스트림 무효화 (재직렬화 유도)
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
 
         // 텍스트 삭제
@@ -410,6 +453,7 @@ impl DocumentCore {
         );
 
         // raw 스트림 무효화, 재페이지네이션 (셀 편집 → composed 불변, section dirty만 설정)
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
         self.mark_section_dirty(section_idx);
         self.paginate_if_needed();
@@ -466,6 +510,7 @@ impl DocumentCore {
         );
 
         // raw 스트림 무효화, 재페이지네이션 (셀 편집 → composed 불변)
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
         self.mark_section_dirty(section_idx);
         self.paginate_if_needed();
@@ -1366,9 +1411,11 @@ impl DocumentCore {
                         start_para, start_offset
                     )));
                 }
+                self.invalidate_edit_redo();
                 self.document.sections[section_idx].raw_stream = None;
                 self.reflow_cell_paragraph(section_idx, ppi, ci, cei, start_para);
             } else {
+                self.invalidate_edit_redo();
                 self.document.sections[section_idx].raw_stream = None;
                 // 다중 문단 셀 내 삭제
                 // 1) 마지막 문단 앞부분 삭제
@@ -1418,6 +1465,7 @@ impl DocumentCore {
             )))
         } else {
             // Section raw 스트림만 무효화하고 DocInfo raw_stream은 유지한다.
+            self.invalidate_edit_redo();
             self.document.sections[section_idx].raw_stream = None;
             // ─── 본문 deleteRange ───
             if start_para == end_para {
@@ -1613,6 +1661,7 @@ impl DocumentCore {
         }
 
         // 편집 시 raw 스트림 무효화 (재직렬화 유도)
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
 
         // 문단 분리
@@ -1698,6 +1747,7 @@ impl DocumentCore {
             )));
         }
 
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
 
         // 문단 분리
@@ -1764,6 +1814,7 @@ impl DocumentCore {
             )));
         }
 
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
 
         // 문단 분리
@@ -1875,6 +1926,7 @@ impl DocumentCore {
         }
 
         // 조판 갱신
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
         self.rebuild_section(section_idx);
 
@@ -1909,6 +1961,7 @@ impl DocumentCore {
         }
 
         // 편집 시 raw 스트림 무효화 (재직렬화 유도)
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
 
         // 현재 문단을 이전 문단에 병합
@@ -2027,6 +2080,7 @@ impl DocumentCore {
         );
 
         // raw 스트림 무효화, section dirty, 재페이지네이션
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
         self.mark_section_dirty(section_idx);
         self.paginate_if_needed();
@@ -2123,6 +2177,7 @@ impl DocumentCore {
         );
 
         // raw 스트림 무효화, section dirty, 재페이지네이션
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
         self.mark_section_dirty(section_idx);
         self.paginate_if_needed();
@@ -3644,6 +3699,7 @@ impl DocumentCore {
         let outer_ctrl = path[0].0;
         self.reflow_cell_paragraph_by_path(section_idx, parent_para_idx, path);
         self.refresh_tables_after_cell_path_edit(section_idx, parent_para_idx, path);
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
         self.mark_section_dirty(section_idx);
         self.paginate_if_needed();
@@ -3681,6 +3737,7 @@ impl DocumentCore {
         let outer_ctrl = path[0].0;
         self.reflow_cell_paragraph_by_path(section_idx, parent_para_idx, path);
         self.refresh_tables_after_cell_path_edit(section_idx, parent_para_idx, path);
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
         self.mark_section_dirty(section_idx);
         self.paginate_if_needed();
@@ -3755,6 +3812,7 @@ impl DocumentCore {
         }
         self.reflow_cell_paragraph_by_path(section_idx, parent_para_idx, &old_path);
         self.refresh_tables_after_cell_path_edit(section_idx, parent_para_idx, path);
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
         self.mark_section_dirty(section_idx);
         self.paginate_if_needed();
@@ -3830,6 +3888,7 @@ impl DocumentCore {
         }
         self.reflow_cell_paragraph_by_path(section_idx, parent_para_idx, &prev_path);
         self.refresh_tables_after_cell_path_edit(section_idx, parent_para_idx, &prev_path);
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
         self.mark_section_dirty(section_idx);
         self.paginate_if_needed();

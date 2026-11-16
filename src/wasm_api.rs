@@ -356,7 +356,7 @@ impl HwpDocument {
         section: u32,
         paragraph: u32,
         structural: bool,
-    ) -> Result<u32, JsValue> {
+    ) -> Result<String, JsValue> {
         self.begin_text_edit_native(
             usize::try_from(section).map_err(|e| HwpError::RenderError(e.to_string()))?,
             usize::try_from(paragraph).map_err(|e| HwpError::RenderError(e.to_string()))?,
@@ -366,13 +366,18 @@ impl HwpDocument {
     }
 
     #[wasm_bindgen(js_name = undoEdit)]
-    pub fn undo_edit(&mut self, token: u32) -> Result<u32, JsValue> {
+    pub fn undo_edit(&mut self, token: &str) -> Result<String, JsValue> {
         self.undo_edit_native(token).map_err(Into::into)
     }
 
     #[wasm_bindgen(js_name = discardEdit)]
-    pub fn discard_edit(&mut self, token: u32) {
+    pub fn discard_edit(&mut self, token: &str) {
         self.discard_edit_native(token);
+    }
+
+    #[wasm_bindgen(js_name = liveEditCount)]
+    pub fn live_edit_count(&self) -> usize {
+        self.live_edit_count_native()
     }
 
     /// 논리적 오프셋으로 텍스트를 삽입한다.
@@ -4898,6 +4903,27 @@ impl HwpDocument {
             end_char_offset as usize,
         )
         .map_err(|e| e.into())
+    }
+
+    #[wasm_bindgen(js_name = copySelectionInCellByPath)]
+    pub fn copy_selection_in_cell_by_path(
+        &mut self,
+        section: u32,
+        parent: u32,
+        path: &str,
+        start_offset: u32,
+        end_paragraph: u32,
+        end_offset: u32,
+    ) -> Result<String, JsValue> {
+        self.copy_selection_in_cell_by_path_native(
+            usize::try_from(section).map_err(|e| HwpError::RenderError(e.to_string()))?,
+            usize::try_from(parent).map_err(|e| HwpError::RenderError(e.to_string()))?,
+            path,
+            usize::try_from(start_offset).map_err(|e| HwpError::RenderError(e.to_string()))?,
+            usize::try_from(end_paragraph).map_err(|e| HwpError::RenderError(e.to_string()))?,
+            usize::try_from(end_offset).map_err(|e| HwpError::RenderError(e.to_string()))?,
+        )
+        .map_err(Into::into)
     }
 
     /// 컨트롤 객체(표, 이미지, 도형)를 내부 클립보드에 복사한다.

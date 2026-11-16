@@ -1039,7 +1039,12 @@ export function onCopy(this: any, e: ClipboardEvent): void {
 
   try {
     // WASM 내부 클립보드에 복사 (서식 보존)
-    if (start.parentParaIndex !== undefined) {
+    if (start.parentParaIndex !== undefined && (start.cellPath?.length ?? 0) > 1) {
+      this.wasm.copySelectionInCellByPath(
+        start.sectionIndex, start.parentParaIndex, JSON.stringify(start.cellPath),
+        start.charOffset, end.cellParaIndex!, end.charOffset,
+      );
+    } else if (start.parentParaIndex !== undefined) {
       this.wasm.copySelectionInCell(
         start.sectionIndex, start.parentParaIndex, start.controlIndex!, start.cellIndex!,
         start.cellParaIndex!, start.charOffset,

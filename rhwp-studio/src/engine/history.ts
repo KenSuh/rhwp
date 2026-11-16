@@ -1,6 +1,7 @@
 import type { WasmBridge } from '@/core/wasm-bridge';
 import type { DocumentPosition } from '@/core/types';
 import type { EditCommand } from './command';
+import { InvalidEditHandleError } from '@/core/wasm-bridge';
 
 /** 스택 내 모든 명령의 discard()를 호출하여 리소스 해제 */
 function discardAll(stack: EditCommand[], wasm: WasmBridge): void {
@@ -18,6 +19,10 @@ export class CommandHistory {
   /** 명령 실행 + 히스토리 기록. 실행 후 커서 위치 반환 */
   execute(command: EditCommand, wasm: WasmBridge): DocumentPosition {
     const cursorAfter = command.execute(wasm);
+    if (wasm.editHistoryDisabledReason !== null) {
+      command.discard?.(wasm);
+      return cursorAfter;
+    }
 
     // 직전 명령과 병합 시도
     if (this.undoStack.length > 0) {
@@ -48,26 +53,42 @@ export class CommandHistory {
 
   /** Undo — 성공 시 커서 위치 반환, 스택 비었으면 null */
   undo(wasm: WasmBridge): DocumentPosition | null {
-    const command = this.undoStack.pop();
+    const command = this.undoStack.at(-1);
     if (!command) return null;
 
-    const cursorAfter = command.undo(wasm);
-    this.redoStack.push(command);
-    return cursorAfter;
+    try {
+      const cursorAfter = command.undo(wasm);
+      this.undoStack.pop();
+      this.redoStack.push(command);
+      return cursorAfter;
+    } catch (error: unknown) {
+      if (error instanceof InvalidEditHandleError) return null;
+      throw error;
+    }
   }
 
   /** Redo — 성공 시 커서 위치 반환, 스택 비었으면 null */
   redo(wasm: WasmBridge): DocumentPosition | null {
-    const command = this.redoStack.pop();
+    const command = this.redoStack.at(-1);
     if (!command) return null;
 
-    const cursorAfter = command.execute(wasm);
-    this.undoStack.push(command);
-    return cursorAfter;
+    try {
+      const cursorAfter = command.execute(wasm);
+      this.redoStack.pop();
+      this.undoStack.push(command);
+      return cursorAfter;
+    } catch (error: unknown) {
+      if (error instanceof InvalidEditHandleError) return null;
+      throw error;
+    }
   }
 
   /** execute() 없이 히스토리에만 기록 (IME compositionend용 — 텍스트가 이미 문서에 있는 경우) */
   recordWithoutExecute(command: EditCommand, wasm: WasmBridge): void {
+    if (wasm.editHistoryDisabledReason !== null) {
+      command.discard?.(wasm);
+      return;
+    }
     // 직전 명령과 병합 시도
     if (this.undoStack.length > 0) {
       const last = this.undoStack[this.undoStack.length - 1];

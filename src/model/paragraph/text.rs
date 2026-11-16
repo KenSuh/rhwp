@@ -240,7 +240,7 @@ impl Paragraph {
         Some(inverse)
     }
 
-    fn rebuild_hwpx_field_offsets(&mut self) {
+    pub(super) fn rebuild_hwpx_field_offsets(&mut self) {
         let non_fields = self
             .controls
             .iter()

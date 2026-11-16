@@ -764,13 +764,13 @@ fn c3_delete_inverse(para: u32, pos: u32, text: &str) {
         serialize_hwpx(&parse_hwpx(&deleted).unwrap()).unwrap(),
         deleted
     );
-    let redo = doc.undo_edit(token).unwrap();
+    let redo = doc.undo_edit(&token).unwrap();
     let saved = doc.export_hwpx_native().unwrap();
     assert_eq!(field_content(&field_tokens(&section_xml(&saved))), "12AB");
     assert_eq!(serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(), saved);
-    let undo = doc.undo_edit(redo).unwrap();
+    let undo = doc.undo_edit(&redo).unwrap();
     assert_eq!(doc.export_hwpx_native().unwrap(), deleted);
-    doc.undo_edit(undo).unwrap();
+    doc.undo_edit(&undo).unwrap();
     assert_eq!(doc.export_hwpx_native().unwrap(), saved);
 
     doc.delete_text(0, para, pos, 2).unwrap();
@@ -812,7 +812,7 @@ fn c1_c3_insert_inverse_and_redo_at_each_boundary() {
             serialize_hwpx(&parse_hwpx(&inserted).unwrap()).unwrap(),
             inserted
         );
-        let redo = doc.undo_edit(token).unwrap();
+        let redo = doc.undo_edit(&token).unwrap();
         let restored = doc.export_hwpx_native().unwrap();
         assert_eq!(
             field_tokens(&section_xml(&restored)),
@@ -825,7 +825,7 @@ fn c1_c3_insert_inverse_and_redo_at_each_boundary() {
             serialize_hwpx(&parse_hwpx(&restored).unwrap()).unwrap(),
             restored
         );
-        doc.undo_edit(redo).unwrap();
+        doc.undo_edit(&redo).unwrap();
         assert_eq!(doc.export_hwpx_native().unwrap(), inserted);
     }
 }
@@ -853,12 +853,12 @@ fn c1_c3_collapsed_adjacent_markers_have_exact_inverse() {
                 deleted
             );
         }
-        let redo = doc.undo_edit(token).unwrap();
+        let redo = doc.undo_edit(&token).unwrap();
         assert_eq!(doc.export_hwpx_native().unwrap(), original);
         let saved = doc.export_hwpx_native().unwrap();
         assert_eq!(serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(), saved);
-        let undo = doc.undo_edit(redo).unwrap();
-        doc.undo_edit(undo).unwrap();
+        let undo = doc.undo_edit(&redo).unwrap();
+        doc.undo_edit(&undo).unwrap();
         assert_eq!(doc.export_hwpx_native().unwrap(), original);
     }
 }
@@ -913,7 +913,7 @@ fn c1_c3_split_at_adjacent_empty_fields_preserves_sequence() {
         serialize_hwpx(&parse_hwpx(&merged).unwrap()).unwrap(),
         merged
     );
-    doc.undo_edit(token).unwrap();
+    doc.undo_edit(&token).unwrap();
     let restored = doc.export_hwpx_native().unwrap();
     assert_eq!(field_tokens(&section_xml(&restored)), original);
     assert_eq!(
@@ -930,16 +930,189 @@ fn c1_c3_undo_tokens_are_bounded_consumed_and_dropped_on_reload() {
         tokens.push(doc.begin_text_edit_native(0, 0, false).unwrap());
     }
     assert!(doc.begin_text_edit_native(0, 0, false).is_err());
-    let oldest = tokens[0];
-    let redo = doc.undo_edit_native(oldest).unwrap();
-    assert!(doc.undo_edit_native(oldest).is_err());
-    doc.discard_edit_native(redo);
+    let latest = tokens.last().unwrap();
+    let redo = doc.undo_edit_native(latest).unwrap();
+    assert!(doc.undo_edit_native(latest).is_err());
+    doc.discard_edit_native(&redo);
     let released = doc.begin_text_edit_native(0, 0, false).unwrap();
     doc.create_blank_document_native().unwrap();
-    assert!(doc.undo_edit_native(released).is_err());
+    assert!(doc.undo_edit_native(&released).is_err());
     doc.set_document(parse_hwpx(&c3_boundary_fixture()).unwrap());
-    assert!(doc.undo_edit_native(released).is_err());
+    assert!(doc.undo_edit_native(&released).is_err());
     let saved = doc.export_hwpx_native().unwrap();
+    assert_eq!(serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(), saved);
+}
+
+#[test]
+fn c1_history_refuses_out_of_order_handles_without_changing_text() {
+    let mut doc = rhwp::DocumentCore::from_bytes(&c3_boundary_fixture()).unwrap();
+    let old = doc.begin_text_edit_native(0, 1, false).unwrap();
+    doc.delete_text_native(0, 1, 2, 2).unwrap();
+    let later = doc.begin_text_edit_native(0, 1, false).unwrap();
+    doc.insert_text_native(0, 1, 2, "LATER").unwrap();
+    assert!(
+        doc.undo_edit_native(&old).is_err(),
+        "out-of-order inverse accepted"
+    );
+    assert_eq!(doc.document().sections[0].paragraphs[1].text(), "ABLATER");
+    let saved = doc.export_hwpx_native().unwrap();
+    assert_eq!(serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(), saved);
+    doc.undo_edit_native(&later).unwrap();
+}
+
+#[test]
+fn c1_history_refuses_redo_after_new_edit() {
+    for captured in [false, true] {
+        let mut doc = rhwp::DocumentCore::from_bytes(&c3_boundary_fixture()).unwrap();
+        let token = doc.begin_text_edit_native(0, 1, false).unwrap();
+        doc.insert_text_native(0, 1, 2, "OLD").unwrap();
+        let redo = doc.undo_edit_native(&token).unwrap();
+        if captured {
+            doc.begin_text_edit_native(0, 1, false).unwrap();
+        }
+        doc.insert_text_native(0, 1, 2, "NEW").unwrap();
+        assert!(
+            doc.undo_edit_native(&redo).is_err(),
+            "abandoned redo accepted"
+        );
+        assert_eq!(doc.document().sections[0].paragraphs[1].text(), "ABNEWCD");
+        let saved = doc.export_hwpx_native().unwrap();
+        assert_eq!(serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(), saved);
+    }
+}
+
+#[test]
+fn c1_clipboard_owns_complete_fields_and_remaps_each_paste() {
+    for prefix in ["", "ZZ"] {
+        let body = format!(
+            "{}{}",
+            paragraph(&format!(
+                "<hp:t>{prefix}</hp:t>{}<hp:t>A</hp:t>{}<hp:t>CD</hp:t>",
+                begin(1),
+                end(1)
+            )),
+            paragraph("<hp:t>TARGET</hp:t>")
+        );
+        let mut doc = rhwp::DocumentCore::from_bytes(&fixture(&body)).unwrap();
+        doc.copy_selection_native(0, 0, prefix.len(), 0, prefix.len() + 1)
+            .unwrap();
+        for expected in [2, 3] {
+            doc.paste_internal_native(0, 1, 0).unwrap();
+            let saved = doc.export_hwpx_native().unwrap();
+            let parsed = parse_hwpx(&saved).unwrap();
+            let fields: Vec<_> = parsed.sections[0]
+                .paragraphs
+                .iter()
+                .flat_map(|p| p.controls.iter())
+                .filter_map(|c| match c {
+                    Control::Field(f) => f.endpoint_id.clone(),
+                    _ => None,
+                })
+                .collect();
+            assert_eq!(fields.len(), expected);
+            assert_eq!(
+                fields
+                    .iter()
+                    .collect::<std::collections::HashSet<_>>()
+                    .len(),
+                expected
+            );
+            assert_eq!(serialize_hwpx(&parsed).unwrap(), saved);
+        }
+    }
+}
+
+#[test]
+fn c1_clipboard_partial_fields_contribute_text_without_endpoints() {
+    let mut doc = rhwp::DocumentCore::from_bytes(&c3_boundary_fixture()).unwrap();
+    doc.copy_selection_native(0, 0, 3, 1, 1).unwrap();
+    doc.paste_internal_native(0, 1, 4).unwrap();
+    let saved = doc.export_hwpx_native().unwrap();
+    assert_eq!(
+        doc.document().sections[0]
+            .paragraphs
+            .iter()
+            .flat_map(|p| &p.controls)
+            .filter(|c| matches!(c, Control::Field(_)))
+            .count(),
+        1
+    );
+    assert_eq!(doc.document().sections[0].paragraphs[1].text(), "ABCD2");
+    assert_eq!(serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(), saved);
+}
+
+#[test]
+fn c1_clipboard_spanning_fields_keep_one_owner_in_body_and_cell() {
+    for in_cell in [false, true] {
+        let body = format!(
+            "{}{}{}",
+            paragraph(&format!("<hp:t>ZZ</hp:t>{}<hp:t>12</hp:t>", begin(1))),
+            paragraph(&format!("<hp:t>AB</hp:t>{}<hp:t>CD</hp:t>", end(1))),
+            paragraph("<hp:t>TARGET</hp:t>")
+        );
+        let input = if in_cell {
+            wrapped_field_list("cell", &body)
+        } else {
+            body
+        };
+        let mut doc = rhwp::DocumentCore::from_bytes(&fixture(&input)).unwrap();
+        if in_cell {
+            doc.copy_selection_in_cell_native(0, 0, 0, 0, 0, 2, 1, 2)
+                .unwrap();
+            doc.paste_internal_in_cell_native(0, 0, 0, 0, 2, 0).unwrap();
+        } else {
+            doc.copy_selection_native(0, 0, 2, 1, 2).unwrap();
+            doc.paste_internal_native(0, 2, 0).unwrap();
+        }
+        let saved = doc.export_hwpx_native().unwrap();
+        assert_eq!(section_xml(&saved).matches("<hp:fieldBegin ").count(), 2);
+        assert_eq!(serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(), saved);
+    }
+}
+
+#[test]
+fn c1_clipboard_repeated_fragment_assigns_four_new_field_identities() {
+    let fields = format!(
+        "{}<hp:t>A</hp:t>{}{}<hp:t>B</hp:t>{}",
+        begin(1),
+        end(1),
+        begin(2),
+        end(2)
+    );
+    let body = format!("{}{}", paragraph(&fields), paragraph("<hp:t>TARGET</hp:t>"));
+    let mut doc = rhwp::DocumentCore::from_bytes(&fixture(&body)).unwrap();
+    doc.copy_selection_native(0, 0, 0, 0, 2).unwrap();
+    doc.paste_internal_native(0, 1, 0).unwrap();
+    doc.paste_internal_native(0, 1, 0).unwrap();
+    let pasted: Vec<_> = doc.document().sections[0].paragraphs[1]
+        .controls
+        .iter()
+        .filter_map(|c| match c {
+            Control::Field(f) => f.endpoint_id.as_ref(),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(pasted.len(), 4);
+    assert_eq!(
+        pasted
+            .iter()
+            .collect::<std::collections::HashSet<_>>()
+            .len(),
+        4
+    );
+    let saved = doc.export_hwpx_native().unwrap();
+    assert_eq!(serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(), saved);
+}
+
+#[test]
+fn c1_cut_and_paste_within_field_keeps_the_sequence() {
+    let mut doc = rhwp::wasm_api::HwpDocument::from_bytes(&c3_boundary_fixture()).unwrap();
+    doc.copy_selection(0, 1, 0, 1, 1).unwrap();
+    doc.delete_range(0, 1, 0, 1, 1).unwrap();
+    doc.paste_internal(0, 1, 1).unwrap();
+    assert_eq!(doc.document().sections[0].paragraphs[1].text(), "BACD");
+    let saved = doc.export_hwpx_native().unwrap();
+    assert_eq!(field_content(&field_tokens(&section_xml(&saved))), "12BA");
     assert_eq!(serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(), saved);
 }
 

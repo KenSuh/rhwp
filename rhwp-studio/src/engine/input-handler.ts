@@ -218,12 +218,12 @@ export class InputHandler {
   private isComposing = false;
   private compositionAnchor: DocumentPosition | null = null;
   private compositionLength = 0; // 문서에 삽입된 조합 텍스트 길이
-  private compositionEditToken: number | null = null;
+  private compositionEditToken: string | null = null;
   // iOS 폴백: composition 이벤트 없이 input만으로 한글 조합 처리
   private _iosComposing = false;
   private _iosAnchor: DocumentPosition | null = null;
   private _iosLength = 0;
-  private _iosEditToken: number | null = null;
+  private _iosEditToken: string | null = null;
   private _iosPrevText = '';
   private _iosInputTimer: any = null;
   private _isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
@@ -1909,9 +1909,8 @@ export class InputHandler {
     const { start, end } = sel;
     this.cursor.clearSelection();
     this.executeOperation({
-      kind: 'snapshot',
-      operationType: 'deleteSelection',
-      operation: (wasm) => new DeleteSelectionCommand(start, end).execute(wasm),
+      kind: 'command',
+      command: new DeleteSelectionCommand(start, end),
     });
   }
 

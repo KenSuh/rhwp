@@ -256,10 +256,14 @@ export function onInput(this: any, e?: InputEvent): void {
 
     // 이전 조합 텍스트 삭제
     if (!this.cursor.isInHeaderFooter() && !this.cursor.isInFootnote()) {
+      const hadInverse = this.compositionEditToken !== null;
       if (this.compositionEditToken !== null) {
         this.wasm.discardEdit(this.wasm.undoEdit(this.compositionEditToken));
       }
       this.compositionEditToken = this.wasm.beginTextEdit(anchor.sectionIndex, anchor.parentParaIndex ?? anchor.paragraphIndex);
+      if (!hadInverse && this.compositionEditToken === null && this.compositionLength > 0) {
+        this.deleteTextAt(anchor, this.compositionLength);
+      }
     } else if (this.compositionLength > 0) {
       this.deleteTextAt(anchor, this.compositionLength);
     }
@@ -315,10 +319,14 @@ export function onInput(this: any, e?: InputEvent): void {
 
     // 이전 삽입 전부 삭제
     if (!this.cursor.isInHeaderFooter() && !this.cursor.isInFootnote()) {
+      const hadInverse = this._iosEditToken !== null;
       if (this._iosEditToken !== null) {
         this.wasm.discardEdit(this.wasm.undoEdit(this._iosEditToken));
       }
       this._iosEditToken = this.wasm.beginTextEdit(this._iosAnchor.sectionIndex, this._iosAnchor.parentParaIndex ?? this._iosAnchor.paragraphIndex);
+      if (!hadInverse && this._iosEditToken === null && this._iosLength > 0) {
+        this.deleteTextAt(this._iosAnchor, this._iosLength);
+      }
     } else if (this._iosLength > 0 && this._iosAnchor) {
       this.deleteTextAt(this._iosAnchor, this._iosLength);
     }

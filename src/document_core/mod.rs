@@ -38,6 +38,28 @@ pub(crate) enum TextEditState {
     },
 }
 
+pub(crate) struct TextEditHistory {
+    epoch: Result<String, String>,
+    next_sequence: u64,
+    undo: Vec<(String, TextEditState)>,
+    redo: Vec<(String, TextEditState)>,
+}
+
+impl TextEditHistory {
+    fn new() -> Self {
+        let mut bytes = [0; 16];
+        let epoch = getrandom::fill(&mut bytes)
+            .map(|()| bytes.iter().map(|byte| format!("{byte:02x}")).collect())
+            .map_err(|error| format!("EDIT_HISTORY_UNAVAILABLE: {error}"));
+        Self {
+            epoch,
+            next_sequence: 0,
+            undo: Vec::new(),
+            redo: Vec::new(),
+        }
+    }
+}
+
 /// 기본 폰트 fallback 경로
 pub const DEFAULT_FALLBACK_FONT: &str = "/usr/share/fonts/truetype/nanum/NanumGothic.ttf";
 
@@ -106,8 +128,7 @@ pub struct DocumentCore {
     pub(crate) snapshot_store: Vec<(u32, Document)>,
     /// 다음 스냅샷 ID
     pub(crate) next_snapshot_id: u32,
-    pub(crate) text_edit_store: Vec<(u32, TextEditState)>,
-    pub(crate) next_text_edit_id: u32,
+    pub(crate) text_edit_history: TextEditHistory,
     /// 머리말/꼬리말 감추기: (global_page_index, is_header) 조합
     pub(crate) hidden_header_footer: std::collections::HashSet<(u32, bool)>,
     /// 파일 이름 (머리말/꼬리말 필드 치환용)
@@ -244,8 +265,7 @@ impl DocumentCore {
             overflow_links_cache: RefCell::new(HashMap::new()),
             snapshot_store: Vec::new(),
             next_snapshot_id: 0,
-            text_edit_store: Vec::new(),
-            next_text_edit_id: 0,
+            text_edit_history: TextEditHistory::new(),
             hidden_header_footer: std::collections::HashSet::new(),
             file_name: String::new(),
             active_field: None,

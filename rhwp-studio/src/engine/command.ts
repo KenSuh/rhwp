@@ -1,4 +1,5 @@
 import type { WasmBridge } from '@/core/wasm-bridge';
+import { InvalidEditHandleError } from '@/core/wasm-bridge';
 import type { DocumentPosition, CharProperties } from '@/core/types';
 
 /** 편집 명령 공통 인터페이스 */
@@ -31,7 +32,7 @@ export type OperationDescriptor =
   | { kind: 'record'; command: EditCommand };
 
 class TextEditInverse {
-  private token: number | null = null;
+  private token: string | null = null;
   private undone = false;
   private after: DocumentPosition | null = null;
 
@@ -42,6 +43,7 @@ class TextEditInverse {
       return this.after;
     }
     this.token = wasm.beginTextEdit(position.sectionIndex, position.parentParaIndex ?? position.paragraphIndex, structural && !isCell(position));
+    if (this.token === null) return operation();
     try {
       this.after = operation();
       return this.after;
@@ -53,12 +55,12 @@ class TextEditInverse {
   }
 
   undo(wasm: WasmBridge): void {
-    if (this.token === null) throw new Error('텍스트 편집 복원 토큰이 없습니다');
+    if (this.token === null) throw new InvalidEditHandleError('INVALID_EDIT_HANDLE: inverse is unavailable');
     this.token = wasm.undoEdit(this.token);
     this.undone = true;
   }
 
-  adopt(token: number, after: DocumentPosition): void {
+  adopt(token: string, after: DocumentPosition): void {
     this.token = token;
     this.after = after;
   }
@@ -247,7 +249,7 @@ export class InsertTextCommand implements EditCommand {
     this.timestamp = timestamp ?? Date.now();
   }
 
-  static recorded(position: DocumentPosition, text: string, token: number): InsertTextCommand {
+  static recorded(position: DocumentPosition, text: string, token: string): InsertTextCommand {
     const command = new InsertTextCommand(position, text);
     command.inverse.adopt(token, { ...position, charOffset: position.charOffset + text.length });
     return command;
