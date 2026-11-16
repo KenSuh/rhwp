@@ -37,7 +37,7 @@ use super::context::SerializeContext;
 use super::form::write_form;
 use super::picture::write_picture;
 use super::shape::{write_container_close, write_container_open, write_line, write_rect};
-use super::table::{later_field_ends, write_paragraph_runs, write_table};
+use super::table::{field_marks_for_list, write_paragraph_runs, write_table, FieldMark};
 use super::utils::{empty_tag, end_tag, start_tag, xml_escape};
 use super::SerializeError;
 
@@ -126,7 +126,10 @@ pub fn write_section(
             );
         }
     }
-    let field_ends = later_field_ends(&section.paragraphs)?;
+    let field_ends = field_marks_for_list(
+        crate::model::control::HwpxFieldListKind::Body,
+        &section.paragraphs,
+    )?;
     let first_runs = match first_para {
         Some(p) => render_paragraph_runs(p, first_column, &field_ends[0], ctx)?,
         None => format!(r#"<hp:run charPrIDRef="0">{first_t}</hp:run>"#),
@@ -159,7 +162,7 @@ pub fn write_section(
 fn render_paragraph_runs(
     p: &Paragraph,
     skip: Option<usize>,
-    field_ends: &[&Field],
+    field_ends: &[FieldMark<'_>],
     ctx: &mut SerializeContext,
 ) -> Result<String, SerializeError> {
     let mut writer = Writer::new(Vec::new());

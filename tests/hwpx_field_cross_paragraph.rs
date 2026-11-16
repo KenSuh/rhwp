@@ -302,3 +302,304 @@ fn unclosed_field_begin_opens_but_save_is_refused() {
         "unclosed fieldBegin must not be saved as a pair"
     );
 }
+
+fn paragraph(run: &str) -> String {
+    format!(r#"{P}<hp:run charPrIDRef="0">{run}</hp:run></hp:p>"#)
+}
+
+fn editable_cross_paragraph_fixture() -> Vec<u8> {
+    fixture(&format!(
+        "{}{}",
+        paragraph(&begin(1)),
+        paragraph(&format!("<hp:t>AB</hp:t>{}<hp:t>CD</hp:t>", end(1)))
+    ))
+}
+
+#[test]
+fn c1_field_end_tracks_text_edits_and_paragraph_structure() {
+    for (case, expected, paragraph_count) in [
+        ("insert_inside", "XYAB", 2),
+        ("insert_after", "AB", 2),
+        ("insert_at_end", "ABXY", 2),
+        ("delete_inside", "B", 2),
+        ("split_inside", "AB", 3),
+        ("split_begin", "AB", 3),
+        ("merge_begin", "AB", 2),
+        ("merge_empty_end", "AB", 1),
+        ("merge", "AB", 1),
+    ] {
+        let input = match case {
+            "merge_begin" => fixture(&format!(
+                "{}{}{}",
+                paragraph(""),
+                paragraph(&begin(1)),
+                paragraph(&format!("<hp:t>AB</hp:t>{}<hp:t>CD</hp:t>", end(1)))
+            )),
+            "merge_empty_end" => fixture(&format!(
+                "{}{}",
+                paragraph(&format!("{}<hp:t>AB</hp:t>", begin(1))),
+                paragraph(&end(1))
+            )),
+            _ => editable_cross_paragraph_fixture(),
+        };
+        let mut core = rhwp::DocumentCore::from_bytes(&input).unwrap();
+        match case {
+            "insert_inside" => core.insert_text_native(0, 1, 0, "XY").unwrap(),
+            "insert_after" => core.insert_text_native(0, 1, 4, "XY").unwrap(),
+            "insert_at_end" => core.insert_text_native(0, 1, 2, "XY").unwrap(),
+            "delete_inside" => core.delete_text_native(0, 1, 0, 1).unwrap(),
+            "split_inside" => core.split_paragraph_native(0, 1, 1).unwrap(),
+            "split_begin" => core.split_paragraph_native(0, 0, 0).unwrap(),
+            "merge" | "merge_begin" | "merge_empty_end" => {
+                core.merge_paragraph_native(0, 1).unwrap()
+            }
+            _ => unreachable!(),
+        };
+        let saved = core
+            .export_hwpx_native()
+            .unwrap_or_else(|e| panic!("{case}: {e}"));
+        let tokens = field_tokens(&section_xml(&saved));
+        assert_eq!(field_content(&tokens), expected, "{case}: saved membership");
+        let expected_paragraphs = match case {
+            "split_inside" => (0, 2),
+            "split_begin" => (1, 2),
+            "merge" | "merge_empty_end" => (0, 0),
+            _ => (0, 1),
+        };
+        let mut pi = 0;
+        let mut actual_paragraphs = (None, None);
+        for token in &tokens {
+            if token.starts_with('B') {
+                actual_paragraphs.0 = Some(pi);
+            }
+            if token.starts_with('E') {
+                actual_paragraphs.1 = Some(pi);
+            }
+            if token == ")P" {
+                pi += 1;
+            }
+        }
+        assert_eq!(
+            actual_paragraphs,
+            (Some(expected_paragraphs.0), Some(expected_paragraphs.1)),
+            "{case}: marker paragraphs"
+        );
+        assert_eq!(
+            tokens.iter().filter(|t| t.starts_with('B')).count(),
+            1,
+            "{case}"
+        );
+        assert_eq!(
+            tokens.iter().filter(|t| t.starts_with('E')).count(),
+            1,
+            "{case}"
+        );
+        let reopened = parse_hwpx(&saved).unwrap();
+        assert_eq!(
+            reopened.sections[0].paragraphs.len(),
+            paragraph_count,
+            "{case}"
+        );
+        assert_eq!(
+            serialize_hwpx(&reopened).unwrap(),
+            saved,
+            "{case}: second save bytes"
+        );
+    }
+}
+
+#[test]
+fn c1_deleted_or_reversed_endpoints_refuse_save() {
+    let mut core = rhwp::DocumentCore::from_bytes(&editable_cross_paragraph_fixture()).unwrap();
+    core.delete_text_native(0, 1, 1, 1).unwrap();
+    let err = core
+        .export_hwpx_native()
+        .err()
+        .unwrap_or_else(|| panic!("deleting the end's anchor text must refuse"));
+    assert!(err.to_string().contains("HWPX_FIELD_ENDPOINT"), "{err}");
+
+    let mut doc = parse_hwpx(&editable_cross_paragraph_fixture()).unwrap();
+    doc.sections[0].paragraphs.swap(0, 1);
+    let err = serialize_hwpx(&doc)
+        .err()
+        .unwrap_or_else(|| panic!("begin after end must refuse"));
+    assert!(err.to_string().contains("HWPX_FIELD_ENDPOINT"), "{err}");
+}
+
+#[test]
+fn c1_split_and_merge_keep_fields_nested_inside_a_span() {
+    let inner = format!(
+        "{}<hp:t>AX</hp:t>{}<hp:t>B</hp:t>{}<hp:t>CD</hp:t>",
+        begin(2),
+        end(2),
+        end(1)
+    );
+    let input = fixture(&format!("{}{}", paragraph(&begin(1)), paragraph(&inner)));
+    for (action, expected) in [
+        ("merge", paragraph(&format!("{}{inner}", begin(1)))),
+        (
+            "split_before",
+            format!(
+                "{}{}{}",
+                paragraph(&begin(1)),
+                paragraph(""),
+                paragraph(&inner)
+            ),
+        ),
+        (
+            "split_inside",
+            format!(
+                "{}{}{}",
+                paragraph(&begin(1)),
+                paragraph(&format!("{}<hp:t>A</hp:t>", begin(2))),
+                paragraph(&format!(
+                    "<hp:t>X</hp:t>{}<hp:t>B</hp:t>{}<hp:t>CD</hp:t>",
+                    end(2),
+                    end(1)
+                ))
+            ),
+        ),
+    ] {
+        let mut core = rhwp::DocumentCore::from_bytes(&input).unwrap();
+        match action {
+            "merge" => core.merge_paragraph_native(0, 1).unwrap(),
+            "split_before" => core.split_paragraph_native(0, 1, 0).unwrap(),
+            "split_inside" => core.split_paragraph_native(0, 1, 1).unwrap(),
+            _ => unreachable!(),
+        };
+        let saved = core
+            .export_hwpx_native()
+            .unwrap_or_else(|e| panic!("{action}: {e}"));
+        assert_eq!(
+            field_tokens(&section_xml(&saved)),
+            field_tokens(&section_xml(&fixture(&expected))),
+            "{action}"
+        );
+        assert_eq!(
+            serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(),
+            saved,
+            "{action}: second save"
+        );
+    }
+}
+
+#[test]
+fn c1_field_replacements_and_guide_cleanup_shift_enclosing_endpoint() {
+    let body = |value| {
+        format!(
+            "{}{}",
+            paragraph(&begin(1)),
+            paragraph(&format!(
+                "{}<hp:t>{value}</hp:t>{}<hp:t>B</hp:t>{}<hp:t>CD</hp:t>",
+                begin(2),
+                end(2),
+                end(1)
+            ))
+        )
+    };
+    for (guide, expected) in [(false, "XY"), (true, "")] {
+        let input = if guide {
+            body("A").replace("안내;", "Direction:wstring:1:A")
+        } else {
+            body("A")
+        };
+        let mut core = rhwp::DocumentCore::from_bytes(&fixture(&input)).unwrap();
+        if !guide {
+            core.set_field_value_by_id(502, "XY").unwrap();
+        }
+        let saved = core.export_hwpx_native().unwrap();
+        assert_eq!(
+            field_tokens(&section_xml(&saved)),
+            field_tokens(&section_xml(&fixture(&body(expected)))),
+            "guide={guide}"
+        );
+        assert_eq!(serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(), saved);
+    }
+}
+
+fn wrapped_field_list(kind: &str, content: &str) -> String {
+    let sublist = format!("<hp:subList>{content}</hp:subList>");
+    let object = match kind {
+        "body" => return content.to_string(),
+        "cell" => format!(
+            r#"<hp:tbl rowCnt="1" colCnt="1" borderFillIDRef="1"><hp:tr><hp:tc borderFillIDRef="1">{sublist}<hp:cellAddr colAddr="0" rowAddr="0"/><hp:cellSpan colSpan="1" rowSpan="1"/><hp:cellSz width="1000" height="1000"/></hp:tc></hp:tr></hp:tbl>"#
+        ),
+        "caption" => format!(
+            r#"<hp:tbl rowCnt="0" colCnt="0" borderFillIDRef="1"><hp:caption>{sublist}</hp:caption></hp:tbl>"#
+        ),
+        "drawText" => format!("<hp:rect><hp:drawText>{sublist}</hp:drawText></hp:rect>"),
+        "ellipseCaption" => format!("<hp:ellipse><hp:caption>{sublist}</hp:caption></hp:ellipse>"),
+        "ellipseText" => format!("<hp:ellipse><hp:drawText>{sublist}</hp:drawText></hp:ellipse>"),
+        _ => format!("<hp:ctrl><hp:{kind}>{sublist}</hp:{kind}></hp:ctrl>"),
+    };
+    paragraph(&object)
+}
+
+#[test]
+fn c2_cross_paragraph_acceptance_matches_serialized_lists() {
+    let content = format!(
+        "{}{}",
+        paragraph(&format!("{}<hp:t>HEAD</hp:t>", begin(1))),
+        paragraph(&format!("<hp:t>TAIL</hp:t>{}", end(1)))
+    );
+    for kind in [
+        "header",
+        "footer",
+        "footNote",
+        "endNote",
+        "hiddenComment",
+        "ellipseCaption",
+        "ellipseText",
+    ] {
+        let err = parse_hwpx(&fixture(&wrapped_field_list(kind, &content)))
+            .err()
+            .unwrap_or_else(|| panic!("{kind}: omitted list must refuse at open"));
+        assert!(
+            err.to_string().contains("HWPX_FIELD_LIST_UNSUPPORTED"),
+            "{kind}: {err}"
+        );
+    }
+    let nested = wrapped_field_list("header", &wrapped_field_list("cell", &content));
+    assert!(parse_hwpx(&fixture(&nested)).is_err());
+    for kind in ["body", "cell", "caption", "drawText"] {
+        let input = fixture(&wrapped_field_list(kind, &content));
+        let doc = parse_hwpx(&input).unwrap();
+        let saved = serialize_hwpx(&doc).unwrap_or_else(|e| panic!("{kind}: {e}"));
+        assert_eq!(
+            field_tokens(&section_xml(&saved)),
+            field_tokens(&section_xml(&input)),
+            "{kind}"
+        );
+        assert_eq!(
+            serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(),
+            saved,
+            "{kind}: second save"
+        );
+    }
+}
+
+#[test]
+fn c2_unclosed_begins_are_refused_in_every_list_kind() {
+    let content = paragraph(&format!("{}<hp:t>HEAD</hp:t>", begin(1)));
+    for kind in [
+        "body",
+        "cell",
+        "caption",
+        "drawText",
+        "header",
+        "footer",
+        "footNote",
+        "endNote",
+        "hiddenComment",
+        "ellipseCaption",
+        "ellipseText",
+    ] {
+        match parse_hwpx(&fixture(&wrapped_field_list(kind, &content))) {
+            Err(err) => assert!(err.to_string().contains("fieldBegin"), "{kind}: {err}"),
+            Ok(doc) => assert!(
+                serialize_hwpx(&doc).is_err(),
+                "{kind}: unclosed begin was saved"
+            ),
+        }
+    }
+}

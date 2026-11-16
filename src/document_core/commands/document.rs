@@ -8,7 +8,9 @@ use crate::error::HwpError;
 use crate::model::control::Control;
 use crate::model::document::Document;
 use crate::model::paragraph::Paragraph;
-use crate::renderer::composer::{compose_section, reflow_horizontal_cell_line_segs, reflow_line_segs};
+use crate::renderer::composer::{
+    compose_section, reflow_horizontal_cell_line_segs, reflow_line_segs,
+};
 use crate::renderer::layout::LayoutEngine;
 use crate::renderer::page_layout::PageLayoutInfo;
 use crate::renderer::style_resolver::{resolve_styles, ResolvedStyleSet};
@@ -903,6 +905,7 @@ impl DocumentCore {
                 let chars: Vec<char> = para.text.chars().collect();
                 let new_text: String = chars[..start].iter().chain(chars[end..].iter()).collect();
                 para.text = new_text;
+                para.shift_hwpx_field_markers(start..end, 0);
                 para.field_ranges[fri].end_char_idx = start;
                 // 이후 field_ranges의 char_idx 조정
                 for i in 0..para.field_ranges.len() {

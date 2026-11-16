@@ -353,7 +353,15 @@ fn write_drawing<W: Write>(
             crate::model::table::VerticalAlign::Center => "CENTER",
             crate::model::table::VerticalAlign::Bottom => "BOTTOM",
         };
-        write_text_sublist(w, &text_box.paragraphs, align, ctx)?;
+        write_text_sublist(
+            w,
+            (
+                crate::model::control::HwpxFieldListKind::DrawText,
+                &text_box.paragraphs,
+            ),
+            align,
+            ctx,
+        )?;
         empty_tag(
             w,
             "hp:textMargin",
@@ -448,10 +456,14 @@ fn write_line_shape<W: Write>(
 
 fn write_text_sublist<W: Write>(
     w: &mut Writer<W>,
-    paragraphs: &[crate::model::paragraph::Paragraph],
+    list: (
+        crate::model::control::HwpxFieldListKind,
+        &[crate::model::paragraph::Paragraph],
+    ),
     align: &str,
     ctx: &mut SerializeContext,
 ) -> Result<(), SerializeError> {
+    let (kind, paragraphs) = list;
     start_tag_attrs(
         w,
         "hp:subList",
@@ -468,7 +480,7 @@ fn write_text_sublist<W: Write>(
             ("hasNumRef", "0"),
         ],
     )?;
-    let field_ends = super::table::later_field_ends(paragraphs)?;
+    let field_ends = super::table::field_marks_for_list(kind, paragraphs)?;
     for (id, para) in paragraphs.iter().enumerate() {
         super::table::write_paragraph(w, para, id, &field_ends[id], ctx)?;
     }
@@ -502,7 +514,15 @@ pub(super) fn write_caption<W: Write>(
         crate::model::shape::CaptionVertAlign::Center => "CENTER",
         crate::model::shape::CaptionVertAlign::Bottom => "BOTTOM",
     };
-    write_text_sublist(w, &caption.paragraphs, align, ctx)?;
+    write_text_sublist(
+        w,
+        (
+            crate::model::control::HwpxFieldListKind::Caption,
+            &caption.paragraphs,
+        ),
+        align,
+        ctx,
+    )?;
     end_tag(w, "hp:caption")
 }
 

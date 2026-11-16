@@ -10,14 +10,14 @@ use quick_xml::Reader;
 use crate::model::control::{
     AutoNumber, AutoNumberType, Bookmark, CharOverlap, Control, Equation, Field, FieldParameter,
     FieldParameterKind, FieldParameters, FieldType, FormObject, FormType, HiddenComment, HwpxField,
-    NewNumber, PageHide, PageNumberPos, Ruby,
+    HwpxFieldListKind, NewNumber, PageHide, PageNumberPos, Ruby,
 };
 use crate::model::document::{Section, SectionDef};
 use crate::model::footnote::{Endnote, Footnote};
 use crate::model::header_footer::{Footer, Header, HeaderFooterApply};
-use crate::model::image::{CropInfo, ImageAttr, ImageEffect};
+use crate::model::image::{CropInfo, HwpxImageReference, ImageAttr, ImageEffect};
 use crate::model::page::{BindingMethod, ColumnDef, ColumnDirection, ColumnType, PageDef};
-use crate::model::paragraph::{CharShapeRef, LineSeg, Paragraph};
+use crate::model::paragraph::{CharShapeRef, FieldEndpoint, HwpxFieldMarker, LineSeg, Paragraph};
 use crate::model::shape::{
     ArcShape, CommonObjAttr, CurveShape, DrawingObjAttr, EllipseShape, GroupShape, HorzAlign,
     HorzRelTo, LineShape, PolygonShape, RectangleShape, ShapeComponentAttr, ShapeObject, TextBox,
@@ -68,7 +68,144 @@ pub fn parse_hwpx_section(xml: &str) -> Result<Section, HwpxError> {
         buf.clear();
     }
 
+    validate_field_lists(&section.paragraphs, HwpxFieldListKind::Body)?;
     Ok(section)
+}
+
+fn validate_field_lists(
+    paragraphs: &[Paragraph],
+    kind: HwpxFieldListKind,
+) -> Result<(), HwpxError> {
+    let child_kind = |child| {
+        if kind.is_serialized() {
+            child
+        } else {
+            HwpxFieldListKind::Omitted
+        }
+    };
+    for para in paragraphs {
+        for (ci, control) in para.controls.iter().enumerate() {
+            match control {
+                Control::Field(field) if !kind.is_serialized() => {
+                    if let Some(h) = &field.hwpx {
+                        if h.end_attributes.is_none() {
+                            return Err(HwpxError::XmlError(
+                                "fieldEnd가 없는 HWPX fieldBegin".into(),
+                            ));
+                        }
+                        if !para.field_ranges.iter().any(|r| r.control_idx == ci) {
+                            return Err(HwpxError::XmlError("HWPX_FIELD_LIST_UNSUPPORTED: 문단을 건너는 필드를 저장하지 않는 목록".into()));
+                        }
+                    }
+                }
+                Control::Table(table) => {
+                    for cell in &table.cells {
+                        validate_field_lists(
+                            &cell.paragraphs,
+                            child_kind(HwpxFieldListKind::Cell),
+                        )?;
+                    }
+                    if let Some(caption) = &table.caption {
+                        validate_field_lists(
+                            &caption.paragraphs,
+                            child_kind(HwpxFieldListKind::Caption),
+                        )?;
+                    }
+                }
+                Control::Shape(shape) => validate_shape_field_lists(shape, kind)?,
+                Control::Header(header) => {
+                    validate_field_lists(&header.paragraphs, HwpxFieldListKind::Omitted)?
+                }
+                Control::Footer(footer) => {
+                    validate_field_lists(&footer.paragraphs, HwpxFieldListKind::Omitted)?
+                }
+                Control::Footnote(note) => {
+                    validate_field_lists(&note.paragraphs, HwpxFieldListKind::Omitted)?
+                }
+                Control::Endnote(note) => {
+                    validate_field_lists(&note.paragraphs, HwpxFieldListKind::Omitted)?
+                }
+                Control::HiddenComment(comment) => {
+                    validate_field_lists(&comment.paragraphs, HwpxFieldListKind::Omitted)?
+                }
+                _ => {}
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_shape_field_lists(
+    shape: &ShapeObject,
+    parent: HwpxFieldListKind,
+) -> Result<(), HwpxError> {
+    let drawing = match shape {
+        ShapeObject::Line(shape) => Some((&shape.drawing, parent)),
+        ShapeObject::Rectangle(shape) => Some((&shape.drawing, parent)),
+        ShapeObject::Ellipse(shape) => Some((&shape.drawing, HwpxFieldListKind::Omitted)),
+        ShapeObject::Arc(shape) => Some((&shape.drawing, HwpxFieldListKind::Omitted)),
+        ShapeObject::Polygon(shape) => Some((&shape.drawing, HwpxFieldListKind::Omitted)),
+        ShapeObject::Curve(shape) => Some((&shape.drawing, HwpxFieldListKind::Omitted)),
+        ShapeObject::Group(group) => {
+            let kind = if parent.is_serialized()
+                && (parent == HwpxFieldListKind::Body
+                    || group.children.iter().any(hwpx_cell_shape_supported))
+            {
+                parent
+            } else {
+                HwpxFieldListKind::Omitted
+            };
+            for child in &group.children {
+                validate_shape_field_lists(child, kind)?;
+            }
+            if let Some(caption) = &group.caption {
+                validate_field_lists(
+                    &caption.paragraphs,
+                    if kind.is_serialized() {
+                        HwpxFieldListKind::Caption
+                    } else {
+                        kind
+                    },
+                )?;
+            }
+            None
+        }
+        ShapeObject::Picture(_) => None,
+    };
+    if let Some((drawing, kind)) = drawing {
+        if let Some(text_box) = &drawing.text_box {
+            validate_field_lists(
+                &text_box.paragraphs,
+                if kind.is_serialized() {
+                    HwpxFieldListKind::DrawText
+                } else {
+                    kind
+                },
+            )?;
+        }
+        if let Some(caption) = &drawing.caption {
+            validate_field_lists(
+                &caption.paragraphs,
+                if kind.is_serialized() {
+                    HwpxFieldListKind::Caption
+                } else {
+                    kind
+                },
+            )?;
+        }
+    }
+    Ok(())
+}
+
+fn hwpx_cell_shape_supported(shape: &ShapeObject) -> bool {
+    match shape {
+        ShapeObject::Line(_) | ShapeObject::Rectangle(_) | ShapeObject::Picture(_) => true,
+        ShapeObject::Group(group) => group.children.iter().any(hwpx_cell_shape_supported),
+        ShapeObject::Ellipse(_)
+        | ShapeObject::Arc(_)
+        | ShapeObject::Polygon(_)
+        | ShapeObject::Curve(_) => false,
+    }
 }
 
 // ─── SectionDef / PageDef ───
@@ -890,7 +1027,10 @@ fn parse_text_flow(value: &str) -> crate::model::shape::TextFlow {
 /// HWPX `widthRelTo`/`heightRelTo` → [`SizeCriterion`](crate::model::shape::SizeCriterion).
 ///
 /// 높이 기준은 HWP5 에서 2비트(종이·쪽·절대)뿐이라 `COLUMN`/`PARA` 를 받지 않는다.
-fn parse_size_criterion(value: &str, allow_column_para: bool) -> crate::model::shape::SizeCriterion {
+fn parse_size_criterion(
+    value: &str,
+    allow_column_para: bool,
+) -> crate::model::shape::SizeCriterion {
     use crate::model::shape::SizeCriterion;
     match value {
         "PAPER" => SizeCriterion::Paper,
@@ -1179,6 +1319,7 @@ fn parse_picture(
     reader: &mut Reader<&[u8]>,
 ) -> Result<Control, HwpxError> {
     let mut img_attr = ImageAttr::default();
+    let mut image_reference = HwpxImageReference::Absent;
     let mut instance_id = 0;
     let mut common = CommonObjAttr::default();
     let mut shape_attr = ShapeComponentAttr::default();
@@ -1382,6 +1523,11 @@ fn parse_picture(
                                     // 비어 있지 않은데 양수 id 를 못 읽는 참조는 0(그림 없음)으로
                                     // 바꾸지 않고 등록될 수 없는 id 로 둔다 — 저장이 미등록 참조로 거부한다.
                                     let val = attr_str(&attr);
+                                    image_reference = if val.is_empty() {
+                                        HwpxImageReference::Empty
+                                    } else {
+                                        HwpxImageReference::Numbered
+                                    };
                                     let num: String =
                                         val.chars().filter(|c| c.is_ascii_digit()).collect();
                                     img_attr.bin_data_id = if val.is_empty() {
@@ -1451,6 +1597,7 @@ fn parse_picture(
 
     let mut pic = crate::model::image::Picture::default();
     pic.image_attr = img_attr;
+    pic.hwpx_image_reference = Some(image_reference);
     pic.common = common;
     pic.instance_id = instance_id;
     pic.shape_attr = shape_attr;
@@ -2606,7 +2753,7 @@ impl FieldPairing {
     fn push(
         &mut self,
         paragraphs: &mut Vec<Paragraph>,
-        para: Paragraph,
+        mut para: Paragraph,
         pending: Vec<PendingFieldEnd>,
     ) -> Result<(), HwpxError> {
         let end_pi = paragraphs.len();
@@ -2631,14 +2778,24 @@ impl FieldPairing {
             let range = begin_para.field_ranges.remove(ri);
             if let Some(Control::Field(f)) = begin_para.controls.get_mut(ci) {
                 if let Some(h) = &mut f.hwpx {
+                    let id = hwpx_begin_id(h)
+                        .ok_or_else(unmatched_field_end)?
+                        .to_string();
+                    begin_para.hwpx_field_markers.push(HwpxFieldMarker {
+                        id: id.clone(),
+                        char_idx: range.start_char_idx,
+                        endpoint: FieldEndpoint::Begin,
+                        order: h.begin_order,
+                    });
+                    para.hwpx_field_markers.push(HwpxFieldMarker {
+                        id,
+                        char_idx: end.char_idx,
+                        endpoint: FieldEndpoint::End,
+                        order: end.order,
+                    });
                     h.end_attributes = Some(end.attributes);
                     h.end_char_shape_id = end.char_shape_id;
                     h.end_order = end.order;
-                    h.span = Some(crate::model::control::HwpxFieldSpan {
-                        begin_char_idx: range.start_char_idx,
-                        end_paragraph_offset: end_pi - pi,
-                        end_char_idx: end.char_idx,
-                    });
                 }
             }
         }
@@ -3633,7 +3790,10 @@ mod tests {
         // raw 속성에는 noAdjust(0x08)만 담는다. 쪽 나눔·제목 줄 반복은 HWP5 저장이 IR 에서 만든다.
         assert_eq!(t.raw_table_record_attr, 0x08);
         assert!(t.common.locked);
-        assert_eq!(t.common.text_flow, crate::model::shape::TextFlow::LargestOnly);
+        assert_eq!(
+            t.common.text_flow,
+            crate::model::shape::TextFlow::LargestOnly
+        );
         assert_eq!(t.common.text_wrap, TextWrap::Tight);
         assert_eq!(
             t.common.width_criterion,
@@ -3653,10 +3813,19 @@ mod tests {
     #[test]
     fn hwpx_table_without_no_adjust_keeps_zero_raw_record_attr() {
         // noAdjust="0" 표는 종전처럼 raw 0 으로 남아 HWP5 저장이 IR 에서 비트를 다시 만든다.
-        let t = parse_one_table(r#"pageBreak="CELL" repeatHeader="1" noAdjust="0""#, "", "", "", "");
+        let t = parse_one_table(
+            r#"pageBreak="CELL" repeatHeader="1" noAdjust="0""#,
+            "",
+            "",
+            "",
+            "",
+        );
         assert_eq!(t.raw_table_record_attr, 0);
         assert!(!t.no_adjust());
-        assert!(t.common.flow_with_text, "flowWithText 가 없으면 한컴 기본값 1");
+        assert!(
+            t.common.flow_with_text,
+            "flowWithText 가 없으면 한컴 기본값 1"
+        );
     }
 
     #[test]
@@ -3677,6 +3846,9 @@ mod tests {
 
         let plain = parse_one_table("", "", "", r#"protect="0""#, r#"lineWrap="BREAK""#);
         assert!(!plain.cells[0].cell_protect());
-        assert_eq!(plain.cells[0].line_wrap, crate::model::table::CELL_LINE_WRAP_BREAK);
+        assert_eq!(
+            plain.cells[0].line_wrap,
+            crate::model::table::CELL_LINE_WRAP_BREAK
+        );
     }
 }

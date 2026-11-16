@@ -147,6 +147,23 @@ fn non_empty_unregistered_picture_reference_is_still_refused() {
 }
 
 #[test]
+fn c3_missing_picture_reference_does_not_become_explicitly_empty() {
+    for body in [
+        picture("").replace(r#" binaryItemIDRef="""#, ""),
+        picture("").replace(
+            r#"<hc:img binaryItemIDRef="" bright="0" contrast="0" effect="REAL_PIC" alpha="0"/>"#,
+            "",
+        ),
+    ] {
+        let doc = parse_hwpx(&fixture(&body)).expect("base accepts an absent reference at open");
+        let err = serialize_hwpx(&doc)
+            .err()
+            .unwrap_or_else(|| panic!("only explicitly empty references may save empty"));
+        assert!(err.to_string().contains("binaryItemIDRef"), "{err}");
+    }
+}
+
+#[test]
 fn raw_t5_saves_and_keeps_its_image_and_imageless_pictures() {
     let original = img_refs(&zip_entry(T5, "Contents/section0.xml").unwrap());
     assert_eq!(original, vec!["image1".to_string(), String::new()]);

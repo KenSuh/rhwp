@@ -143,17 +143,22 @@ fn write_img<W: Write>(
     ctx: &SerializeContext,
 ) -> Result<(), SerializeError> {
     let bin_id = p.image_attr.bin_data_id;
-    // bin_data_id 0 = 그림 없는 그림 개체(한컴 `binaryItemIDRef=""`) — 빈 참조를 그대로 쓴다.
-    // 0 이 아닌 미등록 id 는 여전히 거부한다.
-    let manifest_id = if bin_id == 0 {
-        ""
-    } else {
-        ctx.resolve_bin_id(bin_id).ok_or_else(|| {
-            SerializeError::XmlError(format!(
-                "<hp:pic> binaryItemIDRef 미등록 bin_data_id={} (BinDataContent 누락)",
-                bin_id
+    use crate::model::image::HwpxImageReference;
+    let manifest_id = match p.hwpx_image_reference {
+        Some(HwpxImageReference::Empty) => "",
+        Some(HwpxImageReference::Absent) => {
+            return Err(SerializeError::XmlError(
+                "<hp:pic> binaryItemIDRef 속성 없음".into(),
             ))
-        })?
+        }
+        Some(HwpxImageReference::Numbered) | None => {
+            ctx.resolve_bin_id(bin_id).ok_or_else(|| {
+                SerializeError::XmlError(format!(
+                    "<hp:pic> binaryItemIDRef 미등록 bin_data_id={} (BinDataContent 누락)",
+                    bin_id
+                ))
+            })?
+        }
     };
 
     let bright = p.image_attr.brightness.to_string();

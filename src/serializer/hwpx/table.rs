@@ -287,7 +287,10 @@ fn write_sub_list<W: Write>(
         ],
     )?;
 
-    let field_ends = later_field_ends(&cell.paragraphs)?;
+    let field_ends = field_marks_for_list(
+        crate::model::control::HwpxFieldListKind::Cell,
+        &cell.paragraphs,
+    )?;
     for (pi, para) in cell.paragraphs.iter().enumerate() {
         write_paragraph(w, para, pi, &field_ends[pi], ctx)?;
     }
@@ -299,7 +302,7 @@ pub(super) fn write_paragraph<W: Write>(
     w: &mut Writer<W>,
     para: &Paragraph,
     id: usize,
-    field_ends: &[&Field],
+    field_ends: &[FieldMark<'_>],
     ctx: &mut SerializeContext,
 ) -> Result<(), SerializeError> {
     ctx.para_shape_ids.reference(para.para_shape_id);
@@ -396,41 +399,94 @@ fn write_cell_fallback_lineseg<W: Write>(w: &mut Writer<W>) -> Result<(), Serial
     )
 }
 
-/// 문단 목록에서 문단마다, 앞 문단에서 시작해 그 문단에서 끝나는 HWPX 필드(`HwpxField::span`).
-/// 끝 문단이 목록 안의 뒤 문단이 아니면 짝을 쓸 수 없으므로 거부한다.
-pub(super) fn later_field_ends(
+#[derive(Clone, Copy)]
+pub(super) struct FieldMark<'a> {
+    field: &'a Field,
+    marker: &'a crate::model::paragraph::HwpxFieldMarker,
+}
+
+pub(super) fn field_marks_for_list(
+    kind: crate::model::control::HwpxFieldListKind,
     paragraphs: &[Paragraph],
-) -> Result<Vec<Vec<&Field>>, SerializeError> {
-    let mut ends = vec![Vec::new(); paragraphs.len()];
-    for (pi, para) in paragraphs.iter().enumerate() {
-        for control in &para.controls {
+) -> Result<Vec<Vec<FieldMark<'_>>>, SerializeError> {
+    use crate::model::paragraph::FieldEndpoint;
+    let invalid = || {
+        SerializeError::XmlError(
+            "HWPX_FIELD_ENDPOINT: 필드 경계가 삭제되었거나 순서가 잘못됨".into(),
+        )
+    };
+    if !kind.is_serialized() {
+        return Err(SerializeError::XmlError(
+            "HWPX_FIELD_LIST_UNSUPPORTED".into(),
+        ));
+    }
+    let mut fields = std::collections::HashMap::new();
+    for para in paragraphs {
+        for (ci, control) in para.controls.iter().enumerate() {
             let Control::Field(field) = control else {
                 continue;
             };
-            let Some(span) = field.hwpx.as_ref().and_then(|h| h.span) else {
+            let Some(h) = &field.hwpx else {
                 continue;
             };
-            let target = pi
-                .checked_add(span.end_paragraph_offset)
-                .filter(|&t| t > pi && t < paragraphs.len())
-                .ok_or_else(|| SerializeError::XmlError("fieldEnd 문단이 없는 HWPX 필드".into()))?;
-            ends[target].push(field);
+            if para.field_ranges.iter().any(|r| r.control_idx == ci) {
+                continue;
+            }
+            let id = h
+                .begin_attributes
+                .iter()
+                .find(|(key, _)| key == "id")
+                .map(|(_, value)| value.as_str())
+                .ok_or_else(invalid)?;
+            if fields.insert(id, field).is_some() {
+                return Err(invalid());
+            }
         }
     }
-    Ok(ends)
+    let mut marks = vec![Vec::new(); paragraphs.len()];
+    let mut endpoints = std::collections::HashMap::new();
+    for (pi, para) in paragraphs.iter().enumerate() {
+        for marker in &para.hwpx_field_markers {
+            let field = fields
+                .get(marker.id.as_str())
+                .copied()
+                .ok_or_else(invalid)?;
+            if marker.char_idx > para.text.chars().count() {
+                return Err(invalid());
+            }
+            let pair = endpoints.entry(marker.id.as_str()).or_insert((None, None));
+            let slot = match marker.endpoint {
+                FieldEndpoint::Begin => &mut pair.0,
+                FieldEndpoint::End => &mut pair.1,
+            };
+            if slot.replace((pi, marker.char_idx, marker.order)).is_some() {
+                return Err(invalid());
+            }
+            marks[pi].push(FieldMark { field, marker });
+        }
+    }
+    for id in fields.keys() {
+        let (Some(begin), Some(end)) = endpoints.get(id).copied().ok_or_else(invalid)? else {
+            return Err(invalid());
+        };
+        if begin > end {
+            return Err(invalid());
+        }
+    }
+    Ok(marks)
 }
 
 /// 문단의 run 을 글자 위치 순서로 쓴다 — 글자·필드 표지·인라인 컨트롤을 char_offsets 에 맞춰 섞는다.
 ///
 /// `write_control` 은 컨트롤 하나를 run 째로 쓴다(쓰지 않는 컨트롤이면 아무것도 쓰지 않는다).
 /// `skip` 컨트롤은 호출자가 다른 자리에 이미 썼다(구역 첫 문단의 단 정의).
-/// `field_ends` 는 앞 문단에서 시작해 이 문단에서 끝나는 필드다(`later_field_ends`).
+/// `field_ends` 는 문단이 소유한 교차 문단 필드 마커와 그 필드의 메타데이터다.
 /// 글자 위치를 모르는 합성 문단은 옛 순서(글자 → 컨트롤)를 쓴다.
 pub(super) fn write_paragraph_runs<W, F>(
     w: &mut Writer<W>,
     para: &Paragraph,
     skip: Option<usize>,
-    field_ends: &[&Field],
+    field_ends: &[FieldMark<'_>],
     mut write_control: F,
 ) -> Result<(), SerializeError>
 where
@@ -485,7 +541,12 @@ fn inline_control_positions(para: &Paragraph) -> Option<Vec<(usize, usize)>> {
             .field_ranges
             .iter()
             .map(|r| usize::from(r.start_char_idx == idx) + usize::from(r.end_char_idx == idx))
-            .sum::<usize>();
+            .sum::<usize>()
+            + para
+                .hwpx_field_markers
+                .iter()
+                .filter(|m| m.char_idx == idx)
+                .count();
         for ci in pending.by_ref().take(slots.saturating_sub(field_marks)) {
             placed.push((idx, ci));
         }
@@ -500,7 +561,7 @@ fn write_text_runs<W, F>(
     w: &mut Writer<W>,
     para: &Paragraph,
     placed: &[(usize, usize)],
-    field_ends: &[&Field],
+    field_ends: &[FieldMark<'_>],
     write_control: &mut F,
 ) -> Result<(), SerializeError>
 where
@@ -521,22 +582,10 @@ where
     }
     for (ci, ctrl) in para.controls.iter().enumerate() {
         if let Control::Field(field) = ctrl {
-            // 뒤 문단에서 끝나는 필드는 범위 없이 시작 위치(span)만 갖는다.
-            let spans = field.hwpx.as_ref().and_then(|h| h.span);
-            if spans.is_some_and(|s| s.begin_char_idx > chars.len())
-                || (spans.is_none() && !para.field_ranges.iter().any(|r| r.control_idx == ci))
-            {
+            if field.hwpx.is_none() && !para.field_ranges.iter().any(|r| r.control_idx == ci) {
                 return Err(SerializeError::XmlError("위치 없는 field 컨트롤".into()));
             }
         }
-    }
-    if field_ends.iter().any(|f| {
-        f.hwpx
-            .as_ref()
-            .and_then(|h| h.span)
-            .is_none_or(|s| s.end_char_idx > chars.len())
-    }) {
-        return Err(SerializeError::XmlError("잘못된 field range".into()));
     }
     let mut events = Vec::with_capacity(para.field_ranges.len() * 2);
     let mut binary_ranges = Vec::new();
@@ -547,36 +596,35 @@ where
         };
         if let Some(h) = &field.hwpx {
             events.push((
-                range.start_char_idx, h.begin_order, range.control_idx, Some(true),
+                range.start_char_idx,
+                h.begin_order,
+                range.control_idx,
+                Some(true),
             ));
             events.push((
-                range.end_char_idx, h.end_order, range.control_idx, Some(false),
+                range.end_char_idx,
+                h.end_order,
+                range.control_idx,
+                Some(false),
             ));
             hwpx_end_orders.push(h.end_order);
         } else {
             binary_ranges.push(range);
         }
     }
-    // 문단을 건너는 필드 — 시작 문단은 fieldBegin 만, 끝 문단은 fieldEnd 만 쓴다.
-    // 끝 표지는 이 문단의 컨트롤이 아니므로 컨트롤 인덱스 뒤(`controls.len() + k`)로 가리킨다.
-    for (ci, ctrl) in para.controls.iter().enumerate() {
-        if let Control::Field(Field { hwpx: Some(h), .. }) = ctrl {
-            if let Some(span) = h.span {
-                events.push((span.begin_char_idx, h.begin_order, ci, Some(true)));
-            }
-        }
-    }
-    for (k, field) in field_ends.iter().enumerate() {
-        if let Some(h) = &field.hwpx {
-            if let Some(span) = h.span {
-                events.push((
-                    span.end_char_idx,
-                    h.end_order,
-                    para.controls.len() + k,
-                    Some(false),
-                ));
-                hwpx_end_orders.push(h.end_order);
-            }
+    for (k, mark) in field_ends.iter().enumerate() {
+        let begin = match mark.marker.endpoint {
+            crate::model::paragraph::FieldEndpoint::Begin => true,
+            crate::model::paragraph::FieldEndpoint::End => false,
+        };
+        events.push((
+            mark.marker.char_idx,
+            mark.marker.order,
+            para.controls.len() + k,
+            Some(begin),
+        ));
+        if !begin {
+            hwpx_end_orders.push(mark.marker.order);
         }
     }
     let mut boundaries: Vec<_> = binary_ranges
@@ -591,7 +639,10 @@ where
             .filter(|r| r.start_char_idx == pos)
             .map(|r| (r.control_idx, Some(true)))
             .chain(
-                placed.iter().filter(|&&(p, _)| p == pos).map(|&(_, ci)| (ci, None)),
+                placed
+                    .iter()
+                    .filter(|&&(p, _)| p == pos)
+                    .map(|&(_, ci)| (ci, None)),
             )
             .collect();
         // Binary controls retain begin order; field_ranges retain end order.
@@ -599,10 +650,7 @@ where
         let mut starts = starts.into_iter().peekable();
         let mut order = 0;
         for end in binary_ranges.iter().filter(|r| r.end_char_idx == pos) {
-            while starts
-                .peek()
-                .is_some_and(|&(ci, _)| ci <= end.control_idx)
-            {
+            while starts.peek().is_some_and(|&(ci, _)| ci <= end.control_idx) {
                 if let Some((ci, begin)) = starts.next() {
                     events.push((pos, order, ci, begin));
                 }
@@ -638,11 +686,11 @@ where
             }
             for &(_, _, ci, begin) in events.iter().filter(|(pos, _, _, _)| *pos == idx) {
                 match begin {
-                    Some(_) if ci >= para.controls.len() => write_field_mark_run(
+                    Some(begin) if ci >= para.controls.len() => write_field_mark_run(
                         w,
                         para,
-                        field_ends[ci - para.controls.len()],
-                        false,
+                        field_ends[ci - para.controls.len()].field,
+                        begin,
                         fallback_utf16_pos,
                     )?,
                     Some(begin) => write_field_run(w, para, ci, begin, fallback_utf16_pos)?,
@@ -1260,8 +1308,8 @@ mod tests {
             ),
             tbl
         );
-        let section = crate::parser::hwpx::section::parse_hwpx_section(&section_xml)
-            .expect("구역 파싱");
+        let section =
+            crate::parser::hwpx::section::parse_hwpx_section(&section_xml).expect("구역 파싱");
         let table = section
             .paragraphs
             .iter()
@@ -1328,7 +1376,13 @@ mod tests {
 
     #[test]
     fn hwpx_table_text_wrap_tight_and_through_survive_save() {
-        for value in ["TIGHT", "THROUGH", "SQUARE", "BEHIND_TEXT", "IN_FRONT_OF_TEXT"] {
+        for value in [
+            "TIGHT",
+            "THROUGH",
+            "SQUARE",
+            "BEHIND_TEXT",
+            "IN_FRONT_OF_TEXT",
+        ] {
             let to = format!(r#"textWrap="{value}""#);
             let xml = roundtrip_with(&[(r#"textWrap="TOP_AND_BOTTOM""#, &to)]);
             assert_eq!(attr_value(&xml, "tbl", 0, "textWrap"), value);
@@ -1380,14 +1434,20 @@ mod tests {
     fn hwpx_table_allow_overlap_survives_save() {
         let xml = roundtrip_with(&[(r#"allowOverlap="0""#, r#"allowOverlap="1""#)]);
         assert_eq!(attr_value(&xml, "pos", 0, "allowOverlap"), "1");
-        assert_eq!(attr_value(&roundtrip_with(&[]), "pos", 0, "allowOverlap"), "0");
+        assert_eq!(
+            attr_value(&roundtrip_with(&[]), "pos", 0, "allowOverlap"),
+            "0"
+        );
     }
 
     #[test]
     fn hwpx_table_flow_with_text_survives_save() {
         let xml = roundtrip_with(&[(r#"flowWithText="1""#, r#"flowWithText="0""#)]);
         assert_eq!(attr_value(&xml, "pos", 0, "flowWithText"), "0");
-        assert_eq!(attr_value(&roundtrip_with(&[]), "pos", 0, "flowWithText"), "1");
+        assert_eq!(
+            attr_value(&roundtrip_with(&[]), "pos", 0, "flowWithText"),
+            "1"
+        );
     }
 
     #[test]
@@ -1400,7 +1460,10 @@ mod tests {
     fn hwpx_table_hold_anchor_survives_save() {
         let xml = roundtrip_with(&[(r#"holdAnchorAndSO="0""#, r#"holdAnchorAndSO="1""#)]);
         assert_eq!(attr_value(&xml, "pos", 0, "holdAnchorAndSO"), "1");
-        assert_eq!(attr_value(&roundtrip_with(&[]), "pos", 0, "holdAnchorAndSO"), "0");
+        assert_eq!(
+            attr_value(&roundtrip_with(&[]), "pos", 0, "holdAnchorAndSO"),
+            "0"
+        );
     }
 
     #[test]
@@ -1432,10 +1495,7 @@ mod tests {
 
     #[test]
     fn hwpx_cell_editable_and_dirty_survive_save() {
-        let xml = roundtrip_with(&[(
-            r#"editable="0" dirty="0""#,
-            r#"editable="1" dirty="1""#,
-        )]);
+        let xml = roundtrip_with(&[(r#"editable="0" dirty="0""#, r#"editable="1" dirty="1""#)]);
         assert_eq!(attr_value(&xml, "tc", 0, "editable"), "1");
         assert_eq!(attr_value(&xml, "tc", 0, "dirty"), "1");
         assert_eq!(attr_value(&xml, "tc", 1, "editable"), "0");
@@ -1450,7 +1510,8 @@ mod tests {
             r#"<hp:p id="0" paraPrIDRef="0" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="0"><hp:t>캡션</hp:t></hp:run></hp:p>"#,
             r#"</hp:subList></hp:caption>"#,
         );
-        let with_caption = format!(r#"<hp:outMargin left="0" right="0" top="0" bottom="0"/>{caption}"#);
+        let with_caption =
+            format!(r#"<hp:outMargin left="0" right="0" top="0" bottom="0"/>{caption}"#);
         let xml = roundtrip_with(&[(
             r#"<hp:outMargin left="0" right="0" top="0" bottom="0"/>"#,
             &with_caption,

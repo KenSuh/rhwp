@@ -216,6 +216,10 @@ impl DocumentCore {
                     .ok_or_else(|| HwpError::InvalidField("셀 인덱스 초과".into()))?;
                 // 첫 문단의 텍스트를 교체
                 if let Some(cell_para) = cell.paragraphs.first_mut() {
+                    cell_para.shift_hwpx_field_markers(
+                        0..cell_para.text.chars().count(),
+                        value.chars().count(),
+                    );
                     cell_para.text = value.to_string();
                     // char_offsets 재생성
                     let new_len = value.chars().count();
@@ -250,6 +254,7 @@ impl DocumentCore {
         let before: String = text_chars[..fr.start_char_idx].iter().collect();
         let after: String = text_chars[fr.end_char_idx..].iter().collect();
         para.text = format!("{}{}{}", before, value, after);
+        para.shift_hwpx_field_markers(fr.start_char_idx..fr.end_char_idx, value.chars().count());
 
         // field_range 업데이트
         let new_end = fr.start_char_idx + value.chars().count();
@@ -877,6 +882,11 @@ fn rebuild_char_offsets(para: &mut Paragraph) {
         let idx = fr.end_char_idx.min(text_len);
         field_end_at[idx] += 1;
     }
+    for marker in &para.hwpx_field_markers {
+        if marker.char_idx > 0 {
+            field_end_at[marker.char_idx.min(text_len)] += 1;
+        }
+    }
 
     let mut offset: u32 = ctrls_before_text as u32 * 8;
     let mut new_offsets = Vec::with_capacity(text_len);
@@ -900,6 +910,15 @@ fn rebuild_char_offsets(para: &mut Paragraph) {
     }
 
     para.char_offsets = new_offsets;
+    if !para.hwpx_field_markers.is_empty() {
+        para.char_count = offset
+            .saturating_add(
+                u32::try_from(field_end_at[text_len])
+                    .unwrap_or(u32::MAX)
+                    .saturating_mul(8),
+            )
+            .saturating_add(1);
+    }
 }
 
 fn json_escape(s: &str) -> String {
