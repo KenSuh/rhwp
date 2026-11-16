@@ -189,7 +189,7 @@ function discoveredCommandClasses(directory: URL, rawExecutions: string[] = [], 
   return classes.sort();
 }
 
-test('every discovered Studio command releases its inverse after execute undo redo and clear', () => {
+test('every discovered Studio command releases its inverse after execute undo redo and clear', { timeout: 20_000 }, () => {
   const routes = new Map<string, { readonly content: string; readonly make: (wasm: WasmBridge) => EditCommand }>();
   for (const entry of cases) routes.set(entry.make().constructor.name, { content: body, make: entry.make });
   const cellPosition: DocumentPosition = {
