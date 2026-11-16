@@ -1378,11 +1378,17 @@ fn parse_picture(
                         for attr in ce.attributes().flatten() {
                             match attr.key.as_ref() {
                                 b"binaryItemIDRef" => {
-                                    // "image1" → BinData ID 1
+                                    // "image1" → BinData ID 1 · "" → 0(그림 없는 그림 개체).
+                                    // 비어 있지 않은데 양수 id 를 못 읽는 참조는 0(그림 없음)으로
+                                    // 바꾸지 않고 등록될 수 없는 id 로 둔다 — 저장이 미등록 참조로 거부한다.
                                     let val = attr_str(&attr);
                                     let num: String =
                                         val.chars().filter(|c| c.is_ascii_digit()).collect();
-                                    img_attr.bin_data_id = num.parse().unwrap_or(0);
+                                    img_attr.bin_data_id = if val.is_empty() {
+                                        0
+                                    } else {
+                                        num.parse().ok().filter(|&n| n != 0).unwrap_or(u16::MAX)
+                                    };
                                 }
                                 b"bright" => img_attr.brightness = parse_i8(&attr),
                                 b"contrast" => img_attr.contrast = parse_i8(&attr),

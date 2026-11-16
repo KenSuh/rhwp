@@ -153,26 +153,6 @@ fn field_count(doc: &rhwp::model::document::Document) -> usize {
         .count()
 }
 
-/// 그림 컨트롤마다 bin_data_id 를 넘긴다(본문·표 셀).
-fn for_each_picture_bin_id(
-    paras: &mut [rhwp::model::paragraph::Paragraph],
-    f: &mut dyn FnMut(&mut u16),
-) {
-    for p in paras {
-        for c in &mut p.controls {
-            match c {
-                Control::Picture(pic) => f(&mut pic.image_attr.bin_data_id),
-                Control::Table(t) => {
-                    for cell in &mut t.cells {
-                        for_each_picture_bin_id(&mut cell.paragraphs, f);
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-}
-
 #[test]
 fn t5_opens_through_parser_and_document_core() {
     let doc = parse_hwpx(T5).expect("T5 must open: its fieldBegin/fieldEnd pair spans paragraphs");
@@ -180,25 +160,10 @@ fn t5_opens_through_parser_and_document_core() {
     rhwp::DocumentCore::from_bytes(T5).expect("T5 must open through DocumentCore");
 }
 
-/// T5 의 두 번째 그림은 `binaryItemIDRef=""`(그림 없는 그림 개체)라 rhwp 저장이 필드와 무관하게 거부한다.
-/// 필드 왕복만 재려고 그 그림 하나를 같은 문서의 image1 로 가리킨 뒤 저장→재열기→재저장한다.
+/// 원본 T5 그대로 저장→재열기→재저장한다(두 번째 그림은 `binaryItemIDRef=""` 그림 없는 그림 개체).
 #[test]
 fn t5_cross_paragraph_field_round_trips() {
-    let mut doc = parse_hwpx(T5).expect("T5 open");
-    let mut values = Vec::new();
-    for_each_picture_bin_id(&mut doc.sections[0].paragraphs, &mut |id| values.push(*id));
-    assert_eq!(
-        values.iter().filter(|&&v| v == 0).count(),
-        1,
-        "T5 has one image-less picture"
-    );
-    let image1 = *values.iter().find(|&&v| v != 0).unwrap();
-    for_each_picture_bin_id(&mut doc.sections[0].paragraphs, &mut |id| {
-        if *id == 0 {
-            *id = image1;
-        }
-    });
-
+    let doc = parse_hwpx(T5).expect("T5 open");
     let original = field_tokens(&section_xml(T5));
     let saved = serialize_hwpx(&doc).expect("T5 save");
     let reopened = parse_hwpx(&saved).expect("T5 reopen");
