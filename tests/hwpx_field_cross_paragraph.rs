@@ -1348,3 +1348,589 @@ fn c2_unclosed_begins_are_refused_in_every_list_kind() {
         }
     }
 }
+
+fn count_all_tables(paras: &[rhwp::model::paragraph::Paragraph]) -> usize {
+    paras
+        .iter()
+        .map(|p| {
+            p.controls
+                .iter()
+                .map(|c| match c {
+                    Control::Table(t) => {
+                        1 + t
+                            .cells
+                            .iter()
+                            .map(|cell| count_all_tables(&cell.paragraphs))
+                            .sum::<usize>()
+                    }
+                    _ => 0,
+                })
+                .sum::<usize>()
+        })
+        .sum()
+}
+
+fn count_all_fields_recursive(paras: &[rhwp::model::paragraph::Paragraph]) -> usize {
+    paras
+        .iter()
+        .map(|p| {
+            p.controls
+                .iter()
+                .map(|c| match c {
+                    Control::Field(_) => 1,
+                    Control::Table(t) => t
+                        .cells
+                        .iter()
+                        .map(|cell| count_all_fields_recursive(&cell.paragraphs))
+                        .sum(),
+                    _ => 0,
+                })
+                .sum::<usize>()
+        })
+        .sum()
+}
+
+fn table_with_secret_field() -> String {
+    wrapped_field_list(
+        "cell",
+        &paragraph(&format!("{}<hp:t>SECRET</hp:t>{}", begin(1), end(1))),
+    )
+}
+
+#[test]
+fn c1_snapshot_restore_refuses_uncaptured_edit_without_changing_bytes() {
+    for field_mutation in [false, true] {
+        let bytes = fixture(&paragraph(&format!(
+            "{}<hp:t>ABC</hp:t>{}",
+            begin(1),
+            end(1)
+        )));
+        let mut doc = rhwp::DocumentCore::from_bytes(&bytes).unwrap();
+        let before = doc.save_snapshot_native();
+        doc.insert_text_native(0, 0, 1, "X").unwrap();
+        let after_edit = doc.save_snapshot_native();
+        doc.restore_snapshot_native(before).unwrap();
+        if field_mutation {
+            doc.set_field_value_by_id(501, "NEW").unwrap();
+        } else {
+            doc.replace_all_native("ABC", "NEW", true).unwrap();
+        }
+        let expected_bytes = doc.export_hwpx_native().unwrap();
+        let err = doc.restore_snapshot_native(after_edit).unwrap_err();
+        assert!(
+            err.to_string().contains("INVALID_EDIT_HANDLE"),
+            "field={field_mutation}: {err}"
+        );
+        assert_eq!(doc.document().sections[0].paragraphs[0].text(), "NEW");
+        assert_eq!(doc.export_hwpx_native().unwrap(), expected_bytes);
+        assert_eq!(
+            serialize_hwpx(&parse_hwpx(&expected_bytes).unwrap()).unwrap(),
+            expected_bytes
+        );
+
+        let mut undo_doc = rhwp::DocumentCore::from_bytes(&bytes).unwrap();
+        let snap_before = undo_doc.save_snapshot_native();
+        undo_doc.insert_text_native(0, 0, 1, "X").unwrap();
+        let _snap_after = undo_doc.save_snapshot_native();
+        if field_mutation {
+            undo_doc.set_field_value_by_id(501, "NEW").unwrap();
+        } else {
+            undo_doc.replace_all_native("AXBC", "NEW", true).unwrap();
+        }
+        let after_unrecorded = undo_doc.export_hwpx_native().unwrap();
+        let undo_err = undo_doc.restore_snapshot_native(snap_before).unwrap_err();
+        assert!(undo_err.to_string().contains("INVALID_EDIT_HANDLE"));
+        assert_eq!(undo_doc.export_hwpx_native().unwrap(), after_unrecorded);
+    }
+}
+
+#[test]
+fn c1_boundary_copy_previous_paragraph_to_table_paragraph_start() {
+    let table_with_tail =
+        table_with_secret_field().replacen("</hp:tbl>", "</hp:tbl><hp:t>ZZ</hp:t>", 1);
+    let body = format!(
+        "{}{}{}",
+        paragraph("<hp:t>BEFORE</hp:t>"),
+        table_with_tail,
+        paragraph("<hp:t>TARGET</hp:t>")
+    );
+    let mut doc = rhwp::DocumentCore::from_bytes(&fixture(&body)).unwrap();
+    doc.copy_selection_native(0, 0, 0, 1, 0).unwrap();
+    assert_eq!(doc.get_clipboard_text_native(), "BEFORE\n");
+    doc.paste_internal_native(0, 2, 0).unwrap();
+    let saved = doc.export_hwpx_native().unwrap();
+    let parsed = parse_hwpx(&saved).unwrap();
+    assert_eq!(count_all_tables(&parsed.sections[0].paragraphs), 1);
+    assert_eq!(count_all_fields_recursive(&parsed.sections[0].paragraphs), 1);
+    assert_eq!(serialize_hwpx(&parsed).unwrap(), saved);
+}
+
+#[test]
+fn c1_boundary_copy_trailing_table_excludes_end_anchor() {
+    for (start_offset, expected_pasted_text) in [(0, "ZZTARGET"), (1, "ZTARGET")] {
+        let body = format!(
+            "{}{}{}",
+            paragraph("<hp:t>ZZ</hp:t>"),
+            table_with_secret_field(),
+            paragraph("<hp:t>TARGET</hp:t>")
+        );
+        let mut doc = rhwp::DocumentCore::from_bytes(&fixture(&body)).unwrap();
+        doc.merge_paragraph_native(0, 1).unwrap();
+        doc.copy_selection_native(0, 0, start_offset, 0, 2).unwrap();
+        doc.paste_internal_native(0, 1, 0).unwrap();
+        assert_eq!(
+            doc.document().sections[0].paragraphs[1].text(),
+            expected_pasted_text
+        );
+        let saved = doc.export_hwpx_native().unwrap();
+        let parsed = parse_hwpx(&saved).unwrap();
+        assert_eq!(
+            count_all_tables(&parsed.sections[0].paragraphs),
+            1,
+            "start_offset={start_offset}"
+        );
+        assert_eq!(
+            count_all_fields_recursive(&parsed.sections[0].paragraphs),
+            1,
+            "start_offset={start_offset}"
+        );
+        let resaved = serialize_hwpx(&parsed).unwrap();
+        assert_eq!(
+            count_all_tables(&parse_hwpx(&resaved).unwrap().sections[0].paragraphs),
+            1
+        );
+    }
+}
+
+#[test]
+fn c1_leading_table_cut_paste_parity_preserves_single_table_and_field() {
+    for end_offset in [1usize, 2usize] {
+        let table_with_tail =
+            table_with_secret_field().replacen("</hp:tbl>", "</hp:tbl><hp:t>ZZ</hp:t>", 1);
+        let body = format!("{}{}", table_with_tail, paragraph("<hp:t>TARGET</hp:t>"));
+        let mut doc = rhwp::wasm_api::HwpDocument::from_bytes(&fixture(&body)).unwrap();
+        doc.copy_selection(0, 0, 0, 0, u32::try_from(end_offset).unwrap())
+            .unwrap();
+        doc.delete_range(0, 0, 0, 0, u32::try_from(end_offset).unwrap())
+            .unwrap();
+        let after_cut = doc.export_hwpx_native().unwrap();
+        let parsed_cut = parse_hwpx(&after_cut).unwrap();
+        assert_eq!(
+            count_all_tables(&parsed_cut.sections[0].paragraphs),
+            0,
+            "end_offset={end_offset}: cut must remove the copied leading table"
+        );
+        assert_eq!(
+            count_all_fields_recursive(&parsed_cut.sections[0].paragraphs),
+            0,
+            "end_offset={end_offset}: cut must remove the table field subtree"
+        );
+        assert_eq!(serialize_hwpx(&parsed_cut).unwrap(), after_cut);
+
+        doc.paste_internal(0, 1, 0).unwrap();
+        let after_paste = doc.export_hwpx_native().unwrap();
+        let parsed_paste = parse_hwpx(&after_paste).unwrap();
+        assert_eq!(
+            count_all_tables(&parsed_paste.sections[0].paragraphs),
+            1,
+            "end_offset={end_offset}: paste must restore one table"
+        );
+        assert_eq!(
+            count_all_fields_recursive(&parsed_paste.sections[0].paragraphs),
+            1,
+            "end_offset={end_offset}: paste must restore one field"
+        );
+        assert_eq!(serialize_hwpx(&parsed_paste).unwrap(), after_paste);
+    }
+}
+
+#[test]
+fn c1_cut_previous_paragraph_ending_at_table_paragraph_start() {
+    let table_with_tail =
+        table_with_secret_field().replacen("</hp:tbl>", "</hp:tbl><hp:t>ZZ</hp:t>", 1);
+    let body = format!(
+        "{}{}{}",
+        paragraph("<hp:t>BEFORE</hp:t>"),
+        table_with_tail,
+        paragraph("<hp:t>TARGET</hp:t>")
+    );
+    let mut doc = rhwp::wasm_api::HwpDocument::from_bytes(&fixture(&body)).unwrap();
+    doc.copy_selection(0, 0, 0, 1, 0).unwrap();
+    doc.delete_range(0, 0, 0, 1, 0).unwrap();
+    let after_cut = doc.export_hwpx_native().unwrap();
+    let parsed_cut = parse_hwpx(&after_cut).unwrap();
+    assert_eq!(count_all_tables(&parsed_cut.sections[0].paragraphs), 1);
+    assert_eq!(count_all_fields_recursive(&parsed_cut.sections[0].paragraphs), 1);
+    assert_eq!(serialize_hwpx(&parsed_cut).unwrap(), after_cut);
+
+    doc.paste_internal(0, 1, 0).unwrap();
+    let after_paste = doc.export_hwpx_native().unwrap();
+    let parsed_paste = parse_hwpx(&after_paste).unwrap();
+    assert_eq!(count_all_tables(&parsed_paste.sections[0].paragraphs), 1);
+    assert_eq!(
+        count_all_fields_recursive(&parsed_paste.sections[0].paragraphs),
+        1
+    );
+    assert_eq!(serialize_hwpx(&parsed_paste).unwrap(), after_paste);
+}
+
+#[test]
+fn c1_adjacent_disjoint_copies_partition_shared_boundary_table() {
+    let table_with_tail =
+        table_with_secret_field().replacen("</hp:tbl>", "</hp:tbl><hp:t>ZZ</hp:t>", 1);
+    let body = format!(
+        "{}{}{}",
+        paragraph("<hp:t>BEFORE</hp:t>"),
+        table_with_tail,
+        paragraph("<hp:t>TARGET</hp:t>")
+    );
+    let mut doc = rhwp::DocumentCore::from_bytes(&fixture(&body)).unwrap();
+    doc.copy_selection_native(0, 0, 0, 1, 0).unwrap();
+    doc.paste_internal_native(0, 2, 0).unwrap();
+    let target_para = doc.document().sections[0].paragraphs.len() - 1;
+    doc.copy_selection_native(0, 1, 0, 1, 1).unwrap();
+    doc.paste_internal_native(0, target_para, 0).unwrap();
+    let saved = doc.export_hwpx_native().unwrap();
+    let parsed = parse_hwpx(&saved).unwrap();
+    assert_eq!(count_all_tables(&parsed.sections[0].paragraphs), 2);
+    assert_eq!(count_all_fields_recursive(&parsed.sections[0].paragraphs), 2);
+    assert_eq!(serialize_hwpx(&parsed).unwrap(), saved);
+}
+
+#[test]
+fn g17_rust_single_inverse_authority_and_single_membership_owner_guard() {
+    use std::path::Path;
+
+    fn collect_rs_files(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                collect_rs_files(&path, out);
+            } else if path.extension().and_then(|e| e.to_str()) == Some("rs") {
+                out.push(path);
+            }
+        }
+    }
+
+    fn mask_non_code(src: &str) -> String {
+        let bytes = src.as_bytes();
+        let mut out = vec![b' '; bytes.len()];
+        let mut i = 0usize;
+        while i < bytes.len() {
+            if bytes[i] == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'/' {
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            }
+            if bytes[i] == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'*' {
+                let mut depth = 1usize;
+                i += 2;
+                while i < bytes.len() && depth > 0 {
+                    if i + 1 < bytes.len() && bytes[i] == b'/' && bytes[i + 1] == b'*' {
+                        depth += 1;
+                        i += 2;
+                    } else if i + 1 < bytes.len() && bytes[i] == b'*' && bytes[i + 1] == b'/' {
+                        depth -= 1;
+                        i += 2;
+                    } else {
+                        if bytes[i] == b'\n' {
+                            out[i] = b'\n';
+                        }
+                        i += 1;
+                    }
+                }
+                continue;
+            }
+            if bytes[i] == b'r' {
+                let mut hashes = 0usize;
+                let mut j = i + 1;
+                while j < bytes.len() && bytes[j] == b'#' {
+                    hashes += 1;
+                    j += 1;
+                }
+                if j < bytes.len() && bytes[j] == b'"' {
+                    i = j + 1;
+                    loop {
+                        if i >= bytes.len() {
+                            break;
+                        }
+                        if bytes[i] == b'\n' {
+                            out[i] = b'\n';
+                        }
+                        if bytes[i] == b'"'
+                            && i + hashes < bytes.len()
+                            && bytes[i + 1..=i + hashes].iter().all(|&b| b == b'#')
+                        {
+                            i += hashes + 1;
+                            break;
+                        }
+                        i += 1;
+                    }
+                    continue;
+                }
+            }
+            if bytes[i] == b'"' {
+                i += 1;
+                while i < bytes.len() {
+                    if bytes[i] == b'\n' {
+                        out[i] = b'\n';
+                    }
+                    if bytes[i] == b'\\' {
+                        i += 2;
+                        continue;
+                    }
+                    if bytes[i] == b'"' {
+                        i += 1;
+                        break;
+                    }
+                    i += 1;
+                }
+                continue;
+            }
+            if bytes[i] == b'\'' {
+                // Distinguish char literal ('x', '\'', '\u{...}') from lifetime ('a)
+                let rest = &src[i + 1..];
+                let is_char = if let Some(after_esc) = rest.strip_prefix('\\') {
+                    after_esc
+                        .char_indices()
+                        .take(12)
+                        .any(|(idx, c)| c == '\'' && idx <= 10)
+                } else {
+                    let mut chars = rest.chars();
+                    matches!((chars.next(), chars.next()), (Some(_), Some('\'')))
+                };
+                if is_char {
+                    i += 1;
+                    while i < bytes.len() {
+                        if bytes[i] == b'\\' {
+                            i += 2;
+                            continue;
+                        }
+                        if bytes[i] == b'\'' {
+                            i += 1;
+                            break;
+                        }
+                        i += 1;
+                    }
+                    continue;
+                }
+            }
+            out[i] = bytes[i];
+            i += 1;
+        }
+        String::from_utf8(out).unwrap()
+    }
+
+    fn extract_block_bounds(masked: &str, header_idx: usize) -> Option<(usize, usize)> {
+        let open_rel = masked[header_idx..].find('{')?;
+        let open = header_idx + open_rel;
+        let mut depth = 0usize;
+        for (rel, ch) in masked[open..].char_indices() {
+            match ch {
+                '{' => depth += 1,
+                '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return Some((open, open + rel + 1));
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+
+    fn parse_functions(src: &str) -> Vec<(String, String, String)> {
+        let masked = mask_non_code(src);
+        let mut out = Vec::new();
+        let mut cursor = 0usize;
+        while let Some(rel) = masked[cursor..].find("fn ") {
+            let pos = cursor + rel;
+            if pos > 0 {
+                let prev = masked.as_bytes()[pos - 1];
+                if prev.is_ascii_alphanumeric() || prev == b'_' {
+                    cursor = pos + 3;
+                    continue;
+                }
+            }
+            let line_start = masked[..pos].rfind('\n').map_or(0, |i| i + 1);
+            let prefix = masked[line_start..pos].trim();
+            let after_fn = &masked[pos + 3..];
+            let name_len = after_fn
+                .find(|c: char| !c.is_ascii_alphanumeric() && c != '_')
+                .unwrap_or(0);
+            if name_len == 0 {
+                cursor = pos + 3;
+                continue;
+            }
+            // Trait signature without a body ends with ';' before '{'
+            let sig_rest = &masked[pos + 3 + name_len..];
+            let next_semi = sig_rest.find(';');
+            let next_brace = sig_rest.find('{');
+            if matches!((next_semi, next_brace), (Some(s), Some(b)) if s < b) || next_brace.is_none()
+            {
+                cursor = pos + 3 + name_len;
+                continue;
+            }
+            let name = src[pos + 3..pos + 3 + name_len].to_string();
+            let Some((open, close)) = extract_block_bounds(&masked, pos) else {
+                cursor = pos + 3 + name_len;
+                continue;
+            };
+            out.push((prefix.to_string(), name, src[open..close].to_string()));
+            cursor = close;
+        }
+        out
+    }
+
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mod_rs = std::fs::read_to_string(root.join("src/document_core/mod.rs")).unwrap();
+    let mod_masked = mask_non_code(&mod_rs);
+    let mod_pos = mod_masked
+        .find("mod mutation {")
+        .expect("DocumentMutation must live in private mod mutation");
+    let before_mod = mod_masked[..mod_pos].lines().last().unwrap_or("").trim();
+    assert!(
+        !before_mod.contains("pub"),
+        "mod mutation must remain private to document_core"
+    );
+    let (m_open, m_close) = extract_block_bounds(&mod_masked, mod_pos).expect("mod mutation block");
+    let mutation_block = &mod_rs[m_open..m_close];
+    let mutation_masked = &mod_masked[m_open..m_close];
+    let struct_pos = mutation_masked
+        .find("struct DocumentMutation")
+        .expect("DocumentMutation struct");
+    let (s_open, s_close) =
+        extract_block_bounds(mutation_masked, struct_pos).expect("DocumentMutation fields");
+    let struct_fields = &mutation_masked[s_open..s_close];
+    for line in struct_fields.lines().skip(1) {
+        let trimmed = line.trim();
+        if trimmed == "}" || trimmed.is_empty() || trimmed.starts_with("//") {
+            continue;
+        }
+        assert!(
+            !trimmed.starts_with("pub"),
+            "DocumentMutation field must be private to mod mutation: {trimmed}"
+        );
+    }
+
+    let mutation_fns = parse_functions(mutation_block);
+    let acceptance_fns: Vec<_> = mutation_fns
+        .iter()
+        .filter(|(_, _, body)| body.contains("parse_label(") && body.contains("self.current_state !="))
+        .map(|(_, name, _)| name.as_str())
+        .collect();
+    assert_eq!(
+        acceptance_fns,
+        vec!["begin_inverse"],
+        "mod mutation must have exactly one inverse-acceptance check"
+    );
+
+    let state_writers: Vec<_> = mutation_fns
+        .iter()
+        .filter(|(_, _, body)| body.contains("self.current_state ="))
+        .map(|(_, name, _)| name.as_str())
+        .collect();
+    assert_eq!(
+        state_writers,
+        vec!["finish_inverse", "deref_mut"],
+        "only DerefMut and finish_inverse may write current_state"
+    );
+
+    let mut rs_files = Vec::new();
+    collect_rs_files(&root.join("src"), &mut rs_files);
+    rs_files.sort();
+
+    let mut begin_inverse_callers = 0usize;
+    for file in &rs_files {
+        let text = std::fs::read_to_string(file).unwrap();
+        assert!(
+            !text.contains("rebase_edit_revision"),
+            "relabelling helper must not exist in {}",
+            file.display()
+        );
+        if file != &root.join("src/document_core/mod.rs") {
+            assert!(
+                !text.contains(".restored("),
+                "direct state restoration outside gate forbidden in {}",
+                file.display()
+            );
+        }
+        for (_, name, body) in parse_functions(&text) {
+            if body.contains(".begin_inverse(") {
+                begin_inverse_callers += 1;
+            }
+            if body.contains("*self.document =") {
+                assert!(
+                    body.contains(".begin_inverse("),
+                    "whole-document overwrite in {name} ({}) must pass through begin_inverse",
+                    file.display()
+                );
+            }
+        }
+    }
+    assert!(begin_inverse_callers >= 3);
+
+    let para_rs = std::fs::read_to_string(root.join("src/model/paragraph.rs")).unwrap();
+    let para_fns = parse_functions(&para_rs);
+    for target in ["control_anchor_positions", "control_in_selection"] {
+        let (vis, _, _) = para_fns
+            .iter()
+            .find(|(_, name, _)| name == target)
+            .unwrap_or_else(|| panic!("missing {target}"));
+        assert!(
+            !vis.contains("pub"),
+            "{target} must be private in src/model/paragraph.rs, got visibility '{vis}'"
+        );
+    }
+
+    let membership_fns: Vec<_> = para_fns
+        .iter()
+        .filter(|(_, name, body)| {
+            name != "control_anchor_positions" && body.contains("control_anchor_positions(")
+        })
+        .collect();
+    assert_eq!(
+        membership_fns.len(),
+        2,
+        "clipboard_fragment and delete_paragraph_selection_slice must be the sole anchor consumers"
+    );
+    for (_, name, body) in &membership_fns {
+        assert!(
+            body.contains("Self::control_in_selection("),
+            "anchor consumer {name} must delegate membership to Self::control_in_selection"
+        );
+    }
+
+    for file in &rs_files {
+        let text = std::fs::read_to_string(file).unwrap();
+        if file != &root.join("src/model/paragraph.rs") {
+            assert!(
+                !text.contains("control_anchor_positions") && !text.contains("control_in_selection"),
+                "anchor/membership internals leaked into {}",
+                file.display()
+            );
+        }
+        for (_, name, body) in parse_functions(&text) {
+            if name.starts_with("copy_selection") && name.ends_with("_native") {
+                assert!(
+                    body.contains("Paragraph::clipboard_fragment("),
+                    "{name} in {} must delegate to Paragraph::clipboard_fragment",
+                    file.display()
+                );
+            }
+            if name.starts_with("delete_range") && name.ends_with("_native") {
+                assert!(
+                    body.contains("Paragraph::delete_selection_range("),
+                    "{name} in {} must delegate to Paragraph::delete_selection_range",
+                    file.display()
+                );
+            }
+        }
+    }
+    println!(
+        "G17_RUST_GUARD inverse_authority=1 state_writers=2 anchor_consumers={} copy_delete_delegated=true",
+        membership_fns.len()
+    );
+}

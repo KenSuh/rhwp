@@ -1,5 +1,5 @@
 import type { WasmBridge } from '@/core/wasm-bridge';
-import { withHistorySuspended } from './history';
+import { asInvalidEditHandleError, isInvalidEditHandleError, rawGateDoc, withHistorySuspended } from './history';
 import { InvalidEditHandleError } from '@/core/wasm-bridge';
 import type { DocumentPosition, CharProperties } from '@/core/types';
 
@@ -15,6 +15,8 @@ export interface EditCommand {
   mergeWith(other: EditCommand, wasm?: WasmBridge): EditCommand | null;
   /** 리소스 해제 (스냅샷 명령의 메모리 반환 등). 스택에서 제거될 때 호출. */
   discard?(wasm: WasmBridge): void;
+  /** recordWithoutExecute 전용: 네이티브 핸들/스냅샷에 봉인된 (undoLabel, redoLabel) 조회 */
+  recordedLabels?(wasm: WasmBridge): { undoLabel: string; redoLabel: string } | null;
 }
 
 // ─── 편집 작업 서술자 (라우팅 통합) ────────────────────
@@ -30,7 +32,7 @@ export interface EditCommand {
 export type OperationDescriptor =
   | { kind: 'command'; command: EditCommand }
   | { kind: 'snapshot'; operationType: string; operation: (wasm: WasmBridge) => DocumentPosition }
-  | { kind: 'record'; command: EditCommand };
+  | { kind: 'record'; command: EditCommand; beforeLabel?: string | null };
 
 class TextEditInverse {
   private token: string | null = null;
@@ -66,6 +68,13 @@ class TextEditInverse {
   adopt(token: string, after: DocumentPosition): void {
     this.token = token;
     this.after = after;
+  }
+
+  labels(wasm: WasmBridge): { undoLabel: string; redoLabel: string } | null {
+    if (this.token === null) return null;
+    const raw = rawGateDoc(wasm)?.editHandleLabels?.(this.token);
+    if (!raw) return null;
+    return JSON.parse(raw) as { undoLabel: string; redoLabel: string };
   }
 
   merge(first: TextEditInverse, last: TextEditInverse, wasm: WasmBridge): boolean {
@@ -206,8 +215,20 @@ function deleteRangeInNestedCell(wasm: WasmBridge, start: DocumentPosition, end:
   if (!sameNestedCellTarget(start, end)) {
     throw new Error('중첩 표의 서로 다른 셀에 걸친 텍스트 삭제는 셀 선택 모드에서 처리해야 합니다');
   }
-  const startPara = cellParaIndexOf(start);
   const endPara = cellParaIndexOf(end);
+  const doc = rawGateDoc(wasm);
+  if (doc && typeof doc.deleteRangeInCellByPath === 'function') {
+    doc.deleteRangeInCellByPath(
+      start.sectionIndex,
+      start.parentParaIndex!,
+      cellPathJson(start),
+      start.charOffset,
+      endPara,
+      end.charOffset,
+    );
+    return;
+  }
+  const startPara = cellParaIndexOf(start);
   if (startPara === endPara) {
     doDeleteText(wasm, start, Math.max(0, end.charOffset - start.charOffset));
     return;
@@ -277,6 +298,10 @@ export class InsertTextCommand implements EditCommand {
 
   discard(wasm: WasmBridge): void { this.inverse.discard(wasm); }
 
+  recordedLabels(wasm: WasmBridge): { undoLabel: string; redoLabel: string } | null {
+    return this.inverse.labels(wasm);
+  }
+
   mergeWith(other: EditCommand, wasm?: WasmBridge): EditCommand | null {
     if (!wasm) return null;
     if (!(other instanceof InsertTextCommand)) return null;
@@ -344,6 +369,10 @@ export class DeleteTextCommand implements EditCommand {
   }
 
   discard(wasm: WasmBridge): void { this.inverse.discard(wasm); }
+
+  recordedLabels(wasm: WasmBridge): { undoLabel: string; redoLabel: string } | null {
+    return this.inverse.labels(wasm);
+  }
 
   mergeWith(other: EditCommand, wasm?: WasmBridge): EditCommand | null {
     if (!wasm) return null;
@@ -568,6 +597,7 @@ export class ApplyCharFormatCommand implements EditCommand {
   readonly timestamp = Date.now();
 
   private entries: ParaFormatEntry[] = [];
+  private prevCharShapeCount: number | null = null;
 
   constructor(
     private start: DocumentPosition,
@@ -578,6 +608,7 @@ export class ApplyCharFormatCommand implements EditCommand {
   execute(wasm: WasmBridge): DocumentPosition {
     const { start, end } = this;
     const propsJson = JSON.stringify(this.props);
+    this.prevCharShapeCount = rawGateDoc(wasm)?.charShapeCount?.() ?? null;
 
     if (isCell(start)) {
       const startPara = cellParaIndexOf(start);
@@ -591,9 +622,17 @@ export class ApplyCharFormatCommand implements EditCommand {
         const to = p === endPara ? end.charOffset : doGetParagraphLength(wasm, paraStart);
         if (to <= from) continue;
 
-        // undo용 이전 서식 저장
-        const prevProps = doGetCharPropertiesAt(wasm, { ...paraStart, charOffset: from });
-        this.entries.push({ paraIndex: p, startOffset: from, endOffset: to, prevCharShapeId: prevProps.charShapeId });
+        let runStart = from;
+        let runId = doGetCharPropertiesAt(wasm, { ...paraStart, charOffset: from }).charShapeId;
+        for (let off = from + 1; off < to; off++) {
+          const nextId = doGetCharPropertiesAt(wasm, { ...paraStart, charOffset: off }).charShapeId;
+          if (nextId !== runId) {
+            this.entries.push({ paraIndex: p, startOffset: runStart, endOffset: off, prevCharShapeId: runId });
+            runStart = off;
+            runId = nextId;
+          }
+        }
+        this.entries.push({ paraIndex: p, startOffset: runStart, endOffset: to, prevCharShapeId: runId });
 
         doApplyCharFormat(
           wasm,
@@ -613,8 +652,17 @@ export class ApplyCharFormatCommand implements EditCommand {
         const to = p === endPara ? end.charOffset : wasm.getParagraphLength(sec, p);
         if (to <= from) continue;
 
-        const prevProps = wasm.getCharPropertiesAt(sec, p, from);
-        this.entries.push({ paraIndex: p, startOffset: from, endOffset: to, prevCharShapeId: prevProps.charShapeId });
+        let runStart = from;
+        let runId = wasm.getCharPropertiesAt(sec, p, from).charShapeId;
+        for (let off = from + 1; off < to; off++) {
+          const nextId = wasm.getCharPropertiesAt(sec, p, off).charShapeId;
+          if (nextId !== runId) {
+            this.entries.push({ paraIndex: p, startOffset: runStart, endOffset: off, prevCharShapeId: runId });
+            runStart = off;
+            runId = nextId;
+          }
+        }
+        this.entries.push({ paraIndex: p, startOffset: runStart, endOffset: to, prevCharShapeId: runId });
 
         wasm.applyCharFormat(sec, p, from, to, propsJson);
       }
@@ -626,7 +674,7 @@ export class ApplyCharFormatCommand implements EditCommand {
   undo(wasm: WasmBridge): DocumentPosition {
     const { start } = this;
 
-    // 이전 charShapeId로 복원
+    // 이전 charShapeId 구간별 복원
     for (const entry of this.entries) {
       if (entry.prevCharShapeId === undefined) continue;
       const restoreJson = JSON.stringify({ charShapeId: entry.prevCharShapeId });
@@ -637,6 +685,9 @@ export class ApplyCharFormatCommand implements EditCommand {
       } else {
         wasm.applyCharFormat(start.sectionIndex, entry.paraIndex, entry.startOffset, entry.endOffset, restoreJson);
       }
+    }
+    if (this.prevCharShapeCount !== null) {
+      rawGateDoc(wasm)?.truncateCharShapes?.(this.prevCharShapeCount);
     }
 
     return { ...this.start };
@@ -986,7 +1037,12 @@ export class SnapshotCommand implements EditCommand {
   execute(wasm: WasmBridge): DocumentPosition {
     if (this.afterId !== null) {
       // Redo: after 스냅샷으로 복원
-      wasm.restoreSnapshot(this.afterId);
+      try {
+        wasm.restoreSnapshot(this.afterId);
+      } catch (error: unknown) {
+        if (isInvalidEditHandleError(error)) throw asInvalidEditHandleError(error);
+        throw error;
+      }
       return { ...this.cursorAfter };
     }
 
@@ -1009,9 +1065,21 @@ export class SnapshotCommand implements EditCommand {
 
   undo(wasm: WasmBridge): DocumentPosition {
     if (this.beforeId !== null) {
-      wasm.restoreSnapshot(this.beforeId);
+      try {
+        wasm.restoreSnapshot(this.beforeId);
+      } catch (error: unknown) {
+        if (isInvalidEditHandleError(error)) throw asInvalidEditHandleError(error);
+        throw error;
+      }
     }
     return { ...this.cursorBefore };
+  }
+
+  recordedLabels(wasm: WasmBridge): { undoLabel: string; redoLabel: string } | null {
+    if (this.beforeId === null) return null;
+    const raw = rawGateDoc(wasm)?.snapshotLabels?.(this.beforeId);
+    if (!raw) return null;
+    return JSON.parse(raw) as { undoLabel: string; redoLabel: string };
   }
 
   mergeWith(): null { return null; }

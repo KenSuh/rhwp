@@ -3966,6 +3966,16 @@ impl DocumentCore {
             }
         }
 
+        let has_connector = section.paragraphs.iter().any(|para| {
+            para.controls.iter().any(|ctrl| match ctrl {
+                Control::Shape(s) => matches!(s.as_ref(), ShapeObject::Line(l) if l.connector.is_some()),
+                _ => false,
+            })
+        });
+        if !has_connector {
+            return;
+        }
+
         // 2) 커넥터 찾기 및 좌표 갱신
         let section = match self.document.sections.get_mut(section_idx) {
             Some(s) => s,

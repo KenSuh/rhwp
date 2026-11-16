@@ -391,6 +391,67 @@ impl HwpDocument {
         self.live_edit_count_native()
     }
 
+    #[wasm_bindgen(js_name = stateLabel)]
+    pub fn state_label(&self) -> Option<String> {
+        self.core.state_label_native()
+    }
+
+    #[wasm_bindgen(js_name = previousStateLabel)]
+    pub fn previous_state_label(&self) -> Option<String> {
+        self.core.previous_state_label_native()
+    }
+
+    #[wasm_bindgen(js_name = editHandleLabels)]
+    pub fn edit_handle_labels(&self, token: &str) -> Option<String> {
+        let (undo_label, redo_label) = self.core.edit_handle_labels_native(token)?;
+        Some(format!(
+            "{{\"undoLabel\":\"{}\",\"redoLabel\":\"{}\"}}",
+            undo_label, redo_label
+        ))
+    }
+
+    #[wasm_bindgen(js_name = snapshotLabels)]
+    pub fn snapshot_labels(&self, before_id: u32) -> Option<String> {
+        let (undo_label, redo_label) = self.core.snapshot_labels_native(before_id)?;
+        Some(format!(
+            "{{\"undoLabel\":\"{}\",\"redoLabel\":\"{}\"}}",
+            undo_label, redo_label
+        ))
+    }
+
+    #[wasm_bindgen(js_name = beginCommandInverse)]
+    pub fn begin_command_inverse(
+        &mut self,
+        expected_label: &str,
+        produced_label: &str,
+    ) -> Result<String, JsValue> {
+        self.core
+            .begin_command_inverse_native(expected_label, produced_label)
+            .map_err(Into::into)
+    }
+
+    #[wasm_bindgen(js_name = finishCommandInverse)]
+    pub fn finish_command_inverse(&mut self, scope_token: &str) -> Result<(), JsValue> {
+        self.core
+            .finish_command_inverse_native(scope_token)
+            .map_err(Into::into)
+    }
+
+    #[wasm_bindgen(js_name = abortCommandInverse)]
+    pub fn abort_command_inverse(&mut self, scope_token: &str) {
+        self.core.abort_command_inverse_native(scope_token);
+    }
+
+    #[wasm_bindgen(js_name = charShapeCount)]
+    pub fn char_shape_count(&self) -> usize {
+        self.core.char_shape_count_native()
+    }
+
+    #[wasm_bindgen(js_name = truncateCharShapes)]
+    pub fn truncate_char_shapes(&mut self, len: usize) {
+        self.core.truncate_char_shapes_native(len);
+    }
+
     /// 논리적 오프셋으로 텍스트를 삽입한다.
     ///
     /// logical_offset: 텍스트 문자 + 인라인 컨트롤을 각각 1로 세는 위치.
@@ -3745,6 +3806,28 @@ impl HwpDocument {
             )),
         )
         .map_err(|e| e.into())
+    }
+
+    #[wasm_bindgen(js_name = deleteRangeInCellByPath)]
+    pub fn delete_range_in_cell_by_path(
+        &mut self,
+        section_idx: u32,
+        parent_para_idx: u32,
+        path_json: &str,
+        start_char_offset: u32,
+        end_cell_para_idx: u32,
+        end_char_offset: u32,
+    ) -> Result<String, JsValue> {
+        self.core
+            .delete_range_in_cell_by_path_native(
+                section_idx as usize,
+                parent_para_idx as usize,
+                path_json,
+                start_char_offset as usize,
+                end_cell_para_idx as usize,
+                end_char_offset as usize,
+            )
+            .map_err(Into::into)
     }
 
     // ─── Phase 4 끝 ─────────────────────────────────────────

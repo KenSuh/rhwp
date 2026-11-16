@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { MoveTableCommand, MovePictureCommand, MoveShapeCommand } from './command';
+import { stateLabelOf } from './history';
 import { getObjectProperties, setObjectProperties } from './input-handler-picture';
 import type { CellBbox } from '@/core/types';
 import type { BorderEdge } from './table-resize-renderer';
@@ -381,10 +382,13 @@ export function moveSelectedTable(this: any, key: 'ArrowUp' | 'ArrowDown' | 'Arr
   }
 
   try {
+    const beforeLabel = stateLabelOf(this.wasm);
     const result = this.wasm.moveTableOffset(ref.sec, ref.ppi, ref.ci, deltaH, deltaV);
     // Undo 기록
-    this.executeOperation({ kind: 'record', command:
-      new MoveTableCommand(ref.sec, ref.ppi, ref.ci, deltaH, deltaV, result.ppi, result.ci),
+    this.executeOperation({
+      kind: 'record',
+      beforeLabel,
+      command: new MoveTableCommand(ref.sec, ref.ppi, ref.ci, deltaH, deltaV, result.ppi, result.ci),
     });
     // 문단 경계를 넘어 이동한 경우 selectedTableRef 갱신
     if (result.ppi !== ref.ppi || result.ci !== ref.ci) {
@@ -415,22 +419,27 @@ export function moveSelectedPicture(this: any, key: 'ArrowUp' | 'ArrowDown' | 'A
   // 다중 선택: 모든 선택된 개체를 동일 delta만큼 이동
   const targets = refs.length > 1 ? refs : [ref];
   try {
-    for (const r of targets) {
+    for (let i = 0; i < targets.length; i++) {
+      const r = targets[i];
       const props = getObjectProperties.call(this, r);
       if (props.treatAsChar) continue; // treat_as_char 개체는 이동 불가
+      const beforeLabel = stateLabelOf(this.wasm);
       const newHorzOffset = ((props.horzOffset + deltaH) >>> 0);
       const newVertOffset = ((props.vertOffset + deltaV) >>> 0);
       setObjectProperties.call(this, r, {
         horzOffset: newHorzOffset,
         vertOffset: newVertOffset,
       });
+      if (i === targets.length - 1) {
+        try { this.wasm.updateConnectorsInSection(targets[0].sec); } catch { /* ignore */ }
+      }
       const CmdClass = r.type === 'shape' || r.type === 'line' || r.type === 'group' ? MoveShapeCommand : MovePictureCommand;
-      this.executeOperation({ kind: 'record', command:
-        new CmdClass(r.sec, r.ppi, r.ci, deltaH, deltaV, props.horzOffset, props.vertOffset),
+      this.executeOperation({
+        kind: 'record',
+        beforeLabel,
+        command: new CmdClass(r.sec, r.ppi, r.ci, deltaH, deltaV, props.horzOffset, props.vertOffset),
       });
     }
-    // 연결선 자동 추적
-    try { this.wasm.updateConnectorsInSection(targets[0].sec); } catch { /* ignore */ }
     this.eventBus.emit('document-changed');
     this.renderPictureObjectSelection();
   } catch (err) {
@@ -486,10 +495,12 @@ export function updateMoveDrag(this: any, e: MouseEvent): void {
 export function finishMoveDrag(this: any): void {
   // Undo 기록: 드래그 전체를 하나의 명령으로 기록
   if (this.moveDragState) {
-    const { totalDeltaH, totalDeltaV, startPpi, tableRef } = this.moveDragState;
+    const { totalDeltaH, totalDeltaV, startPpi, tableRef, beforeLabel } = this.moveDragState;
     if (totalDeltaH !== 0 || totalDeltaV !== 0) {
-      this.executeOperation({ kind: 'record', command:
-        new MoveTableCommand(
+      this.executeOperation({
+        kind: 'record',
+        beforeLabel,
+        command: new MoveTableCommand(
           tableRef.sec, startPpi, tableRef.ci,
           totalDeltaH, totalDeltaV,
           tableRef.ppi, tableRef.ci,

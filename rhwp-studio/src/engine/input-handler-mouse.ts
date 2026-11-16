@@ -3,6 +3,7 @@
 
 import type { ContextMenuItem } from '@/ui/context-menu';
 import * as _connector from './input-handler-connector';
+import { stateLabelOf } from './history';
 import { computeCellDragRange } from './table-selection-utils';
 
 function sameCellPath(a?: unknown[], b?: unknown[]): boolean {
@@ -317,6 +318,7 @@ export function onClick(this: any, e: MouseEvent): void {
               lastPageX: px, lastPageY: py,
               totalDeltaH: 0, totalDeltaV: 0,
               pageIndex: pi,
+              beforeLabel: stateLabelOf(this.wasm),
             };
             this.container.style.cursor = 'move';
             document.addEventListener('mouseup', this.onMouseUpBound, { once: true });
@@ -419,6 +421,7 @@ export function onClick(this: any, e: MouseEvent): void {
                 lastPageX: px, lastPageY: py,
                 totalDeltaH: 0, totalDeltaV: 0,
                 pageIndex: pi,
+                beforeLabel: stateLabelOf(this.wasm),
                 multiRefs: multiMoveRefs,
               };
               this.container.style.cursor = 'move';
@@ -555,6 +558,7 @@ export function onClick(this: any, e: MouseEvent): void {
                     lastPageX: px, lastPageY: py,
                     totalDeltaH: 0, totalDeltaV: 0,
                     pageIndex: pi,
+                    beforeLabel: stateLabelOf(this.wasm),
                   };
                   this.container.style.cursor = 'move';
                   document.addEventListener('mouseup', this.onMouseUpBound, { once: true });

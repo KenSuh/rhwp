@@ -219,7 +219,9 @@ export function onCompositionEnd(this: any): void {
         selectionSnapshot.position, this.cursor.getPosition(),
       ) });
     } else {
+      const cancelAfter = this.wasm.saveSnapshot();
       this.wasm.restoreSnapshot(selectionSnapshot.id);
+      this.wasm.discardSnapshot(cancelAfter);
       this.wasm.discardSnapshot(selectionSnapshot.id);
       this.cursor.moveTo(selectionSnapshot.position);
     }

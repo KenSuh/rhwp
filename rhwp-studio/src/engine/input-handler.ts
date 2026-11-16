@@ -118,6 +118,7 @@ export class InputHandler {
     totalDeltaH: number;  // 누적 HWPUNIT 델타 (Undo용)
     totalDeltaV: number;
     pageIndex: number;  // 드래그 시작 페이지 (delta 좌표계 고정용)
+    beforeLabel?: string | null;
   } | null = null;
 
   // 그림 삽입 배치 모드 상태
@@ -180,6 +181,7 @@ export class InputHandler {
     totalDeltaH: number;
     totalDeltaV: number;
     pageIndex: number;
+    beforeLabel?: string | null;
     /** 다중 선택 이동 시 각 개체의 원래 offset 기록 */
     multiRefs?: { sec: number; ppi: number; ci: number; type: string; origHorzOffset: number; origVertOffset: number }[];
   } | null = null;
@@ -1967,10 +1969,15 @@ export class InputHandler {
         break;
       }
       case 'record': {
-        this.history.recordWithoutExecute(desc.command, this.wasm);
+        this.history.recordWithoutExecute(desc.command, this.wasm, desc.beforeLabel);
         break;
       }
     }
+  }
+
+  /** 비기록 변이 후 히스토리 스택을 초기화하고 관련 리소스를 해제한다. */
+  clearHistory(): void {
+    this.history.clear(this.wasm);
   }
 
   /** Backspace 처리 */

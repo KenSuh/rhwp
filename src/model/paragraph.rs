@@ -311,11 +311,22 @@ impl Paragraph {
         anchors
     }
 
-    pub fn clipboard_fragment(
+    fn control_in_selection(
+        control: &Control,
+        start: (usize, usize),
+        end: (usize, usize),
+        position: (usize, usize),
+    ) -> bool {
+        !matches!(control, Control::SectionDef(_) | Control::ColumnDef(_))
+            && start <= position
+            && position < end
+    }
+
+    fn selected_fields(
         source: &[Paragraph],
         start: (usize, usize),
         end: (usize, usize),
-    ) -> Vec<Paragraph> {
+    ) -> Vec<(usize, usize, FieldId)> {
         let mut included = Vec::new();
         for (pi, para) in source.iter().enumerate() {
             for (ci, control) in para.controls.iter().enumerate() {
@@ -339,12 +350,59 @@ impl Paragraph {
                         }
                     }
                 }
-                if matches!((begin, finish), (Some((_, b)), Some((_, e))) if start <= b && b <= e && e <= end)
-                {
+                if matches!(
+                    (begin, finish),
+                    (Some((_, b)), Some((_, e))) if start <= b && b <= e && e <= end && b < end
+                ) {
                     included.push((pi, ci, id));
                 }
             }
         }
+        included
+    }
+
+    fn rebuild_offsets_with_control_anchors(&mut self, kept_non_field_anchors: &[usize]) {
+        let text_len = self.text.chars().count();
+        let mut offset = 0u32;
+        self.char_offsets.clear();
+        for (i, ch) in self.text.chars().enumerate() {
+            let gap_slots = kept_non_field_anchors.iter().filter(|&&a| a == i).count()
+                + self
+                    .hwpx_field_markers
+                    .iter()
+                    .filter(|m| m.char_idx == i)
+                    .count();
+            offset += u32::try_from(gap_slots)
+                .unwrap_or(u32::MAX)
+                .saturating_mul(8);
+            self.char_offsets.push(offset);
+            offset += if ch == '\t' {
+                8
+            } else {
+                u32::try_from(ch.len_utf16()).unwrap_or(2)
+            };
+        }
+        let trailing_slots = kept_non_field_anchors
+            .iter()
+            .filter(|&&a| a >= text_len)
+            .count()
+            + self
+                .hwpx_field_markers
+                .iter()
+                .filter(|m| m.char_idx == self.char_offsets.len())
+                .count();
+        offset += u32::try_from(trailing_slots)
+            .unwrap_or(u32::MAX)
+            .saturating_mul(8);
+        self.char_count = offset + 1;
+    }
+
+    pub fn clipboard_fragment(
+        source: &[Paragraph],
+        start: (usize, usize),
+        end: (usize, usize),
+    ) -> Vec<Paragraph> {
+        let included = Self::selected_fields(source, start, end);
         source
             .iter()
             .enumerate()
@@ -364,6 +422,7 @@ impl Paragraph {
                 para.delete_text_at(last, original.text.chars().count() - last);
                 para.delete_text_at(0, first);
                 let mut control_map = Vec::new();
+                let mut kept_anchors = Vec::new();
                 para.controls.clear();
                 para.ctrl_data_records.clear();
                 let anchors = original.control_anchor_positions();
@@ -374,11 +433,14 @@ impl Paragraph {
                     } else {
                         let anchor = anchors[non_field];
                         non_field += 1;
-                        first <= anchor && anchor <= last
+                        let keep = Self::control_in_selection(control, start, end, (pi, anchor));
+                        if keep {
+                            kept_anchors
+                                .push(anchor.saturating_sub(first).min(para.text.chars().count()));
+                        }
+                        keep
                     };
-                    if matches!(control, Control::SectionDef(_) | Control::ColumnDef(_))
-                        || !selected
-                    {
+                    if !selected {
                         continue;
                     }
                     control_map.push((ci, para.controls.len()));
@@ -404,7 +466,7 @@ impl Paragraph {
                         Some(marker)
                     })
                     .collect();
-                para.rebuild_hwpx_field_offsets();
+                para.rebuild_offsets_with_control_anchors(&kept_anchors);
                 para.char_shapes.clear();
                 for (i, id) in styles.into_iter().enumerate() {
                     if para
@@ -421,6 +483,160 @@ impl Paragraph {
                 para
             })
             .collect()
+    }
+
+    fn delete_paragraph_selection_slice(
+        &mut self,
+        pi: usize,
+        start: (usize, usize),
+        end: (usize, usize),
+        removed_fields: &[(usize, usize, FieldId)],
+    ) -> bool {
+        let text_len = self.text.chars().count();
+        let first = if pi == start.0 {
+            start.1.min(text_len)
+        } else {
+            0
+        };
+        let last = if pi == end.0 {
+            end.1.min(text_len)
+        } else {
+            text_len
+        };
+        let anchors = self.control_anchor_positions();
+        let mut non_field = 0;
+        let mut kept_controls = Vec::with_capacity(self.controls.len());
+        let mut kept_records = Vec::with_capacity(self.controls.len());
+        let mut control_map = Vec::with_capacity(self.controls.len());
+        let mut removed_anchors = Vec::new();
+        let mut control_removed = false;
+
+        for (ci, control) in self.controls.iter().enumerate() {
+            let remove = if matches!(control, Control::Field(_)) {
+                removed_fields.iter().any(|(p, c, _)| (*p, *c) == (pi, ci))
+            } else {
+                let anchor = anchors[non_field];
+                non_field += 1;
+                let selected = Self::control_in_selection(control, start, end, (pi, anchor));
+                if selected {
+                    removed_anchors.push(anchor);
+                }
+                selected
+            };
+            if remove {
+                control_removed = true;
+                continue;
+            }
+            control_map.push((ci, kept_controls.len()));
+            kept_controls.push(control.clone());
+            kept_records.push(self.ctrl_data_records.get(ci).cloned().flatten());
+        }
+        self.controls = kept_controls;
+        self.ctrl_data_records = kept_records;
+
+        let mut removed_marker_positions = Vec::new();
+        let mut kept_markers = Vec::with_capacity(self.hwpx_field_markers.len());
+        for mut marker in self.hwpx_field_markers.drain(..) {
+            let remove = removed_fields.iter().any(|(p, _, id)| {
+                *id == marker.id && (!matches!(id, FieldId::Binary(_)) || *p == pi)
+            });
+            if remove {
+                removed_marker_positions.push(marker.char_idx);
+                continue;
+            }
+            if let FieldId::Binary(ci) = &mut marker.id {
+                if let Some((_, new_ci)) = control_map.iter().find(|(old, _)| old == ci) {
+                    *ci = *new_ci;
+                }
+            }
+            kept_markers.push(marker);
+        }
+        self.hwpx_field_markers = kept_markers;
+
+        for pos in removed_anchors
+            .iter()
+            .copied()
+            .chain(removed_marker_positions.iter().copied())
+        {
+            let idx = pos.min(self.char_offsets.len());
+            let threshold = self.char_offsets.get(idx).copied().unwrap_or(u32::MAX);
+            for offset in &mut self.char_offsets[idx..] {
+                *offset = offset.saturating_sub(8);
+            }
+            for cs in &mut self.char_shapes {
+                if cs.start_pos >= threshold {
+                    cs.start_pos = cs.start_pos.saturating_sub(8);
+                }
+            }
+            for ls in &mut self.line_segs {
+                if ls.text_start >= threshold {
+                    ls.text_start = ls.text_start.saturating_sub(8);
+                }
+            }
+            for rt in &mut self.range_tags {
+                if rt.start >= threshold {
+                    rt.start = rt.start.saturating_sub(8);
+                }
+                if rt.end >= threshold {
+                    rt.end = rt.end.saturating_sub(8);
+                }
+            }
+            self.char_count = self.char_count.saturating_sub(8);
+        }
+
+        let deleted_chars = self
+            .delete_text_at(first, last.saturating_sub(first))
+            .deleted_chars;
+
+        if self.text.is_empty() && self.controls.is_empty() && self.hwpx_field_markers.is_empty() {
+            self.has_para_text = false;
+            self.control_mask = 0;
+        }
+
+        control_removed || !removed_marker_positions.is_empty() || deleted_chars > 0
+    }
+
+    pub(crate) fn delete_selection_range(
+        paragraphs: &mut Vec<Paragraph>,
+        raw_start: (usize, usize),
+        raw_end: (usize, usize),
+    ) -> bool {
+        if raw_start.0 >= paragraphs.len()
+            || raw_end.0 >= paragraphs.len()
+            || raw_start.0 > raw_end.0
+        {
+            return false;
+        }
+        let start = (
+            raw_start.0,
+            raw_start.1.min(paragraphs[raw_start.0].text.chars().count()),
+        );
+        let end = (
+            raw_end.0,
+            raw_end.1.min(paragraphs[raw_end.0].text.chars().count()),
+        );
+        if start >= end {
+            return false;
+        }
+        let removed_fields = Self::selected_fields(paragraphs, start, end);
+        if start.0 == end.0 {
+            return paragraphs[start.0].delete_paragraph_selection_slice(
+                start.0,
+                start,
+                end,
+                &removed_fields,
+            );
+        }
+        paragraphs[end.0].delete_paragraph_selection_slice(end.0, start, end, &removed_fields);
+        for mid in (start.0 + 1..end.0).rev() {
+            paragraphs.remove(mid);
+        }
+        paragraphs[start.0].delete_paragraph_selection_slice(start.0, start, end, &removed_fields);
+        if start.0 + 1 < paragraphs.len() {
+            let next = paragraphs.remove(start.0 + 1);
+            paragraphs[start.0].merge_from(&next);
+        }
+        true
     }
 
     pub(crate) fn remap_clipboard_fields(
@@ -1167,6 +1383,12 @@ impl Paragraph {
     pub(crate) fn merge_from(&mut self, other: &Paragraph) -> ParagraphMerge {
         let inverse = self.edit_checkpoint();
         let self_text_len = self.text.chars().count();
+        let self_markers_before = self.hwpx_field_markers.len();
+        let self_non_fields_before = self
+            .controls
+            .iter()
+            .filter(|c| !matches!(c, Control::Field(_)))
+            .count();
         let marker_order_offset = self
             .hwpx_field_markers
             .iter()
@@ -1203,6 +1425,10 @@ impl Paragraph {
             let last = self.char_offsets.len() - 1;
             let text_chars: Vec<char> = self.text.chars().collect();
             self.char_offsets[last] + Self::char_utf16_len(text_chars[last])
+        } else if self_non_fields_before > 0 {
+            u32::try_from(self_non_fields_before + self_markers_before)
+                .unwrap_or(0)
+                .saturating_mul(8)
         } else {
             0
         };

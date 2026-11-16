@@ -1594,12 +1594,21 @@ impl DocumentCore {
         // para_offset 리셋 (수렴 감지 완료)
         self.para_offset.fill(0);
 
-        // 표 dirty 플래그 초기화
-        for section in &mut self.document.sections {
-            for para in &mut section.paragraphs {
-                for ctrl in &mut para.controls {
-                    if let Control::Table(table) = ctrl {
-                        table.dirty = false;
+        // 표 dirty 플래그 초기화 (실제 dirty 표가 있을 때만 가변 대여하여 무관한 상태 라벨 변경 방지)
+        let has_dirty_table = self.document.sections.iter().any(|section| {
+            section.paragraphs.iter().any(|para| {
+                para.controls
+                    .iter()
+                    .any(|ctrl| matches!(ctrl, Control::Table(table) if table.dirty))
+            })
+        });
+        if has_dirty_table {
+            for section in &mut self.document.sections {
+                for para in &mut section.paragraphs {
+                    for ctrl in &mut para.controls {
+                        if let Control::Table(table) = ctrl {
+                            table.dirty = false;
+                        }
                     }
                 }
             }

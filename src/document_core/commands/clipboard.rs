@@ -212,7 +212,7 @@ impl DocumentCore {
             .ok_or_else(|| HwpError::RenderError("CLIPBOARD_EMPTY_PATH".into()))?
             .2;
         let paragraphs =
-            self.get_cell_paragraphs_mut_by_path_for_clipboard(section, parent, &path)?;
+            self.get_cell_paragraphs_by_path_for_clipboard(section, parent, &path)?;
         let first_para = paragraphs
             .get(first)
             .ok_or_else(|| HwpError::RenderError("CLIPBOARD_PARAGRAPH_RANGE".into()))?;
@@ -686,6 +686,52 @@ impl DocumentCore {
             "\"cellParaIdx\":{},\"charOffset\":{}",
             last_para_idx, merge_point
         )))
+    }
+
+    pub(crate) fn get_cell_paragraphs_by_path_for_clipboard(
+        &self,
+        section_idx: usize,
+        parent_para_idx: usize,
+        path: &[(usize, usize, usize)],
+    ) -> Result<&Vec<Paragraph>, HwpError> {
+        if path.is_empty() {
+            return Err(HwpError::RenderError("경로가 비어있습니다".to_string()));
+        }
+
+        let section = self
+            .document
+            .sections
+            .get(section_idx)
+            .ok_or_else(|| HwpError::RenderError(format!("구역 {} 범위 초과", section_idx)))?;
+        let mut para: &Paragraph = section
+            .paragraphs
+            .get(parent_para_idx)
+            .ok_or_else(|| HwpError::RenderError(format!("문단 {} 범위 초과", parent_para_idx)))?;
+
+        for (i, &(ctrl_idx, cell_idx, cell_para_idx)) in path.iter().enumerate() {
+            let table = match para.controls.get(ctrl_idx) {
+                Some(Control::Table(t)) => t.as_ref(),
+                _ => {
+                    return Err(HwpError::RenderError(format!(
+                        "경로[{}]: controls[{}]가 표가 아닙니다",
+                        i, ctrl_idx
+                    )))
+                }
+            };
+            let cell = table.cells.get(cell_idx).ok_or_else(|| {
+                HwpError::RenderError(format!("경로[{}]: 셀 {} 범위 초과", i, cell_idx))
+            })?;
+
+            if i == path.len() - 1 {
+                return Ok(&cell.paragraphs);
+            }
+
+            para = cell.paragraphs.get(cell_para_idx).ok_or_else(|| {
+                HwpError::RenderError(format!("경로[{}]: 셀문단 {} 범위 초과", i, cell_para_idx))
+            })?;
+        }
+
+        unreachable!()
     }
 
     pub(crate) fn get_cell_paragraphs_mut_by_path_for_clipboard(

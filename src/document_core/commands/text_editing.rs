@@ -27,6 +27,7 @@ impl DocumentCore {
         structural: bool,
     ) -> Result<String, HwpError> {
         let state = self.text_edit_state(section, paragraph, structural)?;
+        let before_label = self.document.state_label()?;
         let handle = self.next_edit_handle()?;
         if self.text_edit_history.undo.len() >= 1024 {
             return Err(HwpError::RenderError("text edit token limit (1024)".into()));
@@ -35,61 +36,57 @@ impl DocumentCore {
         self.text_edit_history.next_sequence += 1;
         self.text_edit_history.undo.push(EditRecord {
             handle: handle.clone(),
-            before_state: self.document.state(),
-            applies_state: self.document.state(),
-            revision: None,
+            undo_from_label: None,
+            undo_to_label: before_label,
             state,
         });
         Ok(handle)
     }
 
     pub fn finish_text_edit_native(&mut self, token: &str) -> Result<(), HwpError> {
+        let live_label = self.document.state_label()?;
         let record = self
             .text_edit_history
             .undo
             .last_mut()
-            .filter(|record| record.handle == token && record.revision.is_none())
+            .filter(|record| record.handle == token && record.undo_from_label.is_none())
             .ok_or_else(|| {
                 HwpError::InvalidEditHandle("capture is not the pending stack top".into())
             })?;
-        record.revision = Some(self.document.revision());
-        record.applies_state = self.document.state();
+        record.undo_from_label = Some(live_label);
         Ok(())
     }
 
     pub fn merge_text_edits_native(&mut self, first: &str, last: &str) -> Result<(), HwpError> {
+        let live_label = self.document.state_label()?;
         let stack = &mut self.text_edit_history.undo;
         let n = stack.len();
         if n < 2
             || stack[n - 2].handle != first
             || stack[n - 1].handle != last
-            || stack[n - 2].applies_state != stack[n - 1].before_state
-            || stack[n - 1].revision != Some(self.document.revision())
+            || stack[n - 2].undo_from_label.as_deref() != Some(stack[n - 1].undo_to_label.as_str())
+            || stack[n - 1].undo_from_label.as_deref() != Some(live_label.as_str())
         {
             return Err(HwpError::InvalidEditHandle(
                 "captures are not consecutive revisions".into(),
             ));
         }
-        stack[n - 2].revision = stack[n - 1].revision;
-        stack[n - 2].applies_state = stack[n - 1].applies_state;
+        stack[n - 2].undo_from_label = stack[n - 1].undo_from_label.clone();
         stack.pop();
         Ok(())
     }
 
-    pub(crate) fn rebase_edit_revision(&mut self, saved_state: u64) {
-        self.document.restored(saved_state);
-        let revision = self.document.revision();
-        for stack in [
-            &mut self.text_edit_history.undo,
-            &mut self.text_edit_history.redo,
-        ] {
-            if let Some(record) = stack
-                .last_mut()
-                .filter(|record| record.applies_state == saved_state && record.revision.is_some())
-            {
-                record.revision = Some(revision);
-            }
-        }
+    pub fn edit_handle_labels_native(&self, token: &str) -> Option<(String, String)> {
+        let record = self
+            .text_edit_history
+            .undo
+            .iter()
+            .chain(self.text_edit_history.redo.iter())
+            .find(|record| record.handle == token)?;
+        Some((
+            record.undo_from_label.clone()?,
+            record.undo_to_label.clone(),
+        ))
     }
 
     fn text_edit_state(
@@ -113,81 +110,114 @@ impl DocumentCore {
                 before: paragraphs.clone(),
             }
         } else {
+            let trailing_vpos = paragraphs[paragraph + 1..]
+                .iter()
+                .map(|p| p.line_segs.iter().map(|ls| ls.vertical_pos).collect())
+                .collect();
             TextEditState::Paragraph {
                 section,
                 paragraph,
                 inverse: para.edit_checkpoint(),
+                trailing_vpos,
             }
         })
     }
 
     fn next_edit_handle(&self) -> Result<String, HwpError> {
-        let history = &self.text_edit_history;
-        let epoch = history
-            .epoch
-            .as_ref()
-            .map_err(|reason| HwpError::RenderError(reason.clone()))?;
-        history.next_sequence.checked_add(1).ok_or_else(|| {
-            HwpError::RenderError("EDIT_HISTORY_UNAVAILABLE: sequence exhausted".into())
-        })?;
-        Ok(format!("{epoch}:{}", history.next_sequence))
+        let epoch = self
+            .document
+            .epoch()
+            .map_err(|reason| HwpError::RenderError(reason.to_string()))?;
+        self.text_edit_history
+            .next_sequence
+            .checked_add(1)
+            .ok_or_else(|| {
+                HwpError::RenderError("EDIT_HISTORY_UNAVAILABLE: sequence exhausted".into())
+            })?;
+        Ok(format!("{epoch}:{}", self.text_edit_history.next_sequence))
     }
 
     /// Consumes the token and returns a reciprocal token for redo/undo.
     pub fn undo_edit_native(&mut self, token: &str) -> Result<String, HwpError> {
-        let history = &self.text_edit_history;
-        let epoch = history
-            .epoch
-            .as_ref()
-            .map_err(|reason| HwpError::InvalidEditHandle(reason.clone()))?;
-        if token.split_once(':').map(|(value, _)| value) != Some(epoch.as_str()) {
+        let epoch = self
+            .document
+            .epoch()
+            .map_err(|reason| HwpError::InvalidEditHandle(reason.to_string()))?;
+        if token.split_once(':').map(|(value, _)| value) != Some(epoch) {
             return Err(HwpError::InvalidEditHandle("document epoch differs".into()));
         }
-        let (undoing, record) = if let Some(record) =
+        let history = &self.text_edit_history;
+        let (undoing, expected_label, produced_label, target_coords) = if let Some(record) =
             history.undo.last().filter(|record| record.handle == token)
         {
-            (true, record)
+            let expected = record.undo_from_label.clone().ok_or_else(|| {
+                HwpError::InvalidEditHandle("capture is not sealed".into())
+            })?;
+            let coords = match &record.state {
+                TextEditState::Paragraph {
+                    section, paragraph, ..
+                } => (*section, *paragraph, false),
+                TextEditState::ParagraphList { section, .. } => (*section, 0, true),
+            };
+            (true, expected, record.undo_to_label.clone(), coords)
         } else if let Some(record) = history.redo.last().filter(|record| record.handle == token) {
-            (false, record)
+            let expected = record.undo_from_label.clone().ok_or_else(|| {
+                HwpError::InvalidEditHandle("capture is not sealed".into())
+            })?;
+            let coords = match &record.state {
+                TextEditState::Paragraph {
+                    section, paragraph, ..
+                } => (*section, *paragraph, false),
+                TextEditState::ParagraphList { section, .. } => (*section, 0, true),
+            };
+            (false, expected, record.undo_to_label.clone(), coords)
         } else {
             return Err(HwpError::InvalidEditHandle(
                 "handle is not the current undo or redo top".into(),
             ));
         };
-        if record.revision != Some(self.document.revision()) {
-            return Err(HwpError::InvalidEditHandle(
-                "document revision differs".into(),
-            ));
-        }
-        let handle = self
-            .next_edit_handle()
-            .map_err(|error| HwpError::InvalidEditHandle(error.to_string()))?;
-        let (section, paragraph, structural) = match &record.state {
-            TextEditState::Paragraph {
-                section, paragraph, ..
-            } => (*section, *paragraph, false),
-            TextEditState::ParagraphList { section, .. } => (*section, 0, true),
+        let ticket = self
+            .document
+            .begin_inverse(&expected_label, &produced_label)?;
+        let handle = match self.next_edit_handle() {
+            Ok(handle) => handle,
+            Err(error) => {
+                self.document.abort_inverse(ticket);
+                return Err(HwpError::InvalidEditHandle(error.to_string()));
+            }
         };
-        let reciprocal = self
-            .text_edit_state(section, paragraph, structural)
-            .map_err(|error| HwpError::InvalidEditHandle(error.to_string()))?;
+        let (section, paragraph, structural) = target_coords;
+        let reciprocal = match self.text_edit_state(section, paragraph, structural) {
+            Ok(reciprocal) => reciprocal,
+            Err(error) => {
+                self.document.abort_inverse(ticket);
+                return Err(HwpError::InvalidEditHandle(error.to_string()));
+            }
+        };
         let history = &mut self.text_edit_history;
         let source = if undoing {
             &mut history.undo
         } else {
             &mut history.redo
         };
-        let record = source
-            .pop()
-            .ok_or_else(|| HwpError::InvalidEditHandle("history is empty".into()))?;
-        let before_state = self.document.state();
+        let Some(record) = source.pop() else {
+            self.document.abort_inverse(ticket);
+            return Err(HwpError::InvalidEditHandle("history is empty".into()));
+        };
         match record.state {
             TextEditState::Paragraph {
                 section,
                 paragraph,
                 inverse,
+                trailing_vpos,
             } => {
-                self.document.sections[section].paragraphs[paragraph].undo_edit(inverse);
+                let paragraphs = &mut self.document.sections[section].paragraphs;
+                paragraphs[paragraph].undo_edit(inverse);
+                for (para, vpos_list) in paragraphs[paragraph + 1..].iter_mut().zip(trailing_vpos) {
+                    for (ls, vpos) in para.line_segs.iter_mut().zip(vpos_list) {
+                        ls.vertical_pos = vpos;
+                    }
+                }
             }
             TextEditState::ParagraphList { section, before } => {
                 self.document.sections[section].paragraphs = before;
@@ -204,7 +234,7 @@ impl DocumentCore {
         self.page_tree_cache.borrow_mut().clear();
         self.overflow_links_cache.borrow_mut().clear();
         self.paginate();
-        self.rebase_edit_revision(record.before_state);
+        self.document.finish_inverse(ticket)?;
         let history = &mut self.text_edit_history;
         history.next_sequence += 1;
         let target = if undoing {
@@ -214,9 +244,8 @@ impl DocumentCore {
         };
         target.push(EditRecord {
             handle: handle.clone(),
-            before_state,
-            applies_state: self.document.state(),
-            revision: Some(self.document.revision()),
+            undo_from_label: Some(produced_label),
+            undo_to_label: expected_label,
             state: reciprocal,
         });
         Ok(handle)
@@ -1476,57 +1505,31 @@ impl DocumentCore {
         cell_ctx: Option<(usize, usize, usize)>,
     ) -> Result<String, HwpError> {
         if let Some((ppi, ci, cei)) = cell_ctx {
-            // ─── 셀 내 deleteRange ───
-            if start_para == end_para {
-                // 같은 문단 내 삭제
-                let count = end_offset - start_offset;
-                let cell_para =
-                    self.get_cell_paragraph_mut(section_idx, ppi, ci, cei, start_para)?;
-                if cell_para.delete_text_at(start_offset, count).deleted_chars == 0 {
-                    return Ok(super::super::helpers::json_ok_with(&format!(
-                        "\"paraIdx\":{},\"charOffset\":{}",
-                        start_para, start_offset
+            let changed = {
+                let cell = self.get_cell_mut(section_idx, ppi, ci, cei)?;
+                if start_para >= cell.paragraphs.len() || end_para >= cell.paragraphs.len() {
+                    return Err(HwpError::RenderError(format!(
+                        "셀 문단 인덱스 범위 초과 (start={}, end={}, total={})",
+                        start_para,
+                        end_para,
+                        cell.paragraphs.len()
                     )));
                 }
-                self.invalidate_edit_redo();
-                self.document.sections[section_idx].raw_stream = None;
-                self.reflow_cell_paragraph(section_idx, ppi, ci, cei, start_para);
-            } else {
-                self.invalidate_edit_redo();
-                self.document.sections[section_idx].raw_stream = None;
-                // 다중 문단 셀 내 삭제
-                // 1) 마지막 문단 앞부분 삭제
-                if end_offset > 0 {
-                    let cell_para =
-                        self.get_cell_paragraph_mut(section_idx, ppi, ci, cei, end_para)?;
-                    cell_para.delete_text_at(0, end_offset);
-                }
-                // 2) 중간 문단 역순 제거 — 셀 내 문단은 cell.paragraphs에서 직접 제거
-                for mid_para in (start_para + 1..end_para).rev() {
-                    let cell = self.get_cell_mut(section_idx, ppi, ci, cei)?;
-                    if mid_para < cell.paragraphs.len() {
-                        cell.paragraphs.remove(mid_para);
-                    }
-                }
-                // 3) 첫 문단 뒷부분 삭제
-                {
-                    let cell_para =
-                        self.get_cell_paragraph_mut(section_idx, ppi, ci, cei, start_para)?;
-                    let para_len = cell_para.text().chars().count();
-                    if start_offset < para_len {
-                        cell_para.delete_text_at(start_offset, para_len - start_offset);
-                    }
-                }
-                // 4) 첫-마지막 문단 병합 (마지막 문단이 이제 start_para+1에 위치)
-                let cell = self.get_cell_mut(section_idx, ppi, ci, cei)?;
-                if start_para + 1 < cell.paragraphs.len() {
-                    let next_para = cell.paragraphs.remove(start_para + 1);
-                    cell.paragraphs[start_para].merge_from(&next_para);
-                }
-                self.reflow_cell_paragraph(section_idx, ppi, ci, cei, start_para);
+                Paragraph::delete_selection_range(
+                    &mut cell.paragraphs,
+                    (start_para, start_offset),
+                    (end_para, end_offset),
+                )
+            };
+            if !changed {
+                return Ok(super::super::helpers::json_ok_with(&format!(
+                    "\"paraIdx\":{},\"charOffset\":{}",
+                    start_para, start_offset
+                )));
             }
-
-            // 부모 컨트롤 dirty 마킹 + 재페이지네이션
+            self.invalidate_edit_redo();
+            self.document.sections[section_idx].raw_stream = None;
+            self.reflow_cell_paragraph(section_idx, ppi, ci, cei, start_para);
             self.mark_cell_control_dirty(section_idx, ppi, ci);
             self.mark_section_dirty(section_idx);
             self.paginate_if_needed();
@@ -1541,69 +1544,41 @@ impl DocumentCore {
                 start_para, start_offset
             )))
         } else {
-            // Section raw 스트림만 무효화하고 DocInfo raw_stream은 유지한다.
+            if section_idx >= self.document.sections.len() {
+                return Err(HwpError::RenderError(format!(
+                    "구역 인덱스 {} 범위 초과",
+                    section_idx
+                )));
+            }
+            let para_total = self.document.sections[section_idx].paragraphs.len();
+            if start_para >= para_total || end_para >= para_total || start_para > end_para {
+                return Err(HwpError::RenderError(format!(
+                    "문단 인덱스 범위 초과 (start={}, end={}, total={})",
+                    start_para, end_para, para_total
+                )));
+            }
             self.invalidate_edit_redo();
             self.document.sections[section_idx].raw_stream = None;
-            // ─── 본문 deleteRange ───
-            if start_para == end_para {
-                // 같은 문단 내 삭제
-                let count = end_offset - start_offset;
-                if count > 0 {
-                    self.document.sections[section_idx].paragraphs[start_para]
-                        .delete_text_at(start_offset, count);
-                    self.reflow_paragraph(section_idx, start_para);
-                    crate::renderer::composer::recalculate_section_vpos(
-                        &mut self.document.sections[section_idx].paragraphs,
-                        start_para,
-                    );
+            let changed = Paragraph::delete_selection_range(
+                &mut self.document.sections[section_idx].paragraphs,
+                (start_para, start_offset),
+                (end_para, end_offset),
+            );
+            if start_para < end_para {
+                for removed_para in (start_para + 1..=end_para).rev() {
+                    self.remove_composed_paragraph(section_idx, removed_para);
                 }
-                // 변경 문단만 재구성
-                self.recompose_paragraph(section_idx, start_para);
-            } else {
-                // 1) 마지막 문단 앞부분 삭제
-                if end_offset > 0 {
-                    self.document.sections[section_idx].paragraphs[end_para]
-                        .delete_text_at(0, end_offset);
-                }
-                // 2) 중간 문단 역순 제거 (composed도 동기)
-                for mid_para in (start_para + 1..end_para).rev() {
-                    self.document.sections[section_idx]
-                        .paragraphs
-                        .remove(mid_para);
-                    self.remove_composed_paragraph(section_idx, mid_para);
-                }
-                // 3) 첫 문단 뒷부분 삭제
-                {
-                    let para_len = self.document.sections[section_idx].paragraphs[start_para]
-                        .text()
-                        .chars()
-                        .count();
-                    if start_offset < para_len {
-                        self.document.sections[section_idx].paragraphs[start_para]
-                            .delete_text_at(start_offset, para_len - start_offset);
-                    }
-                }
-                // 4) 첫-마지막 문단 병합 (마지막 문단이 이제 start_para+1에 위치)
-                if start_para + 1 < self.document.sections[section_idx].paragraphs.len() {
-                    let next = self.document.sections[section_idx]
-                        .paragraphs
-                        .remove(start_para + 1);
-                    self.remove_composed_paragraph(section_idx, start_para + 1);
-                    self.document.sections[section_idx].paragraphs[start_para].merge_from(&next);
-                }
+            }
+            if changed {
                 self.reflow_paragraph(section_idx, start_para);
                 crate::renderer::composer::recalculate_section_vpos(
                     &mut self.document.sections[section_idx].paragraphs,
                     start_para,
                 );
-                // 병합된 문단 재구성
-                self.recompose_paragraph(section_idx, start_para);
             }
-
-            // 재페이지네이션
+            self.recompose_paragraph(section_idx, start_para);
             self.paginate_if_needed();
 
-            // 캐럿 위치 갱신
             self.document.doc_properties.caret_list_id = section_idx as u32;
             self.document.doc_properties.caret_para_id = start_para as u32;
 
@@ -1618,6 +1593,54 @@ impl DocumentCore {
                 start_para, start_offset
             )))
         }
+    }
+
+    pub fn delete_range_in_cell_by_path_native(
+        &mut self,
+        section_idx: usize,
+        parent_para_idx: usize,
+        path_json: &str,
+        start_offset: usize,
+        end_para: usize,
+        end_offset: usize,
+    ) -> Result<String, HwpError> {
+        let path = Self::parse_cell_path(path_json)?;
+        let start_para = path
+            .last()
+            .ok_or_else(|| HwpError::RenderError("경로가 비어있습니다".into()))?
+            .2;
+        let outer_ctrl = path[0].0;
+        let changed = {
+            let paragraphs = self.get_cell_paragraphs_mut_by_path_for_clipboard(
+                section_idx,
+                parent_para_idx,
+                &path,
+            )?;
+            if start_para >= paragraphs.len() || end_para >= paragraphs.len() {
+                return Err(HwpError::RenderError("셀 문단 인덱스 범위 초과".into()));
+            }
+            Paragraph::delete_selection_range(
+                paragraphs,
+                (start_para, start_offset),
+                (end_para, end_offset),
+            )
+        };
+        if changed {
+            self.invalidate_edit_redo();
+            self.document.sections[section_idx].raw_stream = None;
+            let mut reflow_path = path.clone();
+            if let Some(last) = reflow_path.last_mut() {
+                last.2 = start_para;
+            }
+            self.reflow_cell_paragraph_by_path(section_idx, parent_para_idx, &reflow_path);
+            self.mark_cell_control_dirty(section_idx, parent_para_idx, outer_ctrl);
+            self.mark_section_dirty(section_idx);
+            self.paginate_if_needed();
+        }
+        Ok(super::super::helpers::json_ok_with(&format!(
+            "\"paraIdx\":{},\"charOffset\":{}",
+            start_para, start_offset
+        )))
     }
 
     /// 표 셀에 대한 가변 참조를 얻는다.

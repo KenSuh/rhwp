@@ -591,7 +591,7 @@ export function updatePictureMoveDrag(this: any, e: MouseEvent): void {
 
 export function finishPictureMoveDrag(this: any): void {
   if (this.pictureMoveState) {
-    const { totalDeltaH, totalDeltaV, multiRefs } = this.pictureMoveState;
+    const { totalDeltaH, totalDeltaV, multiRefs, beforeLabel } = this.pictureMoveState;
     if (totalDeltaH !== 0 || totalDeltaV !== 0) {
       const targets = multiRefs || [{ ...this.pictureMoveState.ref, origHorzOffset: this.pictureMoveState.origHorzOffset, origVertOffset: this.pictureMoveState.origVertOffset }];
       for (const r of targets) {
@@ -603,6 +603,7 @@ export function finishPictureMoveDrag(this: any): void {
             r.origHorzOffset, r.origVertOffset,
           ),
           this.wasm,
+          targets.length === 1 ? beforeLabel : undefined,
         );
       }
     }

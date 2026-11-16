@@ -89,8 +89,11 @@ impl DocumentCore {
             event_log: Vec::new(),
             overflow_links_cache: RefCell::new(HashMap::new()),
             snapshot_store: Vec::new(),
+            pending_snapshot_id: None,
             next_snapshot_id: 0,
             text_edit_history: crate::document_core::TextEditHistory::new(),
+            pending_command_inverse: None,
+            next_command_inverse_seq: 0,
             hidden_header_footer: std::collections::HashSet::new(),
             file_name: String::new(),
             active_field: None,
@@ -619,7 +622,7 @@ impl DocumentCore {
             .collect();
         let sec_count = document.sections.len();
 
-        *self.document = document;
+        self.document = crate::document_core::mutation::DocumentMutation::new(document);
         self.styles = styles;
         self.composed = composed;
         self.clipboard = None;
@@ -630,7 +633,10 @@ impl DocumentCore {
         self.para_column_map = Vec::new();
         self.page_tree_cache.borrow_mut().clear();
         self.snapshot_store.clear();
+        self.pending_snapshot_id = None;
         self.text_edit_history = crate::document_core::TextEditHistory::new();
+        self.pending_command_inverse = None;
+        self.next_command_inverse_seq = 0;
         self.next_snapshot_id = 0;
 
         self.convert_to_editable_native()?;
@@ -708,8 +714,13 @@ impl DocumentCore {
 
     /// 문서 IR을 직접 설정한다 (테스트/네이티브 전용).
     pub fn set_document(&mut self, doc: Document) {
-        *self.document = doc;
+        self.document = crate::document_core::mutation::DocumentMutation::new(doc);
+        self.snapshot_store.clear();
+        self.pending_snapshot_id = None;
+        self.next_snapshot_id = 0;
         self.text_edit_history = crate::document_core::TextEditHistory::new();
+        self.pending_command_inverse = None;
+        self.next_command_inverse_seq = 0;
         self.styles = resolve_styles(&self.document.doc_info, self.dpi);
         self.composed = self
             .document
@@ -746,25 +757,83 @@ impl DocumentCore {
         self.invalidate_edit_redo();
         let id = self.next_snapshot_id;
         self.next_snapshot_id += 1;
-        self.snapshot_store
-            .push((id, self.document.clone(), self.document.state()));
+        let live_label = self.document.state_label().unwrap_or_default();
+        let snapshot_doc = (*self.document).clone();
+
+        if let Some(before_id) = self.pending_snapshot_id.take() {
+            if let Some(before_record) = self
+                .snapshot_store
+                .iter_mut()
+                .find(|record| record.id == before_id)
+            {
+                let before_produced = before_record.produced_label.clone();
+                if !live_label.is_empty() && !before_produced.is_empty() {
+                    before_record.expected_label = Some(live_label.clone());
+                }
+                self.snapshot_store.push(crate::document_core::SnapshotRecord {
+                    id,
+                    document: snapshot_doc,
+                    expected_label: (!live_label.is_empty() && !before_produced.is_empty())
+                        .then_some(before_produced),
+                    produced_label: live_label,
+                });
+            } else {
+                self.snapshot_store.push(crate::document_core::SnapshotRecord {
+                    id,
+                    document: snapshot_doc,
+                    expected_label: None,
+                    produced_label: live_label,
+                });
+                self.pending_snapshot_id = Some(id);
+            }
+        } else {
+            self.snapshot_store.push(crate::document_core::SnapshotRecord {
+                id,
+                document: snapshot_doc,
+                expected_label: None,
+                produced_label: live_label,
+            });
+            self.pending_snapshot_id = Some(id);
+        }
+
         // 최대 100개 제한 — 초과 시 가장 오래된 스냅샷 제거
         const MAX_SNAPSHOTS: usize = 100;
         while self.snapshot_store.len() > MAX_SNAPSHOTS {
-            self.snapshot_store.remove(0);
+            let evicted = self.snapshot_store.remove(0);
+            if self.pending_snapshot_id == Some(evicted.id) {
+                self.pending_snapshot_id = None;
+            }
         }
         id
     }
 
+    pub fn snapshot_labels_native(&self, before_id: u32) -> Option<(String, String)> {
+        let record = self
+            .snapshot_store
+            .iter()
+            .find(|record| record.id == before_id)?;
+        let undo_label = record.expected_label.clone()?;
+        if record.produced_label.is_empty() {
+            return None;
+        }
+        Some((undo_label, record.produced_label.clone()))
+    }
+
     /// 지정 ID의 스냅샷으로 Document를 복원한다.
-    /// 스타일 재해소 + 문단 구성 + 페이지네이션까지 수행.
+    /// 단일 역실행 게이트의 상태 라벨 일치를 먼저 검증하고 불일치 시 InvalidEditHandle을 반환한다.
     pub fn restore_snapshot_native(&mut self, id: u32) -> Result<String, HwpError> {
         let idx = self
             .snapshot_store
             .iter()
-            .position(|(sid, _, _)| *sid == id)
-            .ok_or_else(|| HwpError::RenderError(format!("스냅샷 {} 없음", id)))?;
-        let (_, doc, saved_revision) = self.snapshot_store[idx].clone();
+            .position(|record| record.id == id)
+            .ok_or_else(|| HwpError::InvalidEditHandle(format!("snapshot {id} not found")))?;
+        let expected_label = self.snapshot_store[idx]
+            .expected_label
+            .clone()
+            .ok_or_else(|| HwpError::InvalidEditHandle("snapshot is not sealed".into()))?;
+        let produced_label = self.snapshot_store[idx].produced_label.clone();
+        let doc = self.snapshot_store[idx].document.clone();
+        let ticket = self.document.begin_inverse(&expected_label, &produced_label)?;
         *self.document = doc;
         // 캐시 전체 재구성
         self.styles = resolve_styles(&self.document.doc_info, self.dpi);
@@ -782,13 +851,16 @@ impl DocumentCore {
         self.page_tree_cache.borrow_mut().clear();
         self.overflow_links_cache.borrow_mut().clear();
         self.paginate();
-        self.rebase_edit_revision(saved_revision);
+        self.document.finish_inverse(ticket)?;
         Ok(super::super::helpers::json_ok())
     }
 
     /// 지정 ID의 스냅샷을 저장소에서 제거하여 메모리를 해제한다.
     pub fn discard_snapshot_native(&mut self, id: u32) {
-        self.snapshot_store.retain(|(sid, _, _)| *sid != id);
+        if self.pending_snapshot_id == Some(id) {
+            self.pending_snapshot_id = None;
+        }
+        self.snapshot_store.retain(|record| record.id != id);
     }
 
     pub fn measure_width_diagnostic_native(

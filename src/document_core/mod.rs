@@ -27,32 +27,161 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 mod mutation {
+    use crate::error::HwpError;
     use crate::model::document::Document;
     use std::ops::{Deref, DerefMut};
 
+    pub(super) struct InverseTicket {
+        id: u64,
+        outer: bool,
+    }
+
+    struct ActiveInverse {
+        id: u64,
+        depth: usize,
+        expected_state: u64,
+        produced_state: u64,
+    }
+
     pub(super) struct DocumentMutation {
         document: Document,
-        revision: u64,
-        state: u64,
+        epoch: Result<String, String>,
+        next_state: u64,
+        current_state: u64,
+        previous_state: u64,
+        next_ticket_id: u64,
+        active_inverse: Option<ActiveInverse>,
     }
 
     impl DocumentMutation {
         pub(super) fn new(document: Document) -> Self {
+            let mut bytes = [0; 16];
+            let epoch = getrandom::fill(&mut bytes)
+                .map(|()| bytes.iter().map(|byte| format!("{byte:02x}")).collect())
+                .map_err(|error| format!("EDIT_HISTORY_UNAVAILABLE: {error}"));
             Self {
                 document,
-                revision: 0,
-                state: 0,
+                epoch,
+                next_state: 0,
+                current_state: 0,
+                previous_state: 0,
+                next_ticket_id: 0,
+                active_inverse: None,
             }
         }
 
-        pub(super) fn revision(&self) -> u64 {
-            self.revision
+        pub(super) fn epoch(&self) -> Result<&str, &str> {
+            self.epoch.as_deref().map_err(String::as_str)
         }
-        pub(super) fn state(&self) -> u64 {
-            self.state
+
+        pub(super) fn state_label(&self) -> Result<String, HwpError> {
+            let epoch = self
+                .epoch
+                .as_ref()
+                .map_err(|reason| HwpError::RenderError(reason.clone()))?;
+            Ok(format!("{epoch}:{}", self.current_state))
         }
-        pub(super) fn restored(&mut self, state: u64) {
-            self.state = state;
+
+        pub(super) fn previous_state_label(&self) -> Result<String, HwpError> {
+            let epoch = self
+                .epoch
+                .as_ref()
+                .map_err(|reason| HwpError::RenderError(reason.clone()))?;
+            Ok(format!("{epoch}:{}", self.previous_state))
+        }
+
+        fn parse_label(&self, label: &str) -> Result<u64, HwpError> {
+            let epoch = self
+                .epoch
+                .as_ref()
+                .map_err(|reason| HwpError::InvalidEditHandle(reason.clone()))?;
+            let Some((prefix, raw_state)) = label.split_once(':') else {
+                return Err(HwpError::InvalidEditHandle("invalid state label".into()));
+            };
+            if prefix != epoch {
+                return Err(HwpError::InvalidEditHandle("document epoch differs".into()));
+            }
+            let state = raw_state
+                .parse::<u64>()
+                .map_err(|_| HwpError::InvalidEditHandle("invalid state revision".into()))?;
+            if state > self.next_state {
+                return Err(HwpError::InvalidEditHandle("future state label".into()));
+            }
+            Ok(state)
+        }
+
+        pub(super) fn begin_inverse(
+            &mut self,
+            expected_label: &str,
+            produced_label: &str,
+        ) -> Result<InverseTicket, HwpError> {
+            let expected = self.parse_label(expected_label)?;
+            let produced = self.parse_label(produced_label)?;
+            if let Some(active) = &mut self.active_inverse {
+                if active.expected_state != expected
+                    || active.produced_state != produced
+                    || self.current_state != expected
+                {
+                    return Err(HwpError::InvalidEditHandle(
+                        "nested inverse label mismatch".into(),
+                    ));
+                }
+                active.depth += 1;
+                return Ok(InverseTicket {
+                    id: active.id,
+                    outer: false,
+                });
+            }
+            if self.current_state != expected {
+                return Err(HwpError::InvalidEditHandle(
+                    "content state label differs".into(),
+                ));
+            }
+            self.next_ticket_id = self
+                .next_ticket_id
+                .checked_add(1)
+                .ok_or_else(|| HwpError::InvalidEditHandle("inverse ticket exhausted".into()))?;
+            let id = self.next_ticket_id;
+            self.active_inverse = Some(ActiveInverse {
+                id,
+                depth: 1,
+                expected_state: expected,
+                produced_state: produced,
+            });
+            Ok(InverseTicket { id, outer: true })
+        }
+
+        pub(super) fn finish_inverse(&mut self, ticket: InverseTicket) -> Result<(), HwpError> {
+            let Some(active) = &mut self.active_inverse else {
+                return Err(HwpError::InvalidEditHandle(
+                    "no active inverse scope".into(),
+                ));
+            };
+            if active.id != ticket.id {
+                return Err(HwpError::InvalidEditHandle(
+                    "inverse ticket mismatch".into(),
+                ));
+            }
+            let produced = active.produced_state;
+            if ticket.outer {
+                self.active_inverse = None;
+            } else {
+                active.depth = active.depth.saturating_sub(1);
+            }
+            self.current_state = produced;
+            Ok(())
+        }
+
+        pub(super) fn abort_inverse(&mut self, ticket: InverseTicket) {
+            if let Some(active) = &mut self.active_inverse {
+                if active.id == ticket.id {
+                    if ticket.outer {
+                        self.active_inverse = None;
+                    } else {
+                        active.depth = active.depth.saturating_sub(1);
+                    }
+                }
+            }
         }
     }
 
@@ -70,12 +199,15 @@ mod mutation {
                 reason = "a document cannot perform 2^64 mutations in its lifetime"
             )]
             {
-                self.revision = self
-                    .revision
+                self.next_state = self
+                    .next_state
                     .checked_add(1)
                     .expect("document revision exhausted");
             }
-            self.state = self.revision;
+            if self.active_inverse.is_none() {
+                self.previous_state = self.current_state;
+            }
+            self.current_state = self.next_state;
             &mut self.document
         }
     }
@@ -83,10 +215,16 @@ mod mutation {
 
 pub(crate) struct EditRecord {
     handle: String,
-    before_state: u64,
-    applies_state: u64,
-    revision: Option<u64>,
+    undo_from_label: Option<String>,
+    undo_to_label: String,
     state: TextEditState,
+}
+
+pub(crate) struct SnapshotRecord {
+    pub(crate) id: u32,
+    pub(crate) document: Document,
+    pub(crate) expected_label: Option<String>,
+    pub(crate) produced_label: String,
 }
 
 pub(crate) enum TextEditState {
@@ -94,6 +232,7 @@ pub(crate) enum TextEditState {
         section: usize,
         paragraph: usize,
         inverse: ParagraphEdit,
+        trailing_vpos: Vec<Vec<i32>>,
     },
     ParagraphList {
         section: usize,
@@ -102,7 +241,6 @@ pub(crate) enum TextEditState {
 }
 
 pub(crate) struct TextEditHistory {
-    epoch: Result<String, String>,
     next_sequence: u64,
     undo: Vec<EditRecord>,
     redo: Vec<EditRecord>,
@@ -110,12 +248,7 @@ pub(crate) struct TextEditHistory {
 
 impl TextEditHistory {
     fn new() -> Self {
-        let mut bytes = [0; 16];
-        let epoch = getrandom::fill(&mut bytes)
-            .map(|()| bytes.iter().map(|byte| format!("{byte:02x}")).collect())
-            .map_err(|error| format!("EDIT_HISTORY_UNAVAILABLE: {error}"));
         Self {
-            epoch,
             next_sequence: 0,
             undo: Vec::new(),
             redo: Vec::new(),
@@ -187,11 +320,16 @@ pub struct DocumentCore {
     /// 글상자 오버플로우 연결 캐시 (섹션별, 지연 계산)
     pub(crate) overflow_links_cache:
         RefCell<HashMap<usize, Vec<queries::doc_tree_nav::OverflowLink>>>,
-    /// Undo/Redo용 Document 스냅샷 저장소 (ID → Document 클론)
-    pub(crate) snapshot_store: Vec<(u32, Document, u64)>,
+    /// Undo/Redo용 Document 스냅샷 저장소 (ID → 상태 라벨 바인딩 스냅샷)
+    pub(crate) snapshot_store: Vec<SnapshotRecord>,
+    /// 아직 after 스냅샷으로 봉인되지 않은 직전 before 스냅샷 ID
+    pub(crate) pending_snapshot_id: Option<u32>,
     /// 다음 스냅샷 ID
     pub(crate) next_snapshot_id: u32,
     pub(crate) text_edit_history: TextEditHistory,
+    /// 외부 기록 명령(서식/표 이동 등)의 단일 역실행 게이트 티켓
+    pending_command_inverse: Option<(String, mutation::InverseTicket)>,
+    next_command_inverse_seq: u64,
     /// 머리말/꼬리말 감추기: (global_page_index, is_header) 조합
     pub(crate) hidden_header_footer: std::collections::HashSet<(u32, bool)>,
     /// 파일 이름 (머리말/꼬리말 필드 치환용)
@@ -226,6 +364,74 @@ pub struct ActiveFieldInfo {
 impl DocumentCore {
     pub(crate) fn mutate_document(&mut self) -> &mut Document {
         &mut self.document
+    }
+
+    pub fn state_label_native(&self) -> Option<String> {
+        self.document.state_label().ok()
+    }
+
+    pub fn previous_state_label_native(&self) -> Option<String> {
+        self.document.previous_state_label().ok()
+    }
+
+    pub fn begin_command_inverse_native(
+        &mut self,
+        expected_label: &str,
+        produced_label: &str,
+    ) -> Result<String, crate::error::HwpError> {
+        if self.pending_command_inverse.is_some() {
+            return Err(crate::error::HwpError::InvalidEditHandle(
+                "command inverse already active".into(),
+            ));
+        }
+        let ticket = self
+            .document
+            .begin_inverse(expected_label, produced_label)?;
+        let epoch = self
+            .document
+            .epoch()
+            .map_err(|reason| crate::error::HwpError::InvalidEditHandle(reason.to_string()))?
+            .to_string();
+        self.next_command_inverse_seq = self.next_command_inverse_seq.checked_add(1).ok_or_else(
+            || crate::error::HwpError::InvalidEditHandle("command inverse sequence exhausted".into()),
+        )?;
+        let token = format!("{epoch}:cmd:{}", self.next_command_inverse_seq);
+        self.pending_command_inverse = Some((token.clone(), ticket));
+        Ok(token)
+    }
+
+    pub fn finish_command_inverse_native(
+        &mut self,
+        scope_token: &str,
+    ) -> Result<(), crate::error::HwpError> {
+        let Some((expected_token, _)) = &self.pending_command_inverse else {
+            return Err(crate::error::HwpError::InvalidEditHandle(
+                "no active command inverse".into(),
+            ));
+        };
+        if expected_token != scope_token {
+            return Err(crate::error::HwpError::InvalidEditHandle(
+                "command inverse token mismatch".into(),
+            ));
+        }
+        let Some((_, ticket)) = self.pending_command_inverse.take() else {
+            return Err(crate::error::HwpError::InvalidEditHandle(
+                "no active command inverse".into(),
+            ));
+        };
+        self.document.finish_inverse(ticket)
+    }
+
+    pub fn abort_command_inverse_native(&mut self, scope_token: &str) {
+        if self
+            .pending_command_inverse
+            .as_ref()
+            .is_some_and(|(token, _)| token == scope_token)
+        {
+            if let Some((_, ticket)) = self.pending_command_inverse.take() {
+                self.document.abort_inverse(ticket);
+            }
+        }
     }
 
     /// 총 페이지 수를 반환한다.
@@ -331,8 +537,11 @@ impl DocumentCore {
             event_log: Vec::new(),
             overflow_links_cache: RefCell::new(HashMap::new()),
             snapshot_store: Vec::new(),
+            pending_snapshot_id: None,
             next_snapshot_id: 0,
             text_edit_history: TextEditHistory::new(),
+            pending_command_inverse: None,
+            next_command_inverse_seq: 0,
             hidden_header_footer: std::collections::HashSet::new(),
             file_name: String::new(),
             active_field: None,

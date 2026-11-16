@@ -13,6 +13,18 @@ use crate::renderer::composer::reflow_line_segs;
 use crate::renderer::page_layout::PageLayoutInfo;
 use crate::renderer::style_resolver::resolve_styles;
 
+fn parse_direct_char_shape_id(props_json: &str) -> Option<u32> {
+    let key = "\"charShapeId\"";
+    let idx = props_json.find(key)?;
+    let rest = props_json[idx + key.len()..].trim_start();
+    let rest = rest.strip_prefix(':')?.trim_start();
+    let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+    if digits.is_empty() {
+        return None;
+    }
+    digits.parse::<u32>().ok()
+}
+
 impl DocumentCore {
     pub fn get_char_properties_at_native(
         &self,
@@ -912,12 +924,17 @@ impl DocumentCore {
         }
 
         let mut mods = parse_char_shape_mods(props_json);
-        // border/fill JSON이 있으면 BorderFill 생성/재사용하여 border_fill_id 설정
-        if json_has_border_keys(props_json) {
-            let bf_id = self.create_border_fill_from_json(props_json);
-            mods.border_fill_id = Some(bf_id);
+        if let Some(direct_id) = parse_direct_char_shape_id(props_json) {
+            self.document.sections[sec_idx].paragraphs[para_idx]
+                .apply_char_shape_range(start_offset, end_offset, direct_id);
+        } else {
+            // border/fill JSON이 있으면 BorderFill 생성/재사용하여 border_fill_id 설정
+            if json_has_border_keys(props_json) {
+                let bf_id = self.create_border_fill_from_json(props_json);
+                mods.border_fill_id = Some(bf_id);
+            }
+            self.apply_char_mods_to_paragraph(sec_idx, para_idx, start_offset, end_offset, &mods);
         }
-        self.apply_char_mods_to_paragraph(sec_idx, para_idx, start_offset, end_offset, &mods);
 
         // 글꼴 크기 변경 시 LineSeg 재계산 (line_height, baseline_distance 갱신)
         if mods.base_size.is_some() {
@@ -957,6 +974,18 @@ impl DocumentCore {
             end: end_offset,
         });
         Ok("{\"ok\":true}".to_string())
+    }
+
+    pub fn char_shape_count_native(&self) -> usize {
+        self.document.doc_info.char_shapes.len()
+    }
+
+    pub fn truncate_char_shapes_native(&mut self, len: usize) {
+        if len < self.document.doc_info.char_shapes.len() {
+            self.document.doc_info.char_shapes.truncate(len);
+            self.document.doc_info.raw_stream = None;
+            self.styles = resolve_styles(&self.document.doc_info, self.dpi);
+        }
     }
 
     fn reflow_vertical_cell_format_legacy(
@@ -1010,26 +1039,7 @@ impl DocumentCore {
         props_json: &str,
     ) -> Result<String, HwpError> {
         let mut mods = parse_char_shape_mods(props_json);
-        if json_has_border_keys(props_json) {
-            let bf_id = self.create_border_fill_from_json(props_json);
-            mods.border_fill_id = Some(bf_id);
-        }
-
-        // 셀 내 문단의 기존 char_shape_id를 기반으로 새 ID 생성
-        {
-            let para = self
-                .get_cell_paragraph_ref(
-                    sec_idx,
-                    parent_para_idx,
-                    control_idx,
-                    cell_idx,
-                    cell_para_idx,
-                )
-                .ok_or_else(|| HwpError::RenderError("셀 문단을 찾을 수 없음".to_string()))?;
-            let base_id = para.char_shape_id_at(start_offset).unwrap_or(0);
-            let new_id = self.document.find_or_create_char_shape(base_id, &mods);
-
-            // 셀 문단에 범위 적용
+        if let Some(direct_id) = parse_direct_char_shape_id(props_json) {
             let cell_para = self.get_cell_paragraph_mut(
                 sec_idx,
                 parent_para_idx,
@@ -1037,7 +1047,37 @@ impl DocumentCore {
                 cell_idx,
                 cell_para_idx,
             )?;
-            cell_para.apply_char_shape_range(start_offset, end_offset, new_id);
+            cell_para.apply_char_shape_range(start_offset, end_offset, direct_id);
+        } else {
+            if json_has_border_keys(props_json) {
+                let bf_id = self.create_border_fill_from_json(props_json);
+                mods.border_fill_id = Some(bf_id);
+            }
+
+            // 셀 내 문단의 기존 char_shape_id를 기반으로 새 ID 생성
+            {
+                let para = self
+                    .get_cell_paragraph_ref(
+                        sec_idx,
+                        parent_para_idx,
+                        control_idx,
+                        cell_idx,
+                        cell_para_idx,
+                    )
+                    .ok_or_else(|| HwpError::RenderError("셀 문단을 찾을 수 없음".to_string()))?;
+                let base_id = para.char_shape_id_at(start_offset).unwrap_or(0);
+                let new_id = self.document.find_or_create_char_shape(base_id, &mods);
+
+                // 셀 문단에 범위 적용
+                let cell_para = self.get_cell_paragraph_mut(
+                    sec_idx,
+                    parent_para_idx,
+                    control_idx,
+                    cell_idx,
+                    cell_para_idx,
+                )?;
+                cell_para.apply_char_shape_range(start_offset, end_offset, new_id);
+            }
         }
 
         // 글꼴 크기 변경 시 셀 내 LineSeg 재계산 — 구역 단 폭이 아니라 셀(글상자·캡션) 안쪽 폭 기준
@@ -1093,18 +1133,24 @@ impl DocumentCore {
         props_json: &str,
     ) -> Result<String, HwpError> {
         let mut mods = parse_char_shape_mods(props_json);
-        if json_has_border_keys(props_json) {
-            let bf_id = self.create_border_fill_from_json(props_json);
-            mods.border_fill_id = Some(bf_id);
-        }
-
-        {
-            let para = self.resolve_paragraph_by_path(sec_idx, parent_para_idx, path)?;
-            let base_id = para.char_shape_id_at(start_offset).unwrap_or(0);
-            let new_id = self.document.find_or_create_char_shape(base_id, &mods);
-
+        if let Some(direct_id) = parse_direct_char_shape_id(props_json) {
             let cell_para = self.get_cell_paragraph_mut_by_path(sec_idx, parent_para_idx, path)?;
-            cell_para.apply_char_shape_range(start_offset, end_offset, new_id);
+            cell_para.apply_char_shape_range(start_offset, end_offset, direct_id);
+        } else {
+            if json_has_border_keys(props_json) {
+                let bf_id = self.create_border_fill_from_json(props_json);
+                mods.border_fill_id = Some(bf_id);
+            }
+
+            {
+                let para = self.resolve_paragraph_by_path(sec_idx, parent_para_idx, path)?;
+                let base_id = para.char_shape_id_at(start_offset).unwrap_or(0);
+                let new_id = self.document.find_or_create_char_shape(base_id, &mods);
+
+                let cell_para =
+                    self.get_cell_paragraph_mut_by_path(sec_idx, parent_para_idx, path)?;
+                cell_para.apply_char_shape_range(start_offset, end_offset, new_id);
+            }
         }
 
         if mods.base_size.is_some() {

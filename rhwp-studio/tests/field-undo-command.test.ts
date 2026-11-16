@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { readFileSync, readdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { env } from 'node:process';
+import { inflateRawSync } from 'node:zlib';
+import ts from 'typescript';
 import { initSync } from '../../pkg/rhwp.js';
 import { WasmBridge } from '../src/core/wasm-bridge';
 import type { DocumentPosition } from '../src/core/types';
@@ -17,12 +19,13 @@ import {
 } from '../src/engine/command';
 import { EmbedInsertTableCommand, EmbedInsertPictureCommand } from '../src/engine/embed-commands';
 import type { EditCommand, OperationDescriptor } from '../src/engine/command';
-import { CommandHistory, HistorySuspendedError } from '../src/engine/history';
+import { CommandHistory, HistorySuspendedError, stateLabelOf } from '../src/engine/history';
 import { InputHandler } from '../src/engine/input-handler';
 import { onPaste, onCut, onCopy } from '../src/engine/input-handler-keyboard';
 import { finishMoveDrag } from '../src/engine/input-handler-table';
 import { onMouseUp } from '../src/engine/input-handler-mouse';
 import { onCompositionStart, onCompositionEnd, onInput, getTextAt, insertTextAtRaw } from '../src/engine/input-handler-text';
+import { HwpCtrl } from '../src/hwpctl/index';
 
 initSync({ module: readFileSync(new URL('../../pkg/rhwp_bg.wasm', import.meta.url)) });
 
@@ -560,7 +563,7 @@ test('iOS provisional cancellation releases its inverse when input deactivates',
   } finally { clearTimeout(host._iosInputTimer); history.clear(wasm); wasm.dispose(); }
 });
 
-test('history treats a refused inverse as a no-op and retains its entry', () => {
+test('history treats a refused inverse as a no-op and truncates unreachable entries', () => {
   const wasm = new WasmBridge(), history = new CommandHistory();
   try {
     wasm.loadDocument(fixture(body), 'original.hwpx');
@@ -568,7 +571,7 @@ test('history treats a refused inverse as a no-op and retains its entry', () => 
     wasm.loadDocument(fixture(body), 'reload.hwpx');
     const current = roundTrip(wasm);
     assert.equal(history.undo(wasm), null);
-    assert.equal(history.canUndo(), true);
+    assert.equal(history.canUndo(), false);
     assert.equal(roundTrip(wasm), current);
   } finally { history.clear(wasm); wasm.dispose(); }
 });
@@ -724,4 +727,729 @@ test('IME provisional replacement and recorded command restore the original fiel
     history.clear(wasm);
     wasm.dispose();
   }
+});
+
+function readSectionXmlFast(hwpx: Uint8Array): string {
+  const view = new DataView(hwpx.buffer, hwpx.byteOffset, hwpx.byteLength);
+  const decoder = new TextDecoder();
+  let eocd = -1;
+  for (let p = hwpx.byteLength - 22; p >= Math.max(0, hwpx.byteLength - 65557); p--) {
+    if (view.getUint32(p, true) === 0x06054b50) {
+      eocd = p;
+      break;
+    }
+  }
+  assert.notEqual(eocd, -1, 'missing ZIP EOCD');
+  const cdCount = view.getUint16(eocd + 10, true);
+  let offset = view.getUint32(eocd + 16, true);
+  for (let i = 0; i < cdCount; i++) {
+    assert.equal(view.getUint32(offset, true), 0x02014b50);
+    const method = view.getUint16(offset + 10, true);
+    const compSize = view.getUint32(offset + 20, true);
+    const nameLen = view.getUint16(offset + 28, true);
+    const extraLen = view.getUint16(offset + 30, true);
+    const commentLen = view.getUint16(offset + 32, true);
+    const localOffset = view.getUint32(offset + 42, true);
+    const name = decoder.decode(hwpx.subarray(offset + 46, offset + 46 + nameLen));
+    if (name === 'Contents/section0.xml') {
+      const localNameLen = view.getUint16(localOffset + 26, true);
+      const localExtraLen = view.getUint16(localOffset + 28, true);
+      const dataStart = localOffset + 30 + localNameLen + localExtraLen;
+      const slice = hwpx.subarray(dataStart, dataStart + compSize);
+      if (method === 0) return decoder.decode(slice);
+      if (method === 8) return decoder.decode(inflateRawSync(slice));
+      throw new Error(`unsupported zip compression method ${method}`);
+    }
+    offset += 46 + nameLen + extraLen + commentLen;
+  }
+  throw new Error('Contents/section0.xml not found');
+}
+
+function countXmlTag(xml: string, localTag: string): number {
+  const re = new RegExp(`<hp:${localTag}\\b`, 'g');
+  return (xml.match(re) ?? []).length;
+}
+
+function makeStudioHost(
+  wasm: WasmBridge,
+  history: CommandHistory,
+  initialSelection: { start: DocumentPosition; end: DocumentPosition } | null,
+) {
+  let current: DocumentPosition = initialSelection ? { ...initialSelection.start } : position(0, 0);
+  let selection = initialSelection ? { start: { ...initialSelection.start }, end: { ...initialSelection.end } } : null;
+  const host: any = {
+    wasm,
+    history,
+    active: true,
+    isComposing: false,
+    compositionAnchor: null,
+    compositionLength: 0,
+    compositionEditToken: null,
+    compositionSelectionSnapshot: null,
+    _isIOS: false,
+    textarea: { value: '' },
+    caret: { hideComposition() {} },
+    eventBus: { emit() {} },
+    cursor: {
+      isInPictureObjectSelection: () => false,
+      isInTableObjectSelection: () => false,
+      isInHeaderFooter: () => false,
+      isInFootnote: () => false,
+      hasSelection: () => selection !== null,
+      getPosition: () => ({ ...current }),
+      getSelectionOrdered: () => (selection ? { start: { ...selection.start }, end: { ...selection.end } } : null),
+      clearSelection() { selection = null; },
+      moveTo(next: DocumentPosition) { current = { ...next }; },
+      resetPreferredX() {},
+      setSelection(next: { start: DocumentPosition; end: DocumentPosition } | null) {
+        selection = next ? { start: { ...next.start }, end: { ...next.end } } : null;
+        if (next) current = { ...next.start };
+      },
+    },
+    afterEdit() {},
+    getTextAt,
+    insertTextAtRaw,
+    deleteTextAt: Reflect.get(InputHandler.prototype, 'deleteTextAt'),
+    executeOperation: InputHandler.prototype.executeOperation,
+    deleteSelection: Reflect.get(InputHandler.prototype, 'deleteSelection'),
+    performPasteSelectedCells: () => false,
+    onCopy(e: ClipboardEvent) { onCopy.call(host, e); },
+    onCut(e: ClipboardEvent) { onCut.call(host, e); },
+    onPaste(e: ClipboardEvent) { onPaste.call(host, e); },
+  };
+  return host;
+}
+
+const dummyClipEvent = (): ClipboardEvent => ({ preventDefault() {}, clipboardData: null } as unknown as ClipboardEvent);
+const beginId = (id: number): string =>
+  `<hp:ctrl><hp:fieldBegin id="${id}" type="CLICK_HERE" name="field${id}" editable="1" fieldid="${500 + id}"/></hp:ctrl>`;
+const endId = (id: number): string =>
+  `<hp:ctrl><hp:fieldEnd beginIDRef="${id}" fieldid="${500 + id}"/></hp:ctrl>`;
+const floatingTable = (inner: string): string =>
+  `<hp:tbl rowCnt="1" colCnt="1" borderFillIDRef="1"><hp:sz width="4000" widthRelTo="ABSOLUTE" height="1000" heightRelTo="ABSOLUTE" protect="0"/><hp:pos treatAsChar="0" affectLSpacing="0" flowWithText="1" allowOverlap="1" holdAnchorAndSO="0" vertRelTo="PARA" horzRelTo="PARA" vertAlign="TOP" horzAlign="LEFT" vertOffset="100" horzOffset="100"/><hp:tr><hp:tc borderFillIDRef="1"><hp:subList>${inner}</hp:subList><hp:cellAddr colAddr="0" rowAddr="0"/><hp:cellSpan colSpan="1" rowSpan="1"/><hp:cellSz width="4000" height="1000"/></hp:tc></hp:tr></hp:tbl>`;
+
+test('R6 SNAP1-4 snapshot inverses refuse unrecorded replaceAll and setFieldValue mutations', () => {
+  // SNAP1: paste snapshot -> undo -> replaceAll -> redo refused
+  {
+    const wasm = new WasmBridge(), history = new CommandHistory();
+    try {
+      wasm.loadDocument(fixture(para(`${begin}<hp:t>ABC</hp:t>${end}`) + para('<hp:t>X</hp:t>')));
+      wasm.copySelection(0, 1, 0, 1, 1);
+      const host = makeStudioHost(wasm, history, null);
+      host.cursor.moveTo(position(0, 1));
+      host.onPaste(dummyClipEvent());
+      assert.ok(history.undo(wasm));
+      wasm.replaceAll('ABC', 'NEW', true);
+      const beforeRedo = wasm.exportHwpx();
+      assert.equal(history.redo(wasm), null);
+      assert.equal(history.canRedo(), false);
+      assert.equal(wasm.getTextRange(0, 0, 0, 20), 'NEW');
+      assert.deepEqual(wasm.exportHwpx(), beforeRedo);
+      roundTrip(wasm);
+    } finally { history.clear(wasm); wasm.dispose(); }
+  }
+
+  // SNAP2: paste snapshot -> setFieldValue -> undo refused
+  {
+    const wasm = new WasmBridge(), history = new CommandHistory();
+    try {
+      wasm.loadDocument(fixture(para(`${begin}<hp:t>ABC</hp:t>${end}`) + para('<hp:t>QQ</hp:t>') + para('<hp:t>X</hp:t>')));
+      wasm.copySelection(0, 2, 0, 2, 1);
+      const host = makeStudioHost(wasm, history, null);
+      host.cursor.moveTo(position(1, 0));
+      host.onPaste(dummyClipEvent());
+      wasm.setFieldValue(501, 'NEW');
+      const beforeUndo = wasm.exportHwpx();
+      assert.equal(history.undo(wasm), null);
+      assert.equal(history.canUndo(), false);
+      assert.equal(wasm.getTextRange(0, 0, 0, 20), 'NEW');
+      assert.deepEqual(wasm.exportHwpx(), beforeUndo);
+      roundTrip(wasm);
+    } finally { history.clear(wasm); wasm.dispose(); }
+  }
+
+  // SNAP3: IME-in-selection snapshot -> undo -> replaceAll -> redo refused
+  {
+    const wasm = new WasmBridge(), history = new CommandHistory();
+    try {
+      wasm.loadDocument(fixture(para(`${begin}<hp:t>AB</hp:t>${end}`)));
+      const host = makeStudioHost(wasm, history, { start: position(0, 0), end: position(0, 1) });
+      onCompositionStart.call(host);
+      host.textarea.value = '가';
+      onInput.call(host);
+      host.textarea.value = '각';
+      onInput.call(host);
+      onCompositionEnd.call(host);
+      assert.ok(history.undo(wasm));
+      wasm.replaceAll('AB', 'NEW', true);
+      const beforeRedo = wasm.exportHwpx();
+      assert.equal(history.redo(wasm), null);
+      assert.equal(history.canRedo(), false);
+      assert.equal(wasm.getTextRange(0, 0, 0, 20), 'NEW');
+      assert.deepEqual(wasm.exportHwpx(), beforeRedo);
+      roundTrip(wasm);
+    } finally { history.clear(wasm); wasm.dispose(); }
+  }
+
+  // SNAP4: cell paste snapshot -> undo -> setFieldValue -> redo refused
+  {
+    const wasm = new WasmBridge(), history = new CommandHistory();
+    try {
+      wasm.loadDocument(fixture(cell(para('<hp:t>CELL</hp:t>')) + para(`${begin}<hp:t>ABC</hp:t>${end}`) + para('<hp:t>X</hp:t>')));
+      wasm.copySelection(0, 2, 0, 2, 1);
+      const host = makeStudioHost(wasm, history, null);
+      host.cursor.moveTo({ ...position(0, 0), parentParaIndex: 0, controlIndex: 0, cellIndex: 0, cellParaIndex: 0 });
+      host.onPaste(dummyClipEvent());
+      assert.ok(history.undo(wasm));
+      wasm.setFieldValue(501, 'NEW');
+      const beforeRedo = wasm.exportHwpx();
+      assert.equal(history.redo(wasm), null);
+      assert.equal(history.canRedo(), false);
+      assert.equal(wasm.getTextRange(0, 1, 0, 20), 'NEW');
+      assert.deepEqual(wasm.exportHwpx(), beforeRedo);
+      roundTrip(wasm);
+    } finally { history.clear(wasm); wasm.dispose(); }
+  }
+});
+
+test('R6 boundary copies, cut-paste parity, CUT1/CUT2 and PARTITION obey half-open membership through WasmBridge', () => {
+  const secretTable = cell(para(`${begin}<hp:t>SECRET</hp:t>${end}`));
+  const leadingTablePara = secretTable.replace('</hp:tbl>', '</hp:tbl><hp:t>ZZ</hp:t>');
+
+  // Boundary copy P0:0..P1:0 ending at start of table paragraph omits P1's table
+  {
+    const wasm = new WasmBridge();
+    try {
+      wasm.loadDocument(fixture(para('<hp:t>BEFORE</hp:t>') + leadingTablePara + para('<hp:t>TARGET</hp:t>')));
+      wasm.copySelection(0, 0, 0, 1, 0);
+      assert.equal(wasm.getClipboardText(), 'BEFORE\n');
+      wasm.pasteInternal(0, 2, 0);
+      const xml = readSectionXmlFast(wasm.exportHwpx());
+      assert.equal(countXmlTag(xml, 'tbl'), 1);
+      assert.equal(countXmlTag(xml, 'fieldBegin'), 1);
+      roundTrip(wasm);
+    } finally { wasm.dispose(); }
+  }
+
+  // Trailing-table right boundaries [0,2) and [1,2) on ZZ<tbl/> omit the trailing table at anchor 2
+  for (const startOff of [0, 1]) {
+    const wasm = new WasmBridge();
+    try {
+      wasm.loadDocument(fixture(para('<hp:t>ZZ</hp:t>') + secretTable + para('<hp:t>TARGET</hp:t>')));
+      wasm.mergeParagraph(0, 1);
+      wasm.copySelection(0, 0, startOff, 0, 2);
+      wasm.pasteInternal(0, 1, 0);
+      const xml = readSectionXmlFast(wasm.exportHwpx());
+      assert.equal(countXmlTag(xml, 'tbl'), 1, `trailing startOff=${startOff}`);
+      assert.equal(countXmlTag(xml, 'fieldBegin'), 1, `trailing startOff=${startOff}`);
+    } finally { wasm.dispose(); }
+  }
+
+  // Leading-table parity witnesses [0,1) and [0,2) on <tbl/>ZZ: copy includes, cut/delete goes 1->0, one paste restores 1
+  for (const endOff of [1, 2]) {
+    const wasm = new WasmBridge(), history = new CommandHistory();
+    try {
+      wasm.loadDocument(fixture(leadingTablePara + para('<hp:t>TARGET</hp:t>')));
+      const host = makeStudioHost(wasm, history, { start: position(0, 0), end: position(0, endOff) });
+      host.onCut(dummyClipEvent());
+      const cutXml = readSectionXmlFast(wasm.exportHwpx());
+      assert.equal(countXmlTag(cutXml, 'tbl'), 0, `parity endOff=${endOff} after cut`);
+      assert.equal(countXmlTag(cutXml, 'fieldBegin'), 0, `parity endOff=${endOff} after cut`);
+      roundTrip(wasm);
+
+      host.cursor.setSelection(null);
+      host.cursor.moveTo(position(1, 0));
+      host.onPaste(dummyClipEvent());
+      const pasteXml = readSectionXmlFast(wasm.exportHwpx());
+      assert.equal(countXmlTag(pasteXml, 'tbl'), 1, `parity endOff=${endOff} after paste`);
+      assert.equal(countXmlTag(pasteXml, 'fieldBegin'), 1, `parity endOff=${endOff} after paste`);
+      roundTrip(wasm);
+    } finally { history.clear(wasm); wasm.dispose(); }
+  }
+
+  // CUT2: Studio cut of BEFORE + paragraph break ending at P1:0, then paste
+  {
+    const wasm = new WasmBridge(), history = new CommandHistory();
+    try {
+      wasm.loadDocument(fixture(para('<hp:t>BEFORE</hp:t>') + leadingTablePara + para('<hp:t>TARGET</hp:t>')));
+      const host = makeStudioHost(wasm, history, { start: position(0, 0), end: position(1, 0) });
+      host.onCut(dummyClipEvent());
+      const cutXml = readSectionXmlFast(wasm.exportHwpx());
+      assert.equal(countXmlTag(cutXml, 'tbl'), 1);
+      assert.equal(countXmlTag(cutXml, 'fieldBegin'), 1);
+      host.cursor.setSelection(null);
+      host.cursor.moveTo(position(wasm.getParagraphCount(0) - 1, 0));
+      host.onPaste(dummyClipEvent());
+      const pasteXml = readSectionXmlFast(wasm.exportHwpx());
+      assert.equal(countXmlTag(pasteXml, 'tbl'), 1);
+      assert.equal(countXmlTag(pasteXml, 'fieldBegin'), 1);
+      roundTrip(wasm);
+    } finally { history.clear(wasm); wasm.dispose(); }
+  }
+
+  // PARTITION: adjacent disjoint selections P0:0..P1:0 and P1:0..P1:1 partition the table at P1:0
+  {
+    const wasm = new WasmBridge();
+    try {
+      wasm.loadDocument(fixture(para('<hp:t>BEFORE</hp:t>') + leadingTablePara + para('<hp:t>TARGET</hp:t>')));
+      wasm.copySelection(0, 0, 0, 1, 0);
+      wasm.pasteInternal(0, 2, 0);
+      const destPara = wasm.getParagraphCount(0) - 1;
+      wasm.copySelection(0, 1, 0, 1, 1);
+      wasm.pasteInternal(0, destPara, 0);
+      const xml = readSectionXmlFast(wasm.exportHwpx());
+      assert.equal(countXmlTag(xml, 'tbl'), 2);
+      assert.equal(countXmlTag(xml, 'fieldBegin'), 2);
+      roundTrip(wasm);
+    } finally { wasm.dispose(); }
+  }
+});
+
+test('R6 MIX1/3/4/5/6 mixed command chains and FindDialog/HwpCtrl invalidation share one label model', () => {
+  // MIX1: type X -> bold -> undo -> undo -> redo -> redo
+  {
+    const wasm = new WasmBridge(), history = new CommandHistory();
+    try {
+      wasm.loadDocument(fixture(para('<hp:t>AB</hp:t>')));
+      history.execute(new InsertTextCommand(position(0, 2), 'X'), wasm);
+      history.execute(new ApplyCharFormatCommand(position(0, 0), position(0, 3), { bold: true }), wasm);
+      assert.equal(history.entryLabels().undo.length, 2);
+      assert.ok(history.undo(wasm));
+      assert.equal(wasm.getTextRange(0, 0, 0, 20), 'ABX');
+      assert.ok(history.undo(wasm));
+      assert.equal(wasm.getTextRange(0, 0, 0, 20), 'AB');
+      assert.equal(history.canUndo(), false);
+      assert.ok(history.redo(wasm));
+      assert.ok(history.redo(wasm));
+      assert.equal(wasm.getTextRange(0, 0, 0, 20), 'ABX');
+      roundTrip(wasm);
+    } finally { history.clear(wasm); wasm.dispose(); }
+  }
+
+  // MIX3: paste (snapshot) -> type -> italic -> undo x3
+  {
+    const wasm = new WasmBridge(), history = new CommandHistory();
+    try {
+      wasm.loadDocument(fixture(para('<hp:t>AB</hp:t>') + para('<hp:t>Q</hp:t>')));
+      wasm.copySelection(0, 1, 0, 1, 1);
+      const host = makeStudioHost(wasm, history, null);
+      host.cursor.moveTo(position(0, 2));
+      host.onPaste(dummyClipEvent());
+      history.execute(new InsertTextCommand(position(0, 3), 'Y'), wasm);
+      history.execute(new ApplyCharFormatCommand(position(0, 0), position(0, 4), { italic: true }), wasm);
+      assert.ok(history.undo(wasm));
+      assert.ok(history.undo(wasm));
+      assert.ok(history.undo(wasm));
+      assert.equal(wasm.getTextRange(0, 0, 0, 20), 'AB');
+      assert.equal(history.canUndo(), false);
+      roundTrip(wasm);
+    } finally { history.clear(wasm); wasm.dispose(); }
+  }
+
+  // MIX4: type inside field -> underline -> undo x2 -> redo x2
+  {
+    const wasm = new WasmBridge(), history = new CommandHistory();
+    try {
+      wasm.loadDocument(fixture(para(`${begin}<hp:t>AB</hp:t>${end}`)));
+      const original = roundTrip(wasm);
+      history.execute(new InsertTextCommand(position(0, 1), 'X'), wasm);
+      history.execute(new ApplyCharFormatCommand(position(0, 0), position(0, 3), { underline: true }), wasm);
+      const formatted = roundTrip(wasm);
+      assert.ok(history.undo(wasm));
+      assert.ok(history.undo(wasm));
+      assert.equal(wasm.getTextRange(0, 0, 0, 20), 'AB');
+      assert.equal(roundTrip(wasm), original);
+      assert.ok(history.redo(wasm));
+      assert.ok(history.redo(wasm));
+      assert.equal(roundTrip(wasm), formatted);
+    } finally { history.clear(wasm); wasm.dispose(); }
+  }
+
+  // MIX5: type X -> bold -> type Y -> undo x3 via executeOperation
+  {
+    const wasm = new WasmBridge(), history = new CommandHistory();
+    try {
+      wasm.loadDocument(fixture(para('<hp:t>AB</hp:t>')));
+      const host = makeStudioHost(wasm, history, null);
+      host.executeOperation({ kind: 'command', command: new InsertTextCommand(position(0, 2), 'X') });
+      host.executeOperation({ kind: 'command', command: new ApplyCharFormatCommand(position(0, 0), position(0, 3), { bold: true }) });
+      host.executeOperation({ kind: 'command', command: new InsertTextCommand(position(0, 3), 'Y') });
+      assert.ok(history.undo(wasm));
+      assert.ok(history.undo(wasm));
+      assert.ok(history.undo(wasm));
+      assert.equal(wasm.getTextRange(0, 0, 0, 20), 'AB');
+      assert.equal(history.canUndo(), false);
+    } finally { history.clear(wasm); wasm.dispose(); }
+  }
+
+  // MIX6: type X -> MoveTableCommand -> undo x2 -> redo x2
+  {
+    const wasm = new WasmBridge(), history = new CommandHistory();
+    try {
+      wasm.loadDocument(fixture(para(`${floatingTable(para('<hp:t>CELL</hp:t>'))}<hp:t>AB</hp:t>`)));
+      const origProps = wasm.getTableProperties(0, 0, 0);
+      history.execute(new InsertTextCommand(position(0, 2), 'X'), wasm);
+      history.execute(new MoveTableCommand(0, 0, 0, 150, 200, 0, 0), wasm);
+      assert.ok(history.undo(wasm));
+      assert.equal(wasm.getTableProperties(0, 0, 0).horzOffset, origProps.horzOffset);
+      assert.ok(history.undo(wasm));
+      assert.equal(wasm.getTextRange(0, 0, 0, 20), 'AB');
+      assert.equal(history.canUndo(), false);
+      assert.ok(history.redo(wasm));
+      assert.ok(history.redo(wasm));
+      assert.equal(wasm.getTextRange(0, 0, 0, 20), 'ABX');
+      roundTrip(wasm);
+    } finally { history.clear(wasm); wasm.dispose(); }
+  }
+
+  // HwpCtrl PutFieldText bumps state label and invalidates older inverses
+  {
+    const wasm = new WasmBridge(), history = new CommandHistory();
+    try {
+      const namedBegin = '<hp:ctrl><hp:fieldBegin id="1" type="CLICK_HERE" name="field" editable="1" fieldid="501"><hp:parameters cnt="1" name=""><hp:stringParam name="Name">field</hp:stringParam></hp:parameters></hp:fieldBegin></hp:ctrl>';
+      wasm.loadDocument(fixture(para(`${namedBegin}<hp:t>ABC</hp:t>${end}`)));
+      const fields = wasm.getFieldList();
+      assert.equal(fields.length, 1);
+      const fieldName = fields[0].name;
+      history.execute(new InsertTextCommand(position(0, 1), 'Z'), wasm);
+      const ctrl = new HwpCtrl((wasm as unknown as { doc: unknown }).doc);
+      let callbackCount = 0;
+      ctrl.onHistoryInvalidated(() => {
+        callbackCount += 1;
+      });
+      const before = stateLabelOf(wasm);
+      assert.equal(ctrl.PutFieldText(fieldName, 'FROM_CTRL'), true);
+      assert.equal(callbackCount, 1);
+      assert.notEqual(stateLabelOf(wasm), before);
+      assert.equal(history.undo(wasm), null);
+      assert.equal(history.canUndo(), false);
+      assert.equal(wasm.getTextRange(0, 0, 0, 20), 'FROM_CTRL');
+      roundTrip(wasm);
+    } finally { history.clear(wasm); wasm.dispose(); }
+  }
+});
+
+test('deterministic mixed-sequence property test preserves inverse, reachability and non-duplication invariants across seeds 0..63', { timeout: 30_000 }, () => {
+  const SEED_START = 0;
+  const SEED_END = 63;
+  const STEPS_PER_SEED = 24;
+
+  function mulberry32(seed: number): () => number {
+    let state = seed >>> 0;
+    return () => {
+      state = (state + 0x6d2b79f5) >>> 0;
+      let t = Math.imul(state ^ (state >>> 15), 1 | state);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  const baseFixtureBytes = fixture(
+    para('<hp:t>BEFORE</hp:t>')
+    + para(`${floatingTable(para(`${beginId(1)}<hp:t>SECRET</hp:t>${endId(1)}`))}<hp:t>ZZ</hp:t>`)
+    + para(`${beginId(2)}<hp:t>INIT</hp:t>${endId(2)}<hp:t>TAIL</hp:t>`)
+    + para('<hp:t>TARGET</hp:t>'),
+  );
+
+  let totalSteps = 0;
+  for (let seed = SEED_START; seed <= SEED_END; seed++) {
+    const rng = mulberry32(seed);
+    const pick = (n: number): number => Math.floor(rng() * n);
+    const wasm = new WasmBridge();
+    const history = new CommandHistory();
+
+    try {
+      wasm.loadDocument(baseFixtureBytes, `seed-${seed}.hwpx`);
+      const bytesByLabel = new Map<string, Uint8Array>();
+      const recordLiveState = () => {
+        const label = stateLabelOf(wasm);
+        assert.notEqual(label, null, `seed=${seed}: missing stateLabel`);
+        bytesByLabel.set(label!, wasm.exportHwpx());
+      };
+      recordLiveState();
+
+      let tokenCounter = 0;
+      for (let step = 0; step < STEPS_PER_SEED; step++) {
+        totalSteps += 1;
+        const action = pick(10);
+
+        if (action === 0 || action === 1) {
+          // Recorded text insert in P0 or P3
+          const targetPara = pick(2) === 0 ? 0 : Math.min(3, wasm.getParagraphCount(0) - 1);
+          const len = wasm.getParagraphLength(0, targetPara);
+          const off = len > 0 ? pick(len + 1) : 0;
+          const ch = String.fromCharCode(65 + (tokenCounter++ % 20));
+          history.execute(new InsertTextCommand(position(targetPara, off), ch, step * 1000), wasm);
+          recordLiveState();
+        } else if (action === 2) {
+          // Recorded paste snapshot into P0 or last paragraph
+          const lastPara = wasm.getParagraphCount(0) - 1;
+          const srcLen = wasm.getParagraphLength(0, lastPara);
+          if (srcLen > 0) {
+            wasm.copySelection(0, lastPara, 0, lastPara, Math.min(2, srcLen));
+            const host = makeStudioHost(wasm, history, null);
+            host.cursor.moveTo(position(0, Math.min(1, wasm.getParagraphLength(0, 0))));
+            host.onPaste(dummyClipEvent());
+            recordLiveState();
+          }
+        } else if (action === 3) {
+          // Recorded character format command
+          const len0 = wasm.getParagraphLength(0, 0);
+          if (len0 > 0) {
+            const props = pick(3) === 0 ? { bold: true } : pick(2) === 0 ? { italic: true } : { underline: true };
+            history.execute(new ApplyCharFormatCommand(position(0, 0), position(0, len0), props), wasm);
+            recordLiveState();
+          }
+        } else if (action === 4) {
+          // Recorded table move command (find current paragraph holding the floating table)
+          const pCount = wasm.getParagraphCount(0);
+          let tablePara = -1;
+          for (let p = 0; p < pCount; p++) {
+            try {
+              wasm.getTableProperties(0, p, 0);
+              tablePara = p;
+              break;
+            } catch { /* not in p */ }
+          }
+          if (tablePara >= 0) {
+            const dh = (pick(5) - 2) * 50 || 50;
+            const dv = (pick(5) - 2) * 50 || 50;
+            history.execute(new MoveTableCommand(0, tablePara, 0, dh, dv, tablePara, 0, step * 1000), wasm);
+            recordLiveState();
+          }
+        } else if (action === 5) {
+          // Unrecorded replaceAll
+          const lastPara = wasm.getParagraphCount(0) - 1;
+          const sample = wasm.getTextRange(0, lastPara, 0, 3);
+          if (sample.length >= 2) {
+            wasm.replaceAll(sample, `R${tokenCounter++}`, true);
+            recordLiveState();
+          }
+        } else if (action === 6) {
+          // Unrecorded setFieldValue on field 502
+          wasm.setFieldValue(502, `V${seed}_${step}`);
+          recordLiveState();
+        } else if (action === 7) {
+          // Undo invariant check (exact state restoration OR zero-byte refusal + reachability)
+          const beforeBytes = wasm.exportHwpx();
+          const liveBefore = stateLabelOf(wasm);
+          const undoEntriesBefore = history.entryLabels().undo;
+          const top = undoEntriesBefore.at(-1);
+          const result = history.undo(wasm);
+          const afterBytes = wasm.exportHwpx();
+          const liveAfter = stateLabelOf(wasm);
+
+          if (top && liveBefore === top.undoLabel) {
+            assert.notEqual(result, null, `seed=${seed} step=${step}: matching undoLabel must apply`);
+            assert.equal(liveAfter, top.redoLabel, `seed=${seed} step=${step}: undo must restore redoLabel`);
+            const expectedBytes = bytesByLabel.get(top.redoLabel);
+            assert.ok(expectedBytes, `seed=${seed} step=${step}: unknown redoLabel state`);
+            assert.deepEqual(afterBytes, expectedBytes, `seed=${seed} step=${step}: undo bytes mismatch`);
+          } else {
+            assert.equal(result, null, `seed=${seed} step=${step}: mismatched undoLabel must be refused`);
+            assert.deepEqual(afterBytes, beforeBytes, `seed=${seed} step=${step}: refused undo changed bytes`);
+            const hadApplicableOlder = undoEntriesBefore.slice(0, -1).some(e => e.undoLabel === liveAfter);
+            if (hadApplicableOlder) {
+              assert.equal(history.entryLabels().undo.at(-1)?.undoLabel, liveAfter, `seed=${seed} step=${step}: older applicable undo entry became unreachable`);
+            } else {
+              assert.equal(history.canUndo(), false, `seed=${seed} step=${step}: refused undo left unreachable entries`);
+            }
+          }
+        } else if (action === 8) {
+          // Redo invariant check (exact state restoration OR zero-byte refusal + reachability)
+          const beforeBytes = wasm.exportHwpx();
+          const liveBefore = stateLabelOf(wasm);
+          const redoEntriesBefore = history.entryLabels().redo;
+          const top = redoEntriesBefore.at(-1);
+          const result = history.redo(wasm);
+          const afterBytes = wasm.exportHwpx();
+          const liveAfter = stateLabelOf(wasm);
+
+          if (top && liveBefore === top.redoLabel) {
+            assert.notEqual(result, null, `seed=${seed} step=${step}: matching redoLabel must apply`);
+            assert.equal(liveAfter, top.undoLabel, `seed=${seed} step=${step}: redo must restore undoLabel`);
+            const expectedBytes = bytesByLabel.get(top.undoLabel);
+            assert.ok(expectedBytes, `seed=${seed} step=${step}: unknown undoLabel state`);
+            assert.deepEqual(afterBytes, expectedBytes, `seed=${seed} step=${step}: redo bytes mismatch`);
+          } else {
+            assert.equal(result, null, `seed=${seed} step=${step}: mismatched redoLabel must be refused`);
+            assert.deepEqual(afterBytes, beforeBytes, `seed=${seed} step=${step}: refused redo changed bytes`);
+            const hadApplicableOlder = redoEntriesBefore.slice(0, -1).some(e => e.redoLabel === liveAfter);
+            if (hadApplicableOlder) {
+              assert.equal(history.entryLabels().redo.at(-1)?.redoLabel, liveAfter, `seed=${seed} step=${step}: older applicable redo entry became unreachable`);
+            } else {
+              assert.equal(history.canRedo(), false, `seed=${seed} step=${step}: refused redo left unreachable entries`);
+            }
+          }
+        } else {
+          // Invariant 2 & 3 probe on current state:
+          // (a) Refusal above an applicable older entry never blocks the older entry;
+          // (b) Cut+paste and adjacent copies never duplicate controls or fields.
+          if (history.entryLabels().undo.at(-1)?.undoLabel === stateLabelOf(wasm)) {
+            const applicableLabel = stateLabelOf(wasm)!;
+            // Record a synthetic stale entry whose undoLabel belongs to a separate WasmBridge epoch
+            const staleBridge = new WasmBridge();
+            try {
+              staleBridge.loadDocument(baseFixtureBytes, 'stale.hwpx');
+              const staleBefore = stateLabelOf(staleBridge)!;
+              staleBridge.insertText(0, 0, 0, 'S');
+              const dummyCmd: EditCommand = {
+                type: 'staleProbe',
+                timestamp: 0,
+                execute: () => position(0, 0),
+                undo: () => position(0, 0),
+                mergeWith: () => null,
+              };
+              history.recordWithoutExecute(dummyCmd, staleBridge, staleBefore);
+            } finally {
+              staleBridge.dispose();
+            }
+            const snapBeforeRefusal = wasm.exportHwpx();
+            // First undo refuses the stale top with zero byte change and truncates ONLY the stale suffix
+            assert.equal(history.undo(wasm), null, `seed=${seed} step=${step}: stale top must refuse`);
+            assert.deepEqual(wasm.exportHwpx(), snapBeforeRefusal);
+            assert.equal(history.entryLabels().undo.at(-1)?.undoLabel, applicableLabel);
+            // Immediately verify the older applicable entry applies and restores exact bytes!
+            const olderTargetLabel = history.entryLabels().undo.at(-1)!.redoLabel;
+            assert.notEqual(history.undo(wasm), null, `seed=${seed} step=${step}: older applicable entry must remain reachable`);
+            assert.deepEqual(wasm.exportHwpx(), bytesByLabel.get(olderTargetLabel));
+            assert.notEqual(history.redo(wasm), null);
+          }
+
+          // Cut+paste and adjacent-copy non-duplication check on a clone of current document bytes
+          const currentBytes = wasm.exportHwpx();
+          const baseXml = readSectionXmlFast(currentBytes);
+          const origTables = countXmlTag(baseXml, 'tbl');
+          const origFields = countXmlTag(baseXml, 'fieldBegin');
+
+          const cutClone = new WasmBridge(), cutHistory = new CommandHistory();
+          try {
+            cutClone.loadDocument(currentBytes, 'cut-probe.hwpx');
+            const pCount = cutClone.getParagraphCount(0);
+            if (pCount >= 2) {
+              const sel = pick(2) === 0
+                ? { start: position(0, 0), end: position(1, 0) }
+                : { start: position(1, 0), end: position(1, Math.min(1, Math.max(1, cutClone.getParagraphLength(0, 1)))) };
+              const host = makeStudioHost(cutClone, cutHistory, sel);
+              host.onCut(dummyClipEvent());
+              host.cursor.setSelection(null);
+              const destP = Math.max(0, cutClone.getParagraphCount(0) - 1);
+              host.cursor.moveTo(position(destP, 0));
+              host.onPaste(dummyClipEvent());
+              const afterCutPasteXml = readSectionXmlFast(cutClone.exportHwpx());
+              assert.equal(countXmlTag(afterCutPasteXml, 'tbl'), origTables, `seed=${seed} step=${step}: cut+paste duplicated or lost table`);
+              assert.equal(countXmlTag(afterCutPasteXml, 'fieldBegin'), origFields, `seed=${seed} step=${step}: cut+paste duplicated or lost field`);
+            }
+          } finally { cutHistory.clear(cutClone); cutClone.dispose(); }
+
+          const partClone = new WasmBridge();
+          try {
+            partClone.loadDocument(currentBytes, 'partition-probe.hwpx');
+            if (partClone.getParagraphCount(0) >= 3) {
+              const splitOff = Math.min(1, partClone.getParagraphLength(0, 1));
+              partClone.copySelection(0, 0, 0, 1, 0);
+              partClone.pasteInternal(0, partClone.getParagraphCount(0) - 1, 0);
+              partClone.copySelection(0, 1, 0, 1, splitOff);
+              partClone.pasteInternal(0, partClone.getParagraphCount(0) - 1, 0);
+
+              const unionClone = new WasmBridge();
+              try {
+                unionClone.loadDocument(currentBytes, 'union-probe.hwpx');
+                unionClone.copySelection(0, 0, 0, 1, splitOff);
+                unionClone.pasteInternal(0, unionClone.getParagraphCount(0) - 1, 0);
+                const partXml = readSectionXmlFast(partClone.exportHwpx());
+                const unionXml = readSectionXmlFast(unionClone.exportHwpx());
+                assert.equal(countXmlTag(partXml, 'tbl'), countXmlTag(unionXml, 'tbl'), `seed=${seed} step=${step}: adjacent copies failed to partition tables`);
+                assert.equal(countXmlTag(partXml, 'fieldBegin'), countXmlTag(unionXml, 'fieldBegin'), `seed=${seed} step=${step}: adjacent copies duplicated fields`);
+              } finally { unionClone.dispose(); }
+            }
+          } finally { partClone.dispose(); }
+        }
+      }
+      roundTrip(wasm);
+    } finally {
+      history.clear(wasm);
+      wasm.dispose();
+    }
+  }
+  console.log(`PROPERTY_SEED_RANGE=${SEED_START}..${SEED_END} seeds=${SEED_END - SEED_START + 1} steps=${totalSteps} violations=0`);
+});
+
+test('G17 TypeScript AST guard enforces one command-inverse authority and private dual-label stacks', () => {
+  const studioSrc = new URL('../src', import.meta.url).pathname;
+  const tsFiles: string[] = [];
+  function walkTs(dir: string): void {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) walkTs(full);
+      else if (entry.name.endsWith('.ts')) tsFiles.push(full);
+    }
+  }
+  walkTs(studioSrc);
+  tsFiles.sort();
+
+  const beginCallSites: string[] = [];
+  const finishCallSites: string[] = [];
+  let privateStacks = 0;
+  let historyEntryLabels = 0;
+  const runGateInverseCallers: string[] = [];
+
+  for (const file of tsFiles) {
+    const code = readFileSync(file, 'utf8');
+    const sf = ts.createSourceFile(file, code, ts.ScriptTarget.Latest, true);
+    let currentFn = '<top>';
+
+    function visit(node: ts.Node): void {
+      const prevFn = currentFn;
+      if (ts.isFunctionDeclaration(node) && node.name) currentFn = node.name.text;
+      else if (ts.isMethodDeclaration(node) && ts.isIdentifier(node.name)) currentFn = node.name.text;
+
+      if (ts.isCallExpression(node)) {
+        if (ts.isPropertyAccessExpression(node.expression)) {
+          const prop = node.expression.name.text;
+          if (prop === 'beginCommandInverse') beginCallSites.push(`${file}:${currentFn}`);
+          if (prop === 'finishCommandInverse') finishCallSites.push(`${file}:${currentFn}`);
+        } else if (ts.isIdentifier(node.expression) && node.expression.text === 'runGateInverse') {
+          runGateInverseCallers.push(`${file}:${currentFn}`);
+        }
+      }
+
+      if (file.endsWith('/engine/history.ts')) {
+        if (ts.isInterfaceDeclaration(node) && node.name.text === 'HistoryEntry') {
+          for (const member of node.members) {
+            if (ts.isPropertySignature(member) && member.name && ts.isIdentifier(member.name)) {
+              if (member.name.text === 'undoLabel' || member.name.text === 'redoLabel') historyEntryLabels += 1;
+            }
+          }
+        }
+        if (ts.isClassDeclaration(node) && node.name?.text === 'CommandHistory') {
+          for (const member of node.members) {
+            if (ts.isPropertyDeclaration(member) && ts.isIdentifier(member.name)) {
+              if (member.name.text === 'undoStack' || member.name.text === 'redoStack') {
+                const isPrivate = member.modifiers?.some(m => m.kind === ts.SyntaxKind.PrivateKeyword) ?? false;
+                assert.equal(isPrivate, true, `${member.name.text} must be private on CommandHistory`);
+                privateStacks += 1;
+              }
+            }
+          }
+        }
+      }
+
+      ts.forEachChild(node, visit);
+      currentFn = prevFn;
+    }
+    visit(sf);
+  }
+
+  assert.equal(beginCallSites.length, 1, `expected 1 beginCommandInverse call site, got ${JSON.stringify(beginCallSites)}`);
+  assert.equal(finishCallSites.length, 1, `expected 1 finishCommandInverse call site, got ${JSON.stringify(finishCallSites)}`);
+  assert.ok(beginCallSites[0].endsWith('/engine/history.ts:runGateInverse'));
+  assert.ok(finishCallSites[0].endsWith('/engine/history.ts:runGateInverse'));
+  assert.equal(privateStacks, 2);
+  assert.equal(historyEntryLabels, 2);
+  assert.deepEqual(
+    runGateInverseCallers.map(s => s.split(':').pop()).sort(),
+    ['redo', 'undo'],
+  );
+  console.log(`G17_TS_GUARD inverse_callers=${beginCallSites.length} private_stacks=${privateStacks} dual_label_entry=${historyEntryLabels === 2}`);
 });

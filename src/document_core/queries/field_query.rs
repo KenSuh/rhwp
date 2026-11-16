@@ -153,7 +153,7 @@ impl DocumentCore {
         let location = fi.location.clone();
         let fri = fi.field_range_index;
         let old_value = fi.value.clone();
-        let is_cell_field = fi.field.ctrl_id == 0; // 가상 셀 필드
+        let is_cell_field = fi.field.ctrl_id == 0 && fi.field.hwpx.is_none(); // 가상 셀 필드
 
         let section_index = location.section_index;
 
