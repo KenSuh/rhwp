@@ -280,6 +280,37 @@ pub struct ParagraphMerge {
 }
 
 impl Paragraph {
+    fn control_anchor_positions(&self) -> Vec<usize> {
+        let mut anchors = Vec::new();
+        let mut previous_end = 0;
+        for (index, ch) in self.text.chars().enumerate() {
+            let offset = self.char_offsets[index];
+            let field_gap = self
+                .hwpx_field_markers
+                .iter()
+                .filter(|marker| marker.char_idx == index)
+                .count()
+                * 8;
+            let gap = usize::try_from(offset.saturating_sub(previous_end))
+                .unwrap_or(0)
+                .saturating_sub(field_gap);
+            anchors.extend(std::iter::repeat_n(index, gap / 8));
+            previous_end = offset
+                + if ch == '\t' {
+                    8
+                } else {
+                    u32::try_from(ch.len_utf16()).unwrap_or(2)
+                };
+        }
+        let count = self
+            .controls
+            .iter()
+            .filter(|control| !matches!(control, Control::Field(_)))
+            .count();
+        anchors.resize(count, self.text.chars().count());
+        anchors
+    }
+
     pub fn clipboard_fragment(
         source: &[Paragraph],
         start: (usize, usize),
@@ -335,10 +366,18 @@ impl Paragraph {
                 let mut control_map = Vec::new();
                 para.controls.clear();
                 para.ctrl_data_records.clear();
+                let anchors = original.control_anchor_positions();
+                let mut non_field = 0;
                 for (ci, control) in original.controls.iter().enumerate() {
+                    let selected = if matches!(control, Control::Field(_)) {
+                        included.iter().any(|(p, c, _)| (*p, *c) == (pi, ci))
+                    } else {
+                        let anchor = anchors[non_field];
+                        non_field += 1;
+                        first <= anchor && anchor <= last
+                    };
                     if matches!(control, Control::SectionDef(_) | Control::ColumnDef(_))
-                        || (matches!(control, Control::Field(_))
-                            && !included.iter().any(|(p, c, _)| (*p, *c) == (pi, ci)))
+                        || !selected
                     {
                         continue;
                     }
@@ -519,7 +558,88 @@ impl Paragraph {
         Ok(())
     }
 
-    pub fn paste_fragment(
+    fn reserve_clipboard_ids(
+        paragraphs: &[Paragraph],
+        used: &mut std::collections::HashSet<String>,
+    ) {
+        for para in paragraphs {
+            for marker in para.field_markers() {
+                if let FieldId::Hwpx(id) = &marker.id {
+                    used.insert(id.clone());
+                }
+            }
+            for control in &para.controls {
+                match control {
+                    Control::Field(field) => {
+                        used.insert(field.field_id.to_string());
+                        used.extend(field.endpoint_id.iter().cloned());
+                    }
+                    Control::Table(table) => {
+                        for cell in &table.cells {
+                            Self::reserve_clipboard_ids(&cell.paragraphs, used);
+                        }
+                        if let Some(caption) = &table.caption {
+                            Self::reserve_clipboard_ids(&caption.paragraphs, used);
+                        }
+                    }
+                    Control::Shape(shape) => Self::reserve_clipboard_shape_ids(shape, used),
+                    Control::Picture(picture) => {
+                        if let Some(caption) = &picture.caption {
+                            Self::reserve_clipboard_ids(&caption.paragraphs, used);
+                        }
+                    }
+                    Control::Header(header) => {
+                        Self::reserve_clipboard_ids(&header.paragraphs, used)
+                    }
+                    Control::Footer(footer) => {
+                        Self::reserve_clipboard_ids(&footer.paragraphs, used)
+                    }
+                    Control::Footnote(note) => Self::reserve_clipboard_ids(&note.paragraphs, used),
+                    Control::Endnote(note) => Self::reserve_clipboard_ids(&note.paragraphs, used),
+                    Control::HiddenComment(comment) => {
+                        Self::reserve_clipboard_ids(&comment.paragraphs, used)
+                    }
+                    Control::SectionDef(_)
+                    | Control::ColumnDef(_)
+                    | Control::AutoNumber(_)
+                    | Control::NewNumber(_)
+                    | Control::PageNumberPos(_)
+                    | Control::Bookmark(_)
+                    | Control::Hyperlink(_)
+                    | Control::Ruby(_)
+                    | Control::CharOverlap(_)
+                    | Control::PageHide(_)
+                    | Control::Equation(_)
+                    | Control::Form(_)
+                    | Control::Unknown(_) => {}
+                }
+            }
+        }
+    }
+
+    fn reserve_clipboard_shape_ids(
+        shape: &crate::model::shape::ShapeObject,
+        used: &mut std::collections::HashSet<String>,
+    ) {
+        if let Some(drawing) = shape.drawing() {
+            if let Some(text_box) = &drawing.text_box {
+                Self::reserve_clipboard_ids(&text_box.paragraphs, used);
+            }
+            if let Some(caption) = &drawing.caption {
+                Self::reserve_clipboard_ids(&caption.paragraphs, used);
+            }
+        }
+        if let crate::model::shape::ShapeObject::Group(group) = shape {
+            for child in &group.children {
+                Self::reserve_clipboard_shape_ids(child, used);
+            }
+            if let Some(caption) = &group.caption {
+                Self::reserve_clipboard_ids(&caption.paragraphs, used);
+            }
+        }
+    }
+
+    pub(crate) fn paste_fragment(
         target: &mut Vec<Paragraph>,
         paragraph: usize,
         offset: usize,
@@ -536,19 +656,8 @@ impl Paragraph {
         let mut fragment = fragment.to_vec();
         let mut used = std::collections::HashSet::new();
         let mut next = 0u32;
-        for para in target.iter().chain(fragment.iter()) {
-            for control in &para.controls {
-                if let Control::Field(field) = control {
-                    used.insert(field.field_id.to_string());
-                    used.extend(field.endpoint_id.iter().cloned());
-                }
-            }
-            for marker in para.field_markers() {
-                if let FieldId::Hwpx(id) = &marker.id {
-                    used.insert(id.clone());
-                }
-            }
-        }
+        Self::reserve_clipboard_ids(target, &mut used);
+        Self::reserve_clipboard_ids(&fragment, &mut used);
         Self::remap_clipboard_fields(&mut fragment, &mut used, &mut next)?;
         let Some(first) = fragment.first() else {
             return Ok((paragraph, offset));
@@ -571,6 +680,9 @@ impl Paragraph {
             target.insert(paragraph + index, para);
         }
         let end = target[last].merge_from(&right).offset;
+        for para in &mut target[paragraph..=last] {
+            para.rebuild_hwpx_field_offsets();
+        }
         Ok((last, end))
     }
 
@@ -609,7 +721,7 @@ impl Paragraph {
     ///
     /// char_offset이 text.chars().count()를 초과하면 인라인 컨트롤 뒤의
     /// 위치로 간주하여 올바른 UTF-16 위치에 삽입한다.
-    pub fn insert_text_at(&mut self, char_offset: usize, new_text: &str) -> ParagraphEdit {
+    pub(crate) fn insert_text_at(&mut self, char_offset: usize, new_text: &str) -> ParagraphEdit {
         let inverse = self.edit_checkpoint();
         if new_text.is_empty() {
             return inverse;
@@ -759,7 +871,7 @@ impl Paragraph {
     /// char_offset은 Rust 문자(char) 인덱스이다 (바이트 인덱스가 아님).
     /// 삭제 후 char_offsets, char_shapes, line_segs, char_count가 자동 갱신된다.
     /// 반환값: 실제 삭제된 문자 수.
-    pub fn delete_text_at(&mut self, char_offset: usize, count: usize) -> ParagraphEdit {
+    pub(crate) fn delete_text_at(&mut self, char_offset: usize, count: usize) -> ParagraphEdit {
         let mut inverse = self.edit_checkpoint();
         if count == 0 {
             return inverse;
@@ -847,7 +959,7 @@ impl Paragraph {
     ///
     /// 현재 문단은 char_offset 이전까지만 유지되고,
     /// char_offset 이후의 텍스트와 메타데이터로 새 문단을 생성하여 반환한다.
-    pub fn split_at(&mut self, char_offset: usize) -> ParagraphSplit {
+    pub(crate) fn split_at(&mut self, char_offset: usize) -> ParagraphSplit {
         let inverse = self.edit_checkpoint();
         let text_chars: Vec<char> = self.text.chars().collect();
         let text_len = text_chars.len();
@@ -1052,7 +1164,7 @@ impl Paragraph {
     ///
     /// 병합 후 other 문단의 내용은 현재 문단에 포함된다.
     /// 반환값: 병합 지점의 char offset (원래 텍스트의 길이).
-    pub fn merge_from(&mut self, other: &Paragraph) -> ParagraphMerge {
+    pub(crate) fn merge_from(&mut self, other: &Paragraph) -> ParagraphMerge {
         let inverse = self.edit_checkpoint();
         let self_text_len = self.text.chars().count();
         let marker_order_offset = self
@@ -1209,7 +1321,7 @@ impl Paragraph {
     /// CharShapeRef 배열을 분할/교체하여 지정 범위만 새 ID로 변경한다.
     /// 범위 경계에서 기존 CharShapeRef가 부분적으로 겹치면 분할한다.
     /// 적용 후 연속 동일 ID는 병합한다.
-    pub fn apply_char_shape_range(
+    pub(crate) fn apply_char_shape_range(
         &mut self,
         start_char_offset: usize,
         end_char_offset: usize,

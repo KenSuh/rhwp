@@ -767,7 +767,7 @@ fn irregular_grid_document() -> (rhwp::wasm_api::HwpDocument, (usize, usize, usi
     table.common.width = 5000;
     table.common.height = 5000;
     table.raw_ctrl_data.clear();
-    table.rebuild_grid();
+    table.cell_grid = vec![Some(0), Some(1), Some(2), Some(3)];
     core.set_document(doc);
     (core, loc)
 }
@@ -930,130 +930,6 @@ fn width_formula_updates_when_resize_changes_columns() {
         let saved = core.export_hwpx_native().unwrap();
         assert_eq!(exported_top_level_sz(&saved, 0)["width"], "10000");
     }
-}
-
-#[test]
-fn width_formula_includes_new_spacing_after_column_split() {
-    // Given: 셀 폭 1000과 간격 100을 포함한 선언 폭 1200의 1×1 표.
-    let mut table = Table {
-        row_count: 1,
-        col_count: 1,
-        cell_spacing: 100,
-        cells: vec![rhwp::model::table::Cell::new_empty(0, 0, 1000, 1000, 1)],
-        ..Default::default()
-    };
-    table.common.width = 1200;
-    table.common.height = 1000;
-    table.rebuild_grid();
-
-    // When: 두 열로 나눈다.
-    table.split_cell_into(0, 0, 1, 2, false, false).unwrap();
-
-    // Then: 셀 폭 [500,500]과 세 간격을 포함해 선언 폭은 1300이다.
-    assert_eq!(table.get_column_widths(), [500, 500]);
-    assert_eq!(table.common.width, 1300);
-}
-
-#[test]
-fn width_formula_updates_when_row_delete_changes_columns() {
-    // Given: 첫 행을 삭제하면 둘째 열의 최대 폭이 4800에서 200으로 줄어든다.
-    let (core, loc) = irregular_grid_document();
-    let mut table = table_at(core.document(), loc).clone();
-    table.common.width = 7000;
-
-    // When: 열별 최대 폭을 제공하던 행을 삭제한다.
-    table.delete_row(0).unwrap();
-
-    // Then: 실제로 바뀐 열 폭의 합 5000으로 갱신한다.
-    assert_eq!(table.get_column_widths(), [4800, 200]);
-    assert_eq!(table.common.width, 5000);
-}
-
-#[test]
-fn width_formula_preserves_declaration_when_absolute_widths_are_unchanged() {
-    // Given: 모든 행의 열 폭이 같지만 선언 폭은 별도 값이다.
-    let (core, loc) = irregular_grid_document();
-    let mut table = table_at(core.document(), loc).clone();
-    for cell in &mut table.cells {
-        cell.width = if cell.col == 0 { 1000 } else { 2000 };
-    }
-    table.common.width = 7000;
-
-    // When: 기존과 같은 열 폭을 절대값으로 설정한다.
-    table.set_column_widths(&[1000, 2000]).unwrap();
-
-    // Then: 실제 열 폭이 바뀌지 않았으므로 선언 폭을 지킨다.
-    assert_eq!(table.get_column_widths(), [1000, 2000]);
-    assert_eq!(table.common.width, 7000);
-}
-
-#[test]
-fn width_formula_preserves_declaration_when_row_delete_keeps_columns() {
-    // Given: 두 행이 같은 열 폭을 공유하지만 선언 폭은 셀 합과 다르다.
-    let (core, loc) = irregular_grid_document();
-    let mut table = table_at(core.document(), loc).clone();
-    for cell in &mut table.cells {
-        cell.width = if cell.col == 0 { 1000 } else { 2000 };
-    }
-    table.common.width = 7000;
-
-    // When: 열 폭을 바꾸지 않는 행 삭제를 한다.
-    table.delete_row(0).unwrap();
-
-    // Then: 기존의 별도 선언 폭을 지킨다.
-    assert_eq!(table.get_column_widths(), [1000, 2000]);
-    assert_eq!(table.common.width, 7000);
-}
-
-#[test]
-fn width_formula_preserves_declaration_when_row_insert_keeps_columns() {
-    // Given: 열별 최대 폭 합 9600과 다른 선언 폭 5000의 표.
-    let (core, loc) = irregular_grid_document();
-    let mut table = table_at(core.document(), loc).clone();
-
-    // When: 기존 열 폭을 복제하는 행을 삽입한다.
-    table.insert_row(0, true).unwrap();
-
-    // Then: 열 폭과 선언 폭을 그대로 둔다.
-    assert_eq!(table.get_column_widths(), [4800, 4800]);
-    assert_eq!(table.common.width, 5000);
-}
-
-#[test]
-fn width_formula_preserves_declaration_when_row_split_keeps_columns() {
-    // Given: 열 최대 폭과 다른 별도 선언 폭을 가진 표.
-    let (core, loc) = irregular_grid_document();
-    let mut table = table_at(core.document(), loc).clone();
-
-    // When: 열 수·폭이 바뀌지 않게 행 방향으로만 분할한다.
-    table.split_cell_into(0, 0, 2, 1, false, false).unwrap();
-
-    // Then: 무조건 재계산하지 않고 실제 열 변화가 없음을 반영한다.
-    assert_eq!(table.get_column_widths(), [4800, 4800]);
-    assert_eq!(table.common.width, 5000);
-}
-
-#[test]
-fn width_formula_uses_assigned_widths_when_all_columns_are_merged() {
-    // Given: 열별 폭 추출은 기본값 1800을 쓰는 병합 셀뿐인 표.
-    let mut cell = rhwp::model::table::Cell::new_empty(0, 0, 7000, 1000, 1);
-    cell.col_span = 2;
-    let mut table = Table {
-        row_count: 1,
-        col_count: 2,
-        cell_spacing: 100,
-        cells: vec![cell],
-        ..Default::default()
-    };
-    table.common.width = 7200;
-    table.rebuild_grid();
-
-    // When: 절대 열 폭을 새 값으로 설정한다.
-    table.set_column_widths(&[1000, 2000]).unwrap();
-
-    // Then: 기본값이 아닌 실제 적용 폭과 새 간격으로 선언 폭을 계산한다.
-    assert_eq!(table.cells[0].width, 3100);
-    assert_eq!(table.common.width, 3300);
 }
 
 // ---------- R2 무변경 텍스트 요청 회귀 (C2) ----------

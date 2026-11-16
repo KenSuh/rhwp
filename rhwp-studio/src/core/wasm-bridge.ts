@@ -63,6 +63,13 @@ export class InvalidEditHandleError extends Error {
 }
 
 export class WasmBridge {
+  private snapshotDepth = 0;
+
+  withoutEditCapture<T>(operation: () => T): T {
+    this.snapshotDepth += 1;
+    try { return operation(); }
+    finally { this.snapshotDepth -= 1; }
+  }
   private doc: HwpDocument | null = null;
   private initialized = false;
   editHistoryDisabledReason: string | null = null;
@@ -251,6 +258,7 @@ export class WasmBridge {
   }
 
   beginTextEdit(sec: number, para: number, structural = false): string | null {
+    if (this.snapshotDepth > 0) return null;
     if (!this.doc) throw new Error('문서가 로드되지 않았습니다');
     try {
       return this.doc.beginTextEdit(sec, para, structural);
@@ -273,6 +281,21 @@ export class WasmBridge {
       if (message.includes('INVALID_EDIT_HANDLE:')) throw new InvalidEditHandleError(message);
       throw error;
     }
+  }
+
+  finishTextEdit(token: string): void {
+    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');
+    this.doc.finishTextEdit(token);
+  }
+
+  mergeTextEdits(first: string, last: string): boolean {
+    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');
+    try { this.doc.mergeTextEdits(first, last); }
+    catch (error: unknown) {
+      if (String(error).includes('INVALID_EDIT_HANDLE:')) return false;
+      throw error;
+    }
+    return true;
   }
 
   discardEdit(token: string): void {

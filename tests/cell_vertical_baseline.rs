@@ -41,7 +41,8 @@ fn vertical_positive_geometry_renders_all_text_after_input_and_different_font_si
             table.cells[0].width = 20000;
             table.cells[0].height = 60000;
             table.dirty = true;
-            table.update_ctrl_dimensions();
+            table.common.width = table.declared_width_from_columns();
+            table.common.height = table.cell_height_sum();
             f.doc.set_document(model);
             if by_index {
                 f.path = None;

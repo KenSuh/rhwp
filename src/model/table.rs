@@ -188,7 +188,7 @@ impl Cell {
         self.list_header_width_ref & CELL_FLAG_PROTECT != 0
     }
 
-    pub fn set_cell_protect(&mut self, value: bool) {
+    pub(crate) fn set_cell_protect(&mut self, value: bool) {
         self.set_list_header_flag(CELL_FLAG_PROTECT, value);
     }
 
@@ -197,7 +197,7 @@ impl Cell {
         self.list_header_width_ref & CELL_FLAG_EDITABLE_IN_FORM != 0
     }
 
-    pub fn set_editable_in_form(&mut self, value: bool) {
+    pub(crate) fn set_editable_in_form(&mut self, value: bool) {
         self.set_list_header_flag(CELL_FLAG_EDITABLE_IN_FORM, value);
     }
 
@@ -302,7 +302,7 @@ impl Cell {
 impl Table {
     /// 2D 그리드 인덱스를 재구축한다.
     /// 구조 변경(파싱, 행/열 추가/삭제, 병합/분할) 후 호출해야 한다.
-    pub fn rebuild_grid(&mut self) {
+    pub(crate) fn rebuild_grid(&mut self) {
         let rc = self.row_count as usize;
         let cc = self.col_count as usize;
         self.cell_grid = vec![None; rc * cc];
@@ -332,7 +332,7 @@ impl Table {
     }
 
     /// O(1) 셀 접근 (가변). rebuild_grid() 호출 후 사용해야 한다.
-    pub fn cell_at_mut(&mut self, row: u16, col: u16) -> Option<&mut Cell> {
+    pub(crate) fn cell_at_mut(&mut self, row: u16, col: u16) -> Option<&mut Cell> {
         let idx = (row as usize) * (self.col_count as usize) + (col as usize);
         let &cell_idx = self.cell_grid.get(idx)?.as_ref()?;
         self.cells.get_mut(cell_idx)
@@ -347,7 +347,7 @@ impl Table {
     ///
     /// raw_ctrl_data 는 HWP5 파서가 담는 CTRL_HEADER 전체(attr 포함)다. 그래서 폭은 [12..16],
     /// 높이는 [16..20] 에 쓴다. 종전 [8..12]/[12..16] 은 가로 오프셋 자리에 폭을 덮어썼다.
-    pub fn update_ctrl_dimensions(&mut self) {
+    pub(crate) fn update_ctrl_dimensions(&mut self) {
         let total_width = self.declared_width_from_columns();
         let total_height = self.cell_height_sum();
         self.sync_ctrl_width(total_width);
@@ -435,7 +435,7 @@ impl Table {
     /// - 폭: `columns_changed` 이거나 선언 폭이 없으면(0) 열 폭 공식으로 다시 계산하고,
     ///   아니면 선언 폭을 그대로 둔다.
     /// - 높이: 셀 높이 합이 표시 높이를 넘을 때만 늘린다. 줄이지 않는다.
-    pub fn refresh_ctrl_dimensions_after_content_edit(&mut self, columns_changed: bool) {
+    pub(crate) fn refresh_ctrl_dimensions_after_content_edit(&mut self, columns_changed: bool) {
         let width_before = self.common.width;
         let height_before = self.common.height;
         self.update_ctrl_dimensions();
@@ -451,7 +451,7 @@ impl Table {
     /// `widths.len()` 은 `col_count` 와 같아야 한다. 병합 셀은 걸친 열 폭의 합에
     /// (걸친 열 수 − 1) × 셀 간격을 더한 값이 된다. 실제 폭 변경이 있으면 표 폭을
     /// 열 폭 공식으로 다시 계산하고, 표시 높이는 줄이지 않는다.
-    pub fn set_column_widths(&mut self, widths: &[HwpUnit]) -> Result<(), String> {
+    pub(crate) fn set_column_widths(&mut self, widths: &[HwpUnit]) -> Result<(), String> {
         if widths.len() != self.col_count as usize {
             return Err(format!(
                 "열 폭 개수 {} 가 표의 열 수 {} 와 다릅니다",
@@ -578,7 +578,7 @@ impl Table {
     ///
     /// `row_idx`: 기준 행 인덱스, `below`: true면 아래에, false면 위에 삽입.
     /// 반환: Ok(()) 또는 에러 메시지.
-    pub fn insert_row(&mut self, row_idx: u16, below: bool) -> Result<(), String> {
+    pub(crate) fn insert_row(&mut self, row_idx: u16, below: bool) -> Result<(), String> {
         if row_idx >= self.row_count {
             return Err(format!(
                 "행 인덱스 {} 범위 초과 (총 {}행)",
@@ -688,7 +688,7 @@ impl Table {
     /// 열을 삽입한다.
     ///
     /// `col_idx`: 기준 열 인덱스, `right`: true면 오른쪽에, false면 왼쪽에 삽입.
-    pub fn insert_column(&mut self, col_idx: u16, right: bool) -> Result<(), String> {
+    pub(crate) fn insert_column(&mut self, col_idx: u16, right: bool) -> Result<(), String> {
         if col_idx >= self.col_count {
             return Err(format!(
                 "열 인덱스 {} 범위 초과 (총 {}열)",
@@ -777,7 +777,7 @@ impl Table {
     /// 행을 삭제한다.
     ///
     /// `row_idx`: 삭제할 행 인덱스. 최소 1행은 유지 (row_count == 1이면 에러).
-    pub fn delete_row(&mut self, row_idx: u16) -> Result<(), String> {
+    pub(crate) fn delete_row(&mut self, row_idx: u16) -> Result<(), String> {
         if row_idx >= self.row_count {
             return Err(format!(
                 "행 인덱스 {} 범위 초과 (총 {}행)",
@@ -854,7 +854,7 @@ impl Table {
     /// 열을 삭제한다.
     ///
     /// `col_idx`: 삭제할 열 인덱스. 최소 1열은 유지 (col_count == 1이면 에러).
-    pub fn delete_column(&mut self, col_idx: u16) -> Result<(), String> {
+    pub(crate) fn delete_column(&mut self, col_idx: u16) -> Result<(), String> {
         if col_idx >= self.col_count {
             return Err(format!(
                 "열 인덱스 {} 범위 초과 (총 {}열)",
@@ -927,7 +927,7 @@ impl Table {
     ///
     /// 범위: (start_col, start_row) ~ (end_col, end_row) (모두 포함).
     /// 좌상단 셀이 병합 결과가 되고, 나머지 셀은 제거된다.
-    pub fn merge_cells(
+    pub(crate) fn merge_cells(
         &mut self,
         start_row: u16,
         start_col: u16,
@@ -1069,7 +1069,7 @@ impl Table {
     /// 대상 셀의 col_span > 1 또는 row_span > 1이어야 한다.
     /// 원본 셀은 (target_col, target_row)에 col_span=1, row_span=1로 축소되고,
     /// 나머지 위치에 새 빈 셀이 생성된다.
-    pub fn split_cell(&mut self, target_row: u16, target_col: u16) -> Result<(), String> {
+    pub(crate) fn split_cell(&mut self, target_row: u16, target_col: u16) -> Result<(), String> {
         // 대상 셀 찾기 및 검증
         let cell_idx = self
             .cells
@@ -1172,7 +1172,7 @@ impl Table {
     /// 기존 `split_cell()`은 병합 해제만 지원하지만, 이 메서드는 임의 셀을
     /// 지정한 행/열 수로 분할한다. 테이블 그리드에 새 행/열이 추가되고,
     /// 인접 셀은 col_span/row_span이 확장되어 기존 형태를 유지한다.
-    pub fn split_cell_into(
+    pub(crate) fn split_cell_into(
         &mut self,
         target_row: u16,
         target_col: u16,
@@ -1350,7 +1350,7 @@ impl Table {
     ///
     /// 우측→좌측, 하단→상단 순서로 처리하여 그리드 시프트가
     /// 아직 처리되지 않은 셀에 영향을 주지 않도록 한다.
-    pub fn split_cells_in_range(
+    pub(crate) fn split_cells_in_range(
         &mut self,
         start_row: u16,
         start_col: u16,

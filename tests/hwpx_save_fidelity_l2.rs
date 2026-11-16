@@ -727,7 +727,9 @@ fn two_save_section_def_prefix_keeps_column_in_section_run() {
         for offset in &mut paragraph_offsets {
             *offset += 8;
         }
-        first.set_char_offsets(paragraph_offsets);
+        let text = first.text().to_owned();
+        let markers = first.field_markers().to_vec();
+        *first = std::mem::take(first).with_parsed_text(text, paragraph_offsets, markers);
     }
     for shape in &mut first.char_shapes {
         shape.start_pos += 8;

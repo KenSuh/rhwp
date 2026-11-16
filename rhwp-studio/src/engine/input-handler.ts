@@ -219,6 +219,7 @@ export class InputHandler {
   private compositionAnchor: DocumentPosition | null = null;
   private compositionLength = 0; // 문서에 삽입된 조합 텍스트 길이
   private compositionEditToken: string | null = null;
+  private compositionSelectionSnapshot: { readonly id: number; readonly position: DocumentPosition } | null = null;
   // iOS 폴백: composition 이벤트 없이 input만으로 한글 조합 처리
   private _iosComposing = false;
   private _iosAnchor: DocumentPosition | null = null;
@@ -1908,6 +1909,13 @@ export class InputHandler {
 
     const { start, end } = sel;
     this.cursor.clearSelection();
+    if (this.history.isSuspended(this.wasm)) {
+      const command = new DeleteSelectionCommand(start, end);
+      try { this.cursor.moveTo(command.execute(this.wasm)); }
+      finally { command.discard?.(this.wasm); }
+      this.cursor.resetPreferredX();
+      return;
+    }
     this.executeOperation({
       kind: 'command',
       command: new DeleteSelectionCommand(start, end),
@@ -2871,10 +2879,18 @@ export class InputHandler {
     if (this._iosEditToken !== null) this.wasm.discardEdit(this._iosEditToken);
     this.compositionEditToken = null;
     this._iosEditToken = null;
+    if (this.compositionSelectionSnapshot !== null) {
+      this.wasm.discardSnapshot(this.compositionSelectionSnapshot.id);
+      this.compositionSelectionSnapshot = null;
+    }
     this._iosAnchor = null;
   }
 
   dispose(): void {
+    if (this.compositionSelectionSnapshot !== null) {
+      this.wasm.discardSnapshot(this.compositionSelectionSnapshot.id);
+      this.compositionSelectionSnapshot = null;
+    }
     if (this.isResizeDragging) {
       this.cleanupResizeDrag();
     }

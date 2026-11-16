@@ -1097,7 +1097,7 @@ mod tests {
         };
         doc.sections.push(section);
         let mut core = DocumentCore::new_empty();
-        core.document = doc;
+        *core.document = doc;
         core
     }
 

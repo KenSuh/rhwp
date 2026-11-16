@@ -370,6 +370,17 @@ impl HwpDocument {
         self.undo_edit_native(token).map_err(Into::into)
     }
 
+    #[wasm_bindgen(js_name = finishTextEdit)]
+    pub fn finish_text_edit(&mut self, token: &str) -> Result<(), JsValue> {
+        self.finish_text_edit_native(token).map_err(Into::into)
+    }
+
+    #[wasm_bindgen(js_name = mergeTextEdits)]
+    pub fn merge_text_edits(&mut self, first: &str, last: &str) -> Result<(), JsValue> {
+        self.merge_text_edits_native(first, last)
+            .map_err(Into::into)
+    }
+
     #[wasm_bindgen(js_name = discardEdit)]
     pub fn discard_edit(&mut self, token: &str) {
         self.discard_edit_native(token);
@@ -396,19 +407,20 @@ impl HwpDocument {
     ) -> Result<String, JsValue> {
         let sec = section_idx as usize;
         let pi = para_idx as usize;
-        if sec >= self.document.sections.len() || pi >= self.document.sections[sec].paragraphs.len()
+        if sec >= self.document().sections.len()
+            || pi >= self.document().sections[sec].paragraphs.len()
         {
             return Err(JsValue::from_str("인덱스 범위 초과"));
         }
         let (text_offset, _) = crate::document_core::helpers::logical_to_text_offset(
-            &self.document.sections[sec].paragraphs[pi],
+            &self.document().sections[sec].paragraphs[pi],
             logical_offset as usize,
         );
         let result = self.insert_text_native(sec, pi, text_offset, text)?;
         // 삽입 후 논리적 오프셋 반환
         let new_text_offset = text_offset + text.chars().count();
         let new_logical = crate::document_core::helpers::text_to_logical_offset(
-            &self.document.sections[sec].paragraphs[pi],
+            &self.document().sections[sec].paragraphs[pi],
             new_text_offset,
         );
         Ok(format!("{{\"ok\":true,\"logicalOffset\":{}}}", new_logical))
@@ -419,12 +431,13 @@ impl HwpDocument {
     pub fn get_logical_length(&self, section_idx: u32, para_idx: u32) -> Result<u32, JsValue> {
         let sec = section_idx as usize;
         let pi = para_idx as usize;
-        if sec >= self.document.sections.len() || pi >= self.document.sections[sec].paragraphs.len()
+        if sec >= self.document().sections.len()
+            || pi >= self.document().sections[sec].paragraphs.len()
         {
             return Err(JsValue::from_str("인덱스 범위 초과"));
         }
         Ok(crate::document_core::helpers::logical_paragraph_length(
-            &self.document.sections[sec].paragraphs[pi],
+            &self.document().sections[sec].paragraphs[pi],
         ) as u32)
     }
 
@@ -438,12 +451,13 @@ impl HwpDocument {
     ) -> Result<u32, JsValue> {
         let sec = section_idx as usize;
         let pi = para_idx as usize;
-        if sec >= self.document.sections.len() || pi >= self.document.sections[sec].paragraphs.len()
+        if sec >= self.document().sections.len()
+            || pi >= self.document().sections[sec].paragraphs.len()
         {
             return Err(JsValue::from_str("인덱스 범위 초과"));
         }
         let (text_offset, _) = crate::document_core::helpers::logical_to_text_offset(
-            &self.document.sections[sec].paragraphs[pi],
+            &self.document().sections[sec].paragraphs[pi],
             logical_offset as usize,
         );
         Ok(text_offset as u32)
@@ -459,12 +473,13 @@ impl HwpDocument {
     ) -> Result<u32, JsValue> {
         let sec = section_idx as usize;
         let pi = para_idx as usize;
-        if sec >= self.document.sections.len() || pi >= self.document.sections[sec].paragraphs.len()
+        if sec >= self.document().sections.len()
+            || pi >= self.document().sections[sec].paragraphs.len()
         {
             return Err(JsValue::from_str("인덱스 범위 초과"));
         }
         Ok(crate::document_core::helpers::text_to_logical_offset(
-            &self.document.sections[sec].paragraphs[pi],
+            &self.document().sections[sec].paragraphs[pi],
             text_offset as usize,
         ) as u32)
     }
@@ -1272,7 +1287,7 @@ impl HwpDocument {
     /// 구역(Section) 수를 반환한다.
     #[wasm_bindgen(js_name = getSectionCount)]
     pub fn get_section_count(&self) -> u32 {
-        self.document.sections.len() as u32
+        self.document().sections.len() as u32
     }
 
     /// 구역 내 문단 수를 반환한다.
@@ -1349,7 +1364,7 @@ impl HwpDocument {
     /// 문단 내 컨트롤의 텍스트 위치 배열을 반환한다.
     #[wasm_bindgen(js_name = getControlTextPositions)]
     pub fn get_control_text_positions(&self, section_idx: u32, para_idx: u32) -> String {
-        let sections = &self.document.sections;
+        let sections = &self.document().sections;
         if let Some(sec) = sections.get(section_idx as usize) {
             if let Some(para) = sec.paragraphs.get(para_idx as usize) {
                 let positions = crate::document_core::find_control_text_positions(para);
@@ -1380,7 +1395,7 @@ impl HwpDocument {
         let raw_context = DocumentCore::parse_nav_context(context_json);
         // TypeScript에서 ctrl_text_pos=0으로 전달되므로 실제 값으로 보정
         let context = DocumentCore::fix_context_text_positions(
-            &self.core.document.sections,
+            &self.core.document().sections,
             sec as usize,
             &raw_context,
         );
@@ -1515,7 +1530,7 @@ impl HwpDocument {
         cell_idx: u32,
     ) -> Result<u32, JsValue> {
         let para = self
-            .document
+            .document()
             .sections
             .get(section_idx as usize)
             .ok_or_else(|| JsValue::from_str("구역 인덱스 범위 초과"))?
@@ -3340,7 +3355,7 @@ impl HwpDocument {
     pub fn get_click_here_props(&self, field_id: u32) -> String {
         use crate::model::control::{Control, FieldType};
         // 문서 전체에서 fieldId로 필드 찾기
-        for sec in &self.document.sections {
+        for sec in &self.document().sections {
             for para in &sec.paragraphs {
                 for ctrl in &para.controls {
                     if let Control::Field(f) = ctrl {
@@ -3484,7 +3499,7 @@ impl HwpDocument {
             }
         }
 
-        for sec in &mut self.document.sections {
+        for sec in &mut self.mutate_document().sections {
             sec.raw_stream = None;
             for para in &mut sec.paragraphs {
                 if update_field_in_para(para, field_id, guide, memo, new_props_bit, name) {
@@ -4026,7 +4041,7 @@ impl HwpDocument {
     /// 반환값: JSON 배열 [{ id, name, englishName, type, paraShapeId, charShapeId }, ...]
     #[wasm_bindgen(js_name = getStyleList)]
     pub fn get_style_list(&self) -> String {
-        let styles = &self.core.document.doc_info.styles;
+        let styles = &self.core.document().doc_info.styles;
         let mut items = Vec::new();
         for (i, s) in styles.iter().enumerate() {
             items.push(format!(
@@ -4048,7 +4063,7 @@ impl HwpDocument {
     /// 반환값: JSON { charProps: {...}, paraProps: {...} }
     #[wasm_bindgen(js_name = getStyleDetail)]
     pub fn get_style_detail(&self, style_id: u32) -> String {
-        let styles = &self.core.document.doc_info.styles;
+        let styles = &self.core.document().doc_info.styles;
         let style = match styles.get(style_id as usize) {
             Some(s) => s,
             None => return "{}".to_string(),
@@ -4075,7 +4090,7 @@ impl HwpDocument {
         // 기본 ParaShape에 이미 번호 정보가 있으면 그대로 사용
         if let Some(ps) = self
             .core
-            .document
+            .document()
             .doc_info
             .para_shapes
             .get(base_psid as usize)
@@ -4086,12 +4101,12 @@ impl HwpDocument {
         }
         // 이 스타일을 사용하는 첫 번째 문단의 para_shape_id에서 번호 정보 탐색
         let sid = style_id as u8;
-        for section in &self.core.document.sections {
+        for section in &self.core.document().sections {
             for para in &section.paragraphs {
                 if para.style_id == sid {
                     if let Some(ps) = self
                         .core
-                        .document
+                        .document()
                         .doc_info
                         .para_shapes
                         .get(para.para_shape_id as usize)
@@ -4112,7 +4127,7 @@ impl HwpDocument {
     #[wasm_bindgen(js_name = updateStyle)]
     pub fn update_style(&mut self, style_id: u32, json: &str) -> bool {
         use crate::document_core::helpers::json_i32;
-        let styles = &mut self.core.document.doc_info.styles;
+        let styles = &mut self.core.mutate_document().doc_info.styles;
         let style = match styles.get_mut(style_id as usize) {
             Some(s) => s,
             None => return false,
@@ -4142,7 +4157,7 @@ impl HwpDocument {
         char_mods_json: &str,
         para_mods_json: &str,
     ) -> bool {
-        let styles = &self.core.document.doc_info.styles;
+        let styles = &self.core.document().doc_info.styles;
         let style = match styles.get(style_id as usize) {
             Some(s) => s.clone(),
             None => return false,
@@ -4153,16 +4168,21 @@ impl HwpDocument {
             let char_mods = crate::document_core::helpers::parse_char_shape_mods(char_mods_json);
             if let Some(cs) = self
                 .core
-                .document
+                .document()
                 .doc_info
                 .char_shapes
                 .get(style.char_shape_id as usize)
             {
                 let new_cs = char_mods.apply_to(cs);
                 // 새 CharShape를 추가하고 스타일에 연결
-                self.core.document.doc_info.char_shapes.push(new_cs);
-                let new_id = (self.core.document.doc_info.char_shapes.len() - 1) as u16;
-                self.core.document.doc_info.styles[style_id as usize].char_shape_id = new_id;
+                self.core
+                    .mutate_document()
+                    .doc_info
+                    .char_shapes
+                    .push(new_cs);
+                let new_id = (self.core.document().doc_info.char_shapes.len() - 1) as u16;
+                self.core.mutate_document().doc_info.styles[style_id as usize].char_shape_id =
+                    new_id;
             }
         }
 
@@ -4171,27 +4191,32 @@ impl HwpDocument {
             let para_mods = crate::document_core::helpers::parse_para_shape_mods(para_mods_json);
             if let Some(ps) = self
                 .core
-                .document
+                .document()
                 .doc_info
                 .para_shapes
                 .get(style.para_shape_id as usize)
             {
                 let new_ps = para_mods.apply_to(ps);
-                self.core.document.doc_info.para_shapes.push(new_ps);
-                let new_id = (self.core.document.doc_info.para_shapes.len() - 1) as u16;
-                self.core.document.doc_info.styles[style_id as usize].para_shape_id = new_id;
+                self.core
+                    .mutate_document()
+                    .doc_info
+                    .para_shapes
+                    .push(new_ps);
+                let new_id = (self.core.document().doc_info.para_shapes.len() - 1) as u16;
+                self.core.mutate_document().doc_info.styles[style_id as usize].para_shape_id =
+                    new_id;
             }
         }
 
         // raw_data 무효화
-        self.core.document.doc_info.styles[style_id as usize].raw_data = None;
+        self.core.mutate_document().doc_info.styles[style_id as usize].raw_data = None;
 
         // ── 스타일 변경을 해당 스타일을 사용하는 모든 문단에 전파 ──
-        let updated_style = self.core.document.doc_info.styles[style_id as usize].clone();
+        let updated_style = self.core.document().doc_info.styles[style_id as usize].clone();
         let sid = style_id as u8;
         let new_csid = updated_style.char_shape_id as u32;
         let new_psid = updated_style.para_shape_id;
-        for section in &mut self.core.document.sections {
+        for section in &mut self.core.mutate_document().sections {
             for para in &mut section.paragraphs {
                 if para.style_id == sid {
                     para.para_shape_id = new_psid;
@@ -4226,7 +4251,7 @@ impl HwpDocument {
         }
 
         // 스타일 캐시 무효화 + 전체 리빌드
-        let num_sections = self.core.document.sections.len();
+        let num_sections = self.core.document().sections.len();
         for sec_idx in 0..num_sections {
             self.core.rebuild_section(sec_idx);
         }
@@ -4248,7 +4273,7 @@ impl HwpDocument {
         let next_style_id = json_i32(json, "nextStyleId").unwrap_or(0) as u8;
 
         // 기본 "바탕글" 스타일(ID 0)의 CharShape/ParaShape를 복사
-        let base_style = self.core.document.doc_info.styles.first();
+        let base_style = self.core.document().doc_info.styles.first();
         let (char_shape_id, para_shape_id) = match base_style {
             Some(s) => (s.char_shape_id, s.para_shape_id),
             None => (0, 0),
@@ -4263,11 +4288,11 @@ impl HwpDocument {
             para_shape_id,
             char_shape_id,
         };
-        self.core.document.doc_info.styles.push(new_style);
-        let new_id = (self.core.document.doc_info.styles.len() - 1) as i32;
+        self.core.mutate_document().doc_info.styles.push(new_style);
+        let new_id = (self.core.document().doc_info.styles.len() - 1) as i32;
         // 스타일 캐시 갱신
         self.core.styles = crate::renderer::style_resolver::resolve_styles(
-            &self.core.document.doc_info,
+            &self.core.document().doc_info,
             self.core.dpi,
         );
         new_id
@@ -4282,13 +4307,13 @@ impl HwpDocument {
         if style_id == 0 {
             return false; // 바탕글은 삭제 불가
         }
-        let styles = &self.core.document.doc_info.styles;
+        let styles = &self.core.document().doc_info.styles;
         if style_id as usize >= styles.len() {
             return false;
         }
         let sid = style_id as u8;
         // 해당 스타일을 사용 중인 문단을 바탕글(0)로 변경
-        for section in &mut self.core.document.sections {
+        for section in &mut self.core.mutate_document().sections {
             for para in &mut section.paragraphs {
                 if para.style_id == sid {
                     para.style_id = 0;
@@ -4296,9 +4321,13 @@ impl HwpDocument {
             }
         }
         // 스타일 삭제 (인덱스 기반이므로 뒤의 ID가 변경됨에 주의)
-        self.core.document.doc_info.styles.remove(style_id as usize);
+        self.core
+            .mutate_document()
+            .doc_info
+            .styles
+            .remove(style_id as usize);
         // 삭제된 ID보다 큰 style_id를 가진 문단들 보정
-        for section in &mut self.core.document.sections {
+        for section in &mut self.core.mutate_document().sections {
             for para in &mut section.paragraphs {
                 if para.style_id > sid {
                     para.style_id -= 1;
@@ -4306,7 +4335,7 @@ impl HwpDocument {
             }
         }
         // next_style_id 보정
-        for s in &mut self.core.document.doc_info.styles {
+        for s in &mut self.core.mutate_document().doc_info.styles {
             if s.next_style_id == sid {
                 s.next_style_id = 0;
             } else if s.next_style_id > sid {
@@ -4315,7 +4344,7 @@ impl HwpDocument {
         }
         // 스타일 캐시 갱신
         self.core.styles = crate::renderer::style_resolver::resolve_styles(
-            &self.core.document.doc_info,
+            &self.core.document().doc_info,
             self.core.dpi,
         );
         true
@@ -4327,7 +4356,7 @@ impl HwpDocument {
     /// id는 1-based (ParaShape.numbering_id와 동일)
     #[wasm_bindgen(js_name = getNumberingList)]
     pub fn get_numbering_list(&self) -> String {
-        let numberings = &self.core.document.doc_info.numberings;
+        let numberings = &self.core.document().doc_info.numberings;
         let mut items = Vec::new();
         for (i, n) in numberings.iter().enumerate() {
             let formats: Vec<String> = n
@@ -4351,7 +4380,7 @@ impl HwpDocument {
     /// id는 1-based (ParaShape.numbering_id와 동일)
     #[wasm_bindgen(js_name = getBulletList)]
     pub fn get_bullet_list(&self) -> String {
-        let bullets = &self.core.document.doc_info.bullets;
+        let bullets = &self.core.document().doc_info.bullets;
         let mut items = Vec::new();
         for (i, b) in bullets.iter().enumerate() {
             let mapped = crate::renderer::layout::map_pua_bullet_char(b.bullet_char);
@@ -4371,7 +4400,7 @@ impl HwpDocument {
     /// 반환값: Numbering ID (1-based)
     #[wasm_bindgen(js_name = ensureDefaultNumbering)]
     pub fn ensure_default_numbering(&mut self) -> u16 {
-        let numberings = &self.core.document.doc_info.numberings;
+        let numberings = &self.core.document().doc_info.numberings;
         if !numberings.is_empty() {
             return 1; // 이미 있으면 첫 번째 반환
         }
@@ -4418,7 +4447,7 @@ impl HwpDocument {
             number_format: 5,
             ..Default::default()
         }; // a,b,c
-        self.core.document.doc_info.numberings.push(n);
+        self.core.mutate_document().doc_info.numberings.push(n);
         1
     }
 
@@ -4479,8 +4508,8 @@ impl HwpDocument {
 
         n.start_number = json_i32(json, "startNumber").unwrap_or(1) as u16;
         n.level_start_numbers = [n.start_number as u32; 7];
-        self.core.document.doc_info.numberings.push(n);
-        self.core.document.doc_info.numberings.len() as u16
+        self.core.mutate_document().doc_info.numberings.push(n);
+        self.core.document().doc_info.numberings.len() as u16
     }
 
     /// 특정 문자의 글머리표 정의가 없으면 생성한다.
@@ -4490,7 +4519,7 @@ impl HwpDocument {
     pub fn ensure_default_bullet(&mut self, bullet_char_str: &str) -> u16 {
         let bullet_ch = bullet_char_str.chars().next().unwrap_or('●');
         // 이미 해당 문자의 Bullet이 있는지 검색
-        let bullets = &self.core.document.doc_info.bullets;
+        let bullets = &self.core.document().doc_info.bullets;
         for (i, b) in bullets.iter().enumerate() {
             let mapped = crate::renderer::layout::map_pua_bullet_char(b.bullet_char);
             if mapped == bullet_ch {
@@ -4504,8 +4533,8 @@ impl HwpDocument {
             text_distance: 50,
             ..Default::default()
         };
-        self.core.document.doc_info.bullets.push(b);
-        self.core.document.doc_info.bullets.len() as u16
+        self.core.mutate_document().doc_info.bullets.push(b);
+        self.core.document().doc_info.bullets.len() as u16
     }
 
     /// 특정 문단의 스타일을 조회한다.
@@ -4517,7 +4546,7 @@ impl HwpDocument {
         let para = para_idx as usize;
         let style_id = self
             .core
-            .document
+            .document()
             .sections
             .get(sec)
             .and_then(|s| s.paragraphs.get(para))
@@ -4525,7 +4554,7 @@ impl HwpDocument {
             .unwrap_or(0);
         let name = self
             .core
-            .document
+            .document()
             .doc_info
             .styles
             .get(style_id)
@@ -4561,7 +4590,7 @@ impl HwpDocument {
             .unwrap_or(0);
         let name = self
             .core
-            .document
+            .document()
             .doc_info
             .styles
             .get(style_id)

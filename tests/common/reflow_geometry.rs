@@ -65,6 +65,13 @@ pub fn fixture(form: Form, seed: Option<&str>) -> Fixture {
     ).unwrap();
     let para_idx = number(&created, "paraIdx");
     let control_idx = number(&created, "controlIdx");
+    if matches!(
+        form,
+        Form::Cell { merged: true, .. } | Form::TableCaption { merged: true, .. }
+    ) {
+        doc.merge_table_cells_native(0, para_idx, control_idx, 0, 0, 1, 1)
+            .unwrap();
+    }
     let mut model = doc.document().clone();
     let control = &mut model.sections[0].paragraphs[para_idx].controls[control_idx];
     let Control::Table(base) = control else {
@@ -79,9 +86,6 @@ pub fn fixture(form: Form, seed: Option<&str>) -> Fixture {
             inherited,
         } => {
             let mut target = base.as_ref().clone();
-            if merged {
-                target.merge_cells(0, 0, 1, 1).unwrap();
-            }
             if nested {
                 for cell in &mut target.cells {
                     cell.width = if direction == 0 { 3000 } else { 5291 };
@@ -152,9 +156,6 @@ pub fn fixture(form: Form, seed: Option<&str>) -> Fixture {
             merged,
             spacing,
         } => {
-            if merged {
-                base.merge_cells(0, 0, 1, 1).unwrap();
-            }
             base.cell_spacing = spacing;
             base.caption = Some(caption(direction));
             let capacity = match direction {
@@ -186,11 +187,18 @@ pub fn fixture(form: Form, seed: Option<&str>) -> Fixture {
         capacity,
     };
     if let Some(text) = seed {
-        paragraph_mut(
+        let para = paragraph_mut(
             &mut model.sections[0].paragraphs[para_idx].controls[control_idx],
             form,
-        )
-        .insert_text_at(0, text);
+        );
+        assert!(para.text().is_empty() && para.field_markers().is_empty());
+        *para = std::mem::take(para).with_parsed_text(
+            text.into(),
+            (0..u32::try_from(text.chars().count()).unwrap()).collect(),
+            vec![],
+        );
+        para.char_count = u32::try_from(text.chars().count()).unwrap() + 1;
+        para.has_para_text = true;
     }
     result.doc.set_document(model);
     result

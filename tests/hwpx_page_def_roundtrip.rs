@@ -150,8 +150,7 @@ fn doc_with_sections(defs: Vec<(PageDef, bool)>) -> Document {
         let mut section = Section::default();
         section.section_def.page_def = page_def;
         if with_paragraph {
-            let mut para = Paragraph::default();
-            para.replace_text("본문".to_string());
+            let para = Paragraph::with_text("본문".to_string(), vec![0, 1], vec![]);
             section.paragraphs.push(para);
         }
         doc.sections.push(section);

@@ -277,7 +277,11 @@ fn unavailable_geometry_matrix_preserves_horizontal_segments_and_vertical_baseli
                     remove_capacity(&mut f, form, both_axes);
                     let mut expected_para = f.paragraph().clone();
                     if matches!(edit, Edit::Input) {
-                        expected_para.insert_text_at(0, TEXT);
+                        for segment in &mut expected_para.line_segs {
+                            if segment.text_start > 0 {
+                                segment.text_start += u32::try_from(TEXT.chars().count()).unwrap();
+                            }
+                        }
                     }
                     let old = format!("{:?}", expected_para.line_segs);
                     apply_edit(&mut f, edit, TEXT);
@@ -322,7 +326,11 @@ fn unusable_table_caption_geometry_preserves_segments() {
                 apply_edit(&mut f, Edit::FontSize, TEXT);
                 let mut expected = f.paragraph().clone();
                 if matches!(edit, Edit::Input) {
-                    expected.insert_text_at(0, TEXT);
+                    for segment in &mut expected.line_segs {
+                        if segment.text_start > 0 {
+                            segment.text_start += u32::try_from(TEXT.chars().count()).unwrap();
+                        }
+                    }
                 }
                 let before = format!("{:?}", expected.line_segs);
                 let mut model = f.doc.document().clone();

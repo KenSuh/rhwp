@@ -1,7 +1,8 @@
 /** input-handler text methods — extracted from InputHandler class */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { InsertTextCommand, DeleteTextCommand, MergeParagraphCommand, MergeNextParagraphCommand, MergeParagraphInCellCommand, MergeNextParagraphInCellCommand } from './command';
+import { InsertTextCommand, DeleteTextCommand, MergeParagraphCommand, MergeNextParagraphCommand, MergeParagraphInCellCommand, MergeNextParagraphInCellCommand, SnapshotCommand } from './command';
+import { withHistorySuspended } from './history';
 import type { DocumentPosition } from '@/core/types';
 
 /** IME 조합 종료 후 대기 중인 탐색 키를 처리한다 */
@@ -167,7 +168,8 @@ export function handleDelete(this: any, pos: DocumentPosition, inCell: boolean):
 export function onCompositionStart(this: any): void {
   // 선택 영역이 있으면 삭제 후 조합 시작
   if (this.cursor.hasSelection()) {
-    this.deleteSelection();
+    this.compositionSelectionSnapshot = { id: this.wasm.saveSnapshot(), position: this.cursor.getPosition() };
+    withHistorySuspended(this.wasm, () => this.deleteSelection());
   }
   this.isComposing = true;
   if (this.cursor.isInHeaderFooter()) {
@@ -192,6 +194,8 @@ export function onCompositionEnd(this: any): void {
   const anchor = this.compositionAnchor;
   const finalLength = this.compositionLength;
   const editToken = this.compositionEditToken;
+  const selectionSnapshot = this.compositionSelectionSnapshot;
+  this.compositionSelectionSnapshot = null;
   this.compositionEditToken = null;
 
   this.isComposing = false;
@@ -207,7 +211,19 @@ export function onCompositionEnd(this: any): void {
   // 조합 중 WASM 직접 호출로 이미 문서에 삽입된 텍스트를
   // Command로 기록하여 Undo 가능하게 한다.
   // 머리말/꼬리말·각주 모드에서는 Undo 기록 생략 (별도 Undo 시스템 없음)
-  if (anchor && editToken !== null && finalLength > 0 && !this.cursor.isInHeaderFooter() && !this.cursor.isInFootnote()) {
+  if (selectionSnapshot) {
+    if (editToken !== null) this.wasm.discardEdit(editToken);
+    if (finalLength > 0) {
+      this.executeOperation({ kind: 'record', command: SnapshotCommand.recorded(
+        'compositionSelection', selectionSnapshot.id, this.wasm.saveSnapshot(),
+        selectionSnapshot.position, this.cursor.getPosition(),
+      ) });
+    } else {
+      this.wasm.restoreSnapshot(selectionSnapshot.id);
+      this.wasm.discardSnapshot(selectionSnapshot.id);
+      this.cursor.moveTo(selectionSnapshot.position);
+    }
+  } else if (anchor && editToken !== null && finalLength > 0 && !this.cursor.isInHeaderFooter() && !this.cursor.isInFootnote()) {
     const insertedText = this.getTextAt(anchor, finalLength);
     if (insertedText) {
       // execute() 없이 히스토리에만 기록 (텍스트는 이미 문서에 있음)
@@ -242,6 +258,14 @@ export function getTextAt(this: any, pos: DocumentPosition, count: number): stri
 }
 
 export function onInput(this: any, e?: InputEvent): void {
+  if (this.compositionSelectionSnapshot) {
+    withHistorySuspended(this.wasm, () => applyInput.call(this, e));
+  } else {
+    applyInput.call(this, e);
+  }
+}
+
+function applyInput(this: ThisParameterType<typeof onInput>, e?: InputEvent): void {
   if (!this.active) return;
 
   const text = this.textarea.value;
@@ -255,7 +279,9 @@ export function onInput(this: any, e?: InputEvent): void {
     const anchor = this.compositionAnchor;
 
     // 이전 조합 텍스트 삭제
-    if (!this.cursor.isInHeaderFooter() && !this.cursor.isInFootnote()) {
+    if (this.compositionSelectionSnapshot) {
+      if (this.compositionLength > 0) this.deleteTextAt(anchor, this.compositionLength);
+    } else if (!this.cursor.isInHeaderFooter() && !this.cursor.isInFootnote()) {
       const hadInverse = this.compositionEditToken !== null;
       if (this.compositionEditToken !== null) {
         this.wasm.discardEdit(this.wasm.undoEdit(this.compositionEditToken));
@@ -291,6 +317,7 @@ export function onInput(this: any, e?: InputEvent): void {
       }
     }
 
+    if (this.compositionEditToken !== null) this.wasm.finishTextEdit(this.compositionEditToken);
     this.afterEdit();
     return;
   }
@@ -338,6 +365,8 @@ export function onInput(this: any, e?: InputEvent): void {
     } else {
       this._iosLength = 0;
     }
+
+    if (this._iosEditToken !== null) this.wasm.finishTextEdit(this._iosEditToken);
 
     // 커서 이동 (렌더링 없이 문서만 갱신)
     const newOffset = this._iosAnchor.charOffset + (text?.length || 0);

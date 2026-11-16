@@ -66,7 +66,7 @@ impl DocumentCore {
 
         let sec_count = document.sections.len();
         let mut doc = DocumentCore {
-            document,
+            document: crate::document_core::mutation::DocumentMutation::new(document),
             pagination: Vec::new(),
             styles,
             composed,
@@ -619,7 +619,7 @@ impl DocumentCore {
             .collect();
         let sec_count = document.sections.len();
 
-        self.document = document;
+        *self.document = document;
         self.styles = styles;
         self.composed = composed;
         self.clipboard = None;
@@ -708,7 +708,7 @@ impl DocumentCore {
 
     /// 문서 IR을 직접 설정한다 (테스트/네이티브 전용).
     pub fn set_document(&mut self, doc: Document) {
-        self.document = doc;
+        *self.document = doc;
         self.text_edit_history = crate::document_core::TextEditHistory::new();
         self.styles = resolve_styles(&self.document.doc_info, self.dpi);
         self.composed = self
@@ -746,7 +746,8 @@ impl DocumentCore {
         self.invalidate_edit_redo();
         let id = self.next_snapshot_id;
         self.next_snapshot_id += 1;
-        self.snapshot_store.push((id, self.document.clone()));
+        self.snapshot_store
+            .push((id, self.document.clone(), self.document.state()));
         // 최대 100개 제한 — 초과 시 가장 오래된 스냅샷 제거
         const MAX_SNAPSHOTS: usize = 100;
         while self.snapshot_store.len() > MAX_SNAPSHOTS {
@@ -761,10 +762,10 @@ impl DocumentCore {
         let idx = self
             .snapshot_store
             .iter()
-            .position(|(sid, _)| *sid == id)
+            .position(|(sid, _, _)| *sid == id)
             .ok_or_else(|| HwpError::RenderError(format!("스냅샷 {} 없음", id)))?;
-        let (_, doc) = self.snapshot_store[idx].clone();
-        self.document = doc;
+        let (_, doc, saved_revision) = self.snapshot_store[idx].clone();
+        *self.document = doc;
         // 캐시 전체 재구성
         self.styles = resolve_styles(&self.document.doc_info, self.dpi);
         self.composed = self
@@ -781,12 +782,13 @@ impl DocumentCore {
         self.page_tree_cache.borrow_mut().clear();
         self.overflow_links_cache.borrow_mut().clear();
         self.paginate();
+        self.rebase_edit_revision(saved_revision);
         Ok(super::super::helpers::json_ok())
     }
 
     /// 지정 ID의 스냅샷을 저장소에서 제거하여 메모리를 해제한다.
     pub fn discard_snapshot_native(&mut self, id: u32) {
-        self.snapshot_store.retain(|(sid, _)| *sid != id);
+        self.snapshot_store.retain(|(sid, _, _)| *sid != id);
     }
 
     pub fn measure_width_diagnostic_native(

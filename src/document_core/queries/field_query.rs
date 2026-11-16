@@ -166,7 +166,7 @@ impl DocumentCore {
         }
 
         // raw_stream 무효화
-        if let Some(sec) = self.document.sections.get_mut(section_index) {
+        if let Some(sec) = self.mutate_document().sections.get_mut(section_index) {
             sec.raw_stream = None;
         }
         self.recompose_section(section_index);
@@ -198,7 +198,7 @@ impl DocumentCore {
                 ..
             } => {
                 let sec = self
-                    .document
+                    .mutate_document()
                     .sections
                     .get_mut(location.section_index)
                     .ok_or_else(|| HwpError::InvalidField("구역 초과".into()))?;
@@ -235,7 +235,11 @@ impl DocumentCore {
         value: &str,
     ) -> Result<(), HwpError> {
         // raw_stream 무효화: 직렬화 시 수정된 모델을 사용하도록 강제
-        if let Some(sec) = self.document.sections.get_mut(location.section_index) {
+        if let Some(sec) = self
+            .mutate_document()
+            .sections
+            .get_mut(location.section_index)
+        {
             sec.raw_stream = None;
         }
         let para = self.get_para_mut_at_location(location)?;
@@ -263,7 +267,7 @@ impl DocumentCore {
         location: &FieldLocation,
     ) -> Result<&mut Paragraph, HwpError> {
         let sec = self
-            .document
+            .mutate_document()
             .sections
             .get_mut(location.section_index)
             .ok_or_else(|| HwpError::InvalidField("구역 인덱스 초과".into()))?;
@@ -336,7 +340,7 @@ impl DocumentCore {
         char_offset: usize,
     ) -> Result<String, HwpError> {
         let para = self
-            .document
+            .mutate_document()
             .sections
             .get_mut(section_idx)
             .and_then(|s| s.paragraphs.get_mut(para_idx))
@@ -359,7 +363,7 @@ impl DocumentCore {
     ) -> Result<String, HwpError> {
         let para = {
             let host = self
-                .document
+                .mutate_document()
                 .sections
                 .get_mut(section_idx)
                 .and_then(|s| s.paragraphs.get_mut(parent_para_idx))

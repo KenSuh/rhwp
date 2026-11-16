@@ -26,6 +26,69 @@ use crate::renderer::DEFAULT_DPI;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
+mod mutation {
+    use crate::model::document::Document;
+    use std::ops::{Deref, DerefMut};
+
+    pub(super) struct DocumentMutation {
+        document: Document,
+        revision: u64,
+        state: u64,
+    }
+
+    impl DocumentMutation {
+        pub(super) fn new(document: Document) -> Self {
+            Self {
+                document,
+                revision: 0,
+                state: 0,
+            }
+        }
+
+        pub(super) fn revision(&self) -> u64 {
+            self.revision
+        }
+        pub(super) fn state(&self) -> u64 {
+            self.state
+        }
+        pub(super) fn restored(&mut self, state: u64) {
+            self.state = state;
+        }
+    }
+
+    impl Deref for DocumentMutation {
+        type Target = Document;
+        fn deref(&self) -> &Document {
+            &self.document
+        }
+    }
+
+    impl DerefMut for DocumentMutation {
+        fn deref_mut(&mut self) -> &mut Document {
+            #[expect(
+                clippy::expect_used,
+                reason = "a document cannot perform 2^64 mutations in its lifetime"
+            )]
+            {
+                self.revision = self
+                    .revision
+                    .checked_add(1)
+                    .expect("document revision exhausted");
+            }
+            self.state = self.revision;
+            &mut self.document
+        }
+    }
+}
+
+pub(crate) struct EditRecord {
+    handle: String,
+    before_state: u64,
+    applies_state: u64,
+    revision: Option<u64>,
+    state: TextEditState,
+}
+
 pub(crate) enum TextEditState {
     Paragraph {
         section: usize,
@@ -41,8 +104,8 @@ pub(crate) enum TextEditState {
 pub(crate) struct TextEditHistory {
     epoch: Result<String, String>,
     next_sequence: u64,
-    undo: Vec<(String, TextEditState)>,
-    redo: Vec<(String, TextEditState)>,
+    undo: Vec<EditRecord>,
+    redo: Vec<EditRecord>,
 }
 
 impl TextEditHistory {
@@ -77,7 +140,7 @@ pub(crate) struct ClipboardData {
 /// WASM 바인딩 없이 순수 Rust 타입만 사용한다.
 pub struct DocumentCore {
     /// IR 문서
-    pub(crate) document: Document,
+    document: mutation::DocumentMutation,
     /// 페이지 분할 결과
     pub(crate) pagination: Vec<PaginationResult>,
     /// 해소된 스타일 세트
@@ -125,7 +188,7 @@ pub struct DocumentCore {
     pub(crate) overflow_links_cache:
         RefCell<HashMap<usize, Vec<queries::doc_tree_nav::OverflowLink>>>,
     /// Undo/Redo용 Document 스냅샷 저장소 (ID → Document 클론)
-    pub(crate) snapshot_store: Vec<(u32, Document)>,
+    pub(crate) snapshot_store: Vec<(u32, Document, u64)>,
     /// 다음 스냅샷 ID
     pub(crate) next_snapshot_id: u32,
     pub(crate) text_edit_history: TextEditHistory,
@@ -161,6 +224,10 @@ pub struct ActiveFieldInfo {
 }
 
 impl DocumentCore {
+    pub(crate) fn mutate_document(&mut self) -> &mut Document {
+        &mut self.document
+    }
+
     /// 총 페이지 수를 반환한다.
     pub fn page_count(&self) -> u32 {
         self.pagination
@@ -241,7 +308,7 @@ impl DocumentCore {
     /// 빈 문서를 생성한다 (테스트/미리보기용).
     pub fn new_empty() -> Self {
         DocumentCore {
-            document: Document::default(),
+            document: mutation::DocumentMutation::new(Document::default()),
             pagination: Vec::new(),
             styles: ResolvedStyleSet::default(),
             composed: Vec::new(),

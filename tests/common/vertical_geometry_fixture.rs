@@ -130,7 +130,15 @@ pub(super) fn prepared(case: Case) -> (HwpDocument, usize, usize) {
     table.cells[0].padding = Padding::default();
     table.padding = Padding::default();
     table.common.height = 0;
-    table.cells[0].paragraphs[0].insert_text_at(0, TEXT);
+    let para = &mut table.cells[0].paragraphs[0];
+    assert!(para.text().is_empty() && para.field_markers().is_empty());
+    *para = std::mem::take(para).with_parsed_text(
+        TEXT.into(),
+        (0..u32::try_from(TEXT.chars().count()).unwrap()).collect(),
+        vec![],
+    );
+    para.char_count = u32::try_from(TEXT.chars().count()).unwrap() + 1;
+    para.has_para_text = true;
     table.cells[0].paragraphs[0].line_segs[0].line_height = 0;
     let leaf = table.as_ref().clone();
     let mut chain = leaf.clone();

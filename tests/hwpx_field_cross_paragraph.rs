@@ -764,6 +764,7 @@ fn c3_delete_inverse(para: u32, pos: u32, text: &str) {
         serialize_hwpx(&parse_hwpx(&deleted).unwrap()).unwrap(),
         deleted
     );
+    doc.finish_text_edit(&token).unwrap();
     let redo = doc.undo_edit(&token).unwrap();
     let saved = doc.export_hwpx_native().unwrap();
     assert_eq!(field_content(&field_tokens(&section_xml(&saved))), "12AB");
@@ -812,6 +813,7 @@ fn c1_c3_insert_inverse_and_redo_at_each_boundary() {
             serialize_hwpx(&parse_hwpx(&inserted).unwrap()).unwrap(),
             inserted
         );
+        doc.finish_text_edit(&token).unwrap();
         let redo = doc.undo_edit(&token).unwrap();
         let restored = doc.export_hwpx_native().unwrap();
         assert_eq!(
@@ -853,6 +855,7 @@ fn c1_c3_collapsed_adjacent_markers_have_exact_inverse() {
                 deleted
             );
         }
+        doc.finish_text_edit(&token).unwrap();
         let redo = doc.undo_edit(&token).unwrap();
         assert_eq!(doc.export_hwpx_native().unwrap(), original);
         let saved = doc.export_hwpx_native().unwrap();
@@ -913,6 +916,7 @@ fn c1_c3_split_at_adjacent_empty_fields_preserves_sequence() {
         serialize_hwpx(&parse_hwpx(&merged).unwrap()).unwrap(),
         merged
     );
+    doc.finish_text_edit(&token).unwrap();
     doc.undo_edit(&token).unwrap();
     let restored = doc.export_hwpx_native().unwrap();
     assert_eq!(field_tokens(&section_xml(&restored)), original);
@@ -927,7 +931,9 @@ fn c1_c3_undo_tokens_are_bounded_consumed_and_dropped_on_reload() {
     let mut doc = rhwp::DocumentCore::from_bytes(&c3_boundary_fixture()).unwrap();
     let mut tokens = Vec::new();
     for _ in 0..1024 {
-        tokens.push(doc.begin_text_edit_native(0, 0, false).unwrap());
+        let token = doc.begin_text_edit_native(0, 0, false).unwrap();
+        doc.finish_text_edit_native(&token).unwrap();
+        tokens.push(token);
     }
     assert!(doc.begin_text_edit_native(0, 0, false).is_err());
     let latest = tokens.last().unwrap();
@@ -948,8 +954,10 @@ fn c1_history_refuses_out_of_order_handles_without_changing_text() {
     let mut doc = rhwp::DocumentCore::from_bytes(&c3_boundary_fixture()).unwrap();
     let old = doc.begin_text_edit_native(0, 1, false).unwrap();
     doc.delete_text_native(0, 1, 2, 2).unwrap();
+    doc.finish_text_edit_native(&old).unwrap();
     let later = doc.begin_text_edit_native(0, 1, false).unwrap();
     doc.insert_text_native(0, 1, 2, "LATER").unwrap();
+    doc.finish_text_edit_native(&later).unwrap();
     assert!(
         doc.undo_edit_native(&old).is_err(),
         "out-of-order inverse accepted"
@@ -966,6 +974,7 @@ fn c1_history_refuses_redo_after_new_edit() {
         let mut doc = rhwp::DocumentCore::from_bytes(&c3_boundary_fixture()).unwrap();
         let token = doc.begin_text_edit_native(0, 1, false).unwrap();
         doc.insert_text_native(0, 1, 2, "OLD").unwrap();
+        doc.finish_text_edit_native(&token).unwrap();
         let redo = doc.undo_edit_native(&token).unwrap();
         if captured {
             doc.begin_text_edit_native(0, 1, false).unwrap();
@@ -1020,6 +1029,161 @@ fn c1_clipboard_owns_complete_fields_and_remaps_each_paste() {
             assert_eq!(serialize_hwpx(&parsed).unwrap(), saved);
         }
     }
+}
+
+#[test]
+fn c1_revision_refuses_redo_after_replace_all() {
+    revision_after_public_edit(false);
+}
+
+#[test]
+fn c1_revision_refuses_redo_after_field_replacement() {
+    revision_after_public_edit(true);
+}
+
+fn revision_after_public_edit(field: bool) {
+    let input = fixture(&paragraph(&format!(
+        "{}<hp:t>ABC</hp:t>{}",
+        begin(1),
+        end(1)
+    )));
+    let mut doc = rhwp::DocumentCore::from_bytes(&input).unwrap();
+    let token = doc.begin_text_edit_native(0, 0, false).unwrap();
+    doc.insert_text_native(0, 0, 1, "OLD").unwrap();
+    doc.finish_text_edit_native(&token).unwrap();
+    let redo = doc.undo_edit_native(&token).unwrap();
+    if field {
+        doc.set_field_value_by_id(501, "NEW").unwrap();
+    } else {
+        doc.replace_all_native("ABC", "NEW", true).unwrap();
+    }
+    assert!(
+        doc.undo_edit_native(&redo).is_err(),
+        "redo accepted a different revision"
+    );
+    assert_eq!(doc.document().sections[0].paragraphs[0].text(), "NEW");
+    let saved = doc.export_hwpx_native().unwrap();
+    assert_eq!(serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(), saved);
+}
+
+#[test]
+fn c1_fragment_omits_unselected_control_subtrees() {
+    let table = wrapped_field_list(
+        "cell",
+        &paragraph(&format!("{}<hp:t>SECRET</hp:t>{}", begin(1), end(1))),
+    );
+    let body = table.replacen("</hp:tbl>", "</hp:tbl><hp:t>ZZ</hp:t>", 1);
+    let input = fixture(&format!("{body}{}", paragraph("<hp:t>TARGET</hp:t>")));
+    let mut doc = rhwp::DocumentCore::from_bytes(&input).unwrap();
+    doc.copy_selection_native(0, 0, 1, 0, 2).unwrap();
+    doc.paste_internal_native(0, 1, 0).unwrap();
+    assert_eq!(doc.document().sections[0].paragraphs[1].text(), "ZTARGET");
+    assert!(doc.document().sections[0].paragraphs[1].controls.is_empty());
+    let saved = doc.export_hwpx_native().unwrap();
+    assert_eq!(section_xml(&saved).matches("<hp:fieldBegin ").count(), 1);
+    assert_eq!(serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(), saved);
+}
+
+#[test]
+fn c1_selected_table_keeps_subtree_with_fresh_ids_on_each_paste() {
+    let table = wrapped_field_list(
+        "cell",
+        &paragraph(&format!("{}<hp:t>SECRET</hp:t>{}", begin(1), end(1))),
+    );
+    let body = table.replacen("</hp:tbl>", "</hp:tbl><hp:t>ZZ</hp:t>", 1);
+    let mut doc = rhwp::DocumentCore::from_bytes(&fixture(&format!(
+        "{body}{}",
+        paragraph("<hp:t>TARGET</hp:t>")
+    )))
+    .unwrap();
+    doc.copy_selection_native(0, 0, 0, 0, 2).unwrap();
+    for count in [2, 3] {
+        doc.paste_internal_native(0, 1, 0).unwrap();
+        let saved = doc.export_hwpx_native().unwrap();
+        assert_eq!(
+            doc.document().sections[0].paragraphs[1].controls.len(),
+            count - 1
+        );
+        let fields = doc.collect_all_fields();
+        assert_eq!(fields.len(), count);
+        assert_eq!(
+            fields
+                .iter()
+                .map(|field| field.field.field_id)
+                .collect::<std::collections::HashSet<_>>()
+                .len(),
+            count
+        );
+        assert!(fields.iter().all(|field| field.value == "SECRET"));
+        let resaved = serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap();
+        assert_eq!(section_xml(&resaved), section_xml(&saved));
+    }
+}
+
+#[test]
+fn c1_cell_selection_copies_text_without_the_ancestor_table() {
+    let table = wrapped_field_list(
+        "cell",
+        &paragraph(&format!("{}<hp:t>SECRET</hp:t>{}", begin(1), end(1))),
+    );
+    let mut doc = rhwp::DocumentCore::from_bytes(&fixture(&format!(
+        "{table}{}",
+        paragraph("<hp:t>TARGET</hp:t>")
+    )))
+    .unwrap();
+    doc.copy_selection_in_cell_native(0, 0, 0, 0, 0, 0, 0, 3)
+        .unwrap();
+    doc.paste_internal_native(0, 1, 0).unwrap();
+    let target = &doc.document().sections[0].paragraphs[1];
+    assert_eq!(target.text(), "SECTARGET");
+    assert!(target.controls.is_empty());
+    assert_eq!(doc.collect_all_fields().len(), 1);
+    let saved = doc.export_hwpx_native().unwrap();
+    assert_eq!(serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(), saved);
+}
+
+#[test]
+fn c1_revision_refuses_redo_after_cell_edit() {
+    let table = wrapped_field_list(
+        "cell",
+        &paragraph(&format!("{}<hp:t>ABC</hp:t>{}", begin(1), end(1))),
+    );
+    let mut doc = rhwp::DocumentCore::from_bytes(&fixture(&table)).unwrap();
+    let token = doc.begin_text_edit_native(0, 0, false).unwrap();
+    doc.insert_text_in_cell_native(0, 0, 0, 0, 0, 1, "OLD")
+        .unwrap();
+    doc.finish_text_edit_native(&token).unwrap();
+    let redo = doc.undo_edit_native(&token).unwrap();
+    doc.insert_text_in_cell_native(0, 0, 0, 0, 0, 0, "NEW")
+        .unwrap();
+    assert!(doc.undo_edit_native(&redo).is_err());
+    assert_eq!(doc.collect_all_fields()[0].value, "ABC");
+    let Control::Table(table) = &doc.document().sections[0].paragraphs[0].controls[0] else {
+        panic!("table")
+    };
+    assert_eq!(table.cells[0].paragraphs[0].text(), "NEWABC");
+    let saved = doc.export_hwpx_native().unwrap();
+    assert_eq!(serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(), saved);
+}
+
+#[test]
+fn c1_revision_refuses_uncaptured_edits_and_resealing() {
+    let input = fixture(&paragraph(&format!(
+        "{}<hp:t>ABC</hp:t>{}",
+        begin(1),
+        end(1)
+    )));
+    let mut doc = rhwp::DocumentCore::from_bytes(&input).unwrap();
+    let token = doc.begin_text_edit_native(0, 0, false).unwrap();
+    doc.insert_text_native(0, 0, 1, "OLD").unwrap();
+    assert!(doc.undo_edit_native(&token).is_err());
+    doc.finish_text_edit_native(&token).unwrap();
+    doc.set_field_value_by_id(501, "NEW").unwrap();
+    assert!(doc.finish_text_edit_native(&token).is_err());
+    assert!(doc.undo_edit_native(&token).is_err());
+    assert_eq!(doc.document().sections[0].paragraphs[0].text(), "NEW");
+    let saved = doc.export_hwpx_native().unwrap();
+    assert_eq!(serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(), saved);
 }
 
 #[test]

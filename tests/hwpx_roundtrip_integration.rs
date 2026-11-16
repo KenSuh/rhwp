@@ -2920,8 +2920,14 @@ fn p47_find_body_table(
 
 fn p47_set_label(table: &mut rhwp::model::table::Table, label: &str) {
     let para = &mut table.cells[0].paragraphs[0];
-    para.delete_text_at(0, para.text().chars().count());
-    para.insert_text_at(0, label);
+    assert!(para.field_markers().is_empty());
+    *para = std::mem::take(para).with_parsed_text(
+        label.into(),
+        (0..u32::try_from(label.chars().count()).unwrap()).collect(),
+        vec![],
+    );
+    para.char_count = u32::try_from(label.chars().count()).unwrap() + 1;
+    para.has_para_text = true;
 }
 
 fn p47_operation(
@@ -3659,7 +3665,10 @@ fn c8_native_field_binary_defaults_and_invalid_references_are_explicit() {
         ),
         (909, "binary&command😀", true)
     );
-    doc.sections[0].paragraphs[0].delete_text_at(2, 3);
+    let mut owner = rhwp::DocumentCore::new_empty();
+    owner.set_document(doc);
+    owner.delete_text_native(0, 0, 2, 3).unwrap();
+    let mut doc = owner.document().clone();
     let empty_saved = serialize_hwpx(&doc).unwrap();
     let empty = parse_hwpx(&empty_saved).expect("empty binary field begin must precede end");
     assert_eq!(

@@ -1,4 +1,5 @@
 import type { WasmBridge } from '@/core/wasm-bridge';
+import { withHistorySuspended } from './history';
 import { InvalidEditHandleError } from '@/core/wasm-bridge';
 import type { DocumentPosition, CharProperties } from '@/core/types';
 
@@ -46,8 +47,10 @@ class TextEditInverse {
     if (this.token === null) return operation();
     try {
       this.after = operation();
+      wasm.finishTextEdit(this.token);
       return this.after;
     } catch (error) {
+      wasm.finishTextEdit(this.token);
       wasm.discardEdit(wasm.undoEdit(this.token));
       this.token = null;
       throw error;
@@ -65,11 +68,16 @@ class TextEditInverse {
     this.after = after;
   }
 
-  merge(first: TextEditInverse, last: TextEditInverse, wasm: WasmBridge): void {
+  merge(first: TextEditInverse, last: TextEditInverse, wasm: WasmBridge): boolean {
+    if (first.token !== null && last.token !== null) {
+      if (!wasm.mergeTextEdits(first.token, last.token)) return false;
+      last.token = null;
+    }
     this.token = first.token;
     this.after = last.after;
     first.token = null;
     last.discard(wasm);
+    return true;
   }
 
   discard(wasm: WasmBridge): void {
@@ -292,7 +300,7 @@ export class InsertTextCommand implements EditCommand {
     if (other.text.includes('\n') || other.text.includes('\t')) return null;
 
     const merged = new InsertTextCommand(this.position, this.text + other.text, this.timestamp);
-    merged.inverse.merge(this.inverse, other.inverse, wasm);
+    if (!merged.inverse.merge(this.inverse, other.inverse, wasm)) return null;
     return merged;
   }
 }
@@ -361,7 +369,7 @@ export class DeleteTextCommand implements EditCommand {
           other.position, this.count + other.count, 'backward',
           other.deletedText + this.deletedText, this.timestamp,
         );
-        merged.inverse.merge(this.inverse, other.inverse, wasm);
+        if (!merged.inverse.merge(this.inverse, other.inverse, wasm)) return null;
         return merged;
       }
     } else {
@@ -371,7 +379,7 @@ export class DeleteTextCommand implements EditCommand {
           this.position, this.count + other.count, 'forward',
           this.deletedText + other.deletedText, this.timestamp,
         );
-        merged.inverse.merge(this.inverse, other.inverse, wasm);
+        if (!merged.inverse.merge(this.inverse, other.inverse, wasm)) return null;
         return merged;
       }
     }
@@ -953,6 +961,14 @@ export class SnapshotCommand implements EditCommand {
   private beforeId: number | null = null;
   private afterId: number | null = null;
 
+  static recorded(operationType: string, beforeId: number, afterId: number,
+    before: DocumentPosition, after: DocumentPosition): SnapshotCommand {
+    const command = new SnapshotCommand(operationType, before, after, null);
+    command.beforeId = beforeId;
+    command.afterId = afterId;
+    return command;
+  }
+
   /**
    * @param operationType 작업 종류 (예: 'pasteInternal', 'deleteControl')
    * @param cursorBefore 작업 전 커서 위치
@@ -976,10 +992,14 @@ export class SnapshotCommand implements EditCommand {
 
     // 최초 실행: before 저장 → 작업 수행 → after 저장
     this.beforeId = wasm.saveSnapshot();
-    if (this.operation) {
-      this.cursorAfter = this.operation(wasm);
+    try {
+      const operation = this.operation;
+      if (operation) this.cursorAfter = withHistorySuspended(wasm, () => operation(wasm));
+      this.afterId = wasm.saveSnapshot();
+    } catch (error) {
+      this.discard(wasm);
+      throw error;
     }
-    this.afterId = wasm.saveSnapshot();
 
     // operation 참조 해제 (클로저에 캡처된 리소스 해제)
     this.operation = null;

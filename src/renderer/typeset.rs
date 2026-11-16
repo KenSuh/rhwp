@@ -2032,7 +2032,7 @@ mod tests {
 
         let engine = TypesetEngine::with_default_dpi();
 
-        for (sec_idx, section) in doc.document.sections.iter().enumerate() {
+        for (sec_idx, section) in doc.document().sections.iter().enumerate() {
             let composed = &doc.composed[sec_idx];
             let measured_tables = &doc.measured_tables[sec_idx];
             let column_def =

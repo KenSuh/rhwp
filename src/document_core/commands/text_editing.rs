@@ -1,7 +1,7 @@
 //! 텍스트 삽입/삭제/문단 분리·병합/범위 삭제/문단 쿼리 관련 native 메서드
 
 use super::super::helpers::get_textbox_from_shape;
-use crate::document_core::{DocumentCore, TextEditState};
+use crate::document_core::{DocumentCore, EditRecord, TextEditState};
 use crate::error::HwpError;
 use crate::model::control::Control;
 use crate::model::event::DocumentEvent;
@@ -33,8 +33,63 @@ impl DocumentCore {
         }
         self.text_edit_history.redo.clear();
         self.text_edit_history.next_sequence += 1;
-        self.text_edit_history.undo.push((handle.clone(), state));
+        self.text_edit_history.undo.push(EditRecord {
+            handle: handle.clone(),
+            before_state: self.document.state(),
+            applies_state: self.document.state(),
+            revision: None,
+            state,
+        });
         Ok(handle)
+    }
+
+    pub fn finish_text_edit_native(&mut self, token: &str) -> Result<(), HwpError> {
+        let record = self
+            .text_edit_history
+            .undo
+            .last_mut()
+            .filter(|record| record.handle == token && record.revision.is_none())
+            .ok_or_else(|| {
+                HwpError::InvalidEditHandle("capture is not the pending stack top".into())
+            })?;
+        record.revision = Some(self.document.revision());
+        record.applies_state = self.document.state();
+        Ok(())
+    }
+
+    pub fn merge_text_edits_native(&mut self, first: &str, last: &str) -> Result<(), HwpError> {
+        let stack = &mut self.text_edit_history.undo;
+        let n = stack.len();
+        if n < 2
+            || stack[n - 2].handle != first
+            || stack[n - 1].handle != last
+            || stack[n - 2].applies_state != stack[n - 1].before_state
+            || stack[n - 1].revision != Some(self.document.revision())
+        {
+            return Err(HwpError::InvalidEditHandle(
+                "captures are not consecutive revisions".into(),
+            ));
+        }
+        stack[n - 2].revision = stack[n - 1].revision;
+        stack[n - 2].applies_state = stack[n - 1].applies_state;
+        stack.pop();
+        Ok(())
+    }
+
+    pub(crate) fn rebase_edit_revision(&mut self, saved_state: u64) {
+        self.document.restored(saved_state);
+        let revision = self.document.revision();
+        for stack in [
+            &mut self.text_edit_history.undo,
+            &mut self.text_edit_history.redo,
+        ] {
+            if let Some(record) = stack
+                .last_mut()
+                .filter(|record| record.applies_state == saved_state && record.revision.is_some())
+            {
+                record.revision = Some(revision);
+            }
+        }
     }
 
     fn text_edit_state(
@@ -88,20 +143,26 @@ impl DocumentCore {
         if token.split_once(':').map(|(value, _)| value) != Some(epoch.as_str()) {
             return Err(HwpError::InvalidEditHandle("document epoch differs".into()));
         }
-        let (undoing, state) =
-            if let Some((_, state)) = history.undo.last().filter(|(id, _)| id == token) {
-                (true, state)
-            } else if let Some((_, state)) = history.redo.last().filter(|(id, _)| id == token) {
-                (false, state)
-            } else {
-                return Err(HwpError::InvalidEditHandle(
-                    "handle is not the current undo or redo top".into(),
-                ));
-            };
+        let (undoing, record) = if let Some(record) =
+            history.undo.last().filter(|record| record.handle == token)
+        {
+            (true, record)
+        } else if let Some(record) = history.redo.last().filter(|record| record.handle == token) {
+            (false, record)
+        } else {
+            return Err(HwpError::InvalidEditHandle(
+                "handle is not the current undo or redo top".into(),
+            ));
+        };
+        if record.revision != Some(self.document.revision()) {
+            return Err(HwpError::InvalidEditHandle(
+                "document revision differs".into(),
+            ));
+        }
         let handle = self
             .next_edit_handle()
             .map_err(|error| HwpError::InvalidEditHandle(error.to_string()))?;
-        let (section, paragraph, structural) = match state {
+        let (section, paragraph, structural) = match &record.state {
             TextEditState::Paragraph {
                 section, paragraph, ..
             } => (*section, *paragraph, false),
@@ -116,10 +177,11 @@ impl DocumentCore {
         } else {
             &mut history.redo
         };
-        let (_, state) = source
+        let record = source
             .pop()
             .ok_or_else(|| HwpError::InvalidEditHandle("history is empty".into()))?;
-        match state {
+        let before_state = self.document.state();
+        match record.state {
             TextEditState::Paragraph {
                 section,
                 paragraph,
@@ -142,6 +204,7 @@ impl DocumentCore {
         self.page_tree_cache.borrow_mut().clear();
         self.overflow_links_cache.borrow_mut().clear();
         self.paginate();
+        self.rebase_edit_revision(record.before_state);
         let history = &mut self.text_edit_history;
         history.next_sequence += 1;
         let target = if undoing {
@@ -149,13 +212,23 @@ impl DocumentCore {
         } else {
             &mut history.undo
         };
-        target.push((handle.clone(), reciprocal));
+        target.push(EditRecord {
+            handle: handle.clone(),
+            before_state,
+            applies_state: self.document.state(),
+            revision: Some(self.document.revision()),
+            state: reciprocal,
+        });
         Ok(handle)
     }
 
     pub fn discard_edit_native(&mut self, token: &str) {
-        self.text_edit_history.undo.retain(|(id, _)| id != token);
-        self.text_edit_history.redo.retain(|(id, _)| id != token);
+        self.text_edit_history
+            .undo
+            .retain(|record| record.handle != token);
+        self.text_edit_history
+            .redo
+            .retain(|record| record.handle != token);
     }
 
     pub fn live_edit_count_native(&self) -> usize {

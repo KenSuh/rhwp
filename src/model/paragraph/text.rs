@@ -136,7 +136,7 @@ impl Paragraph {
     }
 
     /// Consumes an inverse and returns its exact inverse for redo.
-    pub fn undo_edit(&mut self, edit: ParagraphEdit) -> ParagraphEdit {
+    pub(crate) fn undo_edit(&mut self, edit: ParagraphEdit) -> ParagraphEdit {
         let inverse = self.edit_checkpoint();
         *self = *edit.before;
         inverse
@@ -152,7 +152,7 @@ impl Paragraph {
         })
     }
 
-    pub fn remove_field_range(&mut self, index: usize) -> ParagraphEdit {
+    pub(crate) fn remove_field_range(&mut self, index: usize) -> ParagraphEdit {
         let inverse = self.edit_checkpoint();
         if let Some(id) = self
             .field_ranges()
@@ -165,14 +165,14 @@ impl Paragraph {
     }
 
     /// 텍스트 인덱스는 유지하고 컨트롤 갭에 따른 원본 위치만 갱신한다.
-    pub fn set_char_offsets(&mut self, offsets: Vec<u32>) -> ParagraphEdit {
+    pub(crate) fn set_char_offsets(&mut self, offsets: Vec<u32>) -> ParagraphEdit {
         let inverse = self.edit_checkpoint();
         self.char_offsets = offsets;
         inverse
     }
 
     /// 텍스트 전체 교체. 내부 끝점은 제거하고 저장 시 명시적 거부를 유도한다.
-    pub fn replace_text(&mut self, text: String) -> ParagraphEdit {
+    pub(crate) fn replace_text(&mut self, text: String) -> ParagraphEdit {
         let inverse = self.edit_checkpoint();
         let old_len = self.text.chars().count();
         self.shift_hwpx_field_markers(0..old_len, text.chars().count(), 0);
@@ -196,7 +196,7 @@ impl Paragraph {
     }
 
     /// 문자 범위 교체. 삭제와 삽입의 경계 규칙은 보통 편집과 동일하다.
-    pub fn replace_text_range(&mut self, range: Range<usize>, text: &str) -> ParagraphEdit {
+    pub(crate) fn replace_text_range(&mut self, range: Range<usize>, text: &str) -> ParagraphEdit {
         let inverse = self.edit_checkpoint();
         self.delete_text_at(range.start, range.len());
         self.insert_text_at(range.start, text);
@@ -204,7 +204,7 @@ impl Paragraph {
     }
 
     /// Replaces only sequence elements strictly between the selected endpoints.
-    pub fn replace_field_content(
+    pub(crate) fn replace_field_content(
         &mut self,
         control_idx: usize,
         text: &str,

@@ -3,6 +3,22 @@ import type { DocumentPosition } from '@/core/types';
 import type { EditCommand } from './command';
 import { InvalidEditHandleError } from '@/core/wasm-bridge';
 
+const suspended = new WeakMap<WasmBridge, number>();
+
+export class HistorySuspendedError extends Error {
+  constructor() { super('History recording is suspended during a snapshot operation'); }
+}
+
+export function withHistorySuspended<T>(wasm: WasmBridge, operation: () => T): T {
+  const depth = suspended.get(wasm) ?? 0;
+  suspended.set(wasm, depth + 1);
+  try { return wasm.withoutEditCapture(operation); }
+  finally {
+    if (depth === 0) suspended.delete(wasm);
+    else suspended.set(wasm, depth);
+  }
+}
+
 /** 스택 내 모든 명령의 discard()를 호출하여 리소스 해제 */
 function discardAll(stack: EditCommand[], wasm: WasmBridge): void {
   for (const cmd of stack) {
@@ -18,6 +34,7 @@ export class CommandHistory {
 
   /** 명령 실행 + 히스토리 기록. 실행 후 커서 위치 반환 */
   execute(command: EditCommand, wasm: WasmBridge): DocumentPosition {
+    this.assertRecordingAllowed(command, wasm);
     const cursorAfter = command.execute(wasm);
     if (wasm.editHistoryDisabledReason !== null) {
       command.discard?.(wasm);
@@ -85,6 +102,7 @@ export class CommandHistory {
 
   /** execute() 없이 히스토리에만 기록 (IME compositionend용 — 텍스트가 이미 문서에 있는 경우) */
   recordWithoutExecute(command: EditCommand, wasm: WasmBridge): void {
+    this.assertRecordingAllowed(command, wasm);
     if (wasm.editHistoryDisabledReason !== null) {
       command.discard?.(wasm);
       return;
@@ -113,6 +131,15 @@ export class CommandHistory {
 
   canUndo(): boolean { return this.undoStack.length > 0; }
   canRedo(): boolean { return this.redoStack.length > 0; }
+
+  isSuspended(wasm: WasmBridge): boolean { return (suspended.get(wasm) ?? 0) > 0; }
+
+  private assertRecordingAllowed(command: EditCommand, wasm: WasmBridge): void {
+    if (this.isSuspended(wasm)) {
+      command.discard?.(wasm);
+      throw new HistorySuspendedError();
+    }
+  }
 
   /** 히스토리 초기화 (문서 로드 시). wasm이 있으면 스냅샷 리소스도 해제. */
   clear(wasm?: WasmBridge): void {
