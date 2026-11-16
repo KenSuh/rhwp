@@ -129,18 +129,9 @@ fn c12_native_shade_roundtrip(edit: bool) {
     c12_artifact(&format!("{case}-input.hwpx"), &input);
     let mut core = DocumentCore::from_bytes(&input).unwrap();
     assert_eq!(core.document().doc_info.char_shapes.len(), 4);
-    assert_eq!(
-        core.document().doc_info.char_shapes[0].shade_color,
-        0xFFFF_FFFF
-    );
-    assert_eq!(
-        core.document().doc_info.char_shapes[1].shade_color,
-        0x00FF_FFFF
-    );
-    assert_eq!(
-        core.document().doc_info.char_shapes[2].shade_color,
-        0x0056_3412
-    );
+    assert_eq!(core.document().doc_info.char_shapes[0].shade_color, 0xFFFF_FFFF);
+    assert_eq!(core.document().doc_info.char_shapes[1].shade_color, 0x00FF_FFFF);
+    assert_eq!(core.document().doc_info.char_shapes[2].shade_color, 0x0056_3412);
     assert_eq!(core.document().doc_info.char_shapes[3].shade_color, 0);
     let mut expected_texts = c11_layout(&hwpx_section_xml(&input)).texts;
     for save in 1..=2 {
@@ -168,10 +159,7 @@ fn c12_native_shade_roundtrip(edit: bool) {
             assert_eq!(label.text(), format!("{}단계", index + 1));
             assert_eq!(label.para_shape_id, 0);
             assert_eq!(label.char_shapes.len(), 1);
-            assert_eq!(
-                usize::try_from(label.char_shapes[0].char_shape_id).unwrap(),
-                index
-            );
+            assert_eq!(usize::try_from(label.char_shapes[0].char_shape_id).unwrap(), index);
             assert_eq!(doc.doc_info.char_shapes[index].text_color, 0x00FF_FFFF);
         }
         assert_eq!(c11_layout(&hwpx_section_xml(&saved)).texts, expected_texts);
@@ -698,13 +686,7 @@ const C9_LINE: &str = r#"<hp:linesegarray><hp:lineseg textpos="0" vertpos="0" ve
 fn c13_number(json: &str, key: &str) -> f64 {
     json.split_once(&format!("\"{key}\":"))
         .unwrap_or_else(|| panic!("missing numeric field {key} in {json}"))
-        .1
-        .split([',', '}', ']'])
-        .next()
-        .unwrap()
-        .trim()
-        .parse()
-        .unwrap()
+        .1.split([',', '}', ']']).next().unwrap().trim().parse().unwrap()
 }
 
 fn c13_artifact(name: &str, bytes: &[u8]) {
@@ -750,27 +732,13 @@ fn c13_check_rendered_flow(
             let (metadata, cells) = table.split_once("\"cells\":[").unwrap();
             if !metadata.contains(&format!("\"paraIdx\":{host},"))
                 || c13_number(metadata, "rowCount") != rows as f64
-                || c13_number(metadata, "colCount") != cols as f64
-            {
-                continue;
-            }
+                || c13_number(metadata, "colCount") != cols as f64 { continue; }
             let table_bottom = c13_number(metadata, "y") + c13_number(metadata, "h");
-            assert!(
-                table_bottom <= body_bottom + 0.11,
-                "{label}/page{page}: table bottom {table_bottom} clips below body {body_bottom}"
-            );
-            for cell in cells
-                .split_once(']')
-                .unwrap()
-                .0
-                .split('}')
-                .filter(|s| s.contains("\"row\":"))
-            {
+            assert!(table_bottom <= body_bottom + 0.11,
+                "{label}/page{page}: table bottom {table_bottom} clips below body {body_bottom}");
+            for cell in cells.split_once(']').unwrap().0.split('}').filter(|s| s.contains("\"row\":")) {
                 let bottom = c13_number(cell, "y") + c13_number(cell, "h");
-                assert!(
-                    bottom <= body_bottom + 0.11,
-                    "{label}: cell clips below body"
-                );
+                assert!(bottom <= body_bottom + 0.11, "{label}: cell clips below body");
                 if c13_number(cell, "row") + c13_number(cell, "rowSpan") == rows as f64 {
                     let candidate = (page, bottom);
                     last_row_end = Some(last_row_end.map_or(candidate, |old| {
@@ -783,38 +751,20 @@ fn c13_check_rendered_flow(
                 }
             }
         }
-        for run in text
-            .split("{\"text\":")
-            .skip(1)
-            .filter(|s| !s.contains("\"parentParaIdx\":"))
-        {
+        for run in text.split("{\"text\":").skip(1).filter(|s| !s.contains("\"parentParaIdx\":")) {
             for &para in following {
                 if run.contains(&format!("\"paraIdx\":{para},")) {
                     let top = c13_number(run, "y");
-                    assert!(
-                        top >= layout.body_area.y - 0.11
-                            && top + c13_number(run, "h") <= body_bottom + 0.11,
-                        "{label}/page{page}: instruction{para} clips outside body"
-                    );
+                    assert!(top >= layout.body_area.y - 0.11 && top + c13_number(run, "h") <= body_bottom + 0.11,
+                        "{label}/page{page}: instruction{para} clips outside body");
                     let candidate = (page, top);
-                    instructions
-                        .entry(para)
-                        .and_modify(|old| {
-                            if candidate < *old {
-                                *old = candidate;
-                            }
-                        })
-                        .or_insert(candidate);
+                    instructions.entry(para).and_modify(|old| { if candidate < *old { *old = candidate; } }).or_insert(candidate);
                 }
             }
         }
     }
     let (last_page, bottom) = last_row_end.expect("actual final-row geometry must exist");
-    assert_eq!(
-        instructions.len(),
-        following.len(),
-        "{label}: all following instructions must render"
-    );
+    assert_eq!(instructions.len(), following.len(), "{label}: all following instructions must render");
     for (&para, &(page, top)) in &instructions {
         assert!(page > last_page || (page == last_page && top + 0.11 >= bottom),
             "{label}: final row page{last_page}/bottom{bottom} overlaps instruction{para} page{page}/y{top}");
@@ -899,11 +849,7 @@ fn c13_roundtrip_flow(
         );
         if pass < 2 {
             let saved = core.export_hwpx_native().unwrap();
-            assert_eq!(
-                c13_images(&saved),
-                expected_images,
-                "{label}: BinData PNG bytes must survive save"
-            );
+            assert_eq!(c13_images(&saved), expected_images, "{label}: BinData PNG bytes must survive save");
             c13_artifact(&format!("{label}-save{}.hwpx", pass + 1), &saved);
             core = DocumentCore::from_bytes(&saved).unwrap();
         }
@@ -931,25 +877,16 @@ fn c13_document_inline_table_geometry_survives_two_native_saves() {
     let rows = (0..2).map(|row| format!(
         r#"<hp:tr><hp:tc borderFillIDRef="1"><hp:subList>{}</hp:subList><hp:cellAddr colAddr="0" rowAddr="{row}"/><hp:cellSpan colSpan="1" rowSpan="1"/><hp:cellSz width="47409" height="{}"/></hp:tc></hp:tr>"#,
         c9_paragraph(&format!("<hp:t>C13 row {row}</hp:t>"), C9_LINE), if row == 0 { 13400 } else { 13401 })).collect::<String>();
-    let body = format!(
-        r#"<hp:p paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="0"><hp:secPr><hp:pagePr width="59528" height="50000"><hp:margin left="5669" right="5669" top="5669" bottom="4252" header="4252" footer="4252" gutter="0"/></hp:pagePr></hp:secPr><hp:tbl id="13" rowCnt="2" colCnt="1" borderFillIDRef="1" textWrap="TOP_AND_BOTTOM" pageBreak="CELL" noAdjust="0"><hp:sz width="47409" height="26801"/><hp:pos treatAsChar="1" vertRelTo="PARA" vertAlign="TOP" vertOffset="19986"/>{rows}</hp:tbl></hp:run>{}</hp:p>{}"#,
-        C9_LINE
-            .replace("vertsize=\"1000\"", "vertsize=\"26801\"")
-            .replace("textheight=\"1000\"", "textheight=\"26801\""),
-        c9_paragraph(
-            "<hp:t>C13 following instructions</hp:t>",
-            &C9_LINE.replace("vertpos=\"0\"", "vertpos=\"26801\"")
-        )
-    );
+    let body = format!(r#"<hp:p paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="0"><hp:secPr><hp:pagePr width="59528" height="50000"><hp:margin left="5669" right="5669" top="5669" bottom="4252" header="4252" footer="4252" gutter="0"/></hp:pagePr></hp:secPr><hp:tbl id="13" rowCnt="2" colCnt="1" borderFillIDRef="1" textWrap="TOP_AND_BOTTOM" pageBreak="CELL" noAdjust="0"><hp:sz width="47409" height="26801"/><hp:pos treatAsChar="1" vertRelTo="PARA" vertAlign="TOP" vertOffset="19986"/>{rows}</hp:tbl></hp:run>{}</hp:p>{}"#,
+        C9_LINE.replace("vertsize=\"1000\"", "vertsize=\"26801\"").replace("textheight=\"1000\"", "textheight=\"26801\""),
+        c9_paragraph("<hp:t>C13 following instructions</hp:t>", &C9_LINE.replace("vertpos=\"0\"", "vertpos=\"26801\"")));
     c13_roundtrip_flow(&c8_fixture(&body, false), 0, &[1], 2, 1, "fixture");
 }
 
 #[test]
 fn c13_private_c6_target_actual_render_save_reopen_observation() {
     let Some(path) = std::env::var_os("RHWP_C13_C6_INPUT") else {
-        eprintln!(
-            "C13 private C6 observation not requested; ordinary fixture regression remains active"
-        );
+        eprintln!("C13 private C6 observation not requested; ordinary fixture regression remains active");
         return;
     };
     let input = std::fs::read(path).unwrap();
@@ -1004,30 +941,16 @@ fn c15_check_horizontal_bounds(core: &rhwp::document_core::DocumentCore, host: u
         );
         for fragment in controls.split("{\"type\":\"table\",").skip(1) {
             let (metadata, cells) = fragment.split_once("\"cells\":[").unwrap();
-            if !metadata.contains(&format!("\"paraIdx\":{host},")) {
-                continue;
-            }
+            if !metadata.contains(&format!("\"paraIdx\":{host},")) { continue; }
             assert_eq!(c13_number(metadata, "rowCount"), table.row_count as f64);
             assert_eq!(c13_number(metadata, "colCount"), table.col_count as f64);
             let x = c13_number(metadata, "x");
             let end = x + c13_number(metadata, "w");
-            eprintln!(
-                "C15 {label}/host{host}/page{page}: table=[{x},{end}], body=[{},{}]",
-                layout.body_area.x, right
-            );
+            eprintln!("C15 {label}/host{host}/page{page}: table=[{x},{end}], body=[{},{}]", layout.body_area.x, right);
             if x < layout.body_area.x - 0.11 || end > right + 0.11 {
-                violations.push(format!(
-                    "table [{x},{end}] outside body [{},{}]",
-                    layout.body_area.x, right
-                ));
+                violations.push(format!("table [{x},{end}] outside body [{},{}]", layout.body_area.x, right));
             }
-            for cell in cells
-                .split_once(']')
-                .unwrap()
-                .0
-                .split('}')
-                .filter(|cell| cell.contains("\"row\":"))
-            {
+            for cell in cells.split_once(']').unwrap().0.split('}').filter(|cell| cell.contains("\"row\":")) {
                 let row = c13_number(cell, "row") as u16;
                 let col = c13_number(cell, "col") as u16;
                 observed.insert((row, col));
@@ -1039,71 +962,22 @@ fn c15_check_horizontal_bounds(core: &rhwp::document_core::DocumentCore, host: u
             }
         }
     }
-    let expected: std::collections::BTreeSet<_> = table
-        .cells
-        .iter()
-        .map(|cell| (cell.row, cell.col))
-        .collect();
-    assert_eq!(
-        observed, expected,
-        "{label}: every actual owning cell must render"
-    );
+    let expected: std::collections::BTreeSet<_> = table.cells.iter().map(|cell| (cell.row, cell.col)).collect();
+    assert_eq!(observed, expected, "{label}: every actual owning cell must render");
     assert!(!observed.is_empty());
-    assert!(
-        violations.is_empty(),
-        "{label}/host{host}: {}",
-        violations.join("; ")
-    );
+    assert!(violations.is_empty(), "{label}/host{host}: {}", violations.join("; "));
 }
 
 fn c15_table_metadata(core: &rhwp::document_core::DocumentCore, host: usize) -> String {
     use rhwp::model::control::Control;
-    let table = core.document().sections[0].paragraphs[host]
-        .controls
-        .iter()
-        .find_map(|control| {
-            if let Control::Table(table) = control {
-                Some(table)
-            } else {
-                None
-            }
-        })
-        .unwrap();
-    format!(
-        "{:?}/{:?}/{:?}/{:?}",
-        (
-            table.row_count,
-            table.col_count,
-            table.cell_spacing,
-            table.page_break,
-            table.no_adjust
-        ),
-        (
-            table.common.width,
-            table.common.height,
-            table.common.horizontal_offset,
-            table.common.vertical_offset,
-            table.common.treat_as_char
-        ),
-        (
-            table.common.horz_rel_to,
-            table.common.horz_align,
-            table.common.vert_rel_to,
-            table.common.vert_align
-        ),
-        table
-            .cells
-            .iter()
-            .map(|cell| (
-                cell.row,
-                cell.col,
-                cell.row_span,
-                cell.col_span,
-                cell.width,
-                cell.height
-            ))
-            .collect::<Vec<_>>()
-    )
+    let table = core.document().sections[0].paragraphs[host].controls.iter().find_map(|control| {
+        if let Control::Table(table) = control { Some(table) } else { None }
+    }).unwrap();
+    format!("{:?}/{:?}/{:?}/{:?}",
+        (table.row_count, table.col_count, table.cell_spacing, table.page_break, table.no_adjust),
+        (table.common.width, table.common.height, table.common.horizontal_offset, table.common.vertical_offset, table.common.treat_as_char),
+        (table.common.horz_rel_to, table.common.horz_align, table.common.vert_rel_to, table.common.vert_align),
+        table.cells.iter().map(|cell| (cell.row, cell.col, cell.row_span, cell.col_span, cell.width, cell.height)).collect::<Vec<_>>())
 }
 
 fn c15_two_save_bounds(input: &[u8], hosts: &[usize], label: &str) {
@@ -1111,32 +985,17 @@ fn c15_two_save_bounds(input: &[u8], hosts: &[usize], label: &str) {
     let mut core = DocumentCore::from_bytes(input).unwrap();
     let expected_text = c11_layout(&hwpx_section_xml(input)).texts;
     let expected_images = c13_images(input);
-    let expected_metadata: Vec<_> = hosts
-        .iter()
-        .map(|&host| c15_table_metadata(&core, host))
-        .collect();
+    let expected_metadata: Vec<_> = hosts.iter().map(|&host| c15_table_metadata(&core, host)).collect();
     c15_artifact(&format!("{label}-input.hwpx"), input);
     for pass in 0..=2 {
         for (&host, metadata) in hosts.iter().zip(&expected_metadata) {
-            assert_eq!(
-                &c15_table_metadata(&core, host),
-                metadata,
-                "{label}: raw table geometry must survive"
-            );
+            assert_eq!(&c15_table_metadata(&core, host), metadata, "{label}: raw table geometry must survive");
             c15_check_horizontal_bounds(&core, host, &format!("{label}-pass{pass}"));
         }
         if pass < 2 {
             let saved = core.export_hwpx_native().unwrap();
-            assert_eq!(
-                c11_layout(&hwpx_section_xml(&saved)).texts,
-                expected_text,
-                "{label}: all owned text, including hidden markers, must survive"
-            );
-            assert_eq!(
-                c13_images(&saved),
-                expected_images,
-                "{label}: PNG bytes must survive"
-            );
+            assert_eq!(c11_layout(&hwpx_section_xml(&saved)).texts, expected_text, "{label}: all owned text, including hidden markers, must survive");
+            assert_eq!(c13_images(&saved), expected_images, "{label}: PNG bytes must survive");
             c15_artifact(&format!("{label}-save{}.hwpx", pass + 1), &saved);
             core = DocumentCore::from_bytes(&saved).unwrap();
         }
@@ -1149,12 +1008,8 @@ fn c15_document_merged_inline_width_survives_two_native_saves() {
     let cells = [(0, 1, 4000), (1, 2, 12000)].into_iter().map(|(col, span, width)| format!(
         r#"<hp:tc borderFillIDRef="1"><hp:subList>{}</hp:subList><hp:cellAddr colAddr="{col}" rowAddr="0"/><hp:cellSpan colSpan="{span}" rowSpan="1"/><hp:cellSz width="{width}" height="2000"/></hp:tc>"#,
         c9_paragraph("<hp:t>C15 cell</hp:t>", C9_LINE))).collect::<String>();
-    let body = format!(
-        r#"<hp:p paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="0"><hp:secPr><hp:pagePr width="59528" height="84188"><hp:margin left="5669" right="5669" top="5669" bottom="4252" header="4252" footer="4252" gutter="0"/></hp:pagePr></hp:secPr><hp:tbl id="15" rowCnt="1" colCnt="3" borderFillIDRef="1" pageBreak="CELL" textWrap="TOP_AND_BOTTOM"><hp:sz width="16000" height="2000"/><hp:pos treatAsChar="1" vertOffset="0" horzOffset="0"/><hp:tr>{cells}</hp:tr></hp:tbl><hp:t> </hp:t></hp:run>{}</hp:p>"#,
-        C9_LINE
-            .replace("vertsize=\"1000\"", "vertsize=\"2000\"")
-            .replace("horzsize=\"10000\"", "horzsize=\"48188\"")
-    );
+    let body = format!(r#"<hp:p paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="0"><hp:secPr><hp:pagePr width="59528" height="84188"><hp:margin left="5669" right="5669" top="5669" bottom="4252" header="4252" footer="4252" gutter="0"/></hp:pagePr></hp:secPr><hp:tbl id="15" rowCnt="1" colCnt="3" borderFillIDRef="1" pageBreak="CELL" textWrap="TOP_AND_BOTTOM"><hp:sz width="16000" height="2000"/><hp:pos treatAsChar="1" vertOffset="0" horzOffset="0"/><hp:tr>{cells}</hp:tr></hp:tbl><hp:t> </hp:t></hp:run>{}</hp:p>"#,
+        C9_LINE.replace("vertsize=\"1000\"", "vertsize=\"2000\"").replace("horzsize=\"10000\"", "horzsize=\"48188\""));
     let mut source = zip::ZipArchive::new(Cursor::new(c8_fixture(&body, false))).unwrap();
     let mut output = zip::ZipWriter::new(Cursor::new(Vec::new()));
     for index in 0..source.len() {
@@ -1165,13 +1020,9 @@ fn c15_document_merged_inline_width_survives_two_native_saves() {
         if name == "Contents/header.xml" {
             let header = String::from_utf8(bytes).unwrap();
             assert!(header.contains(r#"horizontal="JUSTIFY""#));
-            bytes = header
-                .replacen(r#"horizontal="JUSTIFY""#, r#"horizontal="RIGHT""#, 1)
-                .into_bytes();
+            bytes = header.replacen(r#"horizontal="JUSTIFY""#, r#"horizontal="RIGHT""#, 1).into_bytes();
         }
-        output
-            .start_file(&name, zip::write::SimpleFileOptions::default())
-            .unwrap();
+        output.start_file(&name, zip::write::SimpleFileOptions::default()).unwrap();
         output.write_all(&bytes).unwrap();
     }
     c15_two_save_bounds(&output.finish().unwrap().into_inner(), &[0], "fixture");
@@ -1337,36 +1188,18 @@ fn c20_observe_contact(
             if !meta.contains(&format!("\"parentParaIdx\":{host},"))
                 || c13_number(meta, "controlIdx") != 0.0
                 || c13_number(meta, "cellIdx") != cell as f64
-                || c13_number(meta, "cellParaIdx") != para as f64
-            {
-                continue;
-            }
+                || c13_number(meta, "cellParaIdx") != para as f64 { continue; }
             rendered.push_str(value);
-            let (left, top, width, height) =
-                bounds.expect("owned contact text needs its actual table cell");
+            let (left, top, width, height) = bounds.expect("owned contact text needs its actual table cell");
             let x = c13_number(&format!("\"x\":{meta}"), "x");
             let y = c13_number(meta, "y");
             let w = c13_number(meta, "w");
             let h = c13_number(meta, "h");
-            let positions: Vec<f64> = meta
-                .split_once("\"charX\":[")
-                .unwrap()
-                .1
-                .split_once(']')
-                .unwrap()
-                .0
-                .split(',')
-                .map(|s| s.parse().unwrap())
-                .collect();
+            let positions: Vec<f64> = meta.split_once("\"charX\":[").unwrap().1.split_once(']').unwrap().0.split(',').map(|s| s.parse().unwrap()).collect();
             eprintln!("C20 {label}/p{page}: text={value:?} run=({x},{y},{w},{h}) cell=({left},{top},{width},{height}) charX={positions:?}");
-            if w < 0.0
-                || positions.windows(2).any(|a| a[1] < a[0])
-                || positions
-                    .iter()
-                    .any(|&v| v < 0.0 || x + v < left - 0.11 || x + v > left + width + 0.11)
-                || y < top - 0.11
-                || y + h > top + height + 0.11
-            {
+            if w < 0.0 || positions.windows(2).any(|a| a[1] < a[0])
+                || positions.iter().any(|&v| v < 0.0 || x + v < left - 0.11 || x + v > left + width + 0.11)
+                || y < top - 0.11 || y + h > top + height + 0.11 {
                 violations.push(format!("{label}/p{page}: {value:?} run=({x},{y},{w},{h}) outside cell=({left},{top},{width},{height}), charX={positions:?}"));
             }
         }
@@ -1395,61 +1228,38 @@ fn c20_contact_two_save_scenarios(
         let mut reference = None;
         let original = c20_contact(&core, host, cell, para).text().to_owned();
         if label == "actual" {
-            assert_eq!(
-                original, "(www.hometax.go.kr) 국번없이 126 문의",
-                "bind the supplied actual contact owner"
-            );
+            assert_eq!(original, "(www.hometax.go.kr) 국번없이 126 문의", "bind the supplied actual contact owner");
         }
         if edited {
             let offset = original.chars().count();
             let mut zero_indent = DocumentCore::from_bytes(input).unwrap();
-            zero_indent
-                .apply_para_format_in_cell_native(0, host, 0, cell, para, "{\"indent\":0}")
-                .unwrap();
+            zero_indent.apply_para_format_in_cell_native(0, host, 0, cell, para, "{\"indent\":0}").unwrap();
             let reference_para = c20_contact(&zero_indent, host, cell, para);
-            assert_eq!(
-                zero_indent.document().doc_info.para_shapes[reference_para.para_shape_id as usize]
-                    .indent,
-                0
-            );
-            zero_indent
-                .insert_text_in_cell_native(0, host, 0, cell, para, offset, "편😀")
-                .unwrap();
+            assert_eq!(zero_indent.document().doc_info.para_shapes[reference_para.para_shape_id as usize].indent, 0);
+            zero_indent.insert_text_in_cell_native(0, host, 0, cell, para, offset, "편😀").unwrap();
             reference = Some(zero_indent);
             core.insert_text_in_cell_native(0, host, 0, cell, para, offset, "편😀")
                 .unwrap();
             assert!(c20_contact(&core, host, cell, para).text().contains("편😀"));
         }
         let expected = c20_contact_identity(&core, host, cell, para);
-        let reference_expected = reference
-            .as_ref()
-            .map(|other| c20_contact_identity(other, host, cell, para));
+        let reference_expected = reference.as_ref().map(|other| c20_contact_identity(other, host, cell, para));
         for pass in 0..=2 {
-            let stage = format!(
-                "{label}-{}-pass{pass}",
-                if edited { "edit" } else { "noedit" }
-            );
+            let stage = format!("{label}-{}-pass{pass}", if edited { "edit" } else { "noedit" });
             if c20_contact_identity(&core, host, cell, para) != expected {
-                violations.push(format!(
-                    "{stage}: owned text/fields/char refs/spacing/indent changed across save"
-                ));
+                violations.push(format!("{stage}: owned text/fields/char refs/spacing/indent changed across save"));
             }
             c20_observe_contact(&core, host, cell, para, &stage, &mut violations);
             if let Some(other) = reference.as_ref() {
                 let subject_breaks = c20_contact_line_breaks(c20_contact(&core, host, cell, para));
-                let reference_breaks =
-                    c20_contact_line_breaks(c20_contact(other, host, cell, para));
+                let reference_breaks = c20_contact_line_breaks(c20_contact(other, host, cell, para));
                 eprintln!("C20 {stage} wrap: subject={subject_breaks:?}, public-zero-indent-reference={reference_breaks:?}");
                 c20_artifact(&format!("{stage}-wrap.txt"), format!("subject={subject_breaks:#?}\npublic-zero-indent-reference={reference_breaks:#?}").as_bytes());
                 if subject_breaks != reference_breaks {
                     violations.push(format!("{stage}: invalid-indent reflow differs from public zero-indent full-width reference: {subject_breaks:?} != {reference_breaks:?}"));
                 }
-                if c20_contact_identity(other, host, cell, para)
-                    != reference_expected.as_ref().unwrap().as_str()
-                {
-                    violations.push(format!(
-                        "{stage}: reference text/fields/char refs/spacing changed across save"
-                    ));
+                if c20_contact_identity(other, host, cell, para) != reference_expected.as_ref().unwrap().as_str() {
+                    violations.push(format!("{stage}: reference text/fields/char refs/spacing changed across save"));
                 }
                 c20_observe_contact(
                     other,
@@ -1462,16 +1272,12 @@ fn c20_contact_two_save_scenarios(
             }
             if pass < 2 {
                 let saved = core.export_hwpx_native().unwrap();
-                if c13_images(&saved) != images {
-                    violations.push(format!("{stage}: PNG bytes changed"));
-                }
+                if c13_images(&saved) != images { violations.push(format!("{stage}: PNG bytes changed")); }
                 c20_artifact(&format!("{stage}-save.hwpx"), &saved);
                 core = DocumentCore::from_bytes(&saved).unwrap();
                 if let Some(other) = reference.as_mut() {
                     let saved = other.export_hwpx_native().unwrap();
-                    if c13_images(&saved) != images {
-                        violations.push(format!("{stage}: reference PNG bytes changed"));
-                    }
+                    if c13_images(&saved) != images { violations.push(format!("{stage}: reference PNG bytes changed")); }
                     c20_artifact(&format!("{stage}-reference-save.hwpx"), &saved);
                     *other = DocumentCore::from_bytes(&saved).unwrap();
                 }
@@ -1497,17 +1303,13 @@ fn c20_document_cached_contact_edit_and_two_native_saves_stay_visible() {
     let body = c9_paragraph("<hp:t>C20 host</hp:t>", C9_LINE) + &c8_table(&contact);
     let mut doc = parse_hwpx(&c8_fixture(&body, false)).unwrap();
     while doc.doc_info.char_shapes.len() < 3 {
-        doc.doc_info
-            .char_shapes
-            .push(doc.doc_info.char_shapes[0].clone());
+        doc.doc_info.char_shapes.push(doc.doc_info.char_shapes[0].clone());
     }
     doc.doc_info.char_shapes[1].bold = true;
     doc.doc_info.char_shapes[2].italic = true;
     doc.doc_info.para_shapes[0].alignment = Alignment::Center;
     doc.doc_info.para_shapes[0].indent = -20500;
-    let Control::Table(table) = &mut doc.sections[0].paragraphs[1].controls[0] else {
-        unreachable!()
-    };
+    let Control::Table(table) = &mut doc.sections[0].paragraphs[1].controls[0] else { unreachable!() };
     let p = &mut table.cells[0].paragraphs[0];
     let second = p.char_offsets()[2];
     p.line_segs = [0, second]
@@ -1531,8 +1333,7 @@ fn c20_document_cached_contact_edit_and_two_native_saves_stay_visible() {
 #[test]
 #[ignore = "requires the explicitly supplied immutable C16 input"]
 fn c20_supplied_actual_contact_edit_and_two_native_saves_stay_visible() {
-    let path = std::env::var_os("RHWP_C20_C16_INPUT")
-        .expect("C20 actual input must be supplied explicitly");
+    let path = std::env::var_os("RHWP_C20_C16_INPUT").expect("C20 actual input must be supplied explicitly");
     let input = std::fs::read(path).unwrap();
     assert_eq!(input.len(), 218909);
     c20_contact_two_save_scenarios(&input, 74, 9, 2, "actual");
@@ -2371,16 +2172,9 @@ fn c23_public_insert_delete_preserves_retained_field_gaps_two_saves() {
             .unwrap();
         let expected_events = c8_inline_events(&expected_xml);
         if let Some((body, cell)) = inverse {
-            assert_eq!(
-                c23_field_state(&core.document().sections[0].paragraphs[1]),
-                expected
-            );
+            assert_eq!(c23_field_state(&core.document().sections[0].paragraphs[1]), expected);
             assert_eq!(c23_field_state(c20_contact(&core, 2, 0, 0)), expected);
-            assert!(core
-                .export_hwpx_native()
-                .unwrap_err()
-                .to_string()
-                .contains("HWPX_FIELD_ENDPOINT"));
+            assert!(core.export_hwpx_native().unwrap_err().to_string().contains("HWPX_FIELD_ENDPOINT"));
             core.undo_edit_native(&cell).unwrap();
             core.undo_edit_native(&body).unwrap();
             let restored = C23FieldState {
@@ -2391,10 +2185,7 @@ fn c23_public_insert_delete_preserves_retained_field_gaps_two_saves() {
                 styles: vec![0, 0, 1, 1, 1, 1, 1, 2],
             };
             for pass in 0..=2 {
-                assert_eq!(
-                    c23_field_state(&core.document().sections[0].paragraphs[1]),
-                    restored
-                );
+                assert_eq!(c23_field_state(&core.document().sections[0].paragraphs[1]), restored);
                 assert_eq!(c23_field_state(c20_contact(&core, 2, 0, 0)), restored);
                 if pass < 2 {
                     let saved = core.export_hwpx_native().unwrap();
