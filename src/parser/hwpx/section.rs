@@ -38,6 +38,7 @@ pub fn parse_hwpx_section(xml: &str) -> Result<Section, HwpxError> {
     let mut section = Section::default();
     let mut reader = Reader::from_str(xml);
     let mut buf = Vec::new();
+    let mut fields = FieldPairing::default();
 
     loop {
         match reader.read_event_into(&mut buf) {
@@ -47,11 +48,15 @@ pub fn parse_hwpx_section(xml: &str) -> Result<Section, HwpxError> {
                 match local {
                     b"p" => {
                         // 최상위 문단
-                        let (para, sec_def_opt) = parse_paragraph(e, &mut reader)?;
+                        let sec_def_opt = parse_list_paragraph(
+                            e,
+                            &mut reader,
+                            &mut section.paragraphs,
+                            &mut fields,
+                        )?;
                         if let Some(sec_def) = sec_def_opt {
                             section.section_def = sec_def;
                         }
-                        section.paragraphs.push(para);
                     }
                     _ => {}
                 }
@@ -128,9 +133,10 @@ fn parse_page_margin(e: &quick_xml::events::BytesStart, page: &mut PageDef) {
 fn parse_paragraph(
     e: &quick_xml::events::BytesStart,
     reader: &mut Reader<&[u8]>,
-) -> Result<(Paragraph, Option<SectionDef>), HwpxError> {
+) -> Result<(Paragraph, Option<SectionDef>, Vec<PendingFieldEnd>), HwpxError> {
     let mut para = Paragraph::default();
     let mut sec_def: Option<SectionDef> = None;
+    let mut pending_field_ends: Vec<PendingFieldEnd> = Vec::new();
 
     // 문단 어트리뷰트
     for attr in e.attributes().flatten() {
@@ -228,6 +234,7 @@ fn parse_paragraph(
                             &mut para.controls,
                             &mut text_parts,
                             &mut para.field_ranges,
+                            &mut pending_field_ends,
                             current_char_shape_id,
                         )?;
                     }
@@ -368,7 +375,7 @@ fn parse_paragraph(
         });
     }
 
-    Ok((para, sec_def))
+    Ok((para, sec_def, pending_field_ends))
 }
 
 /// secPr의 자식 요소들 (pagePr, margin, colPr 등) 파싱
@@ -902,6 +909,7 @@ fn parse_table_caption(
     use crate::model::shape::{Caption, CaptionDirection};
 
     let mut caption = Caption::default();
+    let mut fields = FieldPairing::default();
     for attr in e.attributes().flatten() {
         match attr.key.as_ref() {
             b"side" => {
@@ -939,8 +947,7 @@ fn parse_table_caption(
                         }
                     }
                 } else if local == b"p" {
-                    let (para, _) = parse_paragraph(ce, reader)?;
-                    caption.paragraphs.push(para);
+                    parse_list_paragraph(ce, reader, &mut caption.paragraphs, &mut fields)?;
                 }
             }
             Ok(Event::End(ref end)) => {
@@ -963,6 +970,7 @@ fn parse_table_cell(
     current_row: u16,
 ) -> Result<Cell, HwpxError> {
     let mut cell = Cell::default();
+    let mut fields = FieldPairing::default();
     cell.row = current_row;
     cell.col_span = 1;
     cell.row_span = 1;
@@ -1091,8 +1099,7 @@ fn parse_table_cell(
                     }
                     b"p" => {
                         // 셀 내 문단 (secDef는 무시)
-                        let (para, _) = parse_paragraph(ce, reader)?;
-                        cell.paragraphs.push(para);
+                        parse_list_paragraph(ce, reader, &mut cell.paragraphs, &mut fields)?;
                     }
                     _ => {}
                 }
@@ -1883,6 +1890,7 @@ fn parse_shape_fill_brush(reader: &mut Reader<&[u8]>) -> Result<Fill, HwpxError>
 /// `<hp:drawText>` 내부의 `<hp:subList>` → `<hp:p>` 문단을 파싱한다.
 fn parse_draw_text(reader: &mut Reader<&[u8]>, text_box: &mut TextBox) -> Result<(), HwpxError> {
     let mut buf = Vec::new();
+    let mut fields = FieldPairing::default();
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(ref ce)) | Ok(Event::Empty(ref ce)) => {
@@ -1905,8 +1913,7 @@ fn parse_draw_text(reader: &mut Reader<&[u8]>, text_box: &mut TextBox) -> Result
                     }
                     b"p" => {
                         // subList 내 p를 독립 파싱
-                        let (para, _) = parse_paragraph(ce, reader)?;
-                        text_box.paragraphs.push(para);
+                        parse_list_paragraph(ce, reader, &mut text_box.paragraphs, &mut fields)?;
                     }
                     b"textMargin" => {
                         for attr in ce.attributes().flatten() {
@@ -2255,6 +2262,7 @@ fn parse_ctrl(
     controls: &mut Vec<Control>,
     text_parts: &mut Vec<String>,
     field_ranges: &mut Vec<crate::model::paragraph::FieldRange>,
+    pending_field_ends: &mut Vec<PendingFieldEnd>,
     char_shape_id: u32,
 ) -> Result<(), HwpxError> {
     let mut buf = Vec::new();
@@ -2301,7 +2309,14 @@ fn parse_ctrl(
                         push_field_begin(ctrl, controls, text_parts, field_ranges, char_shape_id);
                     }
                     b"fieldEnd" => {
-                        finish_field(ce, controls, text_parts, field_ranges, char_shape_id)?;
+                        finish_field(
+                            ce,
+                            controls,
+                            text_parts,
+                            field_ranges,
+                            pending_field_ends,
+                            char_shape_id,
+                        );
                         skip_element(reader, b"fieldEnd")?;
                     }
                     b"pageHiding" => {
@@ -2370,7 +2385,14 @@ fn parse_ctrl(
                         );
                     }
                     b"fieldEnd" => {
-                        finish_field(ce, controls, text_parts, field_ranges, char_shape_id)?;
+                        finish_field(
+                            ce,
+                            controls,
+                            text_parts,
+                            field_ranges,
+                            pending_field_ends,
+                            char_shape_id,
+                        );
                     }
                     b"hiddenComment" => {}
                     _ => {}
@@ -2554,13 +2576,117 @@ fn push_field_begin(
     parts.push("\u{0003}".to_string());
 }
 
+/// 문단 안에서 짝 fieldBegin 을 찾지 못한 fieldEnd. 같은 문단 목록의 앞 문단에서 짝을 찾는다.
+struct PendingFieldEnd {
+    id: Option<String>,
+    attributes: Vec<(String, String)>,
+    char_shape_id: u32,
+    order: usize,
+    char_idx: usize,
+}
+
+/// 한 문단 목록(본문·셀·글상자·캡션·머리말 등)의 필드 짝 판정 — 아직 닫히지 않은 fieldBegin 스택.
+///
+/// 같은 문단 안의 짝은 `finish_field` 가 닫고, 문단을 건너는 짝은 문단을 목록에 넣을 때 여기서 닫는다.
+/// 어느 앞 fieldBegin 과도 짝이 맞지 않는 fieldEnd 는 거부한다. 목록 끝까지 닫히지 않은 fieldBegin 은
+/// 빈 범위로 남고(열기는 된다) 저장은 `fieldEnd가 없는 HWPX fieldBegin` 으로 거부된다.
+#[derive(Default)]
+struct FieldPairing {
+    /// (문단 인덱스, 컨트롤 인덱스) — fieldBegin 순서.
+    open: Vec<(usize, usize)>,
+}
+
+impl FieldPairing {
+    fn push(
+        &mut self,
+        paragraphs: &mut Vec<Paragraph>,
+        para: Paragraph,
+        pending: Vec<PendingFieldEnd>,
+    ) -> Result<(), HwpxError> {
+        let end_pi = paragraphs.len();
+        // 이 문단의 짝 없는 fieldEnd 는 앞 문단에서 열린 fieldBegin 하고만 짝짓는다
+        // (이 문단에서 fieldEnd 보다 앞선 fieldBegin 은 `finish_field` 가 이미 봤다).
+        for end in pending {
+            let pos = self
+                .open
+                .iter()
+                .rposition(|&(pi, ci)| {
+                    open_field(&paragraphs[pi].controls[ci])
+                        .is_some_and(|h| hwpx_begin_id(h) == end.id.as_deref())
+                })
+                .ok_or_else(unmatched_field_end)?;
+            let (pi, ci) = self.open.remove(pos);
+            let begin_para = &mut paragraphs[pi];
+            let ri = begin_para
+                .field_ranges
+                .iter()
+                .position(|r| r.control_idx == ci)
+                .ok_or_else(unmatched_field_end)?;
+            let range = begin_para.field_ranges.remove(ri);
+            if let Some(Control::Field(f)) = begin_para.controls.get_mut(ci) {
+                if let Some(h) = &mut f.hwpx {
+                    h.end_attributes = Some(end.attributes);
+                    h.end_char_shape_id = end.char_shape_id;
+                    h.end_order = end.order;
+                    h.span = Some(crate::model::control::HwpxFieldSpan {
+                        begin_char_idx: range.start_char_idx,
+                        end_paragraph_offset: end_pi - pi,
+                        end_char_idx: end.char_idx,
+                    });
+                }
+            }
+        }
+        for range in &para.field_ranges {
+            if open_field(&para.controls[range.control_idx]).is_some() {
+                self.open.push((end_pi, range.control_idx));
+            }
+        }
+        paragraphs.push(para);
+        Ok(())
+    }
+}
+
+/// 문단 하나를 읽어 목록에 넣는다 — 문단을 건너는 필드 짝은 `fields` 가 닫는다.
+fn parse_list_paragraph(
+    e: &quick_xml::events::BytesStart,
+    reader: &mut Reader<&[u8]>,
+    paragraphs: &mut Vec<Paragraph>,
+    fields: &mut FieldPairing,
+) -> Result<Option<SectionDef>, HwpxError> {
+    let (para, sec_def, pending) = parse_paragraph(e, reader)?;
+    fields.push(paragraphs, para, pending)?;
+    Ok(sec_def)
+}
+
+/// 아직 fieldEnd 를 만나지 못한 HWPX fieldBegin 이면 그 HWPX 정보.
+fn open_field(control: &Control) -> Option<&crate::model::control::HwpxField> {
+    match control {
+        Control::Field(f) => f.hwpx.as_ref().filter(|h| h.end_attributes.is_none()),
+        _ => None,
+    }
+}
+
+fn hwpx_begin_id(h: &crate::model::control::HwpxField) -> Option<&str> {
+    h.begin_attributes
+        .iter()
+        .find(|(k, _)| k == "id")
+        .map(|(_, v)| v.as_str())
+}
+
+fn unmatched_field_end() -> HwpxError {
+    HwpxError::XmlError("fieldEnd beginIDRef에 대응하는 fieldBegin 없음".into())
+}
+
+/// fieldEnd 를 같은 문단의 열린 fieldBegin 과 짝짓는다. 짝이 없으면 끝 표지만 두고
+/// `pending` 으로 넘겨 문단 목록 단위(`FieldPairing`)에서 앞 문단과 짝짓게 한다.
 fn finish_field(
     e: &quick_xml::events::BytesStart,
     controls: &mut [Control],
     parts: &mut Vec<String>,
     ranges: &mut [crate::model::paragraph::FieldRange],
+    pending: &mut Vec<PendingFieldEnd>,
     char_shape_id: u32,
-) -> Result<(), HwpxError> {
+) {
     let attrs: Vec<(String, String)> = e
         .attributes()
         .flatten()
@@ -2591,14 +2717,19 @@ fn finish_field(
                     h.end_order = end_order;
                     range.end_char_idx = visible_char_count(parts);
                     parts.push("\u{0004}".to_string());
-                    return Ok(());
+                    return;
                 }
             }
         }
     }
-    Err(HwpxError::XmlError(
-        "fieldEnd beginIDRef에 대응하는 fieldBegin 없음".into(),
-    ))
+    pending.push(PendingFieldEnd {
+        id: id.map(str::to_string),
+        attributes: attrs,
+        char_shape_id,
+        order: end_order,
+        char_idx: visible_char_count(parts),
+    });
+    parts.push("\u{0004}".to_string());
 }
 
 fn completed_field_count(parts: &[String]) -> usize {
@@ -2939,14 +3070,14 @@ fn parse_sublist_paragraphs(
 ) -> Result<Vec<Paragraph>, HwpxError> {
     let mut paragraphs = Vec::new();
     let mut buf = Vec::new();
+    let mut fields = FieldPairing::default();
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(ref ce)) => {
                 let cname = ce.name();
                 let local = local_name(cname.as_ref());
                 if local == b"p" {
-                    let (para, _) = parse_paragraph(ce, reader)?;
-                    paragraphs.push(para);
+                    parse_list_paragraph(ce, reader, &mut paragraphs, &mut fields)?;
                 }
             }
             Ok(Event::End(ref ee)) => {

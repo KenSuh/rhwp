@@ -29,7 +29,7 @@ use std::io::Write;
 use quick_xml::Writer;
 
 use super::field::{write_field_begin, write_field_end_for_field};
-use crate::model::control::Control;
+use crate::model::control::{Control, Field};
 use crate::model::paragraph::{CharShapeRef, LineSeg, Paragraph};
 use crate::model::shape::{
     CommonObjAttr, HorzAlign, HorzRelTo, ShapeObject, SizeCriterion, TextFlow, TextWrap, VertAlign,
@@ -287,8 +287,9 @@ fn write_sub_list<W: Write>(
         ],
     )?;
 
+    let field_ends = later_field_ends(&cell.paragraphs)?;
     for (pi, para) in cell.paragraphs.iter().enumerate() {
-        write_paragraph(w, para, pi, ctx)?;
+        write_paragraph(w, para, pi, &field_ends[pi], ctx)?;
     }
     end_tag(w, "hp:subList")?;
     Ok(())
@@ -298,6 +299,7 @@ pub(super) fn write_paragraph<W: Write>(
     w: &mut Writer<W>,
     para: &Paragraph,
     id: usize,
+    field_ends: &[&Field],
     ctx: &mut SerializeContext,
 ) -> Result<(), SerializeError> {
     ctx.para_shape_ids.reference(para.para_shape_id);
@@ -327,7 +329,7 @@ pub(super) fn write_paragraph<W: Write>(
         .first()
         .map(|r| r.char_shape_id)
         .unwrap_or(0);
-    write_paragraph_runs(w, para, None, |w, control| {
+    write_paragraph_runs(w, para, None, field_ends, |w, control| {
         write_cell_control_run(w, control, ctx, first_cs)
     })?;
 
@@ -394,15 +396,41 @@ fn write_cell_fallback_lineseg<W: Write>(w: &mut Writer<W>) -> Result<(), Serial
     )
 }
 
+/// 문단 목록에서 문단마다, 앞 문단에서 시작해 그 문단에서 끝나는 HWPX 필드(`HwpxField::span`).
+/// 끝 문단이 목록 안의 뒤 문단이 아니면 짝을 쓸 수 없으므로 거부한다.
+pub(super) fn later_field_ends(
+    paragraphs: &[Paragraph],
+) -> Result<Vec<Vec<&Field>>, SerializeError> {
+    let mut ends = vec![Vec::new(); paragraphs.len()];
+    for (pi, para) in paragraphs.iter().enumerate() {
+        for control in &para.controls {
+            let Control::Field(field) = control else {
+                continue;
+            };
+            let Some(span) = field.hwpx.as_ref().and_then(|h| h.span) else {
+                continue;
+            };
+            let target = pi
+                .checked_add(span.end_paragraph_offset)
+                .filter(|&t| t > pi && t < paragraphs.len())
+                .ok_or_else(|| SerializeError::XmlError("fieldEnd 문단이 없는 HWPX 필드".into()))?;
+            ends[target].push(field);
+        }
+    }
+    Ok(ends)
+}
+
 /// 문단의 run 을 글자 위치 순서로 쓴다 — 글자·필드 표지·인라인 컨트롤을 char_offsets 에 맞춰 섞는다.
 ///
 /// `write_control` 은 컨트롤 하나를 run 째로 쓴다(쓰지 않는 컨트롤이면 아무것도 쓰지 않는다).
 /// `skip` 컨트롤은 호출자가 다른 자리에 이미 썼다(구역 첫 문단의 단 정의).
+/// `field_ends` 는 앞 문단에서 시작해 이 문단에서 끝나는 필드다(`later_field_ends`).
 /// 글자 위치를 모르는 합성 문단은 옛 순서(글자 → 컨트롤)를 쓴다.
 pub(super) fn write_paragraph_runs<W, F>(
     w: &mut Writer<W>,
     para: &Paragraph,
     skip: Option<usize>,
+    field_ends: &[&Field],
     mut write_control: F,
 ) -> Result<(), SerializeError>
 where
@@ -415,10 +443,10 @@ where
                 .into_iter()
                 .filter(|&(_, ci)| Some(ci) != skip)
                 .collect();
-            write_text_runs(w, para, &placed, &mut write_control)
+            write_text_runs(w, para, &placed, field_ends, &mut write_control)
         }
         None => {
-            write_text_runs(w, para, &[], &mut write_control)?;
+            write_text_runs(w, para, &[], field_ends, &mut write_control)?;
             for (ci, control) in para.controls.iter().enumerate() {
                 if Some(ci) != skip && !matches!(control, Control::Field(_)) {
                     write_control(w, control)?;
@@ -472,6 +500,7 @@ fn write_text_runs<W, F>(
     w: &mut Writer<W>,
     para: &Paragraph,
     placed: &[(usize, usize)],
+    field_ends: &[&Field],
     write_control: &mut F,
 ) -> Result<(), SerializeError>
 where
@@ -491,11 +520,23 @@ where
         }
     }
     for (ci, ctrl) in para.controls.iter().enumerate() {
-        if matches!(ctrl, Control::Field(_))
-            && !para.field_ranges.iter().any(|r| r.control_idx == ci)
-        {
-            return Err(SerializeError::XmlError("위치 없는 field 컨트롤".into()));
+        if let Control::Field(field) = ctrl {
+            // 뒤 문단에서 끝나는 필드는 범위 없이 시작 위치(span)만 갖는다.
+            let spans = field.hwpx.as_ref().and_then(|h| h.span);
+            if spans.is_some_and(|s| s.begin_char_idx > chars.len())
+                || (spans.is_none() && !para.field_ranges.iter().any(|r| r.control_idx == ci))
+            {
+                return Err(SerializeError::XmlError("위치 없는 field 컨트롤".into()));
+            }
         }
+    }
+    if field_ends.iter().any(|f| {
+        f.hwpx
+            .as_ref()
+            .and_then(|h| h.span)
+            .is_none_or(|s| s.end_char_idx > chars.len())
+    }) {
+        return Err(SerializeError::XmlError("잘못된 field range".into()));
     }
     let mut events = Vec::with_capacity(para.field_ranges.len() * 2);
     let mut binary_ranges = Vec::new();
@@ -514,6 +555,28 @@ where
             hwpx_end_orders.push(h.end_order);
         } else {
             binary_ranges.push(range);
+        }
+    }
+    // 문단을 건너는 필드 — 시작 문단은 fieldBegin 만, 끝 문단은 fieldEnd 만 쓴다.
+    // 끝 표지는 이 문단의 컨트롤이 아니므로 컨트롤 인덱스 뒤(`controls.len() + k`)로 가리킨다.
+    for (ci, ctrl) in para.controls.iter().enumerate() {
+        if let Control::Field(Field { hwpx: Some(h), .. }) = ctrl {
+            if let Some(span) = h.span {
+                events.push((span.begin_char_idx, h.begin_order, ci, Some(true)));
+            }
+        }
+    }
+    for (k, field) in field_ends.iter().enumerate() {
+        if let Some(h) = &field.hwpx {
+            if let Some(span) = h.span {
+                events.push((
+                    span.end_char_idx,
+                    h.end_order,
+                    para.controls.len() + k,
+                    Some(false),
+                ));
+                hwpx_end_orders.push(h.end_order);
+            }
         }
     }
     let mut boundaries: Vec<_> = binary_ranges
@@ -575,6 +638,13 @@ where
             }
             for &(_, _, ci, begin) in events.iter().filter(|(pos, _, _, _)| *pos == idx) {
                 match begin {
+                    Some(_) if ci >= para.controls.len() => write_field_mark_run(
+                        w,
+                        para,
+                        field_ends[ci - para.controls.len()],
+                        false,
+                        fallback_utf16_pos,
+                    )?,
                     Some(begin) => write_field_run(w, para, ci, begin, fallback_utf16_pos)?,
                     None => write_control(w, &para.controls[ci])?,
                 }
@@ -619,6 +689,16 @@ fn write_field_run<W: Write>(
             "field range의 컨트롤이 Field가 아님".into(),
         ));
     };
+    write_field_mark_run(w, para, field, begin, utf16_pos)
+}
+
+fn write_field_mark_run<W: Write>(
+    w: &mut Writer<W>,
+    para: &Paragraph,
+    field: &Field,
+    begin: bool,
+    utf16_pos: u32,
+) -> Result<(), SerializeError> {
     let shape = field
         .hwpx
         .as_ref()

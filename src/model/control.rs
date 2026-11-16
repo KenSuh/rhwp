@@ -237,6 +237,20 @@ pub struct HwpxField {
     /// 같은 문자 위치에 있는 중첩/빈 필드 경계의 원래 순서.
     pub begin_order: usize,
     pub end_order: usize,
+    /// 필드가 같은 문단 목록의 뒤 문단에서 끝날 때의 위치. 이때 시작 문단의 field_ranges 에는
+    /// 이 필드가 없다(바이너리 파서가 문단을 건너는 필드를 두는 방식과 같다).
+    pub span: Option<HwpxFieldSpan>,
+}
+
+/// 문단을 건너는 HWPX 필드의 시작·끝 위치.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct HwpxFieldSpan {
+    /// 시작 문단 text 안의 fieldBegin 글자 인덱스.
+    pub begin_char_idx: usize,
+    /// 시작 문단에서 끝 문단까지의 문단 수(1 이상).
+    pub end_paragraph_offset: usize,
+    /// 끝 문단 text 안의 fieldEnd 글자 인덱스.
+    pub end_char_idx: usize,
 }
 
 #[derive(Debug, Clone, Default)]

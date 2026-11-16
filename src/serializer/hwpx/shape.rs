@@ -468,8 +468,9 @@ fn write_text_sublist<W: Write>(
             ("hasNumRef", "0"),
         ],
     )?;
+    let field_ends = super::table::later_field_ends(paragraphs)?;
     for (id, para) in paragraphs.iter().enumerate() {
-        super::table::write_paragraph(w, para, id, ctx)?;
+        super::table::write_paragraph(w, para, id, &field_ends[id], ctx)?;
     }
     end_tag(w, "hp:subList")
 }

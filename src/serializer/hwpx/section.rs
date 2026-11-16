@@ -27,7 +27,7 @@ use std::io::Write;
 
 use quick_xml::Writer;
 
-use crate::model::control::{Control, PageHide, PageNumberPos};
+use crate::model::control::{Control, Field, PageHide, PageNumberPos};
 use crate::model::document::{Document, Section};
 use crate::model::page::{BindingMethod, ColumnDef, ColumnDirection, ColumnType, PageDef};
 use crate::model::paragraph::{ColumnBreakType, LineSeg, Paragraph};
@@ -37,7 +37,7 @@ use super::context::SerializeContext;
 use super::form::write_form;
 use super::picture::write_picture;
 use super::shape::{write_container_close, write_container_open, write_line, write_rect};
-use super::table::{write_paragraph_runs, write_table};
+use super::table::{later_field_ends, write_paragraph_runs, write_table};
 use super::utils::{empty_tag, end_tag, start_tag, xml_escape};
 use super::SerializeError;
 
@@ -126,8 +126,9 @@ pub fn write_section(
             );
         }
     }
+    let field_ends = later_field_ends(&section.paragraphs)?;
     let first_runs = match first_para {
-        Some(p) => render_paragraph_runs(p, first_column, ctx)?,
+        Some(p) => render_paragraph_runs(p, first_column, &field_ends[0], ctx)?,
         None => format!(r#"<hp:run charPrIDRef="0">{first_t}</hp:run>"#),
     };
     out = out.replacen(
@@ -143,7 +144,7 @@ pub fn write_section(
             let (_, linesegs, advance) = render_paragraph_parts(p, vert_cursor);
             vert_cursor = advance;
             extra.push_str(&render_hp_p_open(p, idx as u32));
-            extra.push_str(&render_paragraph_runs(p, None, ctx)?);
+            extra.push_str(&render_paragraph_runs(p, None, &field_ends[idx], ctx)?);
             extra.push_str(r#"<hp:linesegarray>"#);
             extra.push_str(&linesegs);
             extra.push_str(r#"</hp:linesegarray></hp:p>"#);
@@ -158,10 +159,11 @@ pub fn write_section(
 fn render_paragraph_runs(
     p: &Paragraph,
     skip: Option<usize>,
+    field_ends: &[&Field],
     ctx: &mut SerializeContext,
 ) -> Result<String, SerializeError> {
     let mut writer = Writer::new(Vec::new());
-    write_paragraph_runs(&mut writer, p, skip, |w, ctrl| {
+    write_paragraph_runs(&mut writer, p, skip, field_ends, |w, ctrl| {
         let xml = render_control_xml(ctrl, ctx)?;
         if !xml.is_empty() {
             let mut char_shape_id = first_run_char_shape_id(p);
