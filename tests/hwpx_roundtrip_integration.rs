@@ -2142,12 +2142,12 @@ fn c23_public_insert_delete_preserves_retained_field_gaps_two_saves() {
             "across-begin",
             1,
             5,
-            original_xml.replace("앞😀", "앞").replace("링😀크", "😀"),
+            original_xml.replace("링😀크", "링😀크편😀"),
             C23FieldState {
                 text: "앞😀뒤".into(),
                 offsets: vec![0, 9, 19],
                 count: 21,
-                ranges: vec![(1, 2)],
+                ranges: vec![],
                 styles: vec![0, 1, 2],
             },
         ),
@@ -2159,10 +2159,42 @@ fn c23_public_insert_delete_preserves_retained_field_gaps_two_saves() {
         core.insert_text_native(0, 1, 5, "편😀").unwrap();
         core.insert_text_in_cell_native(0, 2, 0, 0, 0, 5, "편😀")
             .unwrap();
+        let inverse = if label == "across-begin" {
+            Some((
+                core.begin_text_edit_native(0, 1, false).unwrap(),
+                core.begin_text_edit_native(0, 2, false).unwrap(),
+            ))
+        } else {
+            None
+        };
         core.delete_text_native(0, 1, at, count).unwrap();
         core.delete_text_in_cell_native(0, 2, 0, 0, 0, at, count)
             .unwrap();
         let expected_events = c8_inline_events(&expected_xml);
+        if let Some((body, cell)) = inverse {
+            assert_eq!(c23_field_state(&core.document().sections[0].paragraphs[1]), expected);
+            assert_eq!(c23_field_state(c20_contact(&core, 2, 0, 0)), expected);
+            assert!(core.export_hwpx_native().unwrap_err().to_string().contains("HWPX_FIELD_ENDPOINT"));
+            core.undo_edit_native(cell).unwrap();
+            core.undo_edit_native(body).unwrap();
+            let restored = C23FieldState {
+                text: "앞😀링😀크편😀뒤".into(),
+                offsets: vec![0, 1, 11, 12, 14, 15, 16, 26],
+                count: 28,
+                ranges: vec![(2, 7)],
+                styles: vec![0, 0, 1, 1, 1, 1, 1, 2],
+            };
+            for pass in 0..=2 {
+                assert_eq!(c23_field_state(&core.document().sections[0].paragraphs[1]), restored);
+                assert_eq!(c23_field_state(c20_contact(&core, 2, 0, 0)), restored);
+                if pass < 2 {
+                    let saved = core.export_hwpx_native().unwrap();
+                    assert_eq!(c8_inline_events(&hwpx_section_xml(&saved)), expected_events);
+                    core = DocumentCore::from_bytes(&saved).unwrap();
+                }
+            }
+            continue;
+        }
         for pass in 0..=2 {
             let actual = vec![
                 c23_field_state(&core.document().sections[0].paragraphs[1]),
@@ -2189,7 +2221,7 @@ fn c23_public_insert_delete_preserves_retained_field_gaps_two_saves() {
             }
         }
     }
-    // Then: deleting visible text never consumes the retained controls or their UTF16 gaps.
+    // Then: retained boundaries keep their gaps; removed endpoints refuse save and undo restores them.
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
@@ -2481,12 +2513,12 @@ fn c23_public_field_boundary_matrix_matches_raw_utf16_two_saves() {
         (
             "start",
             single.clone(),
-            format!("{a}{b1}{new}{b}{e1}{z}"),
+            format!("{a}{new}{b1}{b}{e1}{z}"),
             1,
             "편😀",
-            vec![0, 9, 10, 12, 21],
+            vec![0, 1, 2, 12, 21],
             23,
-            vec![(1, 4)],
+            vec![(3, 4)],
         ),
         (
             "end",
@@ -2511,12 +2543,12 @@ fn c23_public_field_boundary_matrix_matches_raw_utf16_two_saves() {
         (
             "empty",
             format!("{a}{b1}{e1}{z}"),
-            format!("{a}{b1}{new}{e1}{z}"),
+            format!("{a}{new}{b1}{e1}{z}"),
             1,
             "편😀",
-            vec![0, 9, 10, 20],
+            vec![0, 1, 2, 20],
             22,
-            vec![(1, 3)],
+            vec![(3, 3)],
         ),
         (
             "nested-ends",
@@ -2536,17 +2568,17 @@ fn c23_public_field_boundary_matrix_matches_raw_utf16_two_saves() {
             "편😀",
             vec![0, 9, 18, 19, 20, 30, 39],
             41,
-            vec![(1, 6), (2, 5)],
+            vec![(2, 5), (1, 6)],
         ),
         (
             "adjacent",
             format!("{a}{b1}{b}{e1}{b2}{c}{e2}{z}"),
-            format!("{a}{b1}{b}{b2}{new}{e1}{c}{e2}{z}"),
+            format!("{a}{b1}{b}{new}{e1}{b2}{c}{e2}{z}"),
             2,
             "편😀",
-            vec![0, 9, 18, 19, 29, 38],
+            vec![0, 9, 10, 11, 29, 38],
             40,
-            vec![(1, 4), (2, 5)],
+            vec![(1, 4), (4, 5)],
         ),
         (
             "outside",
@@ -2571,12 +2603,12 @@ fn c23_public_field_boundary_matrix_matches_raw_utf16_two_saves() {
         (
             "empty-only",
             format!("{b1}{e1}"),
-            format!("{b1}{new}{e1}"),
+            format!("{new}{b1}{e1}"),
             0,
             "편😀",
-            vec![8, 9],
+            vec![0, 1],
             20,
-            vec![(0, 2)],
+            vec![(2, 2)],
         ),
     ];
     let paragraph = |content: &str| {
