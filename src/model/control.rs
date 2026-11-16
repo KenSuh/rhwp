@@ -223,6 +223,8 @@ pub struct Field {
     pub ctrl_data_name: Option<String>,
     /// 메모 인덱스 (hwplib: memoIndex)
     pub memo_index: u32,
+    /// Stable endpoint identity, independent of optional HWPX export metadata.
+    pub endpoint_id: Option<String>,
     /// HWPX의 시작/끝 ID와 매개변수. 바이너리 HWP 필드는 기존 기본값을 사용한다.
     pub hwpx: Option<HwpxField>,
 }

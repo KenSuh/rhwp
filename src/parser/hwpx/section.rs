@@ -2711,6 +2711,7 @@ fn parse_field_begin_attrs(e: &quick_xml::events::BytesStart) -> Field {
     for attr in e.attributes().flatten() {
         let value = attr_str(&attr);
         match attr.key.as_ref() {
+            b"id" => f.endpoint_id = Some(value.clone()),
             b"type" => f.field_type = parse_field_type(&value),
             b"name" => {
                 f.command = value.clone();

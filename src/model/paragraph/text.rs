@@ -1,6 +1,8 @@
 //! 문단 텍스트·오프셋 접근과 필드 끝점 경계 규칙.
 
-use super::{FieldEndpoint, FieldId, FieldRange, HwpxFieldMarker, Paragraph, ParagraphEdit};
+use super::{
+    FieldEndpoint, FieldId, FieldRange, FieldRanges, HwpxFieldMarker, Paragraph, ParagraphEdit,
+};
 use crate::model::control::Control;
 use std::ops::Range;
 
@@ -48,18 +50,32 @@ impl Paragraph {
     }
 
     /// Same-paragraph ranges are a view, never another position store.
-    pub fn field_ranges(&self) -> Vec<FieldRange> {
-        self.hwpx_field_markers.iter().filter_map(|end| {
-            if end.endpoint != FieldEndpoint::End { return None; }
-            let begin = self.hwpx_field_markers.iter().find(|m| m.id == end.id && m.endpoint == FieldEndpoint::Begin)?;
-            let control_idx = match &end.id {
-                FieldId::Binary(ci) => *ci,
-                FieldId::Hwpx(id) => self.controls.iter().position(|ctrl| {
-                    matches!(ctrl, Control::Field(f) if f.hwpx.as_ref().is_some_and(|h| h.begin_attributes.iter().any(|(k,v)| k == "id" && v == id)))
-                })?,
-            };
-            Some(FieldRange { start_char_idx: begin.char_idx, end_char_idx: end.char_idx, control_idx })
-        }).collect()
+    pub fn field_ranges(&self) -> FieldRanges {
+        FieldRanges(
+            self.hwpx_field_markers
+                .iter()
+                .filter_map(|end| {
+                    if end.endpoint != FieldEndpoint::End {
+                        return None;
+                    }
+                    let begin = self
+                        .hwpx_field_markers
+                        .iter()
+                        .find(|m| m.id == end.id && m.endpoint == FieldEndpoint::Begin)?;
+                    let control_idx = match &end.id {
+                        FieldId::Binary(ci) => *ci,
+                        FieldId::Hwpx(id) => self.controls.iter().position(|ctrl| {
+                            matches!(ctrl, Control::Field(f) if f.endpoint_id.as_ref() == Some(id))
+                        })?,
+                    };
+                    Some(FieldRange {
+                        start_char_idx: begin.char_idx,
+                        end_char_idx: end.char_idx,
+                        control_idx,
+                    })
+                })
+                .collect(),
+        )
     }
 
     /// Binary parsing keeps raw controls/offsets; only its range boundary converts.
@@ -128,14 +144,8 @@ impl Paragraph {
 
     fn field_id(&self, control_idx: usize) -> Option<FieldId> {
         Some(match self.controls.get(control_idx)? {
-            Control::Field(f) => match &f.hwpx {
-                Some(h) => FieldId::Hwpx(
-                    h.begin_attributes
-                        .iter()
-                        .find(|(k, _)| k == "id")?
-                        .1
-                        .clone(),
-                ),
+            Control::Field(f) => match &f.endpoint_id {
+                Some(id) => FieldId::Hwpx(id.clone()),
                 None => FieldId::Binary(control_idx),
             },
             _ => return None,

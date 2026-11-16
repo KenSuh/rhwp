@@ -426,15 +426,16 @@ pub(super) fn field_marks_for_list(
             let Control::Field(field) = control else {
                 continue;
             };
-            let Some(h) = &field.hwpx else {
-                continue;
+            let id = match (&field.endpoint_id, &field.hwpx) {
+                (Some(id), _) => id.as_str(),
+                (None, Some(h)) => h
+                    .begin_attributes
+                    .iter()
+                    .find(|(key, _)| key == "id")
+                    .map(|(_, value)| value.as_str())
+                    .ok_or_else(invalid)?,
+                (None, None) => continue,
             };
-            let id = h
-                .begin_attributes
-                .iter()
-                .find(|(key, _)| key == "id")
-                .map(|(_, value)| value.as_str())
-                .ok_or_else(invalid)?;
             if fields.insert(id, field).is_some() {
                 return Err(invalid());
             }
@@ -574,7 +575,9 @@ where
     }
     for (ci, ctrl) in para.controls.iter().enumerate() {
         if let Control::Field(field) = ctrl {
-            if field.hwpx.is_none() && !para.field_ranges().iter().any(|r| r.control_idx == ci) {
+            if field.endpoint_id.is_none()
+                && !para.field_ranges().iter().any(|r| r.control_idx == ci)
+            {
                 return Err(SerializeError::XmlError("위치 없는 field 컨트롤".into()));
             }
         }
@@ -587,7 +590,7 @@ where
         let Some(Control::Field(field)) = para.controls.get(range.control_idx) else {
             return Err(SerializeError::XmlError("field 컨트롤 누락".into()));
         };
-        if field.hwpx.is_none() {
+        if field.endpoint_id.is_none() {
             binary_ranges.push(range);
         }
     }

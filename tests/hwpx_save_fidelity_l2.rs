@@ -570,11 +570,15 @@ fn run_order_c1_binary_field_begin_precedes_table_at_same_position() {
             ..Default::default()
         }),
     );
-    para.field_ranges().push(FieldRange {
-        start_char_idx: 0,
-        end_char_idx: 1,
-        control_idx: 0,
-    });
+    para = para.with_parsed_text(
+        "x".into(),
+        vec![16],
+        Paragraph::markers_from_binary_ranges(&[FieldRange {
+            start_char_idx: 0,
+            end_char_idx: 1,
+            control_idx: 0,
+        }]),
+    );
     assert_eq!(
         save_appended_paragraph(para),
         vec![

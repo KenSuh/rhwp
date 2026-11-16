@@ -671,6 +671,7 @@ fn collect_fields_from_paragraph(
                                 extra_properties: 0,
                                 ctrl_data_name: Some(fname.clone()),
                                 memo_index: 0,
+                                endpoint_id: None,
                                 hwpx: None,
                             },
                             location: loc,
@@ -836,7 +837,11 @@ fn rebuild_char_offsets(para: &mut Paragraph) {
     let text_chars: Vec<char> = para.text().chars().collect();
     let text_len = text_chars.len();
 
-    if para.field_markers().iter().any(|m| matches!(m.id, crate::model::paragraph::FieldId::Hwpx(_))) {
+    if para
+        .field_markers()
+        .iter()
+        .any(|m| matches!(m.id, crate::model::paragraph::FieldId::Hwpx(_)))
+    {
         return;
     }
 

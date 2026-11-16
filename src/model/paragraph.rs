@@ -32,6 +32,13 @@ mod text;
 /// let mut paragraph = Paragraph::default();
 /// paragraph.field_markers().clear();
 /// ```
+///
+/// ```compile_fail
+/// let mut paragraph = rhwp::model::paragraph::Paragraph::default();
+/// paragraph.field_ranges().push(rhwp::model::paragraph::FieldRange {
+///     start_char_idx: 0, end_char_idx: 0, control_idx: 0,
+/// });
+/// ```
 #[derive(Debug, Default, Clone)]
 pub struct Paragraph {
     /// 문자 수 (제어 문자 포함)
@@ -209,6 +216,27 @@ pub struct FieldRange {
     pub end_char_idx: usize,
     /// controls[] 배열 내 인덱스 (해당 Field 컨트롤 참조)
     pub control_idx: usize,
+}
+
+/// Immutable derived ranges; edits must go through the paragraph owner.
+#[derive(Debug)]
+pub struct FieldRanges(Vec<FieldRange>);
+
+impl std::ops::Deref for FieldRanges {
+    type Target = [FieldRange];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'a> IntoIterator for &'a FieldRanges {
+    type Item = &'a FieldRange;
+    type IntoIter = std::slice::Iter<'a, FieldRange>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

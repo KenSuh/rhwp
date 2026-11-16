@@ -3662,16 +3662,19 @@ fn c8_native_field_binary_defaults_and_invalid_references_are_explicit() {
         );
         let mut binary = parse_hwpx(&input).unwrap();
         let para = &mut binary.sections[0].paragraphs[0];
+        let ranges = para.field_ranges().to_vec();
+        assert_eq!(ranges[0].control_idx, if nested { 1 } else { 0 });
+        let markers = rhwp::model::paragraph::Paragraph::markers_from_binary_ranges(&ranges);
         for (ci, control) in para.controls.iter_mut().enumerate() {
             if let Control::Field(field) = control {
                 field.hwpx = None;
+                field.endpoint_id = None;
                 field.field_id = 10 + ci as u32;
             }
         }
-        // Binary parsing records controls at begin and field ranges at end.
-        if nested {
-            para.field_ranges().reverse();
-        }
+        let text = para.text().to_owned();
+        let offsets = para.char_offsets().to_vec();
+        *para = std::mem::take(para).with_parsed_text(text, offsets, markers);
         let saved = serialize_hwpx(&binary).unwrap();
         let boundaries: Vec<_> = c8_inline_events(&hwpx_section_xml(&saved))
             .into_iter()
