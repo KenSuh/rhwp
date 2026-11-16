@@ -93,7 +93,7 @@ impl DocumentCore {
             };
             let text: String = paragraphs
                 .iter()
-                .map(|p| p.text.clone())
+                .map(|p| p.text().to_owned())
                 .collect::<Vec<_>>()
                 .join("\n");
             let kind = if is_header { "header" } else { "footer" };
@@ -450,7 +450,7 @@ impl DocumentCore {
                     hf_para_idx
                 )));
             }
-            merge_offset = paragraphs[hf_para_idx - 1].text.chars().count();
+            merge_offset = paragraphs[hf_para_idx - 1].text().chars().count();
             let removed = paragraphs.remove(hf_para_idx);
             paragraphs[hf_para_idx - 1].merge_from(&removed);
         }
@@ -503,7 +503,7 @@ impl DocumentCore {
 
         let para_count = paragraphs.len();
         let char_count = if hf_para_idx < para_count {
-            paragraphs[hf_para_idx].text.chars().count()
+            paragraphs[hf_para_idx].text().chars().count()
         } else {
             0
         };
@@ -984,13 +984,15 @@ impl DocumentCore {
         // 6) 텍스트 삽입
         {
             let hf_para = self.get_hf_paragraph_mut(section_idx, is_header, apply_to, 0)?;
-            hf_para.text = text;
+            hf_para.replace_text(text);
             // char_offsets 재계산
-            hf_para.char_offsets = hf_para
-                .text
-                .char_indices()
-                .map(|(byte_idx, _)| byte_idx as u32)
-                .collect();
+            hf_para.set_char_offsets(
+                hf_para
+                    .text()
+                    .char_indices()
+                    .map(|(byte_idx, _)| byte_idx as u32)
+                    .collect(),
+            );
         }
 
         // 7) 문단 정렬 적용
@@ -1291,7 +1293,7 @@ mod tests {
                                 h.paragraphs.len(),
                                 h.paragraphs
                                     .iter()
-                                    .map(|p| p.text.clone())
+                                    .map(|p| p.text().to_owned())
                                     .collect::<Vec<_>>()
                                     .join("|")
                             );
@@ -1305,7 +1307,7 @@ mod tests {
                                 f.paragraphs.len(),
                                 f.paragraphs
                                     .iter()
-                                    .map(|p| p.text.clone())
+                                    .map(|p| p.text().to_owned())
                                     .collect::<Vec<_>>()
                                     .join("|")
                             );

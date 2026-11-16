@@ -1701,7 +1701,7 @@ impl DocumentCore {
                                     .get(*para_index)
                                     .map(|p| {
                                         let t: String = p
-                                            .text
+                                            .text()
                                             .chars()
                                             .filter(|c| *c > '\u{001F}')
                                             .take(40)

@@ -80,8 +80,8 @@ impl LayoutEngine {
 
         // 3. char_offsets 갭 분석으로 텍스트 세그먼트 분할
         // 확장 컨트롤은 8 UTF-16 코드 유닛을 차지
-        let text_chars: Vec<char> = para.text.chars().collect();
-        let offsets = &para.char_offsets;
+        let text_chars: Vec<char> = para.text().chars().collect();
+        let offsets = &para.char_offsets();
 
         // 텍스트 세그먼트 분리: 갭이 8 이상이면 컨트롤 위치
         let mut segments: Vec<(usize, usize)> = Vec::new(); // (start_char_idx, end_char_idx)
@@ -254,16 +254,16 @@ impl LayoutEngine {
             let mut utf16_pos = 0u32;
             let mut ctrl_gap = 0u32;
             // char_offsets에서 제어문자 갭 계산
-            if !para.char_offsets.is_empty() {
-                let first_offset = para.char_offsets[0];
+            if !para.char_offsets().is_empty() {
+                let first_offset = para.char_offsets()[0];
                 ctrl_gap += first_offset; // 선행 컨트롤
-                for i in 1..para.char_offsets.len() {
+                for i in 1..para.char_offsets().len() {
                     let prev_len = if text_chars[i - 1] >= '\u{10000}' {
                         2u32
                     } else {
                         1
                     };
-                    let gap = para.char_offsets[i] - para.char_offsets[i - 1];
+                    let gap = para.char_offsets()[i] - para.char_offsets()[i - 1];
                     if gap > prev_len + 4 {
                         ctrl_gap += gap - prev_len; // 중간 컨트롤 갭
                     }
@@ -774,9 +774,9 @@ impl LayoutEngine {
                 .is_some_and(|entry| entry.text_direction == 0 && entry.cell_index < 65534)
             && composed.numbering_text.is_none() && composed.tac_controls.is_empty()
             && first_line_x_offset == 0.0
-            && para.is_some_and(|p| invalid_cell_hanging_indent(
-                p, col_area.width - margin_left - margin_right, styles,
-            ));
+            && para.is_some_and(|p| {
+                invalid_cell_hanging_indent(p, col_area.width - margin_left - margin_right, styles)
+            });
 
         // treat_as_char 컨트롤의 px 폭 목록 (절대 char 위치, px 폭, control_index) — 정렬 보장
         let tac_offsets_px: Vec<(usize, f64, usize)> = {
@@ -2786,12 +2786,12 @@ impl LayoutEngine {
                 BoundingBox::new(col_area.x, y_clamped, col_area.width, line_height),
             );
 
-            if !para.text.is_empty() && line_idx == start_line {
+            if !para.text().is_empty() && line_idx == start_line {
                 let run_id = tree.next_id();
                 let run_node = RenderNode::new(
                     run_id,
                     RenderNodeType::TextRun(TextRunNode {
-                        text: para.text.clone(),
+                        text: para.text().to_owned(),
                         style: TextStyle::default(),
                         char_shape_id: None,
                         para_shape_id: None,
@@ -2828,12 +2828,12 @@ impl LayoutEngine {
                 BoundingBox::new(col_area.x, y, col_area.width, default_height),
             );
 
-            if !para.text.is_empty() {
+            if !para.text().is_empty() {
                 let run_id = tree.next_id();
                 let run_node = RenderNode::new(
                     run_id,
                     RenderNodeType::TextRun(TextRunNode {
-                        text: para.text.clone(),
+                        text: para.text().to_owned(),
                         style: TextStyle::default(),
                         char_shape_id: None,
                         para_shape_id: None,

@@ -7,7 +7,9 @@ use crate::model::control::Control;
 use crate::model::event::DocumentEvent;
 use crate::model::page::ColumnDef;
 use crate::model::paragraph::Paragraph;
-use crate::renderer::composer::{compose_paragraph, reflow_horizontal_cell_line_segs, reflow_line_segs, ComposedParagraph};
+use crate::renderer::composer::{
+    compose_paragraph, reflow_horizontal_cell_line_segs, reflow_line_segs, ComposedParagraph,
+};
 use crate::renderer::page_layout::PageLayoutInfo;
 use crate::renderer::px_to_hwpunit;
 
@@ -84,12 +86,12 @@ impl DocumentCore {
         // 캐럿 위치 갱신 (DocProperties)
         // caret_char_pos는 UTF-16 코드 유닛 기준
         let para = &self.document.sections[section_idx].paragraphs[para_idx];
-        let caret_utf16_pos = if new_offset < para.char_offsets.len() {
-            para.char_offsets[new_offset]
-        } else if !para.char_offsets.is_empty() {
-            let last = para.char_offsets.len() - 1;
-            let last_char = para.text.chars().nth(last);
-            para.char_offsets[last]
+        let caret_utf16_pos = if new_offset < para.char_offsets().len() {
+            para.char_offsets()[new_offset]
+        } else if !para.char_offsets().is_empty() {
+            let last = para.char_offsets().len() - 1;
+            let last_char = para.text().chars().nth(last);
+            para.char_offsets()[last]
                 + last_char
                     .map(|c| if (c as u32) > 0xFFFF { 2 } else { 1 })
                     .unwrap_or(1)
@@ -191,12 +193,12 @@ impl DocumentCore {
 
         // 캐럿 위치 갱신 (DocProperties)
         let para = &self.document.sections[section_idx].paragraphs[para_idx];
-        let caret_utf16_pos = if char_offset < para.char_offsets.len() {
-            para.char_offsets[char_offset]
-        } else if !para.char_offsets.is_empty() {
-            let last = para.char_offsets.len() - 1;
-            let last_char = para.text.chars().nth(last);
-            para.char_offsets[last]
+        let caret_utf16_pos = if char_offset < para.char_offsets().len() {
+            para.char_offsets()[char_offset]
+        } else if !para.char_offsets().is_empty() {
+            let last = para.char_offsets().len() - 1;
+            let last_char = para.text().chars().nth(last);
+            para.char_offsets()[last]
                 + last_char
                     .map(|c| if (c as u32) > 0xFFFF { 2 } else { 1 })
                     .unwrap_or(1)
@@ -669,7 +671,12 @@ impl DocumentCore {
                 } else if let Some(cell) = table.cells.get_mut(cell_idx) {
                     if let Some(cell_para) = cell.paragraphs.get_mut(cell_para_idx) {
                         if cell.text_direction == 0 {
-                            reflow_horizontal_cell_line_segs(cell_para, final_width, &self.styles, self.dpi);
+                            reflow_horizontal_cell_line_segs(
+                                cell_para,
+                                final_width,
+                                &self.styles,
+                                self.dpi,
+                            );
                         } else {
                             reflow_line_segs(cell_para, final_width, &self.styles, self.dpi);
                         }
@@ -1278,7 +1285,7 @@ impl DocumentCore {
                 {
                     let cell_para =
                         self.get_cell_paragraph_mut(section_idx, ppi, ci, cei, start_para)?;
-                    let para_len = cell_para.text.chars().count();
+                    let para_len = cell_para.text().chars().count();
                     if start_offset < para_len {
                         cell_para.delete_text_at(start_offset, para_len - start_offset);
                     }
@@ -1340,7 +1347,7 @@ impl DocumentCore {
                 // 3) 첫 문단 뒷부분 삭제
                 {
                     let para_len = self.document.sections[section_idx].paragraphs[start_para]
-                        .text
+                        .text()
                         .chars()
                         .count();
                     if start_offset < para_len {
@@ -2057,7 +2064,7 @@ impl DocumentCore {
                 section.paragraphs.len()
             ))
         })?;
-        Ok(para.text.chars().count())
+        Ok(para.text().chars().count())
     }
 
     /// 문단에 텍스트박스가 있는 Shape 컨트롤의 인덱스를 반환 (네이티브)
@@ -2459,7 +2466,7 @@ impl DocumentCore {
                 section.paragraphs.len()
             ))
         })?;
-        let text_chars: Vec<char> = para.text.chars().collect();
+        let text_chars: Vec<char> = para.text().chars().collect();
         let total = text_chars.len();
         if char_offset > total {
             return Err(HwpError::RenderError(format!(
@@ -2550,7 +2557,7 @@ impl DocumentCore {
                     section_idx, parent_para_idx, control_idx, cell_idx, cell_para_idx
                 ))
             })?;
-        Ok(cell_para.text.chars().count())
+        Ok(cell_para.text().chars().count())
     }
 
     /// 셀 내 텍스트 부분 추출 (네이티브)
@@ -2578,7 +2585,7 @@ impl DocumentCore {
                     section_idx, parent_para_idx, control_idx, cell_idx, cell_para_idx
                 ))
             })?;
-        let text_chars: Vec<char> = cell_para.text.chars().collect();
+        let text_chars: Vec<char> = cell_para.text().chars().collect();
         let total = text_chars.len();
         if char_offset > total {
             return Err(HwpError::RenderError(format!(
@@ -2687,7 +2694,10 @@ mod tests {
     use super::*;
 
     fn c20_cell_core(direction: u8, nested: bool) -> (DocumentCore, Vec<(usize, usize, usize)>) {
-        use crate::model::{table::{Cell, Table}, Padding};
+        use crate::model::{
+            table::{Cell, Table},
+            Padding,
+        };
         let mut core = DocumentCore::new_empty();
         core.create_blank_document_native().unwrap();
         let raw = &mut core.document.doc_info.para_shapes[0];
@@ -2704,8 +2714,16 @@ mod tests {
         cell.text_direction = direction;
         cell.paragraphs = vec![paragraph];
         let mut table = Table {
-            row_count: 1, col_count: 1, border_fill_id: 1, cells: vec![cell],
-            padding: Padding { left: 300, right: 450, top: 0, bottom: 0 },
+            row_count: 1,
+            col_count: 1,
+            border_fill_id: 1,
+            cells: vec![cell],
+            padding: Padding {
+                left: 300,
+                right: 450,
+                top: 0,
+                bottom: 0,
+            },
             ..Default::default()
         };
         table.update_ctrl_dimensions();
@@ -2722,13 +2740,37 @@ mod tests {
         (core, path)
     }
 
-    fn c20_assert_cell_wrap(subject: &DocumentCore, reference: &DocumentCore, parent: usize, path: &[(usize, usize, usize)], stage: &str) {
-        let subject = subject.get_cell_paragraph_ref_by_path(0, parent, path).unwrap();
-        let reference = reference.get_cell_paragraph_ref_by_path(0, parent, path).unwrap();
-        let starts = |paragraph: &Paragraph| paragraph.line_segs.iter().map(|line| line.text_start).collect::<Vec<_>>();
-        eprintln!("C20 caller {stage}: subject={:?}, full-width reference={:?}", starts(subject), starts(reference));
-        assert_eq!(subject.text, reference.text, "{stage}");
-        assert_eq!(starts(subject), starts(reference), "{stage}: current horizontal cell width must drive reflow");
+    fn c20_assert_cell_wrap(
+        subject: &DocumentCore,
+        reference: &DocumentCore,
+        parent: usize,
+        path: &[(usize, usize, usize)],
+        stage: &str,
+    ) {
+        let subject = subject
+            .get_cell_paragraph_ref_by_path(0, parent, path)
+            .unwrap();
+        let reference = reference
+            .get_cell_paragraph_ref_by_path(0, parent, path)
+            .unwrap();
+        let starts = |paragraph: &Paragraph| {
+            paragraph
+                .line_segs
+                .iter()
+                .map(|line| line.text_start)
+                .collect::<Vec<_>>()
+        };
+        eprintln!(
+            "C20 caller {stage}: subject={:?}, full-width reference={:?}",
+            starts(subject),
+            starts(reference)
+        );
+        assert_eq!(subject.text(), reference.text(), "{stage}");
+        assert_eq!(
+            starts(subject),
+            starts(reference),
+            "{stage}: current horizontal cell width must drive reflow"
+        );
         assert!(subject.line_segs.iter().all(|line| line.segment_width > 1));
     }
 
@@ -2750,10 +2792,21 @@ mod tests {
     fn c20_nested_horizontal_and_vertical_legacy_use_separate_reflow_entries() {
         let (mut horizontal, path) = c20_cell_core(0, true);
         let (mut reference, _) = c20_cell_core(0, true);
-        reference.apply_para_format_in_cell_by_path_native(0, 0, &path, "{\"indent\":0}").unwrap();
-        let end = horizontal.get_cell_paragraph_ref_by_path(0, 0, &path).unwrap().text.chars().count();
-        horizontal.insert_text_in_cell_by_path(0, 0, &path, end, "편😀").unwrap();
-        reference.insert_text_in_cell_by_path(0, 0, &path, end, "편😀").unwrap();
+        reference
+            .apply_para_format_in_cell_by_path_native(0, 0, &path, "{\"indent\":0}")
+            .unwrap();
+        let end = horizontal
+            .get_cell_paragraph_ref_by_path(0, 0, &path)
+            .unwrap()
+            .text()
+            .chars()
+            .count();
+        horizontal
+            .insert_text_in_cell_by_path(0, 0, &path, end, "편😀")
+            .unwrap();
+        reference
+            .insert_text_in_cell_by_path(0, 0, &path, end, "편😀")
+            .unwrap();
         c20_assert_cell_wrap(&horizontal, &reference, 0, &path, "nested Unicode edit");
         horizontal.apply_para_format_in_cell_by_path_native(0, 0, &path, "{\"lineSpacing\":180}").unwrap();
         reference.apply_para_format_in_cell_by_path_native(0, 0, &path, "{\"lineSpacing\":180}").unwrap();
@@ -2763,8 +2816,16 @@ mod tests {
     #[test]
     fn c20_vertical_cell_path_keeps_legacy_indent_reflow() {
         let (mut core, path) = c20_cell_core(1, true);
-        let mut expected = core.get_cell_paragraph_ref_by_path(0, 0, &path).unwrap().clone();
-        reflow_line_segs(&mut expected, crate::renderer::hwpunit_to_px(9250, core.dpi), &core.styles, core.dpi);
+        let mut expected = core
+            .get_cell_paragraph_ref_by_path(0, 0, &path)
+            .unwrap()
+            .clone();
+        reflow_line_segs(
+            &mut expected,
+            crate::renderer::hwpunit_to_px(9250, core.dpi),
+            &core.styles,
+            core.dpi,
+        );
         assert!(core.reflow_cell_paragraph_by_path(0, 0, &path));
         let actual = core.get_cell_paragraph_ref_by_path(0, 0, &path).unwrap();
         assert_eq!(format!("{:?}", actual.line_segs), format!("{:?}", expected.line_segs));
@@ -2782,7 +2843,11 @@ mod tests {
             core.document.sections[0].paragraphs.insert(0, Paragraph::new_empty());
             let input = crate::serializer::serialize_hwpx(&core.document).unwrap();
             if let Some(dir) = std::env::var_os("RHWP_C20_ARTIFACT_DIR") {
-                std::fs::write(std::path::Path::new(&dir).join(format!("uncomputed-{name}-input.hwpx")), &input).unwrap();
+                std::fs::write(
+                    std::path::Path::new(&dir).join(format!("uncomputed-{name}-input.hwpx")),
+                    &input,
+                )
+                .unwrap();
             }
             let parsed = crate::parser::hwpx::parse_hwpx(&input).unwrap();
             assert_eq!(parsed.sections[0].paragraphs.len(), 2);
@@ -2797,7 +2862,13 @@ mod tests {
         }
         let subject = &loaded[0];
         let reference = &loaded[1];
-        c20_assert_cell_wrap(subject, reference, 1, &path, "public load with uncomputed geometry");
+        c20_assert_cell_wrap(
+            subject,
+            reference,
+            1,
+            &path,
+            "public load with uncomputed geometry",
+        );
         let paragraph = subject.get_cell_paragraph_ref_by_path(0, 1, &path).unwrap();
         assert!(paragraph.line_segs.iter().all(|line| line.line_height > 0));
         assert_eq!(subject.document.doc_info.para_shapes[paragraph.para_shape_id as usize].indent, -41000);
@@ -2807,8 +2878,15 @@ mod tests {
     fn c20_horizontal_cell_format_resize_and_picture_delete_use_current_geometry() {
         let (mut subject, path) = c20_cell_core(0, false);
         let (mut reference, _) = c20_cell_core(0, false);
-        reference.apply_para_format_in_cell_native(0, 0, 0, 0, 0, "{\"indent\":0}").unwrap();
-        let end = subject.get_cell_paragraph_ref_by_path(0, 0, &path).unwrap().text.chars().count();
+        reference
+            .apply_para_format_in_cell_native(0, 0, 0, 0, 0, "{\"indent\":0}")
+            .unwrap();
+        let end = subject
+            .get_cell_paragraph_ref_by_path(0, 0, &path)
+            .unwrap()
+            .text()
+            .chars()
+            .count();
         for core in [&mut subject, &mut reference] {
             core.apply_char_format_in_cell_native(0, 0, 0, 0, 0, 0, end, "{\"fontSize\":1200}").unwrap();
         }
@@ -2818,18 +2896,39 @@ mod tests {
         }
         c20_assert_cell_wrap(&subject, &reference, 0, &path, "paragraph format");
         for core in [&mut subject, &mut reference] {
-            core.resize_table_cells_native(0, 0, 0, "[{\"cellIdx\":0,\"widthDelta\":1500,\"heightDelta\":0}]").unwrap();
+            core.resize_table_cells_native(
+                0,
+                0,
+                0,
+                "[{\"cellIdx\":0,\"widthDelta\":1500,\"heightDelta\":0}]",
+            )
+            .unwrap();
         }
         c20_assert_cell_wrap(&subject, &reference, 0, &path, "current resized width");
         for core in [&mut subject, &mut reference] {
             let paragraph = core.get_cell_paragraph_mut_by_path(0, 0, &path).unwrap();
-            paragraph.controls.push(Control::Picture(Box::new(crate::model::image::Picture::default())));
+            paragraph.controls.push(Control::Picture(Box::new(
+                crate::model::image::Picture::default(),
+            )));
             paragraph.char_count += 8;
-            for line in &mut paragraph.line_segs { line.segment_width = 1500; }
-            core.delete_picture_control_by_path_native(0, 0,
-                "[{\"controlIndex\":0,\"cellIndex\":0,\"cellParaIndex\":0}]", 0).unwrap();
+            for line in &mut paragraph.line_segs {
+                line.segment_width = 1500;
+            }
+            core.delete_picture_control_by_path_native(
+                0,
+                0,
+                "[{\"controlIndex\":0,\"cellIndex\":0,\"cellParaIndex\":0}]",
+                0,
+            )
+            .unwrap();
         }
-        c20_assert_cell_wrap(&subject, &reference, 0, &path, "delete ignores stale cached width");
+        c20_assert_cell_wrap(
+            &subject,
+            &reference,
+            0,
+            &path,
+            "delete ignores stale cached width",
+        );
         let paragraph = subject.get_cell_paragraph_ref_by_path(0, 0, &path).unwrap();
         assert!(paragraph.controls.is_empty());
         assert!(paragraph.line_segs.iter().all(|line| line.segment_width == 10750));
@@ -2844,7 +2943,7 @@ mod tests {
         let mut core = DocumentCore::new_empty();
         core.create_blank_document_native().unwrap();
         let mut paragraph = crate::model::paragraph::Paragraph::new_empty();
-        paragraph.text = "caption text that must wrap ".repeat(8);
+        paragraph.replace_text("caption text that must wrap ".repeat(8));
         let mut table = Table {
             row_count: u16::MAX,
             col_count: 1,
@@ -2867,7 +2966,7 @@ mod tests {
         table.cells[65534].text_direction = 2;
         table.cells[65534].height = 60000;
         let mut physical = crate::model::paragraph::Paragraph::new_empty();
-        physical.text = "physical vertical cell text ".repeat(8);
+        physical.replace_text("physical vertical cell text ".repeat(8));
         table.cells[65534].paragraphs = vec![physical];
         let control_idx = core.document.sections[0].paragraphs[0].controls.len();
         core.document.sections[0].paragraphs[0]
@@ -2891,7 +2990,7 @@ mod tests {
         let physical = core
             .get_cell_paragraph_ref_by_path(0, 0, &[(control_idx, 65534, 0)])
             .unwrap();
-        assert_eq!(physical.text, "physical vertical cell text ".repeat(8));
+        assert_eq!(physical.text(), "physical vertical cell text ".repeat(8));
         assert!(physical.line_segs.len() > 1);
         assert!(physical
             .line_segs
@@ -2947,7 +3046,10 @@ mod tests {
         );
 
         // Enter로 문단 분리 (텍스트 끝에서)
-        let text_len = core.document.sections[0].paragraphs[0].text.chars().count();
+        let text_len = core.document.sections[0].paragraphs[0]
+            .text()
+            .chars()
+            .count();
         core.split_paragraph_native(0, 0, text_len).unwrap();
 
         // 두 번째 문단에 텍스트 입력
@@ -3550,7 +3652,7 @@ impl DocumentCore {
                 }
                 let removed = cell.paragraphs.remove(cell_para_idx);
                 let prev = &mut cell.paragraphs[cell_para_idx - 1];
-                merge_point = prev.text.chars().count();
+                merge_point = prev.text().chars().count();
                 prev.merge_from(&removed);
                 break;
             }
@@ -3594,7 +3696,7 @@ impl DocumentCore {
         count: usize,
     ) -> Result<String, HwpError> {
         let para = self.resolve_paragraph_by_path(section_idx, parent_para_idx, path)?;
-        let text_chars: Vec<char> = para.text.chars().collect();
+        let text_chars: Vec<char> = para.text().chars().collect();
         let total = text_chars.len();
         if char_offset > total {
             return Err(HwpError::RenderError(format!(

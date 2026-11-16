@@ -62,7 +62,7 @@ fn search_all(doc: &DocumentCore, query: &str, case_sensitive: bool) -> Vec<Sear
     for (sec_idx, section) in doc.document.sections.iter().enumerate() {
         for (para_idx, para) in section.paragraphs.iter().enumerate() {
             // 본문 문단
-            for offset in find_in_text(&para.text, query, case_sensitive) {
+            for offset in find_in_text(&para.text(), query, case_sensitive) {
                 results.push(SearchHit {
                     sec: sec_idx,
                     para: para_idx,
@@ -78,7 +78,8 @@ fn search_all(doc: &DocumentCore, query: &str, case_sensitive: bool) -> Vec<Sear
                     Control::Table(table) => {
                         for (cell_idx, cell) in table.cells.iter().enumerate() {
                             for (cell_para_idx, cell_para) in cell.paragraphs.iter().enumerate() {
-                                for offset in find_in_text(&cell_para.text, query, case_sensitive) {
+                                for offset in find_in_text(&cell_para.text(), query, case_sensitive)
+                                {
                                     results.push(SearchHit {
                                         sec: sec_idx,
                                         para: para_idx,
@@ -98,7 +99,7 @@ fn search_all(doc: &DocumentCore, query: &str, case_sensitive: bool) -> Vec<Sear
                     Control::Shape(shape) => {
                         if let Some(tb) = get_textbox_from_shape(shape) {
                             for (tb_para_idx, tb_para) in tb.paragraphs.iter().enumerate() {
-                                for offset in find_in_text(&tb_para.text, query, case_sensitive) {
+                                for offset in find_in_text(&tb_para.text(), query, case_sensitive) {
                                     results.push(SearchHit {
                                         sec: sec_idx,
                                         para: para_idx,

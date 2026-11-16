@@ -151,7 +151,7 @@ fn doc_with_sections(defs: Vec<(PageDef, bool)>) -> Document {
         section.section_def.page_def = page_def;
         if with_paragraph {
             let mut para = Paragraph::default();
-            para.text = "본문".to_string();
+            para.replace_text("본문".to_string());
             section.paragraphs.push(para);
         }
         doc.sections.push(section);
@@ -493,14 +493,14 @@ fn hwpx_h_01_each_section_keeps_its_own_page_pr() {
 fn one_char_body_edit_keeps_original_page_def() {
     let original = parse_hwpx(FORM_002).expect("parse original");
     let mut core = DocumentCore::from_bytes(FORM_002).expect("load form-002");
-    assert_eq!(core.document().sections[0].paragraphs[1].text, "");
+    assert_eq!(core.document().sections[0].paragraphs[1].text(), "");
     core.insert_text_native(0, 1, 0, "가")
         .expect("insert one char");
 
     let exported = core.export_hwpx_native().expect("export after edit");
     let reloaded = DocumentCore::from_bytes(&exported).expect("reload export");
     // 편집이 실제로 저장됐는지 먼저 본다 — 본문은 원본과 달라야 한다.
-    assert_eq!(reloaded.document().sections[0].paragraphs[1].text, "가");
+    assert_eq!(reloaded.document().sections[0].paragraphs[1].text(), "가");
     assert_eq!(
         fields(&reloaded.document().sections[0].section_def.page_def),
         fields(&original.sections[0].section_def.page_def)

@@ -666,7 +666,7 @@ impl LayoutEngine {
                     }
                 }
                 // 텍스트도 함께 렌더링
-                if !para.text.is_empty() {
+                if !para.text().is_empty() {
                     let mut comp = compose_paragraph(para);
                     self.substitute_hf_field_markers(&mut comp, page_number);
                     y_offset = self.layout_paragraph(
@@ -1003,7 +1003,7 @@ impl LayoutEngine {
                                 _ => {}
                             }
                         }
-                    } else if !para.text.is_empty() {
+                    } else if !para.text().is_empty() {
                         // 컨트롤 없는 텍스트 문단: vpos 기반 y 위치 사용
                         let mut comp = compose_paragraph(para);
                         self.substitute_hf_field_markers(&mut comp, page_number);
@@ -1891,7 +1891,7 @@ impl LayoutEngine {
                     let has_block_table = para.controls.iter()
                         .any(|c| matches!(c, Control::Table(t) if !t.common.treat_as_char
                             || (t.common.treat_as_char
-                                && !crate::renderer::height_measurer::is_tac_table_inline(t, seg_width, &para.text, &para.controls))));
+                                && !crate::renderer::height_measurer::is_tac_table_inline(t, seg_width, &para.text(), &para.controls))));
                     if has_block_table {
                         let comp = composed.get(*para_index);
                         let para_style_id = comp
@@ -1936,7 +1936,7 @@ impl LayoutEngine {
                         // (예: [선][선][표][표]참고문헌 → 표 아래에 텍스트 렌더링 필요)
                         let has_real_text = !is_wrap_host
                             && para
-                                .text
+                                .text()
                                 .chars()
                                 .any(|c| c > '\u{001F}' && c != '\u{FFFC}' && !c.is_whitespace());
                         if has_real_text {
@@ -1972,7 +1972,7 @@ impl LayoutEngine {
 
                     let has_inline_tables = para.controls.iter()
                         .any(|c| matches!(c, Control::Table(t) if t.common.treat_as_char
-                            && crate::renderer::height_measurer::is_tac_table_inline(t, seg_width, &para.text, &para.controls)));
+                            && crate::renderer::height_measurer::is_tac_table_inline(t, seg_width, &para.text(), &para.controls)));
 
                     if has_inline_tables {
                         // 인라인 표 문단도 번호 카운터 전진 필요
@@ -2086,7 +2086,7 @@ impl LayoutEngine {
                         let has_tac_block = para.controls.iter().any(|c| {
                             matches!(c, Control::Table(t) if t.common.treat_as_char
                                 && !crate::renderer::height_measurer::is_tac_table_inline(
-                                    t, seg_width, &para.text, &para.controls))
+                                    t, seg_width, &para.text(), &para.controls))
                         });
                         if has_tac_block {
                             let pp_text_only_ws = if let Some(comp) = composed.get(*para_index) {
@@ -2296,8 +2296,10 @@ impl LayoutEngine {
                         true
                     };
                 if host_is_not_square {
-                    let has_real_text =
-                        para.text.chars().any(|c| c > '\u{001F}' && c != '\u{FFFC}');
+                    let has_real_text = para
+                        .text()
+                        .chars()
+                        .any(|c| c > '\u{001F}' && c != '\u{FFFC}');
                     if has_real_text {
                         if let Some(comp) = composed.get(para_index) {
                             let text_start_line = comp.lines.iter().position(|line| {
@@ -2607,7 +2609,7 @@ impl LayoutEngine {
                             && crate::renderer::height_measurer::is_tac_table_inline(
                                 inline_t,
                                 seg_width,
-                                &para.text,
+                                &para.text(),
                                 &para.controls,
                             )
                         {
@@ -2709,8 +2711,10 @@ impl LayoutEngine {
                     .map(|c| matches!(c, Control::Table(t) if t.common.treat_as_char))
                     .unwrap_or(false);
                 if !is_tac {
-                    let has_real_text =
-                        para.text.chars().any(|c| c > '\u{001F}' && c != '\u{FFFC}');
+                    let has_real_text = para
+                        .text()
+                        .chars()
+                        .any(|c| c > '\u{001F}' && c != '\u{FFFC}');
                     if has_real_text {
                         if let Some(comp) = composed.get(para_index) {
                             let text_start_line = comp.lines.iter().position(|line| {
@@ -3093,7 +3097,7 @@ impl LayoutEngine {
 
         // 호스트 문단(표 문단) 텍스트를 어울림 영역에 렌더링
         let has_host_text = table_para
-            .text
+            .text()
             .chars()
             .any(|c| c > '\u{001F}' && c != '\u{FFFC}');
         if table_content_offset == 0.0 {

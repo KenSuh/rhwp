@@ -234,7 +234,10 @@ fn rezip_with_section(hwpx: &[u8], section: &str, xml: &str) -> Vec<u8> {
             CompressionMethod::Deflated
         };
         writer
-            .start_file(&name, SimpleFileOptions::default().compression_method(method))
+            .start_file(
+                &name,
+                SimpleFileOptions::default().compression_method(method),
+            )
             .expect("start_file");
         if name == section {
             writer.write_all(xml.as_bytes()).expect("write section");
@@ -375,7 +378,13 @@ fn page_break_row_alias_normalizes_to_cell_in_both_paths() {
     assert!(with_row.iter().any(|v| v == "ROW"), "ROW 를 심지 못했다");
     let normalized: Vec<String> = with_row
         .iter()
-        .map(|v| if v == "ROW" { "CELL".to_string() } else { v.clone() })
+        .map(|v| {
+            if v == "ROW" {
+                "CELL".to_string()
+            } else {
+                v.clone()
+            }
+        })
         .collect();
 
     assert_eq!(page_breaks(&hwpx_ir_hwpx(&hwpx)), normalized, "HWPX→IR→HWPX");
@@ -667,14 +676,24 @@ fn write_hancom_review_files() {
     // T1 본문 표 #58 (2×2, 표시 높이 14901 · 셀 합 2713): 첫 행 아래에 행 삽입.
     let (mut core, before) = open_table(T1, 58);
     let (si, pi, ci) = before.loc;
-    core.insert_table_row_native(si, pi, ci, 0, true).expect("행 삽입");
-    write(&format!("T1_after_insert_row{suffix}"), 58, &core.export_hwpx_native().unwrap());
+    core.insert_table_row_native(si, pi, ci, 0, true)
+        .expect("행 삽입");
+    write(
+        &format!("T1_after_insert_row{suffix}"),
+        58,
+        &core.export_hwpx_native().unwrap(),
+    );
 
     // T6 본문 표 #0 (5×1, 표시 높이 73450 · 셀 합 5830): 첫 행 아래에 행 삽입.
     let (mut core, before) = open_table(T6, 0);
     let (si, pi, ci) = before.loc;
-    core.insert_table_row_native(si, pi, ci, 0, true).expect("행 삽입");
-    write(&format!("T6_after_insert_row{suffix}"), 0, &core.export_hwpx_native().unwrap());
+    core.insert_table_row_native(si, pi, ci, 0, true)
+        .expect("행 삽입");
+    write(
+        &format!("T6_after_insert_row{suffix}"),
+        0,
+        &core.export_hwpx_native().unwrap(),
+    );
 
     if set == "base" {
         return;
@@ -687,13 +706,22 @@ fn write_hancom_review_files() {
     let (si, pi, ci) = before.loc;
     core.insert_text_in_cell_native(si, pi, ci, 1, 0, 0, &"가".repeat(20))
         .expect("셀 텍스트 삽입");
-    write("T1_after_text_edit", 58, &core.export_hwpx_native().unwrap());
+    write(
+        "T1_after_text_edit",
+        58,
+        &core.export_hwpx_native().unwrap(),
+    );
 
     // T6 본문 표 #0: 둘째 행 삭제.
     let (mut core, before) = open_table(T6, 0);
     let (si, pi, ci) = before.loc;
-    core.delete_table_row_native(si, pi, ci, 1).expect("행 삭제");
-    write("T6_after_delete_row", 0, &core.export_hwpx_native().unwrap());
+    core.delete_table_row_native(si, pi, ci, 1)
+        .expect("행 삭제");
+    write(
+        "T6_after_delete_row",
+        0,
+        &core.export_hwpx_native().unwrap(),
+    );
 }
 
 #[test]
@@ -1050,7 +1078,7 @@ fn assert_noop_text_keeps_display_height(by_path: bool, cell_idx: usize, edit: N
     table.dirty = false;
     core.set_document(doc);
     let before = table_at(core.document(), loc).clone();
-    let text = &before.cells[cell_idx].paragraphs[0].text;
+    let text = &before.cells[cell_idx].paragraphs[0].text();
     let saved_before = core.export_hwpx_native().unwrap();
 
     // When: 빈 삽입·0개 삭제·문단 끝 삭제 중 하나를 일반 또는 path API로 요청한다.
@@ -1083,7 +1111,7 @@ fn assert_noop_text_keeps_display_height(by_path: bool, cell_idx: usize, edit: N
 
     // Then: 텍스트·행 높이뿐 아니라 표시 높이와 실제 HWPX 저장 바이트도 그대로다.
     let after = table_at(core.document(), loc);
-    assert_eq!(after.cells[cell_idx].paragraphs[0].text, *text);
+    assert_eq!(after.cells[cell_idx].paragraphs[0].text(), *text);
     assert_eq!(after.get_row_heights(), before.get_row_heights());
     assert_eq!(after.common.height, 1000);
     assert_eq!(after.dirty, before.dirty);
@@ -1148,7 +1176,8 @@ fn display_height_noop_cell_range_delete() {
             }
             table.common.height = 1000;
             table.dirty = false;
-            let end = u32::try_from(table.cells[cell_idx].paragraphs[0].text.chars().count()).unwrap();
+            let end =
+                u32::try_from(table.cells[cell_idx].paragraphs[0].text().chars().count()).unwrap();
             core.set_document(doc);
             let saved_before = core.export_hwpx_native().unwrap();
 

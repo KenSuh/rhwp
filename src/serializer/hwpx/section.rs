@@ -415,7 +415,7 @@ fn first_run_char_shape_id(p: &Paragraph) -> u32 {
 /// - `para.line_segs` 가 비어있지 않으면 **IR 값 그대로 출력**
 /// - 비어있을 때만 텍스트 내 `\n` 기반으로 fallback 생성 (빈 문단·`Document::default()` 호환)
 fn render_paragraph_parts(para: &Paragraph, vert_start: u32) -> (String, String, u32) {
-    let t_xml = render_hp_t_content(&para.text);
+    let t_xml = render_hp_t_content(&para.text());
 
     if !para.line_segs.is_empty() {
         // IR 기반 출력 — 원본 lineseg 값 보존 (#177)
@@ -424,7 +424,7 @@ fn render_paragraph_parts(para: &Paragraph, vert_start: u32) -> (String, String,
         (t_xml, linesegs, vert_end)
     } else {
         // Fallback — IR에 line_segs 가 없으면 기존 생성 로직 유지
-        let (linesegs, vert_end) = render_lineseg_array_fallback(&para.text, vert_start);
+        let (linesegs, vert_end) = render_lineseg_array_fallback(&para.text(), vert_start);
         (t_xml, linesegs, vert_end)
     }
 }
@@ -654,7 +654,7 @@ mod tests {
         let mut para = Paragraph::default();
         para.para_shape_id = 7;
         para.style_id = 3;
-        para.text = "hi".to_string();
+        para.replace_text("hi".to_string());
         let (doc, section) = make_doc_with_paragraph(para);
         let mut ctx = SerializeContext::collect_from_document(&doc);
         let bytes = write_section(&section, &doc, 0, &mut ctx).unwrap();
@@ -673,7 +673,7 @@ mod tests {
     #[test]
     fn hp_run_reflects_first_char_shape_id() {
         let mut para = Paragraph::default();
-        para.text = "hello".to_string();
+        para.replace_text("hello".to_string());
         para.char_shapes.push(CharShapeRef {
             start_pos: 0,
             char_shape_id: 42,
@@ -693,7 +693,7 @@ mod tests {
     #[test]
     fn page_break_paragraph_emits_attr() {
         let mut para = Paragraph::default();
-        para.text = "p1".to_string();
+        para.replace_text("p1".to_string());
         para.column_type = crate::model::paragraph::ColumnBreakType::Page;
         let (doc, section) = make_doc_with_paragraph(para);
         let mut ctx = SerializeContext::collect_from_document(&doc);
@@ -709,7 +709,7 @@ mod tests {
     #[test]
     fn default_paragraph_keeps_zero_attrs() {
         let mut para = Paragraph::default();
-        para.text = "x".to_string();
+        para.replace_text("x".to_string());
         let (doc, section) = make_doc_with_paragraph(para);
         let mut ctx = SerializeContext::collect_from_document(&doc);
         let bytes = write_section(&section, &doc, 0, &mut ctx).unwrap();
@@ -723,13 +723,13 @@ mod tests {
     #[test]
     fn additional_paragraphs_use_their_own_char_shape() {
         let mut p1 = Paragraph::default();
-        p1.text = "first".to_string();
+        p1.replace_text("first".to_string());
         p1.char_shapes.push(CharShapeRef {
             start_pos: 0,
             char_shape_id: 5,
         });
         let mut p2 = Paragraph::default();
-        p2.text = "second".to_string();
+        p2.replace_text("second".to_string());
         p2.para_shape_id = 2;
         p2.char_shapes.push(CharShapeRef {
             start_pos: 0,
@@ -758,7 +758,7 @@ mod tests {
     fn task177_lineseg_reflects_ir_values() {
         // IR에 담긴 lineseg 값이 XML 속성에 그대로 반영되는지 확인.
         let mut para = Paragraph::default();
-        para.text = "hello".to_string();
+        para.replace_text("hello".to_string());
         para.line_segs.push(LineSeg {
             text_start: 0,
             vertical_pos: 5000,
@@ -781,7 +781,7 @@ mod tests {
     #[test]
     fn task177_multiple_linesegs_preserved_in_order() {
         let mut para = Paragraph::default();
-        para.text = "three\nlines\nhere".to_string();
+        para.replace_text("three\nlines\nhere".to_string());
         for (i, (tp, vp, lh)) in [(0u32, 0i32, 1000), (6, 1500, 1200), (12, 3100, 1100)]
             .iter()
             .enumerate()
@@ -813,7 +813,7 @@ mod tests {
     fn task177_fallback_used_when_ir_empty() {
         // IR 의 line_segs 가 비어있으면 fallback 경로로 정적 값 출력.
         let mut para = Paragraph::default();
-        para.text = "a\nb".to_string(); // 소프트브레이크 1개 → fallback 은 lineseg 2개 생성
+        para.replace_text("a\nb".to_string()); // 소프트브레이크 1개 → fallback 은 lineseg 2개 생성
         let (doc, section) = make_doc_with_paragraph(para);
         let mut ctx = SerializeContext::collect_from_document(&doc);
         let xml = String::from_utf8(write_section(&section, &doc, 0, &mut ctx).unwrap()).unwrap();
@@ -827,7 +827,7 @@ mod tests {
         // text 의 \n 개수가 2개(lineseg 3개 기대)이지만 IR의 line_segs 는 1개만 있음.
         // IR 기반 출력이 우선 — 1개만 출력돼야 함.
         let mut para = Paragraph::default();
-        para.text = "a\nb\nc".to_string(); // 3줄
+        para.replace_text("a\nb\nc".to_string()); // 3줄
         para.line_segs.push(LineSeg {
             text_start: 0,
             vertical_pos: 0,
@@ -861,10 +861,11 @@ mod tests {
 
     #[test]
     fn secpr_run_uses_first_char_shape() {
-        let para = Paragraph {
-            text: "x".to_string(),
-            char_shapes: vec![cs(0, 9)],
-            ..Default::default()
+        let para = {
+            let mut paragraph_value = Paragraph::with_text("x".to_string(), Vec::new());
+
+            paragraph_value.char_shapes = vec![cs(0, 9)];
+            paragraph_value
         };
         let (doc, section) = make_doc_with_paragraph(para);
         let mut ctx = SerializeContext::collect_from_document(&doc);

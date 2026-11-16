@@ -30,7 +30,7 @@ fn write_paragraphs(path: &str, texts: &[&str]) -> Result<(), Box<dyn std::error
     let mut section = Section::default();
     for t in texts {
         let mut para = Paragraph::default();
-        para.text = t.to_string();
+        para.replace_text(t.to_string());
         section.paragraphs.push(para);
     }
     doc.sections.push(section);

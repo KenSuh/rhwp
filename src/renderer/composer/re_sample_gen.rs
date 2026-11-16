@@ -154,7 +154,7 @@ mod tests {
         for (i, text) in texts.iter().enumerate().skip(1) {
             // 이전 문단 끝에서 Enter
             let prev_para = &core.document.sections[0].paragraphs[i - 1];
-            let end_pos = prev_para.text.chars().count();
+            let end_pos = prev_para.text().chars().count();
             let _ = core.split_paragraph_native(0, i - 1, end_pos);
             // 새 문단에 텍스트 삽입
             let _ = core.insert_text_native(0, i, 0, text);
@@ -556,11 +556,11 @@ mod tests {
 
             // CharShapeRef: 1/3 기본, 1/3 큰 글자, 1/3 기본
             let para = &mut core.document.sections[0].paragraphs[0];
-            let text_len = para.text.chars().count();
+            let text_len = para.text().chars().count();
             let big_start = text_len / 3;
             let big_end = text_len * 2 / 3;
-            let big_start_utf16 = para.char_offsets.get(big_start).copied().unwrap_or(0);
-            let big_end_utf16 = para.char_offsets.get(big_end).copied().unwrap_or(0);
+            let big_start_utf16 = para.char_offsets().get(big_start).copied().unwrap_or(0);
+            let big_end_utf16 = para.char_offsets().get(big_end).copied().unwrap_or(0);
 
             para.char_shapes = vec![
                 crate::model::paragraph::CharShapeRef {

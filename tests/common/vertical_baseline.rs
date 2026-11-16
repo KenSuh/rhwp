@@ -16,7 +16,7 @@ pub fn render_text(f: &Fixture) -> String {
 }
 
 pub fn edit(f: &mut Fixture, action: &str, text: &str) {
-    let end = f.paragraph().text.chars().count();
+    let end = f.paragraph().text().chars().count();
     match (action, &f.path) {
         ("input", Some(path)) => {
             f.doc
@@ -103,7 +103,7 @@ pub fn row(id: &str, f: &Fixture) -> String {
     let rendered = render_text(f);
     format!(
         "{id}|{}|{}|{rendered}",
-        f.paragraph().text.chars().count(),
+        f.paragraph().text().chars().count(),
         rendered.chars().count()
     )
 }

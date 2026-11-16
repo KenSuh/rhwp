@@ -73,23 +73,27 @@ fn test_document_with_paragraphs() {
             ..Default::default()
         },
         paragraphs: vec![
-            Paragraph {
-                text: "첫 번째 문단".to_string(),
-                line_segs: vec![LineSeg {
+            {
+                let mut paragraph_value =
+                    Paragraph::with_text("첫 번째 문단".to_string(), Vec::new());
+
+                paragraph_value.line_segs = vec![LineSeg {
                     line_height: 400,
                     baseline_distance: 320,
                     ..Default::default()
-                }],
-                ..Default::default()
+                }];
+                paragraph_value
             },
-            Paragraph {
-                text: "두 번째 문단".to_string(),
-                line_segs: vec![LineSeg {
+            {
+                let mut paragraph_value =
+                    Paragraph::with_text("두 번째 문단".to_string(), Vec::new());
+
+                paragraph_value.line_segs = vec![LineSeg {
                     line_height: 400,
                     baseline_distance: 320,
                     ..Default::default()
-                }],
-                ..Default::default()
+                }];
+                paragraph_value
             },
         ],
         raw_stream: None,
@@ -206,16 +210,18 @@ fn create_doc_with_table() -> HwpDocument {
                 row_span: 1,
                 width: 21000,
                 height: 3000,
-                paragraphs: vec![Paragraph {
-                    text: "셀A".to_string(),
-                    char_count: 2,
-                    char_offsets: make_char_offsets("셀A"),
-                    line_segs: vec![LineSeg {
+                paragraphs: vec![{
+                    let mut paragraph_value =
+                        Paragraph::with_text("셀A".to_string(), make_char_offsets("셀A"));
+
+                    paragraph_value.char_count = 2;
+
+                    paragraph_value.line_segs = vec![LineSeg {
                         line_height: 400,
                         baseline_distance: 320,
                         ..Default::default()
-                    }],
-                    ..Default::default()
+                    }];
+                    paragraph_value
                 }],
                 ..Default::default()
             },
@@ -226,16 +232,18 @@ fn create_doc_with_table() -> HwpDocument {
                 row_span: 1,
                 width: 21000,
                 height: 3000,
-                paragraphs: vec![Paragraph {
-                    text: "셀B".to_string(),
-                    char_count: 2,
-                    char_offsets: make_char_offsets("셀B"),
-                    line_segs: vec![LineSeg {
+                paragraphs: vec![{
+                    let mut paragraph_value =
+                        Paragraph::with_text("셀B".to_string(), make_char_offsets("셀B"));
+
+                    paragraph_value.char_count = 2;
+
+                    paragraph_value.line_segs = vec![LineSeg {
                         line_height: 400,
                         baseline_distance: 320,
                         ..Default::default()
-                    }],
-                    ..Default::default()
+                    }];
+                    paragraph_value
                 }],
                 ..Default::default()
             },
@@ -246,16 +254,18 @@ fn create_doc_with_table() -> HwpDocument {
                 row_span: 1,
                 width: 21000,
                 height: 3000,
-                paragraphs: vec![Paragraph {
-                    text: "셀C".to_string(),
-                    char_count: 2,
-                    char_offsets: make_char_offsets("셀C"),
-                    line_segs: vec![LineSeg {
+                paragraphs: vec![{
+                    let mut paragraph_value =
+                        Paragraph::with_text("셀C".to_string(), make_char_offsets("셀C"));
+
+                    paragraph_value.char_count = 2;
+
+                    paragraph_value.line_segs = vec![LineSeg {
                         line_height: 400,
                         baseline_distance: 320,
                         ..Default::default()
-                    }],
-                    ..Default::default()
+                    }];
+                    paragraph_value
                 }],
                 ..Default::default()
             },
@@ -266,16 +276,18 @@ fn create_doc_with_table() -> HwpDocument {
                 row_span: 1,
                 width: 21000,
                 height: 3000,
-                paragraphs: vec![Paragraph {
-                    text: "셀D".to_string(),
-                    char_count: 2,
-                    char_offsets: make_char_offsets("셀D"),
-                    line_segs: vec![LineSeg {
+                paragraphs: vec![{
+                    let mut paragraph_value =
+                        Paragraph::with_text("셀D".to_string(), make_char_offsets("셀D"));
+
+                    paragraph_value.char_count = 2;
+
+                    paragraph_value.line_segs = vec![LineSeg {
                         line_height: 400,
                         baseline_distance: 320,
                         ..Default::default()
-                    }],
-                    ..Default::default()
+                    }];
+                    paragraph_value
                 }],
                 ..Default::default()
             },
@@ -283,15 +295,17 @@ fn create_doc_with_table() -> HwpDocument {
         ..Default::default()
     };
 
-    let parent_para = Paragraph {
-        text: String::new(),
-        controls: vec![Control::Table(Box::new(table))],
-        line_segs: vec![LineSeg {
+    let parent_para = {
+        let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new());
+
+        paragraph_value.controls = vec![Control::Table(Box::new(table))];
+
+        paragraph_value.line_segs = vec![LineSeg {
             line_height: 400,
             baseline_distance: 320,
             ..Default::default()
-        }],
-        ..Default::default()
+        }];
+        paragraph_value
     };
 
     document.sections.push(Section {
@@ -316,7 +330,7 @@ fn test_insert_text_in_cell() {
     assert!(json.contains("\"charOffset\":3"));
 
     if let Some(Control::Table(table)) = doc.document.sections[0].paragraphs[0].controls.get(0) {
-        assert_eq!(table.cells[0].paragraphs[0].text, "셀추가A");
+        assert_eq!(table.cells[0].paragraphs[0].text(), "셀추가A");
     } else {
         panic!("표 컨트롤을 찾을 수 없음");
     }
@@ -331,7 +345,7 @@ fn test_delete_text_in_cell() {
     assert!(json.contains("\"ok\":true"));
 
     if let Some(Control::Table(table)) = doc.document.sections[0].paragraphs[0].controls.get(0) {
-        assert_eq!(table.cells[1].paragraphs[0].text, "B");
+        assert_eq!(table.cells[1].paragraphs[0].text(), "B");
     } else {
         panic!("표 컨트롤을 찾을 수 없음");
     }
@@ -356,13 +370,15 @@ fn test_tac_1x1_cell_growth_recomposes_parent_line_height() {
             },
             ..Default::default()
         },
-        paragraphs: vec![Paragraph {
-            line_segs: vec![LineSeg {
+        paragraphs: vec![{
+            let mut paragraph_value = Paragraph::default();
+
+            paragraph_value.line_segs = vec![LineSeg {
                 line_height: 400,
                 baseline_distance: 320,
                 ..Default::default()
-            }],
-            ..Default::default()
+            }];
+            paragraph_value
         }],
         raw_stream: None,
     });
@@ -439,13 +455,15 @@ fn test_tac_1x1_cell_resize_reflows_parent_line_height() {
             },
             ..Default::default()
         },
-        paragraphs: vec![Paragraph {
-            line_segs: vec![LineSeg {
+        paragraphs: vec![{
+            let mut paragraph_value = Paragraph::default();
+
+            paragraph_value.line_segs = vec![LineSeg {
                 line_height: 400,
                 baseline_distance: 320,
                 ..Default::default()
-            }],
-            ..Default::default()
+            }];
+            paragraph_value
         }],
         raw_stream: None,
     });
@@ -522,13 +540,15 @@ fn test_tac_table_reflow_uses_row_height_when_common_height_is_stale() {
             },
             ..Default::default()
         },
-        paragraphs: vec![Paragraph {
-            line_segs: vec![LineSeg {
+        paragraphs: vec![{
+            let mut paragraph_value = Paragraph::default();
+
+            paragraph_value.line_segs = vec![LineSeg {
                 line_height: 400,
                 baseline_distance: 320,
                 ..Default::default()
-            }],
-            ..Default::default()
+            }];
+            paragraph_value
         }],
         raw_stream: None,
     });
@@ -600,13 +620,15 @@ fn test_resize_table_cells_batch_updates_multiple_cells_and_reflows() {
             },
             ..Default::default()
         },
-        paragraphs: vec![Paragraph {
-            line_segs: vec![LineSeg {
+        paragraphs: vec![{
+            let mut paragraph_value = Paragraph::default();
+
+            paragraph_value.line_segs = vec![LineSeg {
                 line_height: 400,
                 baseline_distance: 320,
                 ..Default::default()
-            }],
-            ..Default::default()
+            }];
+            paragraph_value
         }],
         raw_stream: None,
     });
@@ -626,17 +648,25 @@ fn test_resize_table_cells_batch_updates_multiple_cells_and_reflows() {
         result[start..end].parse::<usize>().unwrap()
     };
 
-    let (before_cell0_width, before_cell3_width, before_cell0_height, before_cell3_height, before_table_height) =
-        match doc.document.sections[0].paragraphs[0].controls.get(control_idx) {
-            Some(Control::Table(table)) => (
-                table.cells[0].width,
-                table.cells[3].width,
-                table.cells[0].height,
-                table.cells[3].height,
-                table.common.height,
-            ),
-            _ => panic!("2x2 TAC 표를 찾을 수 없음"),
-        };
+    let (
+        before_cell0_width,
+        before_cell3_width,
+        before_cell0_height,
+        before_cell3_height,
+        before_table_height,
+    ) = match doc.document.sections[0].paragraphs[0]
+        .controls
+        .get(control_idx)
+    {
+        Some(Control::Table(table)) => (
+            table.cells[0].width,
+            table.cells[3].width,
+            table.cells[0].height,
+            table.cells[3].height,
+            table.common.height,
+        ),
+        _ => panic!("2x2 TAC 표를 찾을 수 없음"),
+    };
 
     doc.resize_table_cells_native(
         0,
@@ -646,17 +676,25 @@ fn test_resize_table_cells_batch_updates_multiple_cells_and_reflows() {
     )
     .unwrap();
 
-    let (after_cell0_width, after_cell3_width, after_cell0_height, after_cell3_height, after_table_height) =
-        match doc.document.sections[0].paragraphs[0].controls.get(control_idx) {
-            Some(Control::Table(table)) => (
-                table.cells[0].width,
-                table.cells[3].width,
-                table.cells[0].height,
-                table.cells[3].height,
-                table.common.height,
-            ),
-            _ => panic!("2x2 TAC 표를 찾을 수 없음"),
-        };
+    let (
+        after_cell0_width,
+        after_cell3_width,
+        after_cell0_height,
+        after_cell3_height,
+        after_table_height,
+    ) = match doc.document.sections[0].paragraphs[0]
+        .controls
+        .get(control_idx)
+    {
+        Some(Control::Table(table)) => (
+            table.cells[0].width,
+            table.cells[3].width,
+            table.cells[0].height,
+            table.cells[3].height,
+            table.common.height,
+        ),
+        _ => panic!("2x2 TAC 표를 찾을 수 없음"),
+    };
 
     assert_eq!(after_cell0_width, before_cell0_width + 1500);
     assert_eq!(after_cell3_width, before_cell3_width + 2000);
@@ -701,13 +739,15 @@ fn test_inline_picture_merge_reflows_parent_line_height() {
             },
             ..Default::default()
         },
-        paragraphs: vec![Paragraph {
-            line_segs: vec![LineSeg {
+        paragraphs: vec![{
+            let mut paragraph_value = Paragraph::default();
+
+            paragraph_value.line_segs = vec![LineSeg {
                 line_height: 400,
                 baseline_distance: 320,
                 ..Default::default()
-            }],
-            ..Default::default()
+            }];
+            paragraph_value
         }],
         raw_stream: None,
     });
@@ -819,13 +859,15 @@ fn test_nested_wrapper_table_text_layout_preserves_full_cell_path() {
             },
             ..Default::default()
         },
-        paragraphs: vec![Paragraph {
-            line_segs: vec![LineSeg {
+        paragraphs: vec![{
+            let mut paragraph_value = Paragraph::default();
+
+            paragraph_value.line_segs = vec![LineSeg {
                 line_height: 1000,
                 baseline_distance: 850,
                 ..Default::default()
-            }],
-            ..Default::default()
+            }];
+            paragraph_value
         }],
         raw_stream: None,
     });
@@ -937,13 +979,15 @@ fn test_hit_test_nested_table_uses_innermost_cell_after_split_cell_paragraph() {
             },
             ..Default::default()
         },
-        paragraphs: vec![Paragraph {
-            line_segs: vec![LineSeg {
+        paragraphs: vec![{
+            let mut paragraph_value = Paragraph::default();
+
+            paragraph_value.line_segs = vec![LineSeg {
                 line_height: 1000,
                 baseline_distance: 850,
                 ..Default::default()
-            }],
-            ..Default::default()
+            }];
+            paragraph_value
         }],
         raw_stream: None,
     });
@@ -1013,14 +1057,14 @@ fn test_insert_and_delete_roundtrip_in_cell() {
     assert!(result.is_ok());
 
     if let Some(Control::Table(table)) = doc.document.sections[0].paragraphs[0].controls.get(0) {
-        assert_eq!(table.cells[2].paragraphs[0].text, "셀C테스트");
+        assert_eq!(table.cells[2].paragraphs[0].text(), "셀C테스트");
     }
 
     let result = doc.delete_text_in_cell_native(0, 0, 0, 2, 0, 2, 3);
     assert!(result.is_ok());
 
     if let Some(Control::Table(table)) = doc.document.sections[0].paragraphs[0].controls.get(0) {
-        assert_eq!(table.cells[2].paragraphs[0].text, "셀C");
+        assert_eq!(table.cells[2].paragraphs[0].text(), "셀C");
     }
 }
 
@@ -1032,7 +1076,7 @@ fn test_svg_render_with_table_after_cell_edit() {
         .unwrap();
     // 삽입 후 셀 텍스트 확인
     if let Some(Control::Table(table)) = doc.document.sections[0].paragraphs[0].controls.get(0) {
-        assert_eq!(table.cells[3].paragraphs[0].text, "셀D수정됨");
+        assert_eq!(table.cells[3].paragraphs[0].text(), "셀D수정됨");
     }
     let svg = doc.render_page_svg_native(0);
     assert!(svg.is_ok());
@@ -1099,10 +1143,10 @@ fn test_insert_table_row_below() {
         assert_eq!(table.cells.len(), 6);
         // 원래 첫 행의 셀A는 여전히 행 0
         assert_eq!(table.cells[0].row, 0);
-        assert_eq!(table.cells[0].paragraphs[0].text, "셀A");
+        assert_eq!(table.cells[0].paragraphs[0].text(), "셀A");
         // 새 행은 행 1 (빈 문단)
         assert_eq!(table.cells[2].row, 1);
-        assert!(table.cells[2].paragraphs[0].text.is_empty());
+        assert!(table.cells[2].paragraphs[0].text().is_empty());
     } else {
         panic!("표 컨트롤을 찾을 수 없음");
     }
@@ -2360,14 +2404,15 @@ fn test_clipboard_copy_paste_single_paragraph() {
     let mut doc = HwpDocument::create_empty();
     let mut document = Document::default();
     let mut para = Paragraph::default();
-    para.text = "Hello World 안녕하세요".to_string();
-    para.char_count = para.text.chars().count() as u32 + 1;
-    para.char_offsets = para
-        .text
-        .chars()
-        .enumerate()
-        .map(|(i, _)| i as u32)
-        .collect();
+    para.replace_text("Hello World 안녕하세요".to_string());
+    para.char_count = para.text().chars().count() as u32 + 1;
+    para.set_char_offsets(
+        para.text()
+            .chars()
+            .enumerate()
+            .map(|(i, _)| i as u32)
+            .collect(),
+    );
     para.char_shapes = vec![crate::model::paragraph::CharShapeRef {
         start_pos: 0,
         char_shape_id: 0,
@@ -2398,14 +2443,17 @@ fn test_clipboard_copy_paste_single_paragraph() {
     assert_eq!(doc.get_clipboard_text_native(), "World");
 
     // 문단 끝에 붙여넣기
-    let text_len = doc.document.sections[0].paragraphs[0].text.chars().count();
+    let text_len = doc.document.sections[0].paragraphs[0]
+        .text()
+        .chars()
+        .count();
     let result = doc.paste_internal_native(0, 0, text_len);
     assert!(result.is_ok());
     let json = result.unwrap();
     assert!(json.contains("\"ok\":true"));
 
     // 텍스트 확인
-    let text = &doc.document.sections[0].paragraphs[0].text;
+    let text = &doc.document.sections[0].paragraphs[0].text();
     assert!(text.contains("Hello World 안녕하세요World"));
 }
 
@@ -2416,9 +2464,9 @@ fn test_clipboard_copy_paste_multi_paragraph() {
 
     let make_para = |text: &str| {
         let mut p = Paragraph::default();
-        p.text = text.to_string();
+        p.replace_text(text.to_string());
         p.char_count = text.chars().count() as u32 + 1;
-        p.char_offsets = text.chars().enumerate().map(|(i, _)| i as u32).collect();
+        p.set_char_offsets(text.chars().enumerate().map(|(i, _)| i as u32).collect());
         p.char_shapes = vec![crate::model::paragraph::CharShapeRef {
             start_pos: 0,
             char_shape_id: 0,
@@ -2454,7 +2502,10 @@ fn test_clipboard_copy_paste_multi_paragraph() {
     assert_eq!(clip.paragraphs.len(), 2);
 
     // 세 번째 문단 끝에 붙여넣기
-    let text_len = doc.document.sections[0].paragraphs[2].text.chars().count();
+    let text_len = doc.document.sections[0].paragraphs[2]
+        .text()
+        .chars()
+        .count();
     let result = doc.paste_internal_native(0, 2, text_len);
     assert!(result.is_ok());
     let json = result.unwrap();
@@ -2487,23 +2538,27 @@ fn test_clipboard_paste_control_uses_requested_target_paragraph() {
     use crate::model::control::Control;
 
     fn text_para(text: &str) -> Paragraph {
-        Paragraph {
-            text: text.to_string(),
-            char_count: text.chars().count() as u32 + 1,
-            char_offsets: make_char_offsets(text),
-            char_shapes: vec![crate::model::paragraph::CharShapeRef {
+        {
+            let mut paragraph_value =
+                Paragraph::with_text(text.to_string(), make_char_offsets(text));
+
+            paragraph_value.char_count = text.chars().count() as u32 + 1;
+
+            paragraph_value.char_shapes = vec![crate::model::paragraph::CharShapeRef {
                 start_pos: 0,
                 char_shape_id: 0,
-            }],
-            line_segs: vec![LineSeg {
+            }];
+
+            paragraph_value.line_segs = vec![LineSeg {
                 text_start: 0,
                 line_height: 400,
                 text_height: 400,
                 baseline_distance: 320,
                 ..Default::default()
-            }],
-            has_para_text: true,
-            ..Default::default()
+            }];
+
+            paragraph_value.has_para_text = true;
+            paragraph_value
         }
     }
 
@@ -2527,12 +2582,12 @@ fn test_clipboard_paste_control_uses_requested_target_paragraph() {
         Control::Table(_)
     ));
     assert_eq!(
-        doc.document.sections[0].paragraphs[1].text,
+        doc.document.sections[0].paragraphs[1].text(),
         "붙여넣기 전 문단"
     );
-    assert_eq!(doc.document.sections[0].paragraphs[3].text, "");
+    assert_eq!(doc.document.sections[0].paragraphs[3].text(), "");
     assert_eq!(
-        doc.document.sections[0].paragraphs[4].text,
+        doc.document.sections[0].paragraphs[4].text(),
         "현재 커서 문단"
     );
     assert!(matches!(
@@ -2546,23 +2601,27 @@ fn test_clipboard_paste_table_resets_source_anchor_offsets() {
     use crate::model::control::Control;
 
     fn text_para(text: &str) -> Paragraph {
-        Paragraph {
-            text: text.to_string(),
-            char_count: text.chars().count() as u32 + 1,
-            char_offsets: make_char_offsets(text),
-            char_shapes: vec![crate::model::paragraph::CharShapeRef {
+        {
+            let mut paragraph_value =
+                Paragraph::with_text(text.to_string(), make_char_offsets(text));
+
+            paragraph_value.char_count = text.chars().count() as u32 + 1;
+
+            paragraph_value.char_shapes = vec![crate::model::paragraph::CharShapeRef {
                 start_pos: 0,
                 char_shape_id: 0,
-            }],
-            line_segs: vec![LineSeg {
+            }];
+
+            paragraph_value.line_segs = vec![LineSeg {
                 text_start: 0,
                 line_height: 400,
                 text_height: 400,
                 baseline_distance: 320,
                 ..Default::default()
-            }],
-            has_para_text: true,
-            ..Default::default()
+            }];
+
+            paragraph_value.has_para_text = true;
+            paragraph_value
         }
     }
 
@@ -2626,9 +2685,9 @@ fn test_clipboard_clear() {
     let mut doc = HwpDocument::create_empty();
     let mut document = Document::default();
     let mut para = Paragraph::default();
-    para.text = "테스트".to_string();
+    para.replace_text("테스트".to_string());
     para.char_count = 4;
-    para.char_offsets = vec![0, 1, 2];
+    para.set_char_offsets(vec![0, 1, 2]);
     para.char_shapes = vec![crate::model::paragraph::CharShapeRef {
         start_pos: 0,
         char_shape_id: 0,
@@ -2656,9 +2715,9 @@ fn test_clipboard_paste_empty() {
     let mut doc = HwpDocument::create_empty();
     let mut document = Document::default();
     let mut para = Paragraph::default();
-    para.text = "테스트".to_string();
+    para.replace_text("테스트".to_string());
     para.char_count = 4;
-    para.char_offsets = vec![0, 1, 2];
+    para.set_char_offsets(vec![0, 1, 2]);
     para.char_shapes = vec![crate::model::paragraph::CharShapeRef {
         start_pos: 0,
         char_shape_id: 0,
@@ -2695,9 +2754,9 @@ fn test_export_selection_html_basic() {
     document.doc_info.para_shapes.push(ps);
 
     let mut para = Paragraph::default();
-    para.text = "Hello World".to_string();
+    para.replace_text("Hello World".to_string());
     para.char_count = 12;
-    para.char_offsets = (0..11).collect();
+    para.set_char_offsets((0..11).collect());
     para.char_shapes = vec![crate::model::paragraph::CharShapeRef {
         start_pos: 0,
         char_shape_id: 0,
@@ -2741,9 +2800,9 @@ fn test_export_selection_html_partial() {
         .push(crate::model::style::ParaShape::default());
 
     let mut para = Paragraph::default();
-    para.text = "ABCDE".to_string();
+    para.replace_text("ABCDE".to_string());
     para.char_count = 6;
-    para.char_offsets = (0..5).collect();
+    para.set_char_offsets((0..5).collect());
     para.char_shapes = vec![crate::model::paragraph::CharShapeRef {
         start_pos: 0,
         char_shape_id: 0,
@@ -2798,17 +2857,18 @@ fn test_paste_html_plain_text() {
         .para_shapes
         .push(crate::model::style::ParaShape::default());
     let mut para = Paragraph::default();
-    para.text = "가나다".to_string();
-    para.char_count = para.text.encode_utf16().count() as u32;
-    para.char_offsets = para
-        .text
-        .chars()
-        .scan(0u32, |acc, c| {
-            let off = *acc;
-            *acc += c.len_utf16() as u32;
-            Some(off)
-        })
-        .collect();
+    para.replace_text("가나다".to_string());
+    para.char_count = para.text().encode_utf16().count() as u32;
+    para.set_char_offsets(
+        para.text()
+            .chars()
+            .scan(0u32, |acc, c| {
+                let off = *acc;
+                *acc += c.len_utf16() as u32;
+                Some(off)
+            })
+            .collect(),
+    );
     para.line_segs = vec![crate::model::paragraph::LineSeg::default()];
     para.has_para_text = true;
     document.sections.push(Section {
@@ -2825,7 +2885,7 @@ fn test_paste_html_plain_text() {
     assert!(json.contains("\"ok\":true"));
 
     // 삽입 후 텍스트 확인
-    let text = &doc.document.sections[0].paragraphs[0].text;
+    let text = &doc.document.sections[0].paragraphs[0].text();
     assert!(text.contains("안녕하세요"));
     assert!(text.contains("가나다"));
 }
@@ -2843,17 +2903,18 @@ fn test_paste_html_styled_text() {
         .para_shapes
         .push(crate::model::style::ParaShape::default());
     let mut para = Paragraph::default();
-    para.text = "테스트".to_string();
-    para.char_count = para.text.encode_utf16().count() as u32;
-    para.char_offsets = para
-        .text
-        .chars()
-        .scan(0u32, |acc, c| {
-            let off = *acc;
-            *acc += c.len_utf16() as u32;
-            Some(off)
-        })
-        .collect();
+    para.replace_text("테스트".to_string());
+    para.char_count = para.text().encode_utf16().count() as u32;
+    para.set_char_offsets(
+        para.text()
+            .chars()
+            .scan(0u32, |acc, c| {
+                let off = *acc;
+                *acc += c.len_utf16() as u32;
+                Some(off)
+            })
+            .collect(),
+    );
     para.line_segs = vec![crate::model::paragraph::LineSeg::default()];
     para.has_para_text = true;
     document.sections.push(Section {
@@ -2896,17 +2957,18 @@ fn test_paste_html_multi_paragraph() {
         .para_shapes
         .push(crate::model::style::ParaShape::default());
     let mut para = Paragraph::default();
-    para.text = "원본".to_string();
-    para.char_count = para.text.encode_utf16().count() as u32;
-    para.char_offsets = para
-        .text
-        .chars()
-        .scan(0u32, |acc, c| {
-            let off = *acc;
-            *acc += c.len_utf16() as u32;
-            Some(off)
-        })
-        .collect();
+    para.replace_text("원본".to_string());
+    para.char_count = para.text().encode_utf16().count() as u32;
+    para.set_char_offsets(
+        para.text()
+            .chars()
+            .scan(0u32, |acc, c| {
+                let off = *acc;
+                *acc += c.len_utf16() as u32;
+                Some(off)
+            })
+            .collect(),
+    );
     para.line_segs = vec![crate::model::paragraph::LineSeg::default()];
     para.has_para_text = true;
     document.sections.push(Section {
@@ -2953,7 +3015,7 @@ fn test_paste_html_table_as_control() {
         .border_fills
         .push(crate::model::style::BorderFill::default());
     let mut para = Paragraph::default();
-    para.text = "".to_string();
+    para.replace_text("".to_string());
     para.char_count = 0;
     para.line_segs = vec![crate::model::paragraph::LineSeg::default()];
     para.has_para_text = true;
@@ -2983,7 +3045,7 @@ fn test_paste_html_table_as_control() {
 
     let table_para = table_para.unwrap();
     assert!(
-        table_para.text.is_empty(),
+        table_para.text().is_empty(),
         "컨트롤 문단의 text는 비어있어야 함"
     );
     assert_eq!(table_para.controls.len(), 1);
@@ -3000,7 +3062,7 @@ fn test_paste_html_table_as_control() {
             .map(|c| {
                 c.paragraphs
                     .iter()
-                    .map(|p| p.text.clone())
+                    .map(|p| p.text().to_owned())
                     .collect::<Vec<_>>()
                     .join("")
             })
@@ -3084,7 +3146,7 @@ fn test_diff1_empty_cell_nbsp() {
         .border_fills
         .push(crate::model::style::BorderFill::default());
     let mut para = Paragraph::default();
-    para.text = "".to_string();
+    para.replace_text("".to_string());
     para.char_count = 0;
     para.line_segs = vec![crate::model::paragraph::LineSeg::default()];
     document.sections.push(crate::model::document::Section {
@@ -3103,13 +3165,16 @@ fn test_diff1_empty_cell_nbsp() {
         assert_eq!(tbl.cells.len(), 4, "4 셀");
         // 셀[0]: "내용1" → 텍스트 있음
         assert!(
-            !tbl.cells[0].paragraphs[0].text.is_empty(),
+            !tbl.cells[0].paragraphs[0].text().is_empty(),
             "셀[0] 텍스트 있음"
         );
         // 셀[1]: &nbsp; → 빈 셀
         let empty1 = &tbl.cells[1].paragraphs[0];
         assert_eq!(empty1.char_count, 1, "DIFF-1: &nbsp; 셀은 char_count=1");
-        assert!(empty1.text.is_empty(), "DIFF-1: &nbsp; 셀은 text 비어있음");
+        assert!(
+            empty1.text().is_empty(),
+            "DIFF-1: &nbsp; 셀은 text 비어있음"
+        );
         assert!(
             !empty1.has_para_text,
             "DIFF-1: &nbsp; 셀은 has_para_text=false"
@@ -3121,7 +3186,7 @@ fn test_diff1_empty_cell_nbsp() {
             "DIFF-1: 다중 &nbsp; 셀은 char_count=1"
         );
         assert!(
-            empty2.text.is_empty(),
+            empty2.text().is_empty(),
             "DIFF-1: 다중 &nbsp; 셀은 text 비어있음"
         );
         assert!(
@@ -3150,7 +3215,7 @@ fn test_paste_html_table_with_colspan_rowspan() {
         .border_fills
         .push(crate::model::style::BorderFill::default());
     let mut para = Paragraph::default();
-    para.text = "".to_string();
+    para.replace_text("".to_string());
     para.char_count = 0;
     para.line_segs = vec![crate::model::paragraph::LineSeg::default()];
     para.has_para_text = true;
@@ -3212,7 +3277,7 @@ fn test_paste_html_table_with_css_styles() {
         .border_fills
         .push(crate::model::style::BorderFill::default());
     let mut para = Paragraph::default();
-    para.text = "".to_string();
+    para.replace_text("".to_string());
     para.char_count = 0;
     para.line_segs = vec![crate::model::paragraph::LineSeg::default()];
     para.has_para_text = true;
@@ -3289,7 +3354,7 @@ fn test_paste_html_table_with_th_header() {
         .border_fills
         .push(crate::model::style::BorderFill::default());
     let mut para = Paragraph::default();
-    para.text = "".to_string();
+    para.replace_text("".to_string());
     para.char_count = 0;
     para.line_segs = vec![crate::model::paragraph::LineSeg::default()];
     para.has_para_text = true;
@@ -3444,10 +3509,10 @@ fn test_roundtrip_saved_file() {
                     _ => "Other".to_string(),
                 })
                 .collect();
-            if !para.controls.is_empty() || para.text.is_empty() {
+            if !para.controls.is_empty() || para.text().is_empty() {
                 eprintln!("  para[{}]: text={:?} chars={} ctrl_mask=0x{:08X} controls={:?} char_count={} msb={}",
-                        pi, &para.text.chars().take(40).collect::<String>(),
-                        para.text.len(), para.control_mask, ctrl_types,
+                        pi, &para.text().chars().take(40).collect::<String>(),
+                        para.text().len(), para.control_mask, ctrl_types,
                         para.char_count, para.char_count_msb);
             }
         }
@@ -3493,7 +3558,7 @@ fn test_roundtrip_saved_file() {
                             repr.controls.len()
                         ));
                     }
-                    if orig.text != repr.text {
+                    if orig.text() != repr.text() {
                         diffs.push(format!("text differs"));
                     }
 
@@ -6271,7 +6336,7 @@ fn test_model_table3_cell_text_check() {
         eprintln!("\n--- Original Table[3] cell paragraphs ---");
         for (ci, cell) in orig_t3.cells.iter().enumerate() {
             for (pi, para) in cell.paragraphs.iter().enumerate() {
-                let has_text = !para.text.is_empty();
+                let has_text = !para.text().is_empty();
                 if has_text {
                     orig_para_with_text += 1;
                 } else {
@@ -6284,7 +6349,7 @@ fn test_model_table3_cell_text_check() {
                     // Only show the first few empty paragraphs
                     if ci < 3 {
                         eprintln!("  cell[{}] para[{}]: text='{}' has_para_text={} char_count={} controls={}",
-                                ci, pi, &para.text[..para.text.len().min(20)],
+                                ci, pi, &para.text()[..para.text().len().min(20)],
                                 para.has_para_text, para.char_count, para.controls.len());
                     }
                 }
@@ -6294,7 +6359,7 @@ fn test_model_table3_cell_text_check() {
         eprintln!("\n--- Saved Table[3] cell paragraphs ---");
         for (ci, cell) in saved_t3.cells.iter().enumerate() {
             for (pi, para) in cell.paragraphs.iter().enumerate() {
-                let has_text = !para.text.is_empty();
+                let has_text = !para.text().is_empty();
                 if has_text {
                     saved_para_with_text += 1;
                 } else {
@@ -6308,7 +6373,7 @@ fn test_model_table3_cell_text_check() {
                         "  cell[{}] para[{}]: text='{}' has_para_text={} char_count={} controls={}",
                         ci,
                         pi,
-                        &para.text[..para.text.len().min(40)],
+                        &para.text()[..para.text().len().min(40)],
                         para.has_para_text,
                         para.char_count,
                         para.controls.len()
@@ -6343,15 +6408,15 @@ fn test_model_table3_cell_text_check() {
             for pi in 0..opara_count {
                 let op = &orig_t3.cells[ci].paragraphs[pi];
                 let sp = &saved_t3.cells[ci].paragraphs[pi];
-                if op.text != sp.text || op.has_para_text != sp.has_para_text {
+                if op.text() != sp.text() || op.has_para_text != sp.has_para_text {
                     text_diff_cells.push((
                         ci,
                         format!(
                             "para[{}]: orig_text='{}' orig_flag={} saved_text='{}' saved_flag={}",
                             pi,
-                            &op.text[..op.text.len().min(30)],
+                            &op.text()[..op.text().len().min(30)],
                             op.has_para_text,
-                            &sp.text[..sp.text.len().min(30)],
+                            &sp.text()[..sp.text().len().min(30)],
                             sp.has_para_text
                         ),
                     ));
@@ -6416,12 +6481,12 @@ fn test_roundtrip_empty_cell_corruption() {
     let mut empty_cell_char_counts = std::collections::HashMap::new();
     for (ci, cell) in orig_t3.cells.iter().enumerate() {
         for (pi, para) in cell.paragraphs.iter().enumerate() {
-            if para.text.is_empty() && !para.has_para_text {
+            if para.text().is_empty() && !para.has_para_text {
                 empty_cell_count += 1;
                 *empty_cell_char_counts.entry(para.char_count).or_insert(0) += 1;
                 if ci < 5 {
                     eprintln!("  cell[{}] para[{}]: text='{}' has_para_text={} char_count={} char_count_msb={} controls={} raw_header_extra_len={}",
-                            ci, pi, para.text, para.has_para_text, para.char_count, para.char_count_msb,
+                            ci, pi, para.text(), para.has_para_text, para.char_count, para.char_count_msb,
                             para.controls.len(), para.raw_header_extra.len());
                     if para.raw_header_extra.len() >= 10 {
                         eprintln!("    raw_header_extra: {:02x?}", &para.raw_header_extra);
@@ -6595,7 +6660,7 @@ fn test_roundtrip_empty_cell_corruption() {
         let mut model_with_text = 0;
         for cell in &t3.cells {
             for para in &cell.paragraphs {
-                if para.text.is_empty() && !para.has_para_text {
+                if para.text().is_empty() && !para.has_para_text {
                     model_empty += 1;
                 } else {
                     model_with_text += 1;
@@ -6670,7 +6735,7 @@ fn test_saved_file_table_flags_and_origin() {
             let text_paras: usize = t
                 .cells
                 .iter()
-                .map(|c| c.paragraphs.iter().filter(|p| !p.text.is_empty()).count())
+                .map(|c| c.paragraphs.iter().filter(|p| !p.text().is_empty()).count())
                 .sum();
             eprintln!("  Original: para_pos={} ctrl_pos={} rows={} cols={} cells={} total_paras={} text_paras={} flags=0x{:08x} page_break={:?}",
                     pi, ci, t.row_count, t.col_count, t.cells.len(), total_paras, text_paras, t.attr, t.page_break);
@@ -6683,7 +6748,7 @@ fn test_saved_file_table_flags_and_origin() {
             let text_paras: usize = t
                 .cells
                 .iter()
-                .map(|c| c.paragraphs.iter().filter(|p| !p.text.is_empty()).count())
+                .map(|c| c.paragraphs.iter().filter(|p| !p.text().is_empty()).count())
                 .sum();
             eprintln!("  Saved:    para_pos={} ctrl_pos={} rows={} cols={} cells={} total_paras={} text_paras={} flags=0x{:08x} page_break={:?}",
                     pi, ci, t.row_count, t.col_count, t.cells.len(), total_paras, text_paras, t.attr, t.page_break);
@@ -6740,12 +6805,12 @@ fn test_saved_file_table_flags_and_origin() {
             for pi in 0..oc.paragraphs.len().min(sc.paragraphs.len()) {
                 let op = &oc.paragraphs[pi];
                 let sp = &sc.paragraphs[pi];
-                if op.text != sp.text {
+                if op.text() != sp.text() {
                     cell_diffs.push(format!(
                         "para[{}] text: '{}' vs '{}'",
                         pi,
-                        &op.text[..op.text.len().min(30)],
-                        &sp.text[..sp.text.len().min(30)]
+                        &op.text()[..op.text().len().min(30)],
+                        &sp.text()[..sp.text().len().min(30)]
                     ));
                 }
                 if op.char_count != sp.char_count {
@@ -6792,9 +6857,9 @@ fn test_saved_file_table_flags_and_origin() {
                 let op = &oc.paragraphs[pi];
                 let sp = &sc.paragraphs[pi];
                 eprintln!("    orig para[{}]: text={:?} char_count={} msb={} has_pt={} char_offsets={:?} char_shapes_len={}",
-                        pi, &op.text, op.char_count, op.char_count_msb, op.has_para_text, &op.char_offsets, op.char_shapes.len());
+                        pi, &op.text(), op.char_count, op.char_count_msb, op.has_para_text, &op.char_offsets(), op.char_shapes.len());
                 eprintln!("    saved para[{}]: text={:?} char_count={} msb={} has_pt={} char_offsets={:?} char_shapes_len={}",
-                        pi, &sp.text, sp.char_count, sp.char_count_msb, sp.has_para_text, &sp.char_offsets, sp.char_shapes.len());
+                        pi, &sp.text(), sp.char_count, sp.char_count_msb, sp.has_para_text, &sp.char_offsets(), sp.char_shapes.len());
             }
         }
     }
@@ -6814,11 +6879,11 @@ fn test_saved_file_table_flags_and_origin() {
     for pi in 0..min_paras {
         let op = &orig_doc.sections[0].paragraphs[pi];
         let sp = &saved_doc.sections[0].paragraphs[pi];
-        if op.text != sp.text || op.controls.len() != sp.controls.len() {
+        if op.text() != sp.text() || op.controls.len() != sp.controls.len() {
             non_table_diffs += 1;
             if non_table_diffs <= 5 {
                 eprintln!("  para[{}] differs: orig_text_len={} saved_text_len={} orig_ctrls={} saved_ctrls={}",
-                        pi, op.text.len(), sp.text.len(), op.controls.len(), sp.controls.len());
+                        pi, op.text().len(), sp.text().len(), op.controls.len(), sp.controls.len());
             }
         }
     }
@@ -6833,7 +6898,7 @@ fn test_saved_file_table_flags_and_origin() {
             eprintln!(
                 "  para[{}]: text_len={} controls={}",
                 pi,
-                sp.text.len(),
+                sp.text().len(),
                 sp.controls.len()
             );
         }
@@ -6847,8 +6912,8 @@ fn test_saved_file_table_flags_and_origin() {
             eprintln!(
                 "  ORIG para[{}]: text_len={} text={:?} ctrls={} ctrl_types={:?}",
                 pi,
-                p.text.len(),
-                &p.text.chars().take(30).collect::<String>(),
+                p.text().len(),
+                &p.text().chars().take(30).collect::<String>(),
                 p.controls.len(),
                 p.controls
                     .iter()
@@ -6872,8 +6937,8 @@ fn test_saved_file_table_flags_and_origin() {
             eprintln!(
                 "  SAVED para[{}]: text_len={} text={:?} ctrls={} ctrl_types={:?}",
                 pi,
-                p.text.len(),
-                &p.text.chars().take(30).collect::<String>(),
+                p.text().len(),
+                &p.text().chars().take(30).collect::<String>(),
                 p.controls.len(),
                 p.controls
                     .iter()
@@ -6942,9 +7007,9 @@ fn test_saved_file_table_flags_and_origin() {
             {
                 let op = &ot.cells[ci].paragraphs[pi];
                 let sp = &st.cells[ci].paragraphs[pi];
-                if !op.text.is_empty() && op.text == sp.text {
+                if !op.text().is_empty() && op.text() == sp.text() {
                     text_match_count += 1;
-                } else if !op.text.is_empty() && op.text != sp.text {
+                } else if !op.text().is_empty() && op.text() != sp.text() {
                     text_mismatch_count += 1;
                 }
             }
@@ -10992,7 +11057,7 @@ fn test_simple_text_insert_and_save() {
         eprintln!(
             "  문단[{}]: text='{}' controls={} line_segs={}",
             i,
-            p.text,
+            p.text(),
             p.controls.len(),
             p.line_segs.len()
         );
@@ -11005,7 +11070,7 @@ fn test_simple_text_insert_and_save() {
 
     // 삽입 후 상태 확인
     let section = &doc.document.sections[0];
-    eprintln!("삽입 후 문단[0]: text='{}'", section.paragraphs[0].text);
+    eprintln!("삽입 후 문단[0]: text='{}'", section.paragraphs[0].text());
 
     // HWP 내보내기
     let saved = doc.export_hwp_native();
@@ -11025,9 +11090,9 @@ fn test_simple_text_insert_and_save() {
     eprintln!("재파싱 성공: {}페이지", doc2.page_count());
 
     let section2 = &doc2.document.sections[0];
-    eprintln!("재파싱 문단[0]: text='{}'", section2.paragraphs[0].text);
+    eprintln!("재파싱 문단[0]: text='{}'", section2.paragraphs[0].text());
     assert!(
-        section2.paragraphs[0].text.contains("가나다라마바사아"),
+        section2.paragraphs[0].text().contains("가나다라마바사아"),
         "저장된 파일에 삽입한 텍스트가 없음"
     );
 }
@@ -12269,7 +12334,7 @@ fn test_empty_hwp_editing_area() {
         eprintln!(
             "  문단[{}]: text='{}' char_count={} controls={}",
             pi,
-            para.text,
+            para.text(),
             para.char_count,
             para.controls.len()
         );
@@ -12422,9 +12487,10 @@ fn test_save_text_only() {
         let para = &doc.document.sections[0].paragraphs[0];
         eprintln!(
             "  삽입 후: text='{}' char_count={}",
-            para.text, para.char_count
+            para.text(),
+            para.char_count
         );
-        eprintln!("  char_offsets: {:?}", &para.char_offsets);
+        eprintln!("  char_offsets: {:?}", &para.char_offsets());
         eprintln!(
             "  char_shapes: {:?}",
             para.char_shapes
@@ -12456,13 +12522,14 @@ fn test_save_text_only() {
         let para2 = &doc2.document.sections[0].paragraphs[0];
         eprintln!(
             "  재파싱: text='{}' char_count={}",
-            para2.text, para2.char_count
+            para2.text(),
+            para2.char_count
         );
         assert!(
-            para2.text.contains(text),
+            para2.text().contains(text),
             "재파싱 텍스트 불일치: expected '{}', got '{}'",
             text,
-            para2.text
+            para2.text()
         );
 
         // 캐럿 위치 검증
@@ -12761,10 +12828,10 @@ fn test_analyze_reference_table() {
             eprintln!(
                 "  문단[{}]: text='{}' char_count={} controls={} char_offsets={:?}",
                 pi,
-                para.text,
+                para.text(),
                 para.char_count,
                 para.controls.len(),
-                para.char_offsets
+                para.char_offsets()
             );
             eprintln!(
                 "    control_mask=0x{:08X} para_shape_id={} style_id={}",
@@ -12842,7 +12909,11 @@ fn test_analyze_reference_table() {
                             for (cpi, cp) in cell.paragraphs.iter().enumerate() {
                                 eprintln!(
                                     "        para[{}]: text='{}' cc={} cs={:?} ls={:?}",
-                                    cpi, cp.text, cp.char_count, cp.char_shapes, cp.line_segs
+                                    cpi,
+                                    cp.text(),
+                                    cp.char_count,
+                                    cp.char_shapes,
+                                    cp.line_segs
                                 );
                                 eprintln!("          control_mask=0x{:08X} raw_header_extra({} bytes): {:02x?}",
                                         cp.control_mask, cp.raw_header_extra.len(),
@@ -12974,18 +13045,25 @@ fn test_save_table_1x1() {
 
     // 셀 내부 문단: 빈 문단 (CR만, char_count=1, MSB set)
     let cell_seg_width = 40932; // 참조: cell_width - 패딩(510+510) - 2
-    let cell_para = Paragraph {
-        text: String::new(),
-        char_count: 1,
-        char_count_msb: true, // 참조: 0x80000001
-        control_mask: 0,
-        para_shape_id: 0, // empty.hwp의 기존 para_shape 사용
-        style_id: 0,
-        char_shapes: vec![crate::model::paragraph::CharShapeRef {
+    let cell_para = {
+        let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new());
+
+        paragraph_value.char_count = 1;
+
+        paragraph_value.char_count_msb = true;
+        // 참조: 0x80000001
+        paragraph_value.control_mask = 0;
+
+        paragraph_value.para_shape_id = 0;
+        // empty.hwp의 기존 para_shape 사용
+        paragraph_value.style_id = 0;
+
+        paragraph_value.char_shapes = vec![crate::model::paragraph::CharShapeRef {
             start_pos: 0,
             char_shape_id: 0, // empty.hwp의 기존 char_shape 사용
-        }],
-        line_segs: vec![LineSeg {
+        }];
+
+        paragraph_value.line_segs = vec![LineSeg {
             text_start: 0,
             vertical_pos: 0,
             line_height: 1000,
@@ -12995,10 +13073,13 @@ fn test_save_table_1x1() {
             column_start: 0,
             segment_width: cell_seg_width,
             tag: 0x00060000,
-        }],
-        has_para_text: false, // 빈 문단: PARA_TEXT 없음
-        raw_header_extra: vec![0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00],
-        ..Default::default()
+        }];
+
+        paragraph_value.has_para_text = false;
+        // 빈 문단: PARA_TEXT 없음
+        paragraph_value.raw_header_extra =
+            vec![0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00];
+        paragraph_value
     };
 
     let cell = Cell {
@@ -13111,18 +13192,25 @@ fn test_save_table_1x1() {
     }
 
     // 두 번째 빈 문단 추가 (HWP는 표 삽입 시 아래에 빈 문단을 자동 추가)
-    let empty_para = Paragraph {
-        text: String::new(),
-        char_count: 1,        // CR만
-        char_count_msb: true, // 참조: 0x80000001
-        control_mask: 0,
-        para_shape_id: 0, // empty.hwp의 기존 para_shape 사용
-        style_id: 0,
-        char_shapes: vec![crate::model::paragraph::CharShapeRef {
+    let empty_para = {
+        let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new());
+
+        paragraph_value.char_count = 1;
+        // CR만
+        paragraph_value.char_count_msb = true;
+        // 참조: 0x80000001
+        paragraph_value.control_mask = 0;
+
+        paragraph_value.para_shape_id = 0;
+        // empty.hwp의 기존 para_shape 사용
+        paragraph_value.style_id = 0;
+
+        paragraph_value.char_shapes = vec![crate::model::paragraph::CharShapeRef {
             start_pos: 0,
             char_shape_id: 0,
-        }],
-        line_segs: vec![LineSeg {
+        }];
+
+        paragraph_value.line_segs = vec![LineSeg {
             text_start: 0,
             vertical_pos: 1848, // 참조: 표 아래 위치
             line_height: 1000,
@@ -13132,10 +13220,13 @@ fn test_save_table_1x1() {
             column_start: 0,
             segment_width: 42520, // 참조: 편집 영역 전체 너비
             tag: 0x00060000,
-        }],
-        has_para_text: false,
-        raw_header_extra: vec![0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00],
-        ..Default::default()
+        }];
+
+        paragraph_value.has_para_text = false;
+
+        paragraph_value.raw_header_extra =
+            vec![0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00];
+        paragraph_value
     };
     doc.document.sections[0].paragraphs.push(empty_para);
 
@@ -13152,7 +13243,7 @@ fn test_save_table_1x1() {
     let para = &doc.document.sections[0].paragraphs[0];
     eprintln!(
         "  문단[0]: text='{}' char_count={} controls={} seg_width={}",
-        para.text,
+        para.text(),
         para.char_count,
         para.controls.len(),
         para.line_segs
@@ -13163,7 +13254,7 @@ fn test_save_table_1x1() {
     let para1 = &doc.document.sections[0].paragraphs[1];
     eprintln!(
         "  문단[1]: text='{}' char_count={} vpos={}",
-        para1.text,
+        para1.text(),
         para1.char_count,
         para1
             .line_segs
@@ -13193,7 +13284,7 @@ fn test_save_table_1x1() {
     let para2 = &doc2.document.sections[0].paragraphs[0];
     eprintln!(
         "  재파싱: text='{}' char_count={} controls={}",
-        para2.text,
+        para2.text(),
         para2.char_count,
         para2.controls.len()
     );
@@ -13223,10 +13314,7 @@ fn test_save_table_1x1() {
                 cell.row,
                 cell.width,
                 cell.height,
-                cell.paragraphs
-                    .first()
-                    .map(|p| p.text.as_str())
-                    .unwrap_or("")
+                cell.paragraphs.first().map(|p| p.text()).unwrap_or("")
             );
         }
         assert_eq!(t.row_count, 1);
@@ -13543,11 +13631,11 @@ fn test_analyze_reference_picture() {
             eprintln!(
                 "  문단[{}]: text='{}' char_count={} msb={} controls={} char_offsets={:?}",
                 pi,
-                para.text,
+                para.text(),
                 para.char_count,
                 para.char_count_msb,
                 para.controls.len(),
-                para.char_offsets
+                para.char_offsets()
             );
             eprintln!(
                 "    control_mask=0x{:08X} para_shape_id={} style_id={}",
@@ -13853,23 +13941,31 @@ fn test_save_picture() {
 
     // 참조 문단의 정확한 값 사용
     let ref_para = &ref_doc.document.sections[0].paragraphs[0];
-    let pic_para = Paragraph {
-        text: String::new(),
-        char_count: 25,       // secd(8) + cold(8) + gso(8) + CR(1) = 25
-        char_count_msb: true, // 참조: msb=true
-        control_mask: 0x00000804,
-        para_shape_id: first_para.para_shape_id, // empty.hwp 기본값 사용
-        style_id: first_para.style_id,
-        raw_break_type: ref_para.raw_break_type, // 참조: 0x03
-        char_shapes: vec![CharShapeRef {
+    let pic_para = {
+        let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new());
+
+        paragraph_value.char_count = 25;
+        // secd(8) + cold(8) + gso(8) + CR(1) = 25
+        paragraph_value.char_count_msb = true;
+        // 참조: msb=true
+        paragraph_value.control_mask = 0x00000804;
+
+        paragraph_value.para_shape_id = first_para.para_shape_id;
+        // empty.hwp 기본값 사용
+        paragraph_value.style_id = first_para.style_id;
+
+        paragraph_value.raw_break_type = ref_para.raw_break_type;
+        // 참조: 0x03
+        paragraph_value.char_shapes = vec![CharShapeRef {
             start_pos: 0,
             char_shape_id: first_para
                 .char_shapes
                 .first()
                 .map(|cs| cs.char_shape_id)
                 .unwrap_or(0),
-        }],
-        line_segs: vec![LineSeg {
+        }];
+
+        paragraph_value.line_segs = vec![LineSeg {
             text_start: 0,
             vertical_pos: 0,
             line_height: ref_para.line_segs[0].line_height, // 참조: 14775 (=이미지 높이)
@@ -13879,11 +13975,14 @@ fn test_save_picture() {
             column_start: 0,
             segment_width: ref_para.line_segs[0].segment_width, // 참조: 42520
             tag: ref_para.line_segs[0].tag,                     // 참조: 0x00060000
-        }],
-        has_para_text: true,
-        controls: new_controls,
-        raw_header_extra: first_para.raw_header_extra.clone(),
-        ..Default::default()
+        }];
+
+        paragraph_value.has_para_text = true;
+
+        paragraph_value.controls = new_controls;
+
+        paragraph_value.raw_header_extra = first_para.raw_header_extra.clone();
+        paragraph_value
     };
 
     // 참조: 문단 1개만 (참조 파일에는 두 번째 문단이 없음)
@@ -15029,19 +15128,27 @@ fn test_save_pic_in_table() {
     };
 
     // 6. 셀 내부 문단 구성 (cc=9: gso(8)+CR(1), mask=0x00000800)
-    let cell_para = Paragraph {
-        text: String::new(),
-        char_count: ref_cell_para.char_count,         // 9
-        char_count_msb: ref_cell_para.char_count_msb, // true
-        control_mask: ref_cell_para.control_mask,     // 0x00000800
-        para_shape_id: 0,
-        style_id: 0,
-        raw_break_type: ref_cell_para.raw_break_type,
-        char_shapes: vec![CharShapeRef {
+    let cell_para = {
+        let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new());
+
+        paragraph_value.char_count = ref_cell_para.char_count;
+        // 9
+        paragraph_value.char_count_msb = ref_cell_para.char_count_msb;
+        // true
+        paragraph_value.control_mask = ref_cell_para.control_mask;
+        // 0x00000800
+        paragraph_value.para_shape_id = 0;
+
+        paragraph_value.style_id = 0;
+
+        paragraph_value.raw_break_type = ref_cell_para.raw_break_type;
+
+        paragraph_value.char_shapes = vec![CharShapeRef {
             start_pos: 0,
             char_shape_id: 0,
-        }],
-        line_segs: vec![LineSeg {
+        }];
+
+        paragraph_value.line_segs = vec![LineSeg {
             text_start: ref_cell_para.line_segs[0].text_start,
             vertical_pos: ref_cell_para.line_segs[0].vertical_pos,
             line_height: ref_cell_para.line_segs[0].line_height, // 15600 (= image height)
@@ -15051,11 +15158,14 @@ fn test_save_pic_in_table() {
             column_start: ref_cell_para.line_segs[0].column_start,
             segment_width: ref_cell_para.line_segs[0].segment_width, // 40932
             tag: ref_cell_para.line_segs[0].tag,
-        }],
-        has_para_text: true, // gso 제어문자 있으므로 PARA_TEXT 필요
-        controls: vec![Control::Picture(Box::new(picture))],
-        raw_header_extra: ref_cell_para.raw_header_extra.clone(),
-        ..Default::default()
+        }];
+
+        paragraph_value.has_para_text = true;
+        // gso 제어문자 있으므로 PARA_TEXT 필요
+        paragraph_value.controls = vec![Control::Picture(Box::new(picture))];
+
+        paragraph_value.raw_header_extra = ref_cell_para.raw_header_extra.clone();
+        paragraph_value
     };
 
     // 7. Cell 구성
@@ -15115,19 +15225,27 @@ fn test_save_pic_in_table() {
     }
 
     // 10. 두 번째 빈 문단 추가 (표 아래)
-    let empty_para = Paragraph {
-        text: String::new(),
-        char_count: ref_para1.char_count,         // 1
-        char_count_msb: ref_para1.char_count_msb, // true
-        control_mask: ref_para1.control_mask,     // 0
-        para_shape_id: 0,
-        style_id: 0,
-        raw_break_type: ref_para1.raw_break_type,
-        char_shapes: vec![CharShapeRef {
+    let empty_para = {
+        let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new());
+
+        paragraph_value.char_count = ref_para1.char_count;
+        // 1
+        paragraph_value.char_count_msb = ref_para1.char_count_msb;
+        // true
+        paragraph_value.control_mask = ref_para1.control_mask;
+        // 0
+        paragraph_value.para_shape_id = 0;
+
+        paragraph_value.style_id = 0;
+
+        paragraph_value.raw_break_type = ref_para1.raw_break_type;
+
+        paragraph_value.char_shapes = vec![CharShapeRef {
             start_pos: 0,
             char_shape_id: 0,
-        }],
-        line_segs: vec![LineSeg {
+        }];
+
+        paragraph_value.line_segs = vec![LineSeg {
             text_start: ref_para1.line_segs[0].text_start,
             vertical_pos: ref_para1.line_segs[0].vertical_pos, // 16448
             line_height: ref_para1.line_segs[0].line_height,
@@ -15137,10 +15255,12 @@ fn test_save_pic_in_table() {
             column_start: ref_para1.line_segs[0].column_start,
             segment_width: ref_para1.line_segs[0].segment_width,
             tag: ref_para1.line_segs[0].tag,
-        }],
-        has_para_text: false,
-        raw_header_extra: ref_para1.raw_header_extra.clone(),
-        ..Default::default()
+        }];
+
+        paragraph_value.has_para_text = false;
+
+        paragraph_value.raw_header_extra = ref_para1.raw_header_extra.clone();
+        paragraph_value
     };
     doc.document.sections[0].paragraphs.push(empty_para);
 
@@ -15450,10 +15570,10 @@ fn test_inject_table_into_existing() {
             i,
             p.char_count,
             p.control_mask,
-            if p.text.len() > 30 {
-                &p.text[..30]
+            if p.text().len() > 30 {
+                &p.text()[..30]
             } else {
-                &p.text
+                &p.text()
             },
             ctrl_types,
             marker
@@ -15954,10 +16074,10 @@ fn test_parse_table_html_save() {
                 cell.row,
                 cell.col,
                 p.char_count,
-                if p.text.len() > 20 {
-                    &p.text[..20]
+                if p.text().len() > 20 {
+                    &p.text()[..20]
                 } else {
-                    &p.text
+                    &p.text()
                 },
                 p.char_shapes.len(),
                 p.line_segs.len(),
@@ -15993,7 +16113,7 @@ fn test_parse_table_html_save() {
             "DIFF-1: 빈 셀[1] cc=1"
         );
         assert!(
-            tbl.cells[1].paragraphs[0].text.is_empty(),
+            tbl.cells[1].paragraphs[0].text().is_empty(),
             "DIFF-1: 빈 셀[1] text empty"
         );
         assert_eq!(
@@ -16116,7 +16236,7 @@ fn test_diag_msb_pattern_kwater() {
                 ctrl_names.join(",")
             };
 
-            let text_preview: String = para.text.chars().take(30).collect();
+            let text_preview: String = para.text().chars().take(30).collect();
             let msb_mark = if para.char_count_msb { "T" } else { "F" };
             let last_mark = if is_last { " <LAST>" } else { "" };
 
@@ -16140,7 +16260,7 @@ fn test_diag_msb_pattern_kwater() {
                             for (cpi, cp) in cell.paragraphs.iter().enumerate() {
                                 let cp_msb = if cp.char_count_msb { "T" } else { "F" };
                                 let cp_last = cpi == cell.paragraphs.len() - 1;
-                                let cp_text: String = cp.text.chars().take(20).collect();
+                                let cp_text: String = cp.text().chars().take(20).collect();
                                 eprintln!("        cell[{}].p[{}]: cc={} msb={} psid={} sid={} text='{}'{}",
                                         ci, cpi, cp.char_count, cp_msb,
                                         cp.para_shape_id, cp.style_id, cp_text,
@@ -16173,7 +16293,7 @@ fn test_diag_msb_pattern_kwater() {
                             for (tpi, tp) in tb.paragraphs.iter().enumerate() {
                                 let tp_msb = if tp.char_count_msb { "T" } else { "F" };
                                 let tp_last = tpi == tb.paragraphs.len() - 1;
-                                let tp_text: String = tp.text.chars().take(20).collect();
+                                let tp_text: String = tp.text().chars().take(20).collect();
                                 eprintln!(
                                     "        textbox.p[{}]: cc={} msb={} psid={} text='{}'{}",
                                     tpi,
@@ -16281,18 +16401,18 @@ fn test_diag_double_enter_save() {
         eprintln!(
             "  문단[{}]: text_len={} cc={} ctrl={} has_pt={}",
             i,
-            p.text.chars().count(),
+            p.text().chars().count(),
             p.char_count,
             p.controls.len(),
             p.has_para_text
         );
-        if p.text.chars().count() >= 10 && p.controls.is_empty() && target_para == 0 {
+        if p.text().chars().count() >= 10 && p.controls.is_empty() && target_para == 0 {
             target_para = i;
         }
     }
     assert!(target_para > 0, "텍스트가 있는 문단을 찾을 수 없음");
     let para = &section.paragraphs[target_para];
-    let text_len = para.text.chars().count();
+    let text_len = para.text().chars().count();
     eprintln!(
         "\n대상 문단[{}]: text_len={} cc={} controls={} has_para_text={}",
         target_para,
@@ -16303,7 +16423,7 @@ fn test_diag_double_enter_save() {
     );
     eprintln!(
         "  text(앞40)='{}'",
-        para.text.chars().take(40).collect::<String>()
+        para.text().chars().take(40).collect::<String>()
     );
 
     let split_offset = 4; // 4번째 글자 뒤에서 분할 (사용자 시나리오)
@@ -16320,7 +16440,7 @@ fn test_diag_double_enter_save() {
             "  문단[{}]: cc={} text_len={} controls={} has_para_text={} line_segs={}",
             i,
             p.char_count,
-            p.text.chars().count(),
+            p.text().chars().count(),
             p.controls.len(),
             p.has_para_text,
             p.line_segs.len()
@@ -16351,7 +16471,7 @@ fn test_diag_double_enter_save() {
             "  문단[{}]: cc={} text_len={} controls={} has_para_text={} raw_extra_len={}",
             i,
             p.char_count,
-            p.text.chars().count(),
+            p.text().chars().count(),
             p.controls.len(),
             p.has_para_text,
             p.raw_header_extra.len()
@@ -16524,12 +16644,12 @@ fn test_textbox_render_tree_debug() {
                                     c.horizontal_offset, c.vertical_offset);
                         }
                         for (tpi, tp) in tb.paragraphs.iter().enumerate() {
-                            let text: String = tp.text.chars().take(30).collect();
+                            let text: String = tp.text().chars().take(30).collect();
                             eprintln!(
                                 "  tb_para[{}]: text={:?} total_chars={}",
                                 tpi,
                                 text,
-                                tp.text.chars().count()
+                                tp.text().chars().count()
                             );
                         }
                         shape_found = true;
@@ -16544,7 +16664,7 @@ fn test_textbox_render_tree_debug() {
     eprintln!("\n=== 문단 목록 (섹션 0) ===");
     let sec = &doc.document.sections[0];
     for (pi, para) in sec.paragraphs.iter().enumerate() {
-        let text: String = para.text.chars().take(60).collect();
+        let text: String = para.text().chars().take(60).collect();
         let ctrl_types: Vec<String> = para
             .controls
             .iter()
@@ -16567,7 +16687,7 @@ fn test_textbox_render_tree_debug() {
         eprintln!(
             "  para[{}]: text_len={} line_segs={} char_shapes={} ctrls={:?} text={:?}",
             pi,
-            para.text.chars().count(),
+            para.text().chars().count(),
             para.line_segs.len(),
             para.char_shapes.len(),
             ctrl_types,
@@ -16645,7 +16765,7 @@ fn test_task66_table_text_mixed_paragraph_rendering() {
 
     // para[1]: 텍스트와 Table 컨트롤이 공존하는 문단
     let para1 = &doc.document.sections[0].paragraphs[1];
-    assert!(!para1.text.is_empty(), "para[1]에 텍스트가 있어야 함");
+    assert!(!para1.text().is_empty(), "para[1]에 텍스트가 있어야 함");
     let has_treat_as_char_table = para1
         .controls
         .iter()
@@ -18215,7 +18335,7 @@ fn test_diag_tb_err_003() {
                     })
                     .collect();
                 eprintln!("  문단[{}]: text={:?} char_count={} msb={} ctrl_mask=0x{:08X} controls=[{}] line_segs={} has_para_text={} raw_header_extra({})={:02x?}",
-                    pi, &para.text.chars().take(30).collect::<String>(),
+                    pi, &para.text().chars().take(30).collect::<String>(),
                     para.char_count, para.char_count_msb, para.control_mask,
                     ctrl_types.join(", "), para.line_segs.len(), para.has_para_text,
                     para.raw_header_extra.len(), &para.raw_header_extra);
@@ -18258,7 +18378,7 @@ fn test_diag_tb_err_003() {
                             );
                             for (pp, para) in cell.paragraphs.iter().enumerate() {
                                 eprintln!("    para[{}]: text={:?} char_count={} msb={} line_segs={} char_shapes={} has_para_text={}",
-                                    pp, &para.text.chars().take(20).collect::<String>(),
+                                    pp, &para.text().chars().take(20).collect::<String>(),
                                     para.char_count, para.char_count_msb,
                                     para.line_segs.len(), para.char_shapes.len(), para.has_para_text);
                                 eprintln!(
@@ -18363,7 +18483,8 @@ fn test_diag_tb_err_003() {
                                 pi, para.control_mask, expected_mask, para.controls.len());
                         }
                         // has_para_text 검증: 빈 문단에 PARA_TEXT 없어야 함
-                        if para.text.is_empty() && para.controls.is_empty() && para.has_para_text {
+                        if para.text().is_empty() && para.controls.is_empty() && para.has_para_text
+                        {
                             eprintln!("  *** 재파싱 문단[{}] has_para_text=true on empty para (char_count={}) ***",
                                 pi, para.char_count);
                         }
@@ -18482,7 +18603,7 @@ fn test_task110_treatise_diag() {
                 .first()
                 .map(|ls| ls.segment_width)
                 .unwrap_or(0);
-            let text_preview: String = para.text.chars().take(30).collect();
+            let text_preview: String = para.text().chars().take(30).collect();
             eprintln!("  para[{}]: seg_w={}, text={:?}", pi, seg_w, text_preview);
         }
     }
@@ -18617,7 +18738,7 @@ fn test_task110_treatise_diag() {
     // 2단 영역의 모든 문단의 LineSeg column_start, segment_width 출력
     for pi in 9..std::cmp::min(20, section2.paragraphs.len()) {
         let para = &section2.paragraphs[pi];
-        let text_preview: String = para.text.chars().take(40).collect();
+        let text_preview: String = para.text().chars().take(40).collect();
         eprintln!("\npara[{}]: text={:?}", pi, text_preview);
         eprintln!("  line_segs 수: {}", para.line_segs.len());
         for (li, ls) in para.line_segs.iter().enumerate() {
@@ -19013,7 +19134,7 @@ fn test_blank2020_enter_corruption_diagnosis() {
         let para = &doc.document.sections[0].paragraphs[0];
         eprintln!(
             "  원본 para[0]: text='{}' cc={} raw_header_extra({} bytes): {:02x?}",
-            para.text,
+            para.text(),
             para.char_count,
             para.raw_header_extra.len(),
             &para.raw_header_extra
@@ -19030,7 +19151,7 @@ fn test_blank2020_enter_corruption_diagnosis() {
         // 분할 후 문단 정보
         for (i, p) in doc.document.sections[0].paragraphs.iter().enumerate() {
             eprintln!("  split 후 para[{}]: text='{}' cc={} has_para_text={} raw_header_extra({} bytes): {:02x?}",
-                    i, p.text, p.char_count, p.has_para_text, p.raw_header_extra.len(), &p.raw_header_extra);
+                    i, p.text(), p.char_count, p.has_para_text, p.raw_header_extra.len(), &p.raw_header_extra);
             if let Some(ls) = p.line_segs.first() {
                 eprintln!(
                     "    line_seg: lh={} th={} bd={} sw={} tag=0x{:08X}",
@@ -19435,8 +19556,8 @@ fn test_superscript_in_new_document() {
     let para = &doc.document.sections[0].paragraphs[0];
     eprintln!(
         "Step1: text='{}' char_offsets={:?} char_shapes={:?}",
-        para.text,
-        para.char_offsets,
+        para.text(),
+        para.char_offsets(),
         para.char_shapes
             .iter()
             .map(|cs| (cs.start_pos, cs.char_shape_id))
@@ -19449,8 +19570,8 @@ fn test_superscript_in_new_document() {
     let para = &doc.document.sections[0].paragraphs[0];
     eprintln!(
         "Step2: text='{}' char_offsets={:?} char_shapes={:?}",
-        para.text,
-        para.char_offsets,
+        para.text(),
+        para.char_offsets(),
         para.char_shapes
             .iter()
             .map(|cs| (cs.start_pos, cs.char_shape_id))
@@ -19464,8 +19585,8 @@ fn test_superscript_in_new_document() {
     let para = &doc.document.sections[0].paragraphs[0];
     eprintln!(
         "Step3: text='{}' char_offsets={:?} char_shapes={:?}",
-        para.text,
-        para.char_offsets,
+        para.text(),
+        para.char_offsets(),
         para.char_shapes
             .iter()
             .map(|cs| (cs.start_pos, cs.char_shape_id))
@@ -19525,8 +19646,8 @@ fn test_task227_blank_doc_copy_paste_bug() {
         eprintln!(
             "  문단[{}]: text={:?}, chars={}, controls={}, has_para_text={}",
             i,
-            p.text,
-            p.text.chars().count(),
+            p.text(),
+            p.text().chars().count(),
             p.controls.len(),
             p.has_para_text
         );
@@ -19545,8 +19666,8 @@ fn test_task227_blank_doc_copy_paste_bug() {
         eprintln!(
             "  문단[{}]: text={:?}, chars={}, controls={}, has_para_text={}",
             i,
-            p.text,
-            p.text.chars().count(),
+            p.text(),
+            p.text().chars().count(),
             p.controls.len(),
             p.has_para_text
         );
@@ -19555,7 +19676,7 @@ fn test_task227_blank_doc_copy_paste_bug() {
     // 3. 전체 선택 시뮬레이션: start=(0,0,0), end=(last_para, last_char)
     let last_para = para_count_after_insert - 1;
     let last_char = doc.document.sections[0].paragraphs[last_para]
-        .text
+        .text()
         .chars()
         .count();
     eprintln!(
@@ -19576,8 +19697,8 @@ fn test_task227_blank_doc_copy_paste_bug() {
             eprintln!(
                 "  클립[{}]: text={:?}, chars={}, controls={}",
                 i,
-                p.text,
-                p.text.chars().count(),
+                p.text(),
+                p.text().chars().count(),
                 p.controls.len()
             );
         }
@@ -19585,7 +19706,10 @@ fn test_task227_blank_doc_copy_paste_bug() {
 
     // 5. End 키 시뮬레이션: 커서를 문단 0의 텍스트 끝으로 이동
     //    (원래 커서는 문단 0, offset 7 = "abcdefg" 끝)
-    let paste_offset = doc.document.sections[0].paragraphs[0].text.chars().count();
+    let paste_offset = doc.document.sections[0].paragraphs[0]
+        .text()
+        .chars()
+        .count();
     eprintln!("[Task227] 붙여넣기 위치: para=0, offset={}", paste_offset);
 
     // 6. 붙여넣기
@@ -19601,8 +19725,8 @@ fn test_task227_blank_doc_copy_paste_bug() {
         eprintln!(
             "  문단[{}]: text={:?}, chars={}",
             i,
-            p.text,
-            p.text.chars().count()
+            p.text(),
+            p.text().chars().count()
         );
     }
 
@@ -19741,14 +19865,14 @@ fn test_task229_field_parsing() {
                     "[Task229] 구역[{}] 문단[{}] text=\"{}\" (len={})",
                     si,
                     pi,
-                    para.text,
-                    para.text.chars().count()
+                    para.text(),
+                    para.text().chars().count()
                 );
             }
             for fr in &para.field_ranges {
                 total_field_ranges += 1;
                 let field_text: String = para
-                    .text
+                    .text()
                     .chars()
                     .skip(fr.start_char_idx)
                     .take(fr.end_char_idx - fr.start_char_idx)
@@ -20292,9 +20416,9 @@ fn diag_para_text_field_markers() {
 
         let serialized = crate::serializer::body_text::test_serialize_para_text(para);
 
-        eprintln!("\n[para={}] text={:?}", pi, para.text);
+        eprintln!("\n[para={}] text={:?}", pi, para.text());
         eprintln!("  field_ranges={:?}", para.field_ranges);
-        eprintln!("  char_offsets={:?}", para.char_offsets);
+        eprintln!("  char_offsets={:?}", para.char_offsets());
 
         // 직렬화된 바이트에서 컨트롤 문자 위치 추출
         let code_units: Vec<u16> = serialized
@@ -20658,10 +20782,10 @@ fn diag_field07_vs_field03h() {
                         pi,
                         para.char_count,
                         para.control_mask,
-                        if para.text.len() > 40 {
-                            format!("{}...", &para.text[..40])
+                        if para.text().len() > 40 {
+                            format!("{}...", &para.text()[..40])
                         } else {
-                            para.text.clone()
+                            para.text().to_owned()
                         },
                         para.controls.len()
                     );
@@ -20688,13 +20812,13 @@ fn diag_field07_vs_field03h() {
                 eprintln!("    has_para_text: {}", para.has_para_text);
                 eprintln!(
                     "    text({} chars): {:?}",
-                    para.text.chars().count(),
-                    para.text
+                    para.text().chars().count(),
+                    para.text()
                 );
                 eprintln!(
                     "    char_offsets({} entries): {:?}",
-                    para.char_offsets.len(),
-                    para.char_offsets
+                    para.char_offsets().len(),
+                    para.char_offsets()
                 );
 
                 // PARA_CHAR_SHAPE
@@ -21835,7 +21959,7 @@ fn diag_memo_controls() {
                 }
                 eprintln!();
                 // field_ranges 정보
-                let chars: Vec<char> = para.text.chars().collect();
+                let chars: Vec<char> = para.text().chars().collect();
                 for (fri, fr) in para.field_ranges.iter().enumerate() {
                     let field_text: String =
                         if fr.start_char_idx < fr.end_char_idx && fr.end_char_idx <= chars.len() {
@@ -21851,7 +21975,7 @@ fn diag_memo_controls() {
                 eprintln!(
                     "    para.text({} chars): {:?}",
                     chars.len(),
-                    &para.text[..para.text.len().min(80)]
+                    &para.text()[..para.text().len().min(80)]
                 );
             }
         }
@@ -22030,7 +22154,7 @@ fn test_page12_enter_table_placement_scan() {
         doc.paginate();
 
         let text_len = doc.document.sections[0].paragraphs[split_pi]
-            .text
+            .text()
             .chars()
             .count();
         let offset = text_len; // 문단 끝에서 분할
@@ -22090,7 +22214,7 @@ fn test_page12_enter_table_placement_scan() {
                         para_index,
                         control_index,
                     } => {
-                        let text = &doc.document.sections[0].paragraphs[*para_index].text;
+                        let text = &doc.document.sections[0].paragraphs[*para_index].text();
                         eprintln!(
                             "    Table pi={} ci={} text='{}'",
                             para_index,
@@ -22099,7 +22223,7 @@ fn test_page12_enter_table_placement_scan() {
                         );
                     }
                     PageItem::FullParagraph { para_index } => {
-                        let text = &doc.document.sections[0].paragraphs[*para_index].text;
+                        let text = &doc.document.sections[0].paragraphs[*para_index].text();
                         let display: String = if text.is_empty() {
                             "(빈)".to_string()
                         } else {
@@ -22241,7 +22365,7 @@ fn test_logical_offset_insert_after_inline_table() {
     // pi=1에 "abc" 입력
     doc.insert_text_native(0, 1, 0, "abc").unwrap();
     let para = &doc.document.sections[0].paragraphs[1];
-    assert_eq!(para.text, "abc");
+    assert_eq!(para.text(), "abc");
     eprintln!("  pi=1 controls={} (표 삽입 전)", para.controls.len());
 
     // offset=3 위치에 인라인 TAC 2×2 표 삽입
@@ -22259,9 +22383,9 @@ fn test_logical_offset_insert_after_inline_table() {
     let para = &doc.document.sections[0].paragraphs[1];
     eprintln!(
         "  text='{}' controls={} char_offsets={:?}",
-        para.text,
+        para.text(),
         para.controls.len(),
-        para.char_offsets
+        para.char_offsets()
     );
 
     // 논리적 길이: "abc"(3) + [표](1) = 4
@@ -22280,11 +22404,12 @@ fn test_logical_offset_insert_after_inline_table() {
     doc.insert_text_native(0, 1, text_off, "XYZ").unwrap();
     let para = &doc.document.sections[0].paragraphs[1];
     assert_eq!(
-        para.text, "abcXYZ",
+        para.text(),
+        "abcXYZ",
         "표 뒤에 XYZ 삽입 예상, 실제: '{}'",
-        para.text
+        para.text()
     );
-    eprintln!("  삽입 후 text='{}' ✓", para.text);
+    eprintln!("  삽입 후 text='{}' ✓", para.text());
 
     // 논리적 길이: "abcXYZ"(6) + [표](1) = 7
     let logical_len2 = crate::document_core::helpers::logical_paragraph_length(para);
@@ -22316,21 +22441,22 @@ fn test_logical_offset_insert_after_inline_table() {
     doc.create_table_ex_native(0, 2, 3, 1, 1, true, Some(&[5000]))
         .unwrap();
     let para2 = &doc.document.sections[0].paragraphs[2];
-    let tl = para2.text.chars().count();
+    let tl = para2.text().chars().count();
     eprintln!(
         "  pi=2: text='{}' len={} controls={}",
-        para2.text,
+        para2.text(),
         tl,
         para2.controls.len()
     );
     // charOffset=4 (> text_len=3) → 표 뒤에 삽입
     doc.insert_text_native(0, 2, 4, "라마바").unwrap();
     let para2 = &doc.document.sections[0].paragraphs[2];
-    eprintln!("  charOffset=4 삽입 후: '{}'", para2.text);
+    eprintln!("  charOffset=4 삽입 후: '{}'", para2.text());
     assert_eq!(
-        para2.text, "가나다라마바",
+        para2.text(),
+        "가나다라마바",
         "표 뒤에 '라마바' 삽입, 실제: '{}'",
-        para2.text
+        para2.text()
     );
 
     eprintln!("  논리적 오프셋 테스트 통과 ✓");
@@ -22352,10 +22478,14 @@ fn test_create_inline_tac_table() {
     doc.insert_text_native(0, 1, 0, "tacglkj 표 3 배치 시작")
         .unwrap();
 
-    let text_len = doc.document.sections[0].paragraphs[1].text.chars().count();
+    let text_len = doc.document.sections[0].paragraphs[1]
+        .text()
+        .chars()
+        .count();
     eprintln!(
         "  pi=1 text='{}' len={}",
-        doc.document.sections[0].paragraphs[1].text, text_len
+        doc.document.sections[0].paragraphs[1].text(),
+        text_len
     );
 
     // 4. pi=1, char_offset=text_len 위치에 인라인 TAC 2×2 표 생성
@@ -22372,7 +22502,7 @@ fn test_create_inline_tac_table() {
 
     // 5. 표 뒤에 "4 tacglkj 표 다음" 텍스트 추가
     let para = &doc.document.sections[0].paragraphs[1];
-    let new_text_offset = para.text.chars().count();
+    let new_text_offset = para.text().chars().count();
     doc.insert_text_native(0, 1, new_text_offset, "4 tacglkj 표 다음")
         .unwrap();
 
@@ -22380,7 +22510,7 @@ fn test_create_inline_tac_table() {
     let para = &doc.document.sections[0].paragraphs[1];
     eprintln!(
         "  pi=1 final text='{}' controls={}",
-        para.text,
+        para.text(),
         para.controls.len()
     );
 
@@ -22409,7 +22539,10 @@ fn test_create_inline_tac_table() {
         .unwrap();
 
     // Enter → pi=2
-    let pi1_len = doc.document.sections[0].paragraphs[1].text.chars().count();
+    let pi1_len = doc.document.sections[0].paragraphs[1]
+        .text()
+        .chars()
+        .count();
     doc.split_paragraph_native(0, 1, pi1_len).unwrap();
     // pi=2에 텍스트
     doc.insert_text_native(0, 2, 0, "tacglkj 가나 옮").unwrap();
@@ -22422,7 +22555,7 @@ fn test_create_inline_tac_table() {
 
     // 텍스트에 표가 포함된 인라인 배치 확인
     let para = &doc.document.sections[0].paragraphs[1];
-    assert!(!para.text.is_empty(), "pi=1에 텍스트가 있어야 함");
+    assert!(!para.text().is_empty(), "pi=1에 텍스트가 있어야 함");
     assert_eq!(para.controls.len(), 1, "pi=1에 인라인 표 1개");
 
     // is_tac_table_inline 확인
@@ -22431,7 +22564,7 @@ fn test_create_inline_tac_table() {
         let is_inline = crate::renderer::height_measurer::is_tac_table_inline(
             t,
             seg_w,
-            &para.text,
+            &para.text(),
             &para.controls,
         );
         eprintln!("  is_tac_table_inline: {} (seg_w={})", is_inline, seg_w);

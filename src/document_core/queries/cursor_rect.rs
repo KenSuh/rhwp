@@ -182,7 +182,7 @@ impl DocumentCore {
         if !self.show_control_codes {
             if let Some(section) = self.document.sections.get(section_idx) {
                 if let Some(para) = section.paragraphs.get(para_idx) {
-                    let text_len = para.text.chars().count();
+                    let text_len = para.text().chars().count();
                     let ctrl_positions = crate::document_core::find_control_text_positions(para);
 
                     // char_offset 위치에 인라인 컨트롤이 있는지 확인

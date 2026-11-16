@@ -451,7 +451,7 @@ pub(super) fn field_marks_for_list(
                 .get(marker.id.as_str())
                 .copied()
                 .ok_or_else(invalid)?;
-            if marker.char_idx > para.text.chars().count() {
+            if marker.char_idx > para.text().chars().count() {
                 return Err(invalid());
             }
             let pair = endpoints.entry(marker.id.as_str()).or_insert((None, None));
@@ -520,7 +520,7 @@ where
 /// HWPX 파서는 필드가 아닌 컨트롤을 모두 문단 앞머리 빈칸에 두므로 그런 문단은 «컨트롤 → 글자» 가 된다.
 /// 글자가 없으면 모든 컨트롤이 0 이고, 글자 수와 char_offsets 수가 다르면(합성 문단) `None` 이다.
 fn inline_control_positions(para: &Paragraph) -> Option<Vec<(usize, usize)>> {
-    let chars: Vec<char> = para.text.chars().collect();
+    let chars: Vec<char> = para.text().chars().collect();
     let mut pending = para
         .controls
         .iter()
@@ -530,12 +530,12 @@ fn inline_control_positions(para: &Paragraph) -> Option<Vec<(usize, usize)>> {
     if chars.is_empty() {
         return Some(pending.map(|ci| (0, ci)).collect());
     }
-    if para.char_offsets.len() != chars.len() {
+    if para.char_offsets().len() != chars.len() {
         return None;
     }
     let mut placed = Vec::new();
     let mut previous_end = 0u32;
-    for (idx, (&ch, &offset)) in chars.iter().zip(&para.char_offsets).enumerate() {
+    for (idx, (&ch, &offset)) in chars.iter().zip(para.char_offsets()).enumerate() {
         let slots = (offset.saturating_sub(previous_end) / 8) as usize;
         let field_marks = para
             .field_ranges
@@ -568,7 +568,7 @@ where
     W: Write,
     F: FnMut(&mut Writer<W>, &Control) -> Result<(), SerializeError>,
 {
-    let chars: Vec<char> = para.text.chars().collect();
+    let chars: Vec<char> = para.text().chars().collect();
     for range in &para.field_ranges {
         if range.start_char_idx > range.end_char_idx
             || range.end_char_idx > chars.len()
@@ -702,7 +702,7 @@ where
             break;
         };
         let utf16_pos = para
-            .char_offsets
+            .char_offsets()
             .get(idx)
             .copied()
             .unwrap_or(fallback_utf16_pos);
@@ -1199,7 +1199,7 @@ mod tests {
     #[test]
     fn cell_paragraph_linesegs_are_preserved() {
         let mut t = empty_table(1, 1);
-        t.cells[0].paragraphs[0].text = "긴 셀 문단".to_string();
+        t.cells[0].paragraphs[0].replace_text("긴 셀 문단".to_string());
         t.cells[0].paragraphs[0].line_segs = vec![
             LineSeg {
                 text_start: 0,
@@ -1246,8 +1246,8 @@ mod tests {
     #[test]
     fn cell_paragraph_char_shape_runs_are_preserved() {
         let mut t = empty_table(1, 1);
-        t.cells[0].paragraphs[0].text = "가나다ABC".to_string();
-        t.cells[0].paragraphs[0].char_offsets = vec![0, 1, 2, 3, 4, 5];
+        t.cells[0].paragraphs[0].replace_text("가나다ABC".to_string());
+        t.cells[0].paragraphs[0].set_char_offsets(vec![0, 1, 2, 3, 4, 5]);
         t.cells[0].paragraphs[0].char_shapes = vec![
             CharShapeRef {
                 start_pos: 0,

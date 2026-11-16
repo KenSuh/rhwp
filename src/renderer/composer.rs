@@ -136,7 +136,7 @@ pub fn compose_paragraph(para: &Paragraph) -> ComposedParagraph {
                         && super::height_measurer::is_tac_table_inline(
                             t,
                             seg_width,
-                            &para.text,
+                            &para.text(),
                             &para.controls,
                         ) =>
                 {
@@ -272,7 +272,7 @@ fn inject_footnote_markers(lines: &mut [ComposedLine], positions: &[(usize, u16)
 fn compose_lines(para: &Paragraph) -> Vec<ComposedLine> {
     if para.line_segs.is_empty() {
         // LineSeg가 없으면 전체 텍스트를 하나의 줄로
-        if para.text.is_empty() {
+        if para.text().is_empty() {
             return Vec::new();
         }
         let default_style_id = para
@@ -282,7 +282,7 @@ fn compose_lines(para: &Paragraph) -> Vec<ComposedLine> {
             .unwrap_or(0);
         return vec![ComposedLine {
             runs: split_runs_by_lang(vec![ComposedTextRun {
-                text: para.text.clone(),
+                text: para.text().to_owned(),
                 char_style_id: default_style_id,
                 lang_index: 0,
                 char_overlap: None,
@@ -313,21 +313,21 @@ fn compose_lines(para: &Paragraph) -> Vec<ComposedLine> {
                 para.char_count
             } else {
                 // char_count 미설정 시 텍스트 길이 기반 추정
-                para.text.chars().count() as u32 + 1
+                para.text().chars().count() as u32 + 1
             }
         };
 
         // UTF-16 위치 → 텍스트 문자 인덱스로 변환
         let (text_start, text_end) = utf16_range_to_text_range(
-            &para.char_offsets,
+            &para.char_offsets(),
             utf16_start,
             utf16_end,
-            para.text.chars().count(),
+            para.text().chars().count(),
         );
 
         // 이 줄의 텍스트 추출
         let line_text: String = para
-            .text
+            .text()
             .chars()
             .skip(text_start)
             .take(text_end - text_start)
@@ -351,7 +351,7 @@ fn compose_lines(para: &Paragraph) -> Vec<ComposedLine> {
                     &pre_text,
                     text_start,
                     pre_end,
-                    &para.char_offsets,
+                    &para.char_offsets(),
                     &para.char_shapes,
                 );
                 prev.runs.append(&mut extra_runs);
@@ -362,7 +362,7 @@ fn compose_lines(para: &Paragraph) -> Vec<ComposedLine> {
                     &pre_text,
                     text_start,
                     pre_end,
-                    &para.char_offsets,
+                    &para.char_offsets(),
                     &para.char_shapes,
                 );
                 let pre_lh = if line_seg.text_height > 0
@@ -392,7 +392,7 @@ fn compose_lines(para: &Paragraph) -> Vec<ComposedLine> {
                 &post_text_clean,
                 post_start,
                 text_end,
-                &para.char_offsets,
+                &para.char_offsets(),
                 &para.char_shapes,
             );
             lines.push(ComposedLine {
@@ -418,7 +418,7 @@ fn compose_lines(para: &Paragraph) -> Vec<ComposedLine> {
                 &line_text,
                 text_start,
                 text_end,
-                &para.char_offsets,
+                &para.char_offsets(),
                 &para.char_shapes,
             );
 
@@ -1115,8 +1115,8 @@ mod line_breaking;
 pub mod lineseg_compare;
 
 pub(crate) use line_breaking::{
-    invalid_cell_hanging_indent, reflow_horizontal_cell_line_segs,
-    is_line_end_forbidden, is_line_start_forbidden, recalculate_section_vpos, reflow_line_segs,
+    invalid_cell_hanging_indent, is_line_end_forbidden, is_line_start_forbidden,
+    recalculate_section_vpos, reflow_horizontal_cell_line_segs, reflow_line_segs,
     tokenize_paragraph, BreakToken,
 };
 

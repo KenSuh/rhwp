@@ -1018,18 +1018,18 @@ fn dump_controls(args: &[String]) {
                         indent, tb.list_attr, tb.margin_left, tb.margin_right, tb.margin_top, tb.margin_bottom,
                         tb.max_width, tb.paragraphs.len());
                     for (tpi, tp) in tb.paragraphs.iter().enumerate() {
-                        let text_preview = if tp.text.is_empty() {
+                        let text_preview = if tp.text().is_empty() {
                             "(빈)".to_string()
-                        } else if tp.text.chars().count() > 60 {
+                        } else if tp.text().chars().count() > 60 {
                             let end = tp
-                                .text
+                                .text()
                                 .char_indices()
                                 .nth(60)
                                 .map(|(i, _)| i)
-                                .unwrap_or(tp.text.len());
-                            format!("\"{}...\"", &tp.text[..end])
+                                .unwrap_or(tp.text().len());
+                            format!("\"{}...\"", &tp.text()[..end])
                         } else {
-                            format!("\"{}\"", tp.text)
+                            format!("\"{}\"", tp.text())
                         };
                         println!(
                             "{}    p[{}]: ps_id={}, cc={}, text={}, ls_count={}, ctrls={}",
@@ -1145,10 +1145,10 @@ fn dump_controls(args: &[String]) {
                         "      p[{}]: cc={}, text=\"{}\"",
                         pi,
                         para.controls.len(),
-                        if para.text.is_empty() {
+                        if para.text().is_empty() {
                             "(빈 문단)".to_string()
                         } else {
-                            para.text.chars().take(30).collect::<String>()
+                            para.text().chars().take(30).collect::<String>()
                         }
                     );
                     for (ci, ctrl) in para.controls.iter().enumerate() {
@@ -1161,7 +1161,7 @@ fn dump_controls(args: &[String]) {
                                     .map(|c| {
                                         c.paragraphs
                                             .iter()
-                                            .map(|p| p.text.chars().take(20).collect::<String>())
+                                            .map(|p| p.text().chars().take(20).collect::<String>())
                                             .collect::<Vec<_>>()
                                             .join("|")
                                     })
@@ -1181,7 +1181,7 @@ fn dump_controls(args: &[String]) {
                                 if let Some(tb) = s.drawing().and_then(|d| d.text_box.as_ref()) {
                                     desc += &format!(" 글상자({}문단)", tb.paragraphs.len());
                                     for (tpi, tp) in tb.paragraphs.iter().enumerate() {
-                                        let tp_text: String = tp.text.chars().take(20).collect();
+                                        let tp_text: String = tp.text().chars().take(20).collect();
                                         desc += &format!(
                                             "\n          tb_p[{}]: cc={} text=\"{}\"",
                                             tpi,
@@ -1231,19 +1231,19 @@ fn dump_controls(args: &[String]) {
                 }
             }
 
-            let text_preview = if para.text.is_empty() {
+            let text_preview = if para.text().is_empty() {
                 "(빈 문단)".to_string()
             } else {
-                let preview = if para.text.chars().count() > 50 {
+                let preview = if para.text().chars().count() > 50 {
                     let end = para
-                        .text
+                        .text()
                         .char_indices()
                         .nth(50)
                         .map(|(i, _)| i)
-                        .unwrap_or(para.text.len());
-                    format!("\"{}...\"", &para.text[..end])
+                        .unwrap_or(para.text().len());
+                    format!("\"{}...\"", &para.text()[..end])
                 } else {
-                    format!("\"{}\"", para.text)
+                    format!("\"{}\"", para.text())
                 };
                 preview
             };
@@ -1254,14 +1254,14 @@ fn dump_controls(args: &[String]) {
                 sec_idx,
                 para_idx,
                 para.char_count,
-                para.text.chars().count(),
+                para.text().chars().count(),
                 para.controls.len(),
                 break_info
             );
             println!("  텍스트: {}", text_preview);
             // char_shapes 출력
             if !para.char_shapes.is_empty() {
-                let text_chars: Vec<char> = para.text.chars().collect();
+                let text_chars: Vec<char> = para.text().chars().collect();
                 for (ci, cs) in para.char_shapes.iter().enumerate() {
                     let next_pos = para
                         .char_shapes
@@ -1272,9 +1272,9 @@ fn dump_controls(args: &[String]) {
                         .iter()
                         .enumerate()
                         .find(|(i, _)| {
-                            if *i < para.char_offsets.len() {
-                                para.char_offsets[*i] >= cs.start_pos
-                                    && para.char_offsets[*i] < next_pos
+                            if *i < para.char_offsets().len() {
+                                para.char_offsets()[*i] >= cs.start_pos
+                                    && para.char_offsets()[*i] < next_pos
                             } else {
                                 false
                             }
@@ -1520,7 +1520,7 @@ fn dump_controls(args: &[String]) {
                                 let text_preview: String = cell
                                     .paragraphs
                                     .iter()
-                                    .map(|p| p.text.chars().take(30).collect::<String>())
+                                    .map(|p| p.text().chars().take(30).collect::<String>())
                                     .collect::<Vec<_>>()
                                     .join("|");
                                 println!("{}셀[{}] r={},c={} rs={},cs={} h={} w={} pad=({},{},{},{}) aim={} bf={} paras={} text=\"{}\"",
@@ -1555,7 +1555,7 @@ fn dump_controls(args: &[String]) {
                                             pi,
                                             cp.para_shape_id,
                                             cp.controls.len(),
-                                            cp.text.len(),
+                                            cp.text().len(),
                                             ls_info.join(", ")
                                         );
                                     }
@@ -1638,8 +1638,8 @@ fn dump_controls(args: &[String]) {
                         let text: String = h
                             .paragraphs
                             .iter()
-                            .filter(|p| !p.text.is_empty())
-                            .map(|p| p.text.clone())
+                            .filter(|p| !p.text().is_empty())
+                            .map(|p| p.text().to_owned())
                             .collect::<Vec<_>>()
                             .join(" ");
                         println!(
@@ -1672,7 +1672,7 @@ fn dump_controls(args: &[String]) {
                                                 let text: String = tb
                                                     .paragraphs
                                                     .iter()
-                                                    .flat_map(|p| p.text.chars().take(20))
+                                                    .flat_map(|p| p.text().chars().take(20))
                                                     .collect();
                                                 desc += &format!(" text={:?}", text);
                                             }
@@ -1689,7 +1689,7 @@ fn dump_controls(args: &[String]) {
                                                 let cell_text: String = cell
                                                     .paragraphs
                                                     .iter()
-                                                    .flat_map(|p| p.text.chars().take(20))
+                                                    .flat_map(|p| p.text().chars().take(20))
                                                     .collect();
                                                 desc += &format!(
                                                     "\n{}    셀[{}] text={:?}",
@@ -1720,7 +1720,7 @@ fn dump_controls(args: &[String]) {
                                                                         .enumerate()
                                                                     {
                                                                         let t: String = tp
-                                                                            .text
+                                                                            .text()
                                                                             .chars()
                                                                             .take(30)
                                                                             .collect();
@@ -1776,8 +1776,8 @@ fn dump_controls(args: &[String]) {
                         let text: String = f
                             .paragraphs
                             .iter()
-                            .filter(|p| !p.text.is_empty())
-                            .map(|p| p.text.clone())
+                            .filter(|p| !p.text().is_empty())
+                            .map(|p| p.text().to_owned())
                             .collect::<Vec<_>>()
                             .join(" ");
                         println!(
@@ -2000,8 +2000,8 @@ fn diag_document(args: &[String]) {
                 .get(para.para_shape_id as usize)
             {
                 if ps.head_type != HeadType::None {
-                    let text_preview: String = para.text.chars().take(40).collect();
-                    let text_display = if para.text.chars().count() > 40 {
+                    let text_preview: String = para.text().chars().take(40).collect();
+                    let text_display = if para.text().chars().count() > 40 {
                         format!("\"{}...\"", text_preview)
                     } else {
                         format!("\"{}\"", text_preview)
@@ -2298,7 +2298,7 @@ fn test_caption(args: &[String]) {
                         "dir={:?}, paras={}, text={:?}",
                         c.direction,
                         c.paragraphs.len(),
-                        c.paragraphs.first().map(|p| &p.text)
+                        c.paragraphs.first().map(|p| p.text())
                     )
                 })
             );
@@ -2586,11 +2586,11 @@ fn ir_diff(args: &[String]) {
             let mut diffs: Vec<String> = Vec::new();
 
             // 텍스트 비교
-            if pa.text != pb.text {
+            if pa.text() != pb.text() {
                 diffs.push(format!(
                     "text: A={:?} vs B={:?}",
-                    pa.text.chars().take(30).collect::<String>(),
-                    pb.text.chars().take(30).collect::<String>()
+                    pa.text().chars().take(30).collect::<String>(),
+                    pb.text().chars().take(30).collect::<String>()
                 ));
             }
 
@@ -2600,16 +2600,16 @@ fn ir_diff(args: &[String]) {
             }
 
             // char_offsets 비교
-            if pa.char_offsets != pb.char_offsets {
-                let len_a = pa.char_offsets.len();
-                let len_b = pb.char_offsets.len();
+            if pa.char_offsets() != pb.char_offsets() {
+                let len_a = pa.char_offsets().len();
+                let len_b = pb.char_offsets().len();
                 if len_a != len_b {
                     diffs.push(format!("char_offsets len: A={} vs B={}", len_a, len_b));
                 } else {
                     let first_diff = pa
-                        .char_offsets
+                        .char_offsets()
                         .iter()
-                        .zip(pb.char_offsets.iter())
+                        .zip(pb.char_offsets().iter())
                         .enumerate()
                         .find(|(_, (a, b))| a != b);
                     if let Some((idx, (a, b))) = first_diff {
@@ -2713,7 +2713,7 @@ fn ir_diff(args: &[String]) {
             }
 
             if !diffs.is_empty() {
-                let text_preview: String = pa.text.chars().take(30).collect();
+                let text_preview: String = pa.text().chars().take(30).collect();
                 println!("\n--- 문단 {}.{} --- \"{}\"", sec_idx, pi, text_preview);
                 for d in &diffs {
                     println!("  [차이] {}", d);

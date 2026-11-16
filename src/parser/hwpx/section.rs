@@ -475,6 +475,8 @@ fn parse_paragraph(
     .map_err(|e| HwpxError::XmlError(e.to_string()))?
         * 8;
     let mut utf16_pos = 0u32;
+    let mut parsed_text = String::new();
+    let mut parsed_offsets = Vec::new();
     for part in &text_parts {
         if part == "\u{0002}" {
             continue;
@@ -483,8 +485,8 @@ fn parse_paragraph(
             if matches!(ch, '\u{0003}' | '\u{0004}') {
                 utf16_pos += 8;
             } else {
-                para.char_offsets.push(utf16_pos + ctrl_offset);
-                para.text.push(ch);
+                parsed_offsets.push(utf16_pos + ctrl_offset);
+                parsed_text.push(ch);
                 utf16_pos += if ch == '\t' {
                     8
                 } else {
@@ -493,8 +495,10 @@ fn parse_paragraph(
             }
         }
     }
+    para.replace_text(parsed_text);
+    para.set_char_offsets(parsed_offsets);
     para.char_count = utf16_pos + ctrl_offset + 1;
-    para.has_para_text = !para.text.is_empty() || !para.controls.is_empty();
+    para.has_para_text = !para.text().is_empty() || !para.controls.is_empty();
     para.char_shapes = char_shape_changes
         .into_iter()
         .map(|(pos, id)| CharShapeRef {
@@ -3713,7 +3717,7 @@ mod tests {
 
         let section = parse_hwpx_section(xml).unwrap();
         assert_eq!(section.paragraphs.len(), 1);
-        assert_eq!(section.paragraphs[0].text, "Hello World");
+        assert_eq!(section.paragraphs[0].text(), "Hello World");
         assert_eq!(section.paragraphs[0].para_shape_id, 0);
     }
 

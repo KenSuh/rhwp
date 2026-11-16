@@ -920,7 +920,8 @@ pub(crate) fn invalid_cell_hanging_indent(
     available_width_px.is_finite() && available_width_px > 0.0
         && style.indent.is_finite() && style.indent < 0.0
         && available_width_px + style.indent <= 0.0
-        && style.head_type == HeadType::None && !para.text.contains('\t')
+        && style.head_type == HeadType::None
+        && !para.text().contains('\t')
         && !para.controls.iter().any(|ctrl| match ctrl {
             Control::Table(t) => t.common.treat_as_char,
             Control::Picture(p) => p.common.treat_as_char,
@@ -985,12 +986,12 @@ fn reflow_line_segs_with_indent(
         }
     };
 
-    if para.text.is_empty() {
+    if para.text().is_empty() {
         para.line_segs = vec![make_line_seg(0, 0.0)];
         return;
     }
 
-    let text_chars: Vec<char> = para.text.chars().collect();
+    let text_chars: Vec<char> = para.text().chars().collect();
     let text_len = text_chars.len();
 
     // 문단 스타일에서 들여쓰기 및 줄 나눔 설정 조회
@@ -1005,7 +1006,7 @@ fn reflow_line_segs_with_indent(
     // 토큰화 → 줄 채움 → LineSeg 생성
     let tokens = tokenize_paragraph(
         &text_chars,
-        &para.char_offsets,
+        &para.char_offsets(),
         &para.char_shapes,
         styles,
         english_break_unit,
@@ -1024,18 +1025,18 @@ fn reflow_line_segs_with_indent(
     for lb in &line_breaks {
         let utf16_start = if new_line_segs.is_empty() {
             0 // 첫 번째 줄의 text_start는 항상 0 (문단 시작)
-        } else if lb.start_idx < para.char_offsets.len() {
-            para.char_offsets[lb.start_idx]
-        } else if !para.char_offsets.is_empty() {
+        } else if lb.start_idx < para.char_offsets().len() {
+            para.char_offsets()[lb.start_idx]
+        } else if !para.char_offsets().is_empty() {
             // start_idx가 텍스트 끝을 넘을 때: 마지막 문자 다음 UTF-16 위치
-            let last_idx = para.char_offsets.len() - 1;
+            let last_idx = para.char_offsets().len() - 1;
             let last_char_utf16_len = para
-                .text
+                .text()
                 .chars()
                 .nth(last_idx)
                 .map(|c| c.len_utf16() as u32)
                 .unwrap_or(1);
-            para.char_offsets[last_idx] + last_char_utf16_len
+            para.char_offsets()[last_idx] + last_char_utf16_len
         } else {
             lb.start_idx as u32
         };

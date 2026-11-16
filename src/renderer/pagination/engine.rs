@@ -101,7 +101,7 @@ impl Paginator {
                     hidden_empty_lines = 0;
                     hidden_empty_page = current_page;
                 }
-                let trimmed = para.text.replace(|c: char| c.is_control(), "");
+                let trimmed = para.text().replace(|c: char| c.is_control(), "");
                 let is_empty_para = trimmed.trim().is_empty() && para.controls.is_empty();
                 if is_empty_para
                     && !st.current_items.is_empty()
@@ -344,7 +344,7 @@ impl Paginator {
                     .map(|s| s.segment_width as i32)
                     .unwrap_or(0);
                 let is_empty_para = para
-                    .text
+                    .text()
                     .chars()
                     .all(|ch| ch.is_whitespace() || ch == '\r' || ch == '\n')
                     && para.controls.is_empty();
@@ -1018,7 +1018,7 @@ impl Paginator {
                         if crate::renderer::height_measurer::is_tac_table_inline(
                             table,
                             seg_w,
-                            &para.text,
+                            &para.text(),
                             &para.controls,
                         ) {
                             continue;
@@ -1487,12 +1487,12 @@ impl Paginator {
             let total_lines = mp.line_heights.len();
 
             // 강제 줄넘김 후 TAC 표: 텍스트가 표 앞에 있음 (Task #19)
-            let has_forced_linebreak = is_tac_table && para.text.contains('\n');
-            let pre_table_end_line = if vertical_offset > 0 && !para.text.is_empty() {
+            let has_forced_linebreak = is_tac_table && para.text().contains('\n');
+            let pre_table_end_line = if vertical_offset > 0 && !para.text().is_empty() {
                 total_lines
             } else if has_forced_linebreak && total_lines > 1 {
                 // 강제 줄넘김 전 텍스트 줄 수 = \n 개수
-                let newline_count = para.text.chars().filter(|&c| c == '\n').count();
+                let newline_count = para.text().chars().filter(|&c| c == '\n').count();
                 newline_count.min(total_lines - 1)
             } else {
                 0
@@ -1599,7 +1599,7 @@ impl Paginator {
                 });
             if is_last_table
                 && tac_table_count <= 1
-                && !para.text.is_empty()
+                && !para.text().is_empty()
                 && total_lines > post_table_start
                 && !is_wrap_around_table
                 && !pre_text_exists
@@ -1655,7 +1655,7 @@ impl Paginator {
         // 별도 PageItem이 아닌 가용 높이 차감으로 처리
         // (레이아웃 코드가 PartialTable의 호스트 텍스트를 직접 렌더링함)
         let vertical_offset = Self::get_table_vertical_offset(table);
-        let host_text_height = if vertical_offset > 0 && !para.text.is_empty() {
+        let host_text_height = if vertical_offset > 0 && !para.text().is_empty() {
             let is_first_table = !para
                 .controls
                 .iter()

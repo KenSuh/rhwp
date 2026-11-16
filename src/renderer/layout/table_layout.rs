@@ -150,7 +150,7 @@ impl LayoutEngine {
         if table.row_count == 1 && table.col_count == 1 && table.cells.len() == 1 {
             let cell = &table.cells[0];
             let has_visible_text = cell.paragraphs.iter().any(|p| {
-                p.text
+                p.text()
                     .chars()
                     .any(|ch| !ch.is_whitespace() && ch != '\r' && ch != '\n')
             });
@@ -1890,8 +1890,10 @@ impl LayoutEngine {
 
                                 // 수식이 텍스트 run 사이에 인라인으로 배치되는 경우
                                 // layout_composed_paragraph에서 이미 렌더링됨 → 건너뛰기
-                                let has_text_in_para =
-                                    para.text.chars().any(|c| c > '\u{001F}' && c != '\u{FFFC}');
+                                let has_text_in_para = para
+                                    .text()
+                                    .chars()
+                                    .any(|c| c > '\u{001F}' && c != '\u{FFFC}');
                                 if has_text_in_para {
                                     // 텍스트가 있는 문단: paragraph_layout에서 처리됨
                                     inline_x += eq_w;

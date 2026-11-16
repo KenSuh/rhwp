@@ -2,7 +2,19 @@
 
 use super::control::Control;
 
+mod text;
+
 /// 문단 (HWPTAG_PARA_HEADER + 하위 레코드)
+///
+/// 텍스트와 원본 오프셋은 끝점 소유자만 변경한다.
+/// ```compile_fail,E0616
+/// let mut paragraph = rhwp::model::paragraph::Paragraph::default();
+/// paragraph.text = String::new();
+/// ```
+/// ```compile_fail,E0616
+/// let mut paragraph = rhwp::model::paragraph::Paragraph::default();
+/// paragraph.char_offsets = Vec::new();
+/// ```
 #[derive(Debug, Default, Clone)]
 pub struct Paragraph {
     /// 문자 수 (제어 문자 포함)
@@ -18,10 +30,10 @@ pub struct Paragraph {
     /// 원본 break_type 바이트 (라운드트립 보존용, 0이면 column_type에서 재구성)
     pub raw_break_type: u8,
     /// 문단 텍스트 (UTF-16에서 변환된 문자열)
-    pub text: String,
+    text: String,
     /// 텍스트 문자별 UTF-16 코드 유닛 위치 (LineSeg/CharShapeRef 위치와 매핑용)
     /// char_offsets[i] = text[i]에 해당하는 원본 UTF-16 코드 유닛 인덱스
-    pub char_offsets: Vec<u32>,
+    char_offsets: Vec<u32>,
     /// 글자 모양 변경 위치 목록
     pub char_shapes: Vec<CharShapeRef>,
     /// 줄 레이아웃 정보
@@ -198,37 +210,6 @@ pub struct HwpxFieldMarker {
 }
 
 impl Paragraph {
-    pub(crate) fn shift_hwpx_field_markers(
-        &mut self,
-        deleted: std::ops::Range<usize>,
-        inserted: usize,
-    ) {
-        self.hwpx_field_markers.retain_mut(|marker| {
-            let removed = match marker.endpoint {
-                FieldEndpoint::Begin => {
-                    deleted.start <= marker.char_idx && marker.char_idx < deleted.end
-                }
-                FieldEndpoint::End => {
-                    deleted.start < marker.char_idx && marker.char_idx <= deleted.end
-                }
-            };
-            if removed {
-                return false;
-            }
-            if marker.char_idx >= deleted.end {
-                marker.char_idx -= deleted.len();
-            }
-            let shifts = match marker.endpoint {
-                FieldEndpoint::Begin => marker.char_idx > deleted.start,
-                FieldEndpoint::End => marker.char_idx >= deleted.start,
-            };
-            if shifts {
-                marker.char_idx += inserted;
-            }
-            true
-        });
-    }
-
     /// 빈 문단을 생성한다 (문단 끝 마커만 포함).
     ///
     /// 표 셀 생성 등에서 최소한의 유효한 문단이 필요할 때 사용한다.

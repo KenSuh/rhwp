@@ -43,7 +43,7 @@ pub(crate) fn cell_reflow_geometry(
 /// CharOverlap(TCPS)은 inline 컨트롤이라 para.text에 포함되지 않지만,
 /// 레이아웃에서 각 overlap이 char_offset 1개를 차지하므로 보정한다.
 pub(crate) fn navigable_text_len(para: &Paragraph) -> usize {
-    let text_len = para.text.chars().count();
+    let text_len = para.text().chars().count();
     let char_overlap_count = para
         .controls
         .iter()
@@ -93,7 +93,7 @@ pub(crate) fn logical_to_text_offset(para: &Paragraph, logical_offset: usize) ->
         .collect();
     sorted_ctrls.sort_by_key(|(pos, _)| *pos);
 
-    let text_len = para.text.chars().count();
+    let text_len = para.text().chars().count();
     let mut text_idx = 0usize;
     let mut logical_idx = 0usize;
     let mut ctrl_cursor = 0usize; // sorted_ctrls 내 현재 위치
@@ -141,12 +141,12 @@ pub(crate) fn text_to_logical_offset(para: &Paragraph, text_offset: usize) -> us
 /// find_control_text_positions에 의해 텍스트 위치가 결정되는 컨트롤만 포함.
 pub(crate) fn logical_paragraph_length(para: &Paragraph) -> usize {
     let ctrl_positions = find_control_text_positions(para);
-    para.text.chars().count() + ctrl_positions.len()
+    para.text().chars().count() + ctrl_positions.len()
 }
 
 /// 반환: positions[i] = para.controls[i]가 삽입되어야 할 텍스트 문자 인덱스
 pub(crate) fn find_control_text_positions(para: &Paragraph) -> Vec<usize> {
-    let offsets = &para.char_offsets;
+    let offsets = &para.char_offsets();
     let total_controls = para.controls.len();
 
     if total_controls == 0 {
@@ -170,7 +170,7 @@ pub(crate) fn find_control_text_positions(para: &Paragraph) -> Vec<usize> {
         return positions;
     }
 
-    let chars: Vec<char> = para.text.chars().collect();
+    let chars: Vec<char> = para.text().chars().collect();
     let mut positions = Vec::with_capacity(total_controls);
 
     // 첫 문자 이전의 갭: 확장 컨트롤이 텍스트 시작 전에 있는 경우

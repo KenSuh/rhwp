@@ -181,7 +181,7 @@ impl HeightMeasurer {
             let seg_width = para.line_segs.first().map(|s| s.segment_width).unwrap_or(0);
             let has_table = para.controls.iter()
                 .any(|c| matches!(c, Control::Table(t) if !t.common.treat_as_char
-                    || (t.common.treat_as_char && !is_tac_table_inline(t, seg_width, &para.text, &para.controls))));
+                    || (t.common.treat_as_char && !is_tac_table_inline(t, seg_width, &para.text(), &para.controls))));
 
             // 그림 컨트롤 감지 및 높이 측정
             let has_picture = para
@@ -511,7 +511,7 @@ impl HeightMeasurer {
         if table.row_count == 1 && table.col_count == 1 && table.cells.len() == 1 {
             let cell = &table.cells[0];
             let has_visible_text = cell.paragraphs.iter().any(|p| {
-                p.text
+                p.text()
                     .chars()
                     .any(|ch| !ch.is_whitespace() && ch != '\r' && ch != '\n')
             });
@@ -1106,7 +1106,7 @@ impl HeightMeasurer {
             let seg_width_r = para.line_segs.first().map(|s| s.segment_width).unwrap_or(0);
             let has_table = para.controls.iter()
                 .any(|c| matches!(c, Control::Table(t) if !t.common.treat_as_char
-                    || (t.common.treat_as_char && !is_tac_table_inline(t, seg_width_r, &para.text, &para.controls))));
+                    || (t.common.treat_as_char && !is_tac_table_inline(t, seg_width_r, &para.text(), &para.controls))));
             let has_picture = para
                 .controls
                 .iter()
@@ -1203,7 +1203,7 @@ impl HeightMeasurer {
             let seg_width_r = para.line_segs.first().map(|s| s.segment_width).unwrap_or(0);
             let has_table = para.controls.iter()
                 .any(|c| matches!(c, Control::Table(t) if !t.common.treat_as_char
-                    || (t.common.treat_as_char && !is_tac_table_inline(t, seg_width_r, &para.text, &para.controls))));
+                    || (t.common.treat_as_char && !is_tac_table_inline(t, seg_width_r, &para.text(), &para.controls))));
             let has_picture = para
                 .controls
                 .iter()
@@ -1686,12 +1686,14 @@ mod tests {
     #[test]
     fn test_measure_single_paragraph() {
         let measurer = HeightMeasurer::with_default_dpi();
-        let paragraphs = vec![Paragraph {
-            line_segs: vec![LineSeg {
+        let paragraphs = vec![{
+            let mut paragraph_value = Paragraph::default();
+
+            paragraph_value.line_segs = vec![LineSeg {
                 line_height: 400,
                 ..Default::default()
-            }],
-            ..Default::default()
+            }];
+            paragraph_value
         }];
         let composed: Vec<ComposedParagraph> = Vec::new();
         let styles = ResolvedStyleSet::default();

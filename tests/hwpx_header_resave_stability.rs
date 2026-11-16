@@ -565,9 +565,9 @@ fn document_paragraphs(doc: &Document) -> Vec<&Paragraph> {
 /// 글자마다 활성 글자모양 id — `char_offsets[i]` 이하에서 시작한 마지막 변경 (없으면 첫 변경).
 fn active_char_shape_ids(para: &Paragraph) -> Vec<u32> {
     let first = para.char_shapes.first().map_or(0, |r| r.char_shape_id);
-    (0..para.text.chars().count())
+    (0..para.text().chars().count())
         .map(|i| {
-            let pos = para.char_offsets.get(i).copied().unwrap_or(u32::MAX);
+            let pos = para.char_offsets().get(i).copied().unwrap_or(u32::MAX);
             para.char_shapes
                 .iter()
                 .take_while(|r| r.start_pos <= pos)
@@ -584,7 +584,7 @@ fn char_shapes_equal(base: &Document, doc: &Document) -> (bool, usize) {
     let mut equal = a.len() == b.len();
     let mut chars = 0usize;
     for (pa, pb) in a.iter().zip(&b) {
-        if pa.text != pb.text {
+        if pa.text() != pb.text() {
             equal = false;
             continue;
         }

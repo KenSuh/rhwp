@@ -66,7 +66,7 @@ fn classify_navigable(ctrl: &Control) -> Option<bool> {
         Control::Shape(s) => {
             if let Some(tb) = get_textbox_from_shape(s.as_ref()) {
                 // TextBox가 있고 텍스트가 비어있지 않으면 글상자 진입
-                if !tb.paragraphs.iter().all(|p| p.text.is_empty()) {
+                if !tb.paragraphs.iter().all(|p| p.text().is_empty()) {
                     return Some(true);
                 }
             }
@@ -102,7 +102,7 @@ fn resolve_paragraphs<'a>(
                 let tb = get_textbox_from_shape(s.as_ref())?;
 
                 // 마지막 컨텍스트 entry가 빈 글상자이면 오버플로우 타겟인지 확인
-                if depth == context.len() - 1 && tb.paragraphs.iter().all(|p| p.text.is_empty()) {
+                if depth == context.len() - 1 && tb.paragraphs.iter().all(|p| p.text().is_empty()) {
                     if let Some(link) = overflow_links.iter().find(|l| {
                         l.target_parent_para == entry.parent_para
                             && l.target_ctrl_idx == entry.ctrl_idx
@@ -1227,7 +1227,7 @@ impl DocumentCore {
                     None => continue,
                 };
 
-                let has_text = tb.paragraphs.iter().any(|p| !p.text.is_empty());
+                let has_text = tb.paragraphs.iter().any(|p| !p.text().is_empty());
                 if !has_text {
                     // 빈 글상자 → 타겟 후보
                     let inner_sw = tb

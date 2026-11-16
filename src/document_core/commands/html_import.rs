@@ -10,7 +10,7 @@ use crate::renderer::style_resolver::resolve_styles;
 
 impl DocumentCore {
     fn paragraph_has_content(para: &Paragraph) -> bool {
-        !para.text.is_empty() || !para.controls.is_empty()
+        !para.text().is_empty() || !para.controls.is_empty()
     }
 
     fn paste_html_paragraphs_into_cell(
@@ -33,10 +33,10 @@ impl DocumentCore {
 
         let clip_count = parsed_paras.len();
         if clip_count == 1 && parsed_paras[0].controls.is_empty() {
-            let clip_text = parsed_paras[0].text.clone();
+            let clip_text = parsed_paras[0].text().to_owned();
             let new_chars = clip_text.chars().count();
             let clip_char_shapes = parsed_paras[0].char_shapes.clone();
-            let clip_char_offsets = parsed_paras[0].char_offsets.clone();
+            let clip_char_offsets = parsed_paras[0].char_offsets().to_owned();
 
             cell_paras[cell_para_idx].insert_text_at(char_offset, &clip_text);
             Self::apply_clipboard_char_shapes_to_para(
@@ -74,7 +74,7 @@ impl DocumentCore {
                 Ok((insert_idx, 0))
             } else {
                 let last_para_idx = insert_idx.saturating_sub(1);
-                let merge_point = cell_paras[last_para_idx].text.chars().count();
+                let merge_point = cell_paras[last_para_idx].text().chars().count();
                 Ok((last_para_idx, merge_point))
             }
         } else {
@@ -124,9 +124,9 @@ impl DocumentCore {
 
         if clip_count == 1 && parsed_paras[0].controls.is_empty() {
             // 단일 문단 텍스트 삽입
-            let clip_text = parsed_paras[0].text.clone();
+            let clip_text = parsed_paras[0].text().to_owned();
             let clip_char_shapes = parsed_paras[0].char_shapes.clone();
-            let clip_char_offsets = parsed_paras[0].char_offsets.clone();
+            let clip_char_offsets = parsed_paras[0].char_offsets().to_owned();
             let new_chars = clip_text.chars().count();
 
             self.document.sections[section_idx].paragraphs[para_idx]
@@ -166,7 +166,7 @@ impl DocumentCore {
 
             // 현재 문단 (왼쪽 반)이 비어있으면 첫 번째 파싱 문단으로 대체
             let left_empty = self.document.sections[section_idx].paragraphs[para_idx]
-                .text
+                .text()
                 .is_empty();
 
             let mut insert_idx = if left_empty {
@@ -193,7 +193,7 @@ impl DocumentCore {
             // 오른쪽 반이 비어있지 않으면 새 문단으로 추가
             let last_para_idx;
             let merge_point;
-            if !right_half.text.is_empty() {
+            if !right_half.text().is_empty() {
                 self.document.sections[section_idx]
                     .paragraphs
                     .insert(insert_idx, right_half);
@@ -203,7 +203,7 @@ impl DocumentCore {
                 last_para_idx = insert_idx - 1;
                 // 마지막 문단이 컨트롤 문단이면 그 뒤 위치
                 let last = &self.document.sections[section_idx].paragraphs[last_para_idx];
-                merge_point = last.text.chars().count();
+                merge_point = last.text().chars().count();
             }
 
             for i in para_idx..=last_para_idx {
@@ -573,17 +573,18 @@ impl DocumentCore {
             let plain = html_to_plain_text(html);
             if !plain.is_empty() {
                 let mut para = Paragraph::default();
-                para.text = plain;
-                para.char_count = para.text.encode_utf16().count() as u32;
-                para.char_offsets = para
-                    .text
-                    .chars()
-                    .scan(0u32, |acc, c| {
-                        let off = *acc;
-                        *acc += c.len_utf16() as u32;
-                        Some(off)
-                    })
-                    .collect();
+                para.replace_text(plain);
+                para.char_count = para.text().encode_utf16().count() as u32;
+                para.set_char_offsets(
+                    para.text()
+                        .chars()
+                        .scan(0u32, |acc, c| {
+                            let off = *acc;
+                            *acc += c.len_utf16() as u32;
+                            Some(off)
+                        })
+                        .collect(),
+                );
                 paragraphs.push(para);
             }
         }
@@ -600,17 +601,18 @@ impl DocumentCore {
                 continue;
             }
             let mut para = Paragraph::default();
-            para.text = trimmed.to_string();
-            para.char_count = para.text.encode_utf16().count() as u32;
-            para.char_offsets = para
-                .text
-                .chars()
-                .scan(0u32, |acc, c| {
-                    let off = *acc;
-                    *acc += c.len_utf16() as u32;
-                    Some(off)
-                })
-                .collect();
+            para.replace_text(trimmed.to_string());
+            para.char_count = para.text().encode_utf16().count() as u32;
+            para.set_char_offsets(
+                para.text()
+                    .chars()
+                    .scan(0u32, |acc, c| {
+                        let off = *acc;
+                        *acc += c.len_utf16() as u32;
+                        Some(off)
+                    })
+                    .collect(),
+            );
             paragraphs.push(para);
         }
     }
@@ -755,23 +757,24 @@ impl DocumentCore {
             }
         }
 
-        para.text = full_text;
-        para.char_count = para.text.encode_utf16().count() as u32;
-        para.char_offsets = para
-            .text
-            .chars()
-            .scan(0u32, |acc, c| {
-                let off = *acc;
-                *acc += c.len_utf16() as u32;
-                Some(off)
-            })
-            .collect();
+        para.replace_text(full_text);
+        para.char_count = para.text().encode_utf16().count() as u32;
+        para.set_char_offsets(
+            para.text()
+                .chars()
+                .scan(0u32, |acc, c| {
+                    let off = *acc;
+                    *acc += c.len_utf16() as u32;
+                    Some(off)
+                })
+                .collect(),
+        );
 
         // 스타일 범위를 CharShapeRef로 변환
         for (start, _end, char_shape_id) in &style_runs {
             // char index → UTF-16 위치
             let utf16_pos: u32 = para
-                .text
+                .text()
                 .chars()
                 .take(*start)
                 .map(|c| c.len_utf16() as u32)

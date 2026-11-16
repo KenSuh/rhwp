@@ -43,7 +43,7 @@ impl CorpusMetrics {
         for section in &doc.sections {
             metrics.paragraphs += section.paragraphs.len();
             for paragraph in &section.paragraphs {
-                metrics.text_chars += paragraph.text.chars().count();
+                metrics.text_chars += paragraph.text().chars().count();
                 metrics.top_level_controls += paragraph.controls.len();
                 for control in &paragraph.controls {
                     metrics.visit_control(control);
@@ -62,7 +62,7 @@ impl CorpusMetrics {
                 for cell in &table.cells {
                     self.table_cell_paragraphs += cell.paragraphs.len();
                     for paragraph in &cell.paragraphs {
-                        self.text_chars += paragraph.text.chars().count();
+                        self.text_chars += paragraph.text().chars().count();
                         for nested in &paragraph.controls {
                             self.visit_control(nested);
                         }
@@ -77,7 +77,7 @@ impl CorpusMetrics {
             }
             Control::Header(header) => {
                 for paragraph in &header.paragraphs {
-                    self.text_chars += paragraph.text.chars().count();
+                    self.text_chars += paragraph.text().chars().count();
                     for nested in &paragraph.controls {
                         self.visit_control(nested);
                     }
@@ -85,7 +85,7 @@ impl CorpusMetrics {
             }
             Control::Footer(footer) => {
                 for paragraph in &footer.paragraphs {
-                    self.text_chars += paragraph.text.chars().count();
+                    self.text_chars += paragraph.text().chars().count();
                     for nested in &paragraph.controls {
                         self.visit_control(nested);
                     }
@@ -93,7 +93,7 @@ impl CorpusMetrics {
             }
             Control::Footnote(footnote) => {
                 for paragraph in &footnote.paragraphs {
-                    self.text_chars += paragraph.text.chars().count();
+                    self.text_chars += paragraph.text().chars().count();
                     for nested in &paragraph.controls {
                         self.visit_control(nested);
                     }
@@ -101,7 +101,7 @@ impl CorpusMetrics {
             }
             Control::Endnote(endnote) => {
                 for paragraph in &endnote.paragraphs {
-                    self.text_chars += paragraph.text.chars().count();
+                    self.text_chars += paragraph.text().chars().count();
                     for nested in &paragraph.controls {
                         self.visit_control(nested);
                     }
@@ -408,7 +408,7 @@ fn collect_paragraph_text_entries(
     paragraph: &Paragraph,
     out: &mut Vec<(String, String)>,
 ) {
-    out.push((path.to_string(), paragraph.text.clone()));
+    out.push((path.to_string(), paragraph.text().to_owned()));
     for (ci, control) in paragraph.controls.iter().enumerate() {
         match control {
             Control::Table(table) => {

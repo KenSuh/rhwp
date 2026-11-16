@@ -146,8 +146,10 @@ pub fn parse_paragraph(records: &[Record]) -> Result<Paragraph, BodyTextError> {
         match record.tag_id {
             tags::HWPTAG_PARA_TEXT => {
                 let (text, offsets, field_ranges, tab_ext) = parse_para_text(&record.data);
-                para.text = text;
-                para.char_offsets = offsets;
+                let char_count = para.char_count;
+                para.replace_text(text);
+                para.char_count = char_count;
+                para.set_char_offsets(offsets);
                 para.field_ranges = field_ranges;
                 para.tab_extended = tab_ext;
                 para.has_para_text = true;

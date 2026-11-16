@@ -79,7 +79,7 @@ fn serialize_paragraph_with_msb(
 
     // PARA_TEXT를 먼저 직렬화하여 실제 char_count를 계산한다.
     // char_count가 PARA_TEXT code unit 수와 불일치하면 한컴이 파일 손상으로 판단한다.
-    let has_content = !para.text.is_empty() || !para.controls.is_empty();
+    let has_content = !para.text().is_empty() || !para.controls.is_empty();
     let text_data = if has_content || (para.has_para_text && para.char_count > 1) {
         Some(serialize_para_text(para))
     } else {
@@ -183,11 +183,11 @@ fn compute_control_mask(para: &Paragraph) -> u32 {
         mask |= 1u32 << 0x0004;
     }
     // TAB (0x0009): text에 탭이 있으면 비트 9 설정
-    if para.text.contains('\t') {
+    if para.text().contains('\t') {
         mask |= 1u32 << 0x0009;
     }
     // LINE_BREAK (0x000A): text에 줄바꿈이 있으면 비트 10 설정
-    if para.text.contains('\n') {
+    if para.text().contains('\n') {
         mask |= 1u32 << 0x000A;
     }
     mask
@@ -279,7 +279,7 @@ pub fn test_serialize_para_text(para: &Paragraph) -> Vec<u8> {
 
 fn serialize_para_text(para: &Paragraph) -> Vec<u8> {
     let mut code_units: Vec<u16> = Vec::new();
-    let text_chars: Vec<char> = para.text.chars().collect();
+    let text_chars: Vec<char> = para.text().chars().collect();
     let mut ctrl_idx = 0;
     let mut prev_end: u32 = 0;
     let mut tab_idx: usize = 0; // TAB 확장 데이터 인덱스
@@ -290,7 +290,7 @@ fn serialize_para_text(para: &Paragraph) -> Vec<u8> {
     // 2. trailing: end_char_idx == text_chars.len() → 남은 컨트롤과 인터리빙
     use std::collections::BTreeMap;
     use std::collections::HashMap;
-    let text_len = para.text.chars().count();
+    let text_len = para.text().chars().count();
     let mut field_ends: BTreeMap<usize, Vec<u32>> = BTreeMap::new();
     // trailing FIELD_END: control_idx → ctrl_id 매핑 (FIELD_BEGIN 직후에 삽입)
     let mut trailing_end_after_ctrl: HashMap<usize, Vec<u32>> = HashMap::new();
@@ -318,8 +318,8 @@ fn serialize_para_text(para: &Paragraph) -> Vec<u8> {
     }
 
     for (i, ch) in text_chars.iter().enumerate() {
-        let offset = if i < para.char_offsets.len() {
-            para.char_offsets[i]
+        let offset = if i < para.char_offsets().len() {
+            para.char_offsets()[i]
         } else {
             prev_end
         };
@@ -504,22 +504,25 @@ mod tests {
     /// 간단한 텍스트 문단 라운드트립
     #[test]
     fn test_roundtrip_simple_text() {
-        let para = Paragraph {
-            char_count: 6,
-            text: "Hello".to_string(),
-            char_offsets: vec![0, 1, 2, 3, 4],
-            char_shapes: vec![CharShapeRef {
+        let para = {
+            let mut paragraph_value =
+                Paragraph::with_text("Hello".to_string(), vec![0, 1, 2, 3, 4]);
+
+            paragraph_value.char_count = 6;
+
+            paragraph_value.char_shapes = vec![CharShapeRef {
                 start_pos: 0,
                 char_shape_id: 0,
-            }],
-            line_segs: vec![LineSeg {
+            }];
+
+            paragraph_value.line_segs = vec![LineSeg {
                 text_start: 0,
                 line_height: 400,
                 text_height: 400,
                 baseline_distance: 320,
                 ..Default::default()
-            }],
-            ..Default::default()
+            }];
+            paragraph_value
         };
 
         let section = Section {
@@ -532,26 +535,31 @@ mod tests {
         let parsed = parse_body_text_section(&bytes).unwrap();
 
         assert_eq!(parsed.paragraphs.len(), 1);
-        assert_eq!(parsed.paragraphs[0].text, "Hello");
-        assert_eq!(parsed.paragraphs[0].char_offsets, vec![0, 1, 2, 3, 4]);
+        assert_eq!(parsed.paragraphs[0].text(), "Hello");
+        assert_eq!(parsed.paragraphs[0].char_offsets(), vec![0, 1, 2, 3, 4]);
     }
 
     /// 한글 텍스트 라운드트립
     #[test]
     fn test_roundtrip_korean_text() {
-        let para = Paragraph {
-            char_count: 10,
-            text: "한글 테스트입니다.".to_string(),
-            char_offsets: vec![0, 1, 2, 3, 4, 5, 6, 7, 8],
-            char_shapes: vec![CharShapeRef {
+        let para = {
+            let mut paragraph_value = Paragraph::with_text(
+                "한글 테스트입니다.".to_string(),
+                vec![0, 1, 2, 3, 4, 5, 6, 7, 8],
+            );
+
+            paragraph_value.char_count = 10;
+
+            paragraph_value.char_shapes = vec![CharShapeRef {
                 start_pos: 0,
                 char_shape_id: 1,
-            }],
-            line_segs: vec![LineSeg {
+            }];
+
+            paragraph_value.line_segs = vec![LineSeg {
                 text_start: 0,
                 ..Default::default()
-            }],
-            ..Default::default()
+            }];
+            paragraph_value
         };
 
         let section = Section {
@@ -563,25 +571,27 @@ mod tests {
         let bytes = serialize_section(&section);
         let parsed = parse_body_text_section(&bytes).unwrap();
 
-        assert_eq!(parsed.paragraphs[0].text, "한글 테스트입니다.");
+        assert_eq!(parsed.paragraphs[0].text(), "한글 테스트입니다.");
     }
 
     /// 탭 문자 포함 라운드트립
     #[test]
     fn test_roundtrip_with_tab() {
-        let para = Paragraph {
-            char_count: 4,
-            text: "A\tB".to_string(),
-            char_offsets: vec![0, 1, 9],
-            char_shapes: vec![CharShapeRef {
+        let para = {
+            let mut paragraph_value = Paragraph::with_text("A\tB".to_string(), vec![0, 1, 9]);
+
+            paragraph_value.char_count = 4;
+
+            paragraph_value.char_shapes = vec![CharShapeRef {
                 start_pos: 0,
                 char_shape_id: 0,
-            }],
-            line_segs: vec![LineSeg {
+            }];
+
+            paragraph_value.line_segs = vec![LineSeg {
                 text_start: 0,
                 ..Default::default()
-            }],
-            ..Default::default()
+            }];
+            paragraph_value
         };
 
         let section = Section {
@@ -593,26 +603,28 @@ mod tests {
         let bytes = serialize_section(&section);
         let parsed = parse_body_text_section(&bytes).unwrap();
 
-        assert_eq!(parsed.paragraphs[0].text, "A\tB");
-        assert_eq!(parsed.paragraphs[0].char_offsets, vec![0, 1, 9]);
+        assert_eq!(parsed.paragraphs[0].text(), "A\tB");
+        assert_eq!(parsed.paragraphs[0].char_offsets(), vec![0, 1, 9]);
     }
 
     /// 줄바꿈 포함 라운드트립
     #[test]
     fn test_roundtrip_with_linebreak() {
-        let para = Paragraph {
-            char_count: 4,
-            text: "A\nB".to_string(),
-            char_offsets: vec![0, 1, 2],
-            char_shapes: vec![CharShapeRef {
+        let para = {
+            let mut paragraph_value = Paragraph::with_text("A\nB".to_string(), vec![0, 1, 2]);
+
+            paragraph_value.char_count = 4;
+
+            paragraph_value.char_shapes = vec![CharShapeRef {
                 start_pos: 0,
                 char_shape_id: 0,
-            }],
-            line_segs: vec![LineSeg {
+            }];
+
+            paragraph_value.line_segs = vec![LineSeg {
                 text_start: 0,
                 ..Default::default()
-            }],
-            ..Default::default()
+            }];
+            paragraph_value
         };
 
         let section = Section {
@@ -624,15 +636,17 @@ mod tests {
         let bytes = serialize_section(&section);
         let parsed = parse_body_text_section(&bytes).unwrap();
 
-        assert_eq!(parsed.paragraphs[0].text, "A\nB");
+        assert_eq!(parsed.paragraphs[0].text(), "A\nB");
     }
 
     /// 빈 문단 직렬화
     #[test]
     fn test_serialize_empty_paragraph() {
-        let para = Paragraph {
-            char_count: 0,
-            ..Default::default()
+        let para = {
+            let mut paragraph_value = Paragraph::default();
+
+            paragraph_value.char_count = 0;
+            paragraph_value
         };
 
         let section = Section {
@@ -645,44 +659,52 @@ mod tests {
         let parsed = parse_body_text_section(&bytes).unwrap();
 
         assert_eq!(parsed.paragraphs.len(), 1);
-        assert!(parsed.paragraphs[0].text.is_empty());
+        assert!(parsed.paragraphs[0].text().is_empty());
     }
 
     /// 여러 문단 라운드트립
     #[test]
     fn test_roundtrip_multiple_paragraphs() {
-        let para1 = Paragraph {
-            char_count: 4,
-            text: "ABC".to_string(),
-            char_offsets: vec![0, 1, 2],
-            char_shapes: vec![CharShapeRef {
+        let para1 = {
+            let mut paragraph_value = Paragraph::with_text("ABC".to_string(), vec![0, 1, 2]);
+
+            paragraph_value.char_count = 4;
+
+            paragraph_value.char_shapes = vec![CharShapeRef {
                 start_pos: 0,
                 char_shape_id: 0,
-            }],
-            para_shape_id: 0,
-            style_id: 0,
-            line_segs: vec![LineSeg {
+            }];
+
+            paragraph_value.para_shape_id = 0;
+
+            paragraph_value.style_id = 0;
+
+            paragraph_value.line_segs = vec![LineSeg {
                 text_start: 0,
                 ..Default::default()
-            }],
-            ..Default::default()
+            }];
+            paragraph_value
         };
 
-        let para2 = Paragraph {
-            char_count: 4,
-            text: "DEF".to_string(),
-            char_offsets: vec![0, 1, 2],
-            char_shapes: vec![CharShapeRef {
+        let para2 = {
+            let mut paragraph_value = Paragraph::with_text("DEF".to_string(), vec![0, 1, 2]);
+
+            paragraph_value.char_count = 4;
+
+            paragraph_value.char_shapes = vec![CharShapeRef {
                 start_pos: 0,
                 char_shape_id: 1,
-            }],
-            para_shape_id: 1,
-            style_id: 0,
-            line_segs: vec![LineSeg {
+            }];
+
+            paragraph_value.para_shape_id = 1;
+
+            paragraph_value.style_id = 0;
+
+            paragraph_value.line_segs = vec![LineSeg {
                 text_start: 0,
                 ..Default::default()
-            }],
-            ..Default::default()
+            }];
+            paragraph_value
         };
 
         let section = Section {
@@ -695,19 +717,20 @@ mod tests {
         let parsed = parse_body_text_section(&bytes).unwrap();
 
         assert_eq!(parsed.paragraphs.len(), 2);
-        assert_eq!(parsed.paragraphs[0].text, "ABC");
-        assert_eq!(parsed.paragraphs[1].text, "DEF");
+        assert_eq!(parsed.paragraphs[0].text(), "ABC");
+        assert_eq!(parsed.paragraphs[1].text(), "DEF");
         assert_eq!(parsed.paragraphs[1].para_shape_id, 1);
     }
 
     /// PARA_CHAR_SHAPE 라운드트립
     #[test]
     fn test_roundtrip_char_shapes() {
-        let para = Paragraph {
-            char_count: 5,
-            text: "ABCD".to_string(),
-            char_offsets: vec![0, 1, 2, 3],
-            char_shapes: vec![
+        let para = {
+            let mut paragraph_value = Paragraph::with_text("ABCD".to_string(), vec![0, 1, 2, 3]);
+
+            paragraph_value.char_count = 5;
+
+            paragraph_value.char_shapes = vec![
                 CharShapeRef {
                     start_pos: 0,
                     char_shape_id: 1,
@@ -716,12 +739,13 @@ mod tests {
                     start_pos: 2,
                     char_shape_id: 3,
                 },
-            ],
-            line_segs: vec![LineSeg {
+            ];
+
+            paragraph_value.line_segs = vec![LineSeg {
                 text_start: 0,
                 ..Default::default()
-            }],
-            ..Default::default()
+            }];
+            paragraph_value
         };
 
         let section = Section {
@@ -743,15 +767,17 @@ mod tests {
     /// PARA_LINE_SEG 라운드트립
     #[test]
     fn test_roundtrip_line_segs() {
-        let para = Paragraph {
-            char_count: 3,
-            text: "AB".to_string(),
-            char_offsets: vec![0, 1],
-            char_shapes: vec![CharShapeRef {
+        let para = {
+            let mut paragraph_value = Paragraph::with_text("AB".to_string(), vec![0, 1]);
+
+            paragraph_value.char_count = 3;
+
+            paragraph_value.char_shapes = vec![CharShapeRef {
                 start_pos: 0,
                 char_shape_id: 0,
-            }],
-            line_segs: vec![LineSeg {
+            }];
+
+            paragraph_value.line_segs = vec![LineSeg {
                 text_start: 0,
                 vertical_pos: 100,
                 line_height: 500,
@@ -761,8 +787,8 @@ mod tests {
                 column_start: 0,
                 segment_width: 42000,
                 tag: 0x01,
-            }],
-            ..Default::default()
+            }];
+            paragraph_value
         };
 
         let section = Section {
@@ -785,24 +811,28 @@ mod tests {
     /// PARA_RANGE_TAG 라운드트립
     #[test]
     fn test_roundtrip_range_tags() {
-        let para = Paragraph {
-            char_count: 20,
-            text: "ABCDEFGHIJKLMNOPQRS".to_string(),
-            char_offsets: (0..19).collect(),
-            char_shapes: vec![CharShapeRef {
+        let para = {
+            let mut paragraph_value =
+                Paragraph::with_text("ABCDEFGHIJKLMNOPQRS".to_string(), (0..19).collect());
+
+            paragraph_value.char_count = 20;
+
+            paragraph_value.char_shapes = vec![CharShapeRef {
                 start_pos: 0,
                 char_shape_id: 0,
-            }],
-            line_segs: vec![LineSeg {
+            }];
+
+            paragraph_value.line_segs = vec![LineSeg {
                 text_start: 0,
                 ..Default::default()
-            }],
-            range_tags: vec![RangeTag {
+            }];
+
+            paragraph_value.range_tags = vec![RangeTag {
                 start: 5,
                 end: 15,
                 tag: 0x01000003,
-            }],
-            ..Default::default()
+            }];
+            paragraph_value
         };
 
         let section = Section {
@@ -843,20 +873,23 @@ mod tests {
             ..Default::default()
         };
 
-        let para = Paragraph {
-            char_count: 4,
-            text: "AB".to_string(),
-            char_offsets: vec![0, 9], // 0~7 = secd 컨트롤, 8~8 gap? 아니, 0=A, 1~8=secd, 9=B
-            char_shapes: vec![CharShapeRef {
+        let para = {
+            let mut paragraph_value = Paragraph::with_text("AB".to_string(), vec![0, 9]);
+
+            paragraph_value.char_count = 4;
+            // 0~7 = secd 컨트롤, 8~8 gap? 아니, 0=A, 1~8=secd, 9=B
+            paragraph_value.char_shapes = vec![CharShapeRef {
                 start_pos: 0,
                 char_shape_id: 0,
-            }],
-            line_segs: vec![LineSeg {
+            }];
+
+            paragraph_value.line_segs = vec![LineSeg {
                 text_start: 0,
                 ..Default::default()
-            }],
-            controls: vec![Control::SectionDef(Box::new(sd))],
-            ..Default::default()
+            }];
+
+            paragraph_value.controls = vec![Control::SectionDef(Box::new(sd))];
+            paragraph_value
         };
 
         let section = Section {
@@ -868,7 +901,7 @@ mod tests {
         let bytes = serialize_section(&section);
         let parsed = parse_body_text_section(&bytes).unwrap();
 
-        assert_eq!(parsed.paragraphs[0].text, "AB");
+        assert_eq!(parsed.paragraphs[0].text(), "AB");
         // SectionDef 컨트롤이 파싱되어 section_def에 반영
         assert_eq!(parsed.section_def.default_tab_spacing, 800);
     }
@@ -876,20 +909,23 @@ mod tests {
     /// 단 나누기 종류 라운드트립
     #[test]
     fn test_roundtrip_break_type() {
-        let para = Paragraph {
-            char_count: 2,
-            text: "A".to_string(),
-            char_offsets: vec![0],
-            column_type: ColumnBreakType::Page,
-            char_shapes: vec![CharShapeRef {
+        let para = {
+            let mut paragraph_value = Paragraph::with_text("A".to_string(), vec![0]);
+
+            paragraph_value.char_count = 2;
+
+            paragraph_value.column_type = ColumnBreakType::Page;
+
+            paragraph_value.char_shapes = vec![CharShapeRef {
                 start_pos: 0,
                 char_shape_id: 0,
-            }],
-            line_segs: vec![LineSeg {
+            }];
+
+            paragraph_value.line_segs = vec![LineSeg {
                 text_start: 0,
                 ..Default::default()
-            }],
-            ..Default::default()
+            }];
+            paragraph_value
         };
 
         let section = Section {

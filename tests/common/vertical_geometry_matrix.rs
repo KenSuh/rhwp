@@ -55,7 +55,7 @@ fn edit(doc: &mut HwpDocument, case: Case, location: (usize, usize, &str)) -> St
     native_path.extend(std::iter::repeat_n((0, 0, 0), case.depth));
     let end = if path_api {
         nested(root(doc, para, control), case.depth).cells[0].paragraphs[0]
-            .text
+            .text()
             .chars()
             .count()
     } else {

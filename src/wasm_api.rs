@@ -1472,7 +1472,7 @@ impl HwpDocument {
         let para = self
             .resolve_paragraph_by_path(section_idx as usize, parent_para_idx as usize, &path)
             .map_err(|e| -> JsValue { e.into() })?;
-        Ok(para.text.chars().count() as u32)
+        Ok(para.text().chars().count() as u32)
     }
 
     /// 표 셀의 텍스트 방향을 반환한다 (0=가로, 1=세로/영문눕힘, 2=세로/영문세움).

@@ -166,7 +166,7 @@ impl DocumentCore {
         report: &mut ValidationReport,
     ) {
         // 규칙 1: 텍스트가 있는데 lineseg 배열이 비어있음
-        if para.line_segs.is_empty() && !para.text.is_empty() {
+        if para.line_segs.is_empty() && !para.text().is_empty() {
             report.push(ValidationWarning {
                 section_idx,
                 paragraph_idx,
@@ -192,8 +192,8 @@ impl DocumentCore {
         // 휴리스틱 threshold = 40자 (한글 한 줄 ~30자 안팎을 기준으로 보수적).
         const LONG_TEXT_THRESHOLD: usize = 40;
         if para.line_segs.len() == 1
-            && !para.text.contains('\n')
-            && para.text.chars().count() > LONG_TEXT_THRESHOLD
+            && !para.text().contains('\n')
+            && para.text().chars().count() > LONG_TEXT_THRESHOLD
             && Self::single_lineseg_text_overflows(para, styles, dpi)
         {
             report.push(ValidationWarning {
@@ -223,9 +223,9 @@ impl DocumentCore {
         }
         let available_width_px = hwpunit_to_px(line_seg.segment_width, dpi);
         let mut measured_width_px = 0.0;
-        for (idx, ch) in para.text.chars().enumerate() {
-            let utf16_pos = if idx < para.char_offsets.len() {
-                para.char_offsets[idx]
+        for (idx, ch) in para.text().chars().enumerate() {
+            let utf16_pos = if idx < para.char_offsets().len() {
+                para.char_offsets()[idx]
             } else {
                 idx as u32
             };
@@ -399,7 +399,7 @@ impl DocumentCore {
     ///
     /// 이 함수는 `reflow_linesegs_on_demand` 에서만 사용되며, 자동 파싱 경로에는 영향 없음.
     fn needs_reflow_broadly(para: &crate::model::paragraph::Paragraph) -> bool {
-        if !para.text.is_empty() && para.line_segs.is_empty() {
+        if !para.text().is_empty() && para.line_segs.is_empty() {
             return true;
         }
         if Self::needs_line_seg_reflow(para) {
@@ -408,8 +408,8 @@ impl DocumentCore {
         // 한컴 textRun reflow 패턴 — 규칙 R3 과 동일 조건
         const LONG_TEXT_THRESHOLD: usize = 40;
         if para.line_segs.len() == 1
-            && !para.text.contains('\n')
-            && para.text.chars().count() > LONG_TEXT_THRESHOLD
+            && !para.text().contains('\n')
+            && para.text().chars().count() > LONG_TEXT_THRESHOLD
         {
             return true;
         }
@@ -807,7 +807,7 @@ impl DocumentCore {
             .and_then(|s| s.get(para_idx))
             .ok_or_else(|| HwpError::InvalidFile("composed paragraph not found".into()))?;
 
-        let text_preview: String = para.text.chars().take(30).collect();
+        let text_preview: String = para.text().chars().take(30).collect();
 
         let mut lines_json = Vec::new();
 
@@ -887,7 +887,7 @@ impl DocumentCore {
                     } // 이미 수정된 상태
                       // 필드 값이 안내문과 동일한지 확인
                     if let Some(guide) = f.guide_text() {
-                        let chars: Vec<char> = para.text.chars().collect();
+                        let chars: Vec<char> = para.text().chars().collect();
                         if fr.end_char_idx <= chars.len() {
                             let field_val: String =
                                 chars[fr.start_char_idx..fr.end_char_idx].iter().collect();
@@ -900,26 +900,8 @@ impl DocumentCore {
                 }
             }
             // 뒤에서부터 삭제 (인덱스 안정성 유지)
-            for &(fri, start, end) in removals.iter().rev() {
-                let removed_len = end - start;
-                let chars: Vec<char> = para.text.chars().collect();
-                let new_text: String = chars[..start].iter().chain(chars[end..].iter()).collect();
-                para.text = new_text;
-                para.shift_hwpx_field_markers(start..end, 0);
-                para.field_ranges[fri].end_char_idx = start;
-                // 이후 field_ranges의 char_idx 조정
-                for i in 0..para.field_ranges.len() {
-                    if i == fri {
-                        continue;
-                    }
-                    let other = &mut para.field_ranges[i];
-                    if other.start_char_idx >= end {
-                        other.start_char_idx -= removed_len;
-                    }
-                    if other.end_char_idx >= end {
-                        other.end_char_idx -= removed_len;
-                    }
-                }
+            for &(_, start, end) in removals.iter().rev() {
+                para.delete_text_at(start, end - start);
             }
         }
 
@@ -962,7 +944,7 @@ mod validate_linesegs_tests {
         let mut doc = Document::default();
         let mut section = Section::default();
         let mut para = Paragraph::default();
-        para.text = "hello".to_string();
+        para.replace_text("hello".to_string());
         // line_segs 비워둠
         section.paragraphs.push(para);
         doc.sections.push(section);
@@ -981,7 +963,7 @@ mod validate_linesegs_tests {
         let mut doc = Document::default();
         let mut section = Section::default();
         let mut para = Paragraph::default();
-        para.text = "hello".to_string();
+        para.replace_text("hello".to_string());
         para.line_segs.push(LineSeg::default()); // line_height=0 상태
         section.paragraphs.push(para);
         doc.sections.push(section);
@@ -997,7 +979,7 @@ mod validate_linesegs_tests {
         let mut doc = Document::default();
         let mut section = Section::default();
         let mut para = Paragraph::default();
-        para.text = "hello".to_string();
+        para.replace_text("hello".to_string());
         let mut seg = LineSeg::default();
         seg.line_height = 1000;
         para.line_segs.push(seg);
@@ -1035,7 +1017,7 @@ mod validate_linesegs_tests {
 
         // 셀 내부에 문제가 있는 문단
         let mut cell_para = Paragraph::default();
-        cell_para.text = "in-cell".to_string();
+        cell_para.replace_text("in-cell".to_string());
         // line_segs 비워둠 → LinesegArrayEmpty 감지 대상
 
         let mut cell = Cell::default();
@@ -1071,11 +1053,11 @@ mod validate_linesegs_tests {
         let mut section = Section::default();
 
         let mut p1 = Paragraph::default();
-        p1.text = "a".to_string();
+        p1.replace_text("a".to_string());
         // line_segs 비움
 
         let mut p2 = Paragraph::default();
-        p2.text = "b".to_string();
+        p2.replace_text("b".to_string());
         p2.line_segs.push(LineSeg::default()); // line_height=0
 
         section.paragraphs.push(p1);
@@ -1098,7 +1080,7 @@ mod validate_linesegs_tests {
     #[test]
     fn needs_reflow_broadly_covers_empty_linesegs() {
         let mut para = Paragraph::default();
-        para.text = "hello".to_string();
+        para.replace_text("hello".to_string());
         // line_segs 비움
         assert!(DocumentCore::needs_reflow_broadly(&para));
     }
@@ -1107,7 +1089,7 @@ mod validate_linesegs_tests {
     #[test]
     fn needs_reflow_broadly_covers_uncomputed_lineseg() {
         let mut para = Paragraph::default();
-        para.text = "hello".to_string();
+        para.replace_text("hello".to_string());
         para.line_segs.push(LineSeg::default());
         assert!(DocumentCore::needs_reflow_broadly(&para));
     }
@@ -1116,7 +1098,7 @@ mod validate_linesegs_tests {
     #[test]
     fn needs_reflow_broadly_skips_healthy_paragraph() {
         let mut para = Paragraph::default();
-        para.text = "hello".to_string();
+        para.replace_text("hello".to_string());
         let mut seg = LineSeg::default();
         seg.line_height = 1000;
         para.line_segs.push(seg);
@@ -1138,7 +1120,7 @@ mod validate_linesegs_tests {
         let mut doc = Document::default();
         let mut section = Section::default();
         let mut para = Paragraph::default();
-        para.text = "이것은 충분히 길어서 한 줄로 표시하기 어려운 한국어 문장입니다. 한컴은 textRun으로 reflow하지만 rhwp는 그대로 그립니다.".to_string();
+        para.replace_text("이것은 충분히 길어서 한 줄로 표시하기 어려운 한국어 문장입니다. 한컴은 textRun으로 reflow하지만 rhwp는 그대로 그립니다.".to_string());
         let mut seg = LineSeg::default();
         seg.line_height = 1000; // line_height 는 0 아님 → R2 는 해당 안 됨
         para.line_segs.push(seg);
@@ -1156,7 +1138,7 @@ mod validate_linesegs_tests {
         let mut doc = Document::default();
         let mut section = Section::default();
         let mut para = Paragraph::default();
-        para.text = "짧은 문장입니다.".to_string();
+        para.replace_text("짧은 문장입니다.".to_string());
         let mut seg = LineSeg::default();
         seg.line_height = 1000;
         para.line_segs.push(seg);
@@ -1173,9 +1155,10 @@ mod validate_linesegs_tests {
         let mut doc = Document::default();
         let mut section = Section::default();
         let mut para = Paragraph::default();
-        para.text =
+        para.replace_text(
             "충분히 긴 텍스트이지만 줄바꿈이 있습니다.\n그래서 R3은 해당하지 않아야 합니다."
-                .to_string();
+                .to_string(),
+        );
         let mut seg = LineSeg::default();
         seg.line_height = 1000;
         para.line_segs.push(seg);
@@ -1189,7 +1172,7 @@ mod validate_linesegs_tests {
     #[test]
     fn needs_reflow_broadly_covers_textrun_reflow() {
         let mut para = Paragraph::default();
-        para.text = "이것은 충분히 길어서 한 줄로 표시하기 어려운 한국어 문장입니다. 한컴은 textRun으로 reflow하지만 rhwp는 그대로 그립니다.".to_string();
+        para.replace_text("이것은 충분히 길어서 한 줄로 표시하기 어려운 한국어 문장입니다. 한컴은 textRun으로 reflow하지만 rhwp는 그대로 그립니다.".to_string());
         let mut seg = LineSeg::default();
         seg.line_height = 1000;
         para.line_segs.push(seg);

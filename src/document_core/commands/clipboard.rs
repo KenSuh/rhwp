@@ -81,7 +81,7 @@ impl DocumentCore {
         if start_para_idx == end_para_idx {
             // 단일 문단 내 선택
             let mut para = section.paragraphs[start_para_idx].clone();
-            let text_len = para.text.chars().count();
+            let text_len = para.text().chars().count();
 
             // 오른쪽 잘라내기 (end_offset 이후 제거)
             if end_char_offset < text_len {
@@ -109,7 +109,7 @@ impl DocumentCore {
 
             // 마지막 문단: 처음부터 end_offset까지
             let mut last = section.paragraphs[end_para_idx].clone();
-            let last_text_len = last.text.chars().count();
+            let last_text_len = last.text().chars().count();
             if end_char_offset < last_text_len {
                 let _ = last.split_at(end_char_offset);
             }
@@ -125,7 +125,7 @@ impl DocumentCore {
         // 플레인 텍스트 추출
         let plain_text: String = clip_paragraphs
             .iter()
-            .map(|p| p.text.as_str())
+            .map(|p| p.text())
             .collect::<Vec<_>>()
             .join("\n");
 
@@ -186,7 +186,7 @@ impl DocumentCore {
 
         if start_cell_para_idx == end_cell_para_idx {
             let mut para = cell_paragraphs[start_cell_para_idx].clone();
-            let text_len = para.text.chars().count();
+            let text_len = para.text().chars().count();
             if end_char_offset < text_len {
                 let _ = para.split_at(end_char_offset);
             }
@@ -206,7 +206,7 @@ impl DocumentCore {
             }
 
             let mut last = cell_paragraphs[end_cell_para_idx].clone();
-            let last_text_len = last.text.chars().count();
+            let last_text_len = last.text().chars().count();
             if end_char_offset < last_text_len {
                 let _ = last.split_at(end_char_offset);
             }
@@ -215,7 +215,7 @@ impl DocumentCore {
 
         let plain_text: String = clip_paragraphs
             .iter()
-            .map(|p| p.text.as_str())
+            .map(|p| p.text())
             .collect::<Vec<_>>()
             .join("\n");
 
@@ -447,22 +447,30 @@ impl DocumentCore {
             _ => "[컨트롤]".to_string(),
         };
 
-        let clip_para = Paragraph {
-            text: String::new(),
-            char_count: 9,
-            control_mask: 1u32 << ctrl_char_code,
-            char_offsets: vec![],
-            char_shapes: vec![crate::model::paragraph::CharShapeRef {
+        let clip_para = {
+            let mut paragraph_value = Paragraph::with_text(String::new(), vec![]);
+
+            paragraph_value.char_count = 9;
+
+            paragraph_value.control_mask = 1u32 << ctrl_char_code;
+
+            paragraph_value.char_shapes = vec![crate::model::paragraph::CharShapeRef {
                 start_pos: 0,
                 char_shape_id,
-            }],
-            line_segs: vec![ctrl_line_seg],
-            para_shape_id,
-            style_id,
-            controls: vec![control],
-            ctrl_data_records: vec![ctrl_data_record],
-            has_para_text: true,
-            ..Default::default()
+            }];
+
+            paragraph_value.line_segs = vec![ctrl_line_seg];
+
+            paragraph_value.para_shape_id = para_shape_id;
+
+            paragraph_value.style_id = style_id;
+
+            paragraph_value.controls = vec![control];
+
+            paragraph_value.ctrl_data_records = vec![ctrl_data_record];
+
+            paragraph_value.has_para_text = true;
+            paragraph_value
         };
 
         self.clipboard = Some(ClipboardData {
@@ -536,9 +544,9 @@ impl DocumentCore {
 
         if clip_count == 1 && clip_paras[0].controls.is_empty() {
             // 단일 문단 텍스트 붙여넣기 (컨트롤 없음)
-            let clip_text = clip_paras[0].text.clone();
+            let clip_text = clip_paras[0].text().to_owned();
             let clip_char_shapes = clip_paras[0].char_shapes.clone();
-            let clip_char_offsets = clip_paras[0].char_offsets.clone();
+            let clip_char_offsets = clip_paras[0].char_offsets().to_owned();
             let new_chars = clip_text.chars().count();
 
             // 텍스트 삽입
@@ -689,14 +697,14 @@ impl DocumentCore {
 
         if clip_count == 1 && clip_paras[0].controls.is_empty() {
             // 단일 문단 텍스트 붙여넣기
-            let clip_text = clip_paras[0].text.clone();
+            let clip_text = clip_paras[0].text().to_owned();
             let new_chars = clip_text.chars().count();
 
             cell_paras[cell_para_idx].insert_text_at(char_offset, &clip_text);
 
             // 클립보드 글자 모양 적용
             let clip_char_shapes = clip_paras[0].char_shapes.clone();
-            let clip_char_offsets = clip_paras[0].char_offsets.clone();
+            let clip_char_offsets = clip_paras[0].char_offsets().to_owned();
             Self::apply_clipboard_char_shapes_to_para(
                 &mut cell_paras[cell_para_idx],
                 char_offset,
@@ -846,10 +854,10 @@ impl DocumentCore {
         let clip_count = clip_paras.len();
 
         if clip_count == 1 && clip_paras[0].controls.is_empty() {
-            let clip_text = clip_paras[0].text.clone();
+            let clip_text = clip_paras[0].text().to_owned();
             let new_chars = clip_text.chars().count();
             let clip_char_shapes = clip_paras[0].char_shapes.clone();
-            let clip_char_offsets = clip_paras[0].char_offsets.clone();
+            let clip_char_offsets = clip_paras[0].char_offsets().to_owned();
             let new_offset = {
                 let cell_paras = self.get_cell_paragraphs_mut_by_path_for_clipboard(
                     section_idx,
@@ -1138,7 +1146,7 @@ impl DocumentCore {
 
         // 삽입 위치 결정 (create_shape_control_native 패턴)
         let para = &self.document.sections[section_idx].paragraphs[para_idx];
-        let is_empty_para = para.text.is_empty() && para.controls.is_empty();
+        let is_empty_para = para.text().is_empty() && para.controls.is_empty();
 
         let insert_para_idx;
         if is_empty_para && char_offset == 0 {
@@ -1150,7 +1158,7 @@ impl DocumentCore {
                 .insert(para_idx, clip_para);
             insert_para_idx = para_idx;
         } else {
-            if char_offset > 0 && !para.text.is_empty() {
+            if char_offset > 0 && !para.text().is_empty() {
                 let new_para =
                     self.document.sections[section_idx].paragraphs[para_idx].split_at(char_offset);
                 self.document.sections[section_idx]
@@ -1194,18 +1202,25 @@ impl DocumentCore {
         let mut empty_raw = vec![0u8; 10];
         empty_raw[0..2].copy_from_slice(&1u16.to_le_bytes());
         empty_raw[4..6].copy_from_slice(&1u16.to_le_bytes());
-        let empty_para = Paragraph {
-            text: String::new(),
-            char_count: 1,
-            char_count_msb: false,
-            control_mask: 0,
-            para_shape_id: default_para_shape_id,
-            style_id: 0,
-            char_shapes: vec![crate::model::paragraph::CharShapeRef {
+        let empty_para = {
+            let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new());
+
+            paragraph_value.char_count = 1;
+
+            paragraph_value.char_count_msb = false;
+
+            paragraph_value.control_mask = 0;
+
+            paragraph_value.para_shape_id = default_para_shape_id;
+
+            paragraph_value.style_id = 0;
+
+            paragraph_value.char_shapes = vec![crate::model::paragraph::CharShapeRef {
                 start_pos: 0,
                 char_shape_id: default_char_shape_id,
-            }],
-            line_segs: vec![crate::model::paragraph::LineSeg {
+            }];
+
+            paragraph_value.line_segs = vec![crate::model::paragraph::LineSeg {
                 text_start: 0,
                 line_height: 1000,
                 text_height: 1000,
@@ -1214,10 +1229,12 @@ impl DocumentCore {
                 segment_width: content_width as i32,
                 tag: 0x00060000,
                 ..Default::default()
-            }],
-            has_para_text: false,
-            raw_header_extra: empty_raw,
-            ..Default::default()
+            }];
+
+            paragraph_value.has_para_text = false;
+
+            paragraph_value.raw_header_extra = empty_raw;
+            paragraph_value
         };
         self.document.sections[section_idx]
             .paragraphs
@@ -1381,7 +1398,7 @@ impl DocumentCore {
         start_offset: Option<usize>,
         end_offset: Option<usize>,
     ) -> String {
-        let chars: Vec<char> = para.text.chars().collect();
+        let chars: Vec<char> = para.text().chars().collect();
         let start_idx = start_offset.unwrap_or(0).min(chars.len());
         let end_idx = end_offset.unwrap_or(chars.len()).min(chars.len());
         if start_idx >= end_idx {
@@ -1431,7 +1448,7 @@ impl DocumentCore {
         // CharShapeRef의 start_pos (UTF-16) → char index 변환
         let mut boundaries: Vec<(usize, u32)> = Vec::new();
         for cs in &para.char_shapes {
-            let char_idx = utf16_pos_to_char_idx(&para.char_offsets, cs.start_pos);
+            let char_idx = utf16_pos_to_char_idx(&para.char_offsets(), cs.start_pos);
             boundaries.push((char_idx, cs.char_shape_id));
         }
 

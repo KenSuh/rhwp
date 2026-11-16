@@ -216,14 +216,10 @@ impl DocumentCore {
                     .ok_or_else(|| HwpError::InvalidField("셀 인덱스 초과".into()))?;
                 // 첫 문단의 텍스트를 교체
                 if let Some(cell_para) = cell.paragraphs.first_mut() {
-                    cell_para.shift_hwpx_field_markers(
-                        0..cell_para.text.chars().count(),
-                        value.chars().count(),
-                    );
-                    cell_para.text = value.to_string();
+                    cell_para.replace_text(value.to_string());
                     // char_offsets 재생성
                     let new_len = value.chars().count();
-                    cell_para.char_offsets = (0..new_len).map(|i| i as u32).collect();
+                    cell_para.set_char_offsets((0..new_len).map(|i| i as u32).collect());
                 }
                 Ok(())
             }
@@ -250,31 +246,7 @@ impl DocumentCore {
             .clone();
 
         // 필드 범위 내 텍스트 교체
-        let text_chars: Vec<char> = para.text.chars().collect();
-        let before: String = text_chars[..fr.start_char_idx].iter().collect();
-        let after: String = text_chars[fr.end_char_idx..].iter().collect();
-        para.text = format!("{}{}{}", before, value, after);
-        para.shift_hwpx_field_markers(fr.start_char_idx..fr.end_char_idx, value.chars().count());
-
-        // field_range 업데이트
-        let new_end = fr.start_char_idx + value.chars().count();
-        let delta = new_end as isize - fr.end_char_idx as isize;
-
-        // 현재 필드 범위 업데이트
-        if let Some(current_fr) = para.field_ranges.get_mut(field_range_index) {
-            current_fr.end_char_idx = new_end;
-        }
-
-        // 이후 필드 범위들의 위치 조정
-        for (i, other_fr) in para.field_ranges.iter_mut().enumerate() {
-            if i == field_range_index {
-                continue;
-            }
-            if other_fr.start_char_idx >= fr.end_char_idx {
-                other_fr.start_char_idx = (other_fr.start_char_idx as isize + delta) as usize;
-                other_fr.end_char_idx = (other_fr.end_char_idx as isize + delta) as usize;
-            }
-        }
+        para.replace_text_range(fr.start_char_idx..fr.end_char_idx, value);
 
         // char_offsets 재생성: 컨트롤 문자(8 code unit)와 일반 문자(1~2 code unit) 반영
         rebuild_char_offsets(para);
@@ -650,7 +622,7 @@ fn collect_fields_from_paragraph(
     for (fri, fr) in para.field_ranges.iter().enumerate() {
         if let Some(Control::Field(field)) = para.controls.get(fr.control_idx) {
             let value = if fr.start_char_idx < fr.end_char_idx {
-                let chars: Vec<char> = para.text.chars().collect();
+                let chars: Vec<char> = para.text().chars().collect();
                 if fr.end_char_idx <= chars.len() {
                     chars[fr.start_char_idx..fr.end_char_idx].iter().collect()
                 } else {
@@ -686,7 +658,7 @@ fn collect_fields_from_paragraph(
                         let value = cell
                             .paragraphs
                             .first()
-                            .map(|p| p.text.clone())
+                            .map(|p| p.text().to_owned())
                             .unwrap_or_default();
                         result.push(FieldInfo {
                             field: Field {
@@ -860,18 +832,18 @@ fn remove_field_in_para(para: &mut Paragraph, char_offset: usize) -> Result<(), 
 /// 원본 char_offsets에서 컨트롤 배치 패턴을 보존하면서,
 /// 텍스트 길이 변경(필드 값 삽입)에 맞게 오프셋을 재계산한다.
 fn rebuild_char_offsets(para: &mut Paragraph) {
-    let text_chars: Vec<char> = para.text.chars().collect();
+    let text_chars: Vec<char> = para.text().chars().collect();
     let text_len = text_chars.len();
 
     if text_len == 0 {
-        para.char_offsets = Vec::new();
+        para.set_char_offsets(Vec::new());
         return;
     }
 
     // 원본 char_offsets에서 첫 문자 이전 컨트롤 수 추정
     // (원본 gap / 8 = 컨트롤 수)
-    let ctrls_before_text = if !para.char_offsets.is_empty() {
-        para.char_offsets[0] as usize / 8
+    let ctrls_before_text = if !para.char_offsets().is_empty() {
+        para.char_offsets()[0] as usize / 8
     } else {
         para.controls.len() // fallback: 모든 컨트롤이 텍스트 앞
     };
@@ -909,7 +881,7 @@ fn rebuild_char_offsets(para: &mut Paragraph) {
         offset += char_size;
     }
 
-    para.char_offsets = new_offsets;
+    para.set_char_offsets(new_offsets);
     if !para.hwpx_field_markers.is_empty() {
         para.char_count = offset
             .saturating_add(

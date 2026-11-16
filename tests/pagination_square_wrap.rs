@@ -22,23 +22,27 @@ fn a4_page_def() -> PageDef {
 }
 
 fn make_text_paragraph(text: &str, line_height: i32) -> Paragraph {
-    Paragraph {
-        text: text.to_string(),
-        line_segs: vec![LineSeg {
+    {
+        let mut paragraph_value = Paragraph::with_text(text.to_string(), Vec::new());
+
+        paragraph_value.line_segs = vec![LineSeg {
             line_height,
             ..Default::default()
-        }],
-        ..Default::default()
+        }];
+        paragraph_value
     }
 }
 
 fn make_square_table_paragraph(table_height: u32) -> Paragraph {
-    Paragraph {
-        line_segs: vec![LineSeg {
+    {
+        let mut paragraph_value = Paragraph::default();
+
+        paragraph_value.line_segs = vec![LineSeg {
             segment_width: 42_518,
             ..Default::default()
-        }],
-        controls: vec![Control::Table(Box::new(Table {
+        }];
+
+        paragraph_value.controls = vec![Control::Table(Box::new(Table {
             row_count: 1,
             col_count: 1,
             cells: vec![Cell {
@@ -57,20 +61,23 @@ fn make_square_table_paragraph(table_height: u32) -> Paragraph {
                 ..Default::default()
             },
             ..Default::default()
-        }))],
-        ..Default::default()
+        }))];
+        paragraph_value
     }
 }
 
 fn make_mixed_heading_and_square_table_paragraph() -> Paragraph {
-    Paragraph {
-        line_segs: vec![LineSeg {
+    {
+        let mut paragraph_value = Paragraph::default();
+
+        paragraph_value.line_segs = vec![LineSeg {
             line_height: 3_000,
             line_spacing: 600,
             segment_width: 42_518,
             ..Default::default()
-        }],
-        controls: vec![
+        }];
+
+        paragraph_value.controls = vec![
             Control::Table(Box::new(Table {
                 row_count: 1,
                 col_count: 1,
@@ -112,19 +119,22 @@ fn make_mixed_heading_and_square_table_paragraph() -> Paragraph {
                 },
                 ..Default::default()
             })),
-        ],
-        ..Default::default()
+        ];
+        paragraph_value
     }
 }
 
 fn make_tac_heading_and_in_front_table_paragraph() -> Paragraph {
-    Paragraph {
-        line_segs: vec![LineSeg {
+    {
+        let mut paragraph_value = Paragraph::default();
+
+        paragraph_value.line_segs = vec![LineSeg {
             line_height: 3_000,
             segment_width: 42_518,
             ..Default::default()
-        }],
-        controls: vec![
+        }];
+
+        paragraph_value.controls = vec![
             Control::Table(Box::new(Table {
                 row_count: 1,
                 col_count: 1,
@@ -166,8 +176,8 @@ fn make_tac_heading_and_in_front_table_paragraph() -> Paragraph {
                 },
                 ..Default::default()
             })),
-        ],
-        ..Default::default()
+        ];
+        paragraph_value
     }
 }
 

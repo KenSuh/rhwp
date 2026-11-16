@@ -186,7 +186,7 @@ impl DocumentCore {
 
                 // 캐럿 위치 문자의 언어 카테고리를 판별하여 해당 폰트 반환
                 let lang_index = para
-                    .text
+                    .text()
                     .chars()
                     .nth(char_offset)
                     .map(|ch| detect_lang_category(ch))

@@ -77,7 +77,7 @@ fn test_parse_table_basic() {
         assert_eq!(table.cells.len(), 1);
         assert_eq!(table.cells[0].width, 10000);
         assert_eq!(table.cells[0].paragraphs.len(), 1);
-        assert_eq!(table.cells[0].paragraphs[0].text, "test");
+        assert_eq!(table.cells[0].paragraphs[0].text(), "test");
     } else {
         panic!("Expected Table control");
     }
@@ -103,7 +103,7 @@ fn test_parse_header_control() {
     if let Control::Header(header) = ctrl {
         assert_eq!(header.apply_to, HeaderFooterApply::Both);
         assert_eq!(header.paragraphs.len(), 1);
-        assert_eq!(header.paragraphs[0].text, "머리말");
+        assert_eq!(header.paragraphs[0].text(), "머리말");
     } else {
         panic!("Expected Header control");
     }
@@ -139,7 +139,7 @@ fn test_parse_footnote_control() {
     if let Control::Footnote(fn_) = ctrl {
         assert_eq!(fn_.number, 3);
         assert_eq!(fn_.paragraphs.len(), 1);
-        assert_eq!(fn_.paragraphs[0].text, "각주");
+        assert_eq!(fn_.paragraphs[0].text(), "각주");
     } else {
         panic!("Expected Footnote control");
     }
@@ -202,7 +202,7 @@ fn test_parse_hidden_comment() {
     let ctrl = parse_hidden_comment_control(&child_records);
     if let Control::HiddenComment(comment) = ctrl {
         assert_eq!(comment.paragraphs.len(), 1);
-        assert_eq!(comment.paragraphs[0].text, "메모");
+        assert_eq!(comment.paragraphs[0].text(), "메모");
     } else {
         panic!("Expected HiddenComment control");
     }
@@ -407,11 +407,11 @@ fn dump_bookreview_section1_controls() {
         );
 
         for (pi, para) in section.paragraphs.iter().enumerate() {
-            let text_preview: String = para.text.chars().take(60).collect();
+            let text_preview: String = para.text().chars().take(60).collect();
             eprintln!(
                 "\n  Para[{}]: text_len={}, controls={}, text={:?}",
                 pi,
-                para.text.len(),
+                para.text().len(),
                 para.controls.len(),
                 text_preview
             );
@@ -432,7 +432,7 @@ fn dump_bookreview_section1_controls() {
                             let cell_text: String = cell
                                 .paragraphs
                                 .iter()
-                                .map(|p| p.text.as_str())
+                                .map(|p| p.text())
                                 .collect::<Vec<_>>()
                                 .join("|");
                             let cell_text_preview: String = cell_text.chars().take(40).collect();
@@ -476,11 +476,11 @@ fn dump_bookreview_section1_controls() {
                             eprintln!("    Ctrl[{}]: Shape({}) size={}x{} treat_as_char={} — TextBox: {} paras",
                             ci, shape_type, common.width, common.height, common.treat_as_char, tb.paragraphs.len());
                             for (tpi, tp) in tb.paragraphs.iter().enumerate() {
-                                let tp_preview: String = tp.text.chars().take(50).collect();
+                                let tp_preview: String = tp.text().chars().take(50).collect();
                                 eprintln!(
                                     "      TBPara[{}]: text_len={}, controls={}, text={:?}",
                                     tpi,
-                                    tp.text.len(),
+                                    tp.text().len(),
                                     tp.controls.len(),
                                     tp_preview
                                 );
@@ -599,12 +599,12 @@ fn dump_control_brief(ctrl: &Control, idx: usize, indent: usize) {
                     tb.paragraphs.len()
                 );
                 for (tpi, tp) in tb.paragraphs.iter().enumerate() {
-                    let preview: String = tp.text.chars().take(40).collect();
+                    let preview: String = tp.text().chars().take(40).collect();
                     eprintln!(
                         "{}  TBPara[{}]: text_len={}, text={:?}",
                         pad,
                         tpi,
-                        tp.text.len(),
+                        tp.text().len(),
                         preview
                     );
                 }

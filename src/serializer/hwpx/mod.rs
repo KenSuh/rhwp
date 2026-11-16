@@ -173,7 +173,7 @@ mod tests {
         let mut doc = Document::default();
         let mut section = crate::model::document::Section::default();
         let mut para = crate::model::paragraph::Paragraph::default();
-        para.text = "안녕 Hello 123".to_string();
+        para.replace_text("안녕 Hello 123".to_string());
         section.paragraphs.push(para);
         doc.sections.push(section);
 
@@ -195,9 +195,9 @@ mod tests {
         assert_eq!(parsed.sections.len(), 1);
         let p0 = &parsed.sections[0].paragraphs[0];
         assert!(
-            p0.text.contains("안녕 Hello 123"),
+            p0.text().contains("안녕 Hello 123"),
             "text roundtrip failed: {:?}",
-            p0.text
+            p0.text()
         );
     }
 
@@ -206,7 +206,7 @@ mod tests {
         let mut doc = Document::default();
         let mut section = crate::model::document::Section::default();
         let mut para = crate::model::paragraph::Paragraph::default();
-        para.text = "A\tB\nC".to_string();
+        para.replace_text("A\tB\nC".to_string());
         section.paragraphs.push(para);
         doc.sections.push(section);
 
@@ -231,7 +231,7 @@ mod tests {
         let mut doc = Document::default();
         let mut section = crate::model::document::Section::default();
         let mut para = crate::model::paragraph::Paragraph::default();
-        para.text = "A\nB\nC".to_string();
+        para.replace_text("A\nB\nC".to_string());
         section.paragraphs.push(para);
         doc.sections.push(section);
 
@@ -256,7 +256,7 @@ mod tests {
         let mut section = crate::model::document::Section::default();
         for t in ["첫째 줄", "둘째", "끝"] {
             let mut p = crate::model::paragraph::Paragraph::default();
-            p.text = t.to_string();
+            p.replace_text(t.to_string());
             section.paragraphs.push(p);
         }
         doc.sections.push(section);
@@ -278,7 +278,7 @@ mod tests {
         let mut doc = Document::default();
         let mut section = crate::model::document::Section::default();
         let mut para = crate::model::paragraph::Paragraph::default();
-        para.text = "a & b < c".to_string();
+        para.replace_text("a & b < c".to_string());
         section.paragraphs.push(para);
         doc.sections.push(section);
 
@@ -398,7 +398,7 @@ mod tests {
         // Then: 모델 값은 매 경계에서 같고 본문 entity 도 그대로다.
         for (label, reopened) in [("reopen 1", &reopened1), ("reopen 2", &reopened2)] {
             assert_eq!(form_fields(reopened), expected, "{}", label);
-            let body = &reopened.sections[0].paragraphs[0].text;
+            let body = &reopened.sections[0].paragraphs[0].text();
             assert!(body.contains("R&D 본문"), "{}: body text {:?}", label, body);
         }
 

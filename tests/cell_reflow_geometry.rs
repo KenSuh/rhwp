@@ -45,7 +45,7 @@ fn check_text(form: Form, edit: Edit, text: &str) {
     );
     apply_edit(&mut f, edit, text);
     let para = f.paragraph();
-    assert_eq!(para.text, text, "{form:?} {edit:?}");
+    assert_eq!(para.text(), text, "{form:?} {edit:?}");
     assert!(
         para.line_segs.len() > 1,
         "{form:?} {edit:?}: fixture must wrap"
@@ -291,7 +291,7 @@ fn unavailable_geometry_matrix_preserves_horizontal_segments_and_vertical_baseli
                     } else {
                         TEXT.to_string()
                     };
-                    assert_eq!(f.paragraph().text, expected);
+                    assert_eq!(f.paragraph().text(), expected);
                     f.doc.reflow_linesegs();
                     assert_eq!(
                         format!("{:?}", f.paragraph().line_segs),

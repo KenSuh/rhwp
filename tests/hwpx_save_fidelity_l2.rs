@@ -99,7 +99,10 @@ fn replace_zip_text(hwpx: &[u8], name: &str, text: &str) -> Vec<u8> {
         let mut bytes = Vec::new();
         entry.read_to_end(&mut bytes).unwrap();
         output
-            .start_file(entry.name().unwrap(), zip::write::SimpleFileOptions::default())
+            .start_file(
+                entry.name().unwrap(),
+                zip::write::SimpleFileOptions::default(),
+            )
             .unwrap();
         output
             .write_all(if entry.name().unwrap() == name {
@@ -508,16 +511,18 @@ fn first_table_control(doc: &Document) -> Control {
 
 fn table_paragraph(text: &str, char_offsets: Vec<u32>) -> Paragraph {
     let doc = open_doc(C6);
-    Paragraph {
-        text: text.to_string(),
-        char_offsets,
-        char_count: 13,
-        char_shapes: vec![CharShapeRef {
+    {
+        let mut paragraph_value = Paragraph::with_text(text.to_string(), char_offsets);
+
+        paragraph_value.char_count = 13;
+
+        paragraph_value.char_shapes = vec![CharShapeRef {
             start_pos: 0,
             char_shape_id: 0,
-        }],
-        controls: vec![first_table_control(&doc)],
-        ..Default::default()
+        }];
+
+        paragraph_value.controls = vec![first_table_control(&doc)];
+        paragraph_value
     }
 }
 
@@ -557,11 +562,14 @@ fn run_order_paragraph_without_offsets_keeps_text_first() {
 #[test]
 fn run_order_c1_binary_field_begin_precedes_table_at_same_position() {
     let mut para = table_paragraph("x", vec![16]);
-    para.controls.insert(0, Control::Field(Field {
-        field_type: FieldType::Hyperlink,
-        command: "https://example.org".into(),
-        ..Default::default()
-    }));
+    para.controls.insert(
+        0,
+        Control::Field(Field {
+            field_type: FieldType::Hyperlink,
+            command: "https://example.org".into(),
+            ..Default::default()
+        }),
+    );
     para.field_ranges.push(FieldRange {
         start_char_idx: 0,
         end_char_idx: 1,
@@ -580,9 +588,21 @@ fn run_order_c1_binary_field_begin_precedes_table_at_same_position() {
 
 #[test]
 fn run_order_c1_empty_fields_and_controls_keep_relative_order_two_saves() {
-    let paragraph = |inner: &str| format!(r#"<hp:p paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="0">{inner}</hp:run></hp:p>"#);
-    let table = |inner: &str| format!(r#"<hp:tbl rowCnt="1" colCnt="1" borderFillIDRef="1"><hp:sz width="10000" height="3000"/><hp:tr><hp:tc borderFillIDRef="1"><hp:subList>{inner}</hp:subList><hp:cellAddr colAddr="0" rowAddr="0"/><hp:cellSpan colSpan="1" rowSpan="1"/><hp:cellSz width="10000" height="3000"/></hp:tc></hp:tr></hp:tbl>"#);
-    let begin = |id| format!(r#"<hp:ctrl><hp:fieldBegin id="{id}" type="CLICK_HERE" name="empty" editable="1"/></hp:ctrl>"#);
+    let paragraph = |inner: &str| {
+        format!(
+            r#"<hp:p paraPrIDRef="0" styleIDRef="0"><hp:run charPrIDRef="0">{inner}</hp:run></hp:p>"#
+        )
+    };
+    let table = |inner: &str| {
+        format!(
+            r#"<hp:tbl rowCnt="1" colCnt="1" borderFillIDRef="1"><hp:sz width="10000" height="3000"/><hp:tr><hp:tc borderFillIDRef="1"><hp:subList>{inner}</hp:subList><hp:cellAddr colAddr="0" rowAddr="0"/><hp:cellSpan colSpan="1" rowSpan="1"/><hp:cellSz width="10000" height="3000"/></hp:tc></hp:tr></hp:tbl>"#
+        )
+    };
+    let begin = |id| {
+        format!(
+            r#"<hp:ctrl><hp:fieldBegin id="{id}" type="CLICK_HERE" name="empty" editable="1"/></hp:ctrl>"#
+        )
+    };
     let end = |id| format!(r#"<hp:ctrl><hp:fieldEnd beginIDRef="{id}"/></hp:ctrl>"#);
     let (b1, b2, e1, e2) = (begin(1), begin(2), end(1), end(2));
     let object = table(&paragraph("<hp:t>cell</hp:t>"));
@@ -698,8 +718,12 @@ fn two_save_section_def_prefix_keeps_column_in_section_run() {
     first
         .controls
         .insert(0, Control::SectionDef(Box::default()));
-    for offset in &mut first.char_offsets {
-        *offset += 8;
+    {
+        let mut paragraph_offsets = first.char_offsets().to_vec();
+        for offset in &mut paragraph_offsets {
+            *offset += 8;
+        }
+        first.set_char_offsets(paragraph_offsets);
     }
     for shape in &mut first.char_shapes {
         shape.start_pos += 8;
@@ -974,7 +998,16 @@ fn residual_header_tab_items_use_hancom_switch() {
 
 #[test]
 fn residual_c1_tab_halving_path_survives_two_saves() {
-    let values = [0, 1, 1000, 1001, 1 << 31, (1 << 31) + 1, u32::MAX - 1, u32::MAX];
+    let values = [
+        0,
+        1,
+        1000,
+        1001,
+        1 << 31,
+        (1 << 31) + 1,
+        u32::MAX - 1,
+        u32::MAX,
+    ];
     let mut doc = Document::default();
     doc.doc_info.tab_defs.push(TabDef {
         tabs: values.iter().map(|&position| TabItem {
@@ -1009,8 +1042,25 @@ fn residual_c1_tab_halving_path_survives_two_saves() {
 
 #[test]
 fn residual_c1_signed_halving_paths_survive_two_saves() {
-    let values = [-1001, -1000, -1, 0, 1, 1000, 1001, i32::MIN, i32::MIN + 1, i32::MAX - 1, i32::MAX];
-    let types = [LineSpacingType::Fixed, LineSpacingType::SpaceOnly, LineSpacingType::Minimum, LineSpacingType::Percent];
+    let values = [
+        -1001,
+        -1000,
+        -1,
+        0,
+        1,
+        1000,
+        1001,
+        i32::MIN,
+        i32::MIN + 1,
+        i32::MAX - 1,
+        i32::MAX,
+    ];
+    let types = [
+        LineSpacingType::Fixed,
+        LineSpacingType::SpaceOnly,
+        LineSpacingType::Minimum,
+        LineSpacingType::Percent,
+    ];
     let mut doc = Document::default();
     for spacing_type in types {
         for value in values {
@@ -1031,7 +1081,11 @@ fn residual_c1_signed_halving_paths_survive_two_saves() {
         let bytes = rhwp::serializer::serialize_hwpx(&doc).unwrap();
         doc = rhwp::parser::hwpx::parse_hwpx(&bytes).unwrap();
         assert_eq!(doc.doc_info.para_shapes.len(), types.len() * values.len());
-        for (ps, (spacing_type, value)) in doc.doc_info.para_shapes.iter().zip(types.into_iter().flat_map(|t| values.into_iter().map(move |v| (t, v)))) {
+        for (ps, (spacing_type, value)) in doc.doc_info.para_shapes.iter().zip(
+            types
+                .into_iter()
+                .flat_map(|t| values.into_iter().map(move |v| (t, v))),
+        ) {
             let actual = [
                 ps.indent, ps.margin_left, ps.margin_right,
                 ps.spacing_before, ps.spacing_after, ps.line_spacing,
@@ -1077,7 +1131,11 @@ fn residual_c1_missing_track_change_config_keeps_existing_zero_output() {
     let raw = header.replace(r#"<hh:trackchageConfig flags="56"/>"#, "");
     assert!(!raw.contains("trackchageConfig"));
     let input = replace_zip_text(C6, "Contents/header.xml", &raw);
-    let mut zero = replace_zip_text(C6, "Contents/header.xml", &header.replace(r#"flags="56""#, r#"flags="0""#));
+    let mut zero = replace_zip_text(
+        C6,
+        "Contents/header.xml",
+        &header.replace(r#"flags="56""#, r#"flags="0""#),
+    );
     let mut bytes = input;
     for pass in 1..=2 {
         bytes = open_save(&bytes);

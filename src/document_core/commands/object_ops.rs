@@ -651,9 +651,9 @@ impl DocumentCore {
             };
             let para = &mut pic_mut.caption.as_mut().unwrap().paragraphs[0];
             // "그림 " (3글자) + [AutoNumber 8 code units] + " " (1글자)
-            para.text = "그림  ".to_string(); // 그림 + space + space (AutoNumber 사이)
-                                              // char_offsets: 그(0) 림(1) space(2) space(11=3+8, AutoNumber 뒤)
-            para.char_offsets = vec![0, 1, 2, 11];
+            para.replace_text("그림  ".to_string()); // 그림 + space + space (AutoNumber 사이)
+                                                     // char_offsets: 그(0) 림(1) space(2) space(11=3+8, AutoNumber 뒤)
+            para.set_char_offsets(vec![0, 1, 2, 11]);
             // char_count = 텍스트 4 code units + AutoNumber 8 + 끝마커 1 = 13
             para.char_count = 13;
         }
@@ -674,7 +674,7 @@ impl DocumentCore {
                 .controls[control_idx]
             {
                 crate::model::control::Control::Picture(p) => p.caption.as_ref().map_or(0, |c| {
-                    c.paragraphs.first().map_or(0, |p| p.text.chars().count())
+                    c.paragraphs.first().map_or(0, |p| p.text().chars().count())
                 }),
                 _ => 0,
             };
@@ -725,13 +725,13 @@ impl DocumentCore {
         }
 
         // 컨트롤이 차지하는 갭의 시작 위치를 찾아 char_offsets 조정
-        let text_chars: Vec<char> = para.text.chars().collect();
+        let text_chars: Vec<char> = para.text().chars().collect();
         let mut ci = 0usize;
         let mut prev_end: u32 = 0;
         let mut gap_start: Option<u32> = None;
         'outer: for i in 0..text_chars.len() {
-            let offset = if i < para.char_offsets.len() {
-                para.char_offsets[i]
+            let offset = if i < para.char_offsets().len() {
+                para.char_offsets()[i]
             } else {
                 prev_end
             };
@@ -766,10 +766,14 @@ impl DocumentCore {
         // char_offsets 조정
         if let Some(gs) = gap_start {
             let threshold = gs + 8;
-            for offset in para.char_offsets.iter_mut() {
-                if *offset >= threshold {
-                    *offset -= 8;
+            {
+                let mut paragraph_offsets = para.char_offsets().to_vec();
+                for offset in paragraph_offsets.iter_mut() {
+                    if *offset >= threshold {
+                        *offset -= 8;
+                    }
                 }
+                para.set_char_offsets(paragraph_offsets);
             }
         }
 
@@ -863,13 +867,13 @@ impl DocumentCore {
                         ));
                     }
 
-                    let text_chars: Vec<char> = cell_para.text.chars().collect();
+                    let text_chars: Vec<char> = cell_para.text().chars().collect();
                     let mut ci = 0usize;
                     let mut prev_end: u32 = 0;
                     let mut gap_start: Option<u32> = None;
                     'outer: for char_idx in 0..text_chars.len() {
-                        let offset = if char_idx < cell_para.char_offsets.len() {
-                            cell_para.char_offsets[char_idx]
+                        let offset = if char_idx < cell_para.char_offsets().len() {
+                            cell_para.char_offsets()[char_idx]
                         } else {
                             prev_end
                         };
@@ -903,10 +907,14 @@ impl DocumentCore {
 
                     if let Some(gs) = gap_start {
                         let threshold = gs + 8;
-                        for offset in cell_para.char_offsets.iter_mut() {
-                            if *offset >= threshold {
-                                *offset -= 8;
+                        {
+                            let mut paragraph_offsets = cell_para.char_offsets().to_vec();
+                            for offset in paragraph_offsets.iter_mut() {
+                                if *offset >= threshold {
+                                    *offset -= 8;
+                                }
                             }
+                            cell_para.set_char_offsets(paragraph_offsets);
                         }
                     }
 
@@ -917,14 +925,21 @@ impl DocumentCore {
                     if cell_para.char_count >= 8 {
                         cell_para.char_count -= 8;
                     }
-                    let horizontal_width = cell_geometry.map(|(extent, before, after)| {
-                        let style = styles.para_styles.get(cell_para.para_shape_id as usize);
-                        crate::renderer::hwpunit_to_px(extent, dpi)
-                            - crate::renderer::hwpunit_to_px(before as i32, dpi)
-                            - crate::renderer::hwpunit_to_px(after as i32, dpi)
-                            - style.map(|s| s.margin_left + s.margin_right).unwrap_or(0.0)
-                    }).filter(|width| width.is_finite() && *width > 0.0);
-                    Self::reflow_paragraph_line_segs_after_control_delete(cell_para, styles, dpi, horizontal_width);
+                    let horizontal_width = cell_geometry
+                        .map(|(extent, before, after)| {
+                            let style = styles.para_styles.get(cell_para.para_shape_id as usize);
+                            crate::renderer::hwpunit_to_px(extent, dpi)
+                                - crate::renderer::hwpunit_to_px(before as i32, dpi)
+                                - crate::renderer::hwpunit_to_px(after as i32, dpi)
+                                - style.map(|s| s.margin_left + s.margin_right).unwrap_or(0.0)
+                        })
+                        .filter(|width| width.is_finite() && *width > 0.0);
+                    Self::reflow_paragraph_line_segs_after_control_delete(
+                        cell_para,
+                        styles,
+                        dpi,
+                        horizontal_width,
+                    );
                     break;
                 }
 
@@ -972,7 +987,7 @@ impl DocumentCore {
                 ls.text_height = max_remaining_ctrl_height;
                 ls.baseline_distance = (max_remaining_ctrl_height * 850) / 1000;
             }
-        } else if para.text.is_empty() {
+        } else if para.text().is_empty() {
             // 텍스트도 컨트롤도 없음 → 기본 텍스트 높이로 리셋
             if let Some(ls) = para.line_segs.first_mut() {
                 ls.line_height = 1000;
@@ -983,7 +998,9 @@ impl DocumentCore {
         } else {
             // 텍스트가 있으면 reflow_line_segs로 재계산
             if let Some(width) = horizontal_cell_width {
-                crate::renderer::composer::reflow_horizontal_cell_line_segs(para, width, styles, dpi);
+                crate::renderer::composer::reflow_horizontal_cell_line_segs(
+                    para, width, styles, dpi,
+                );
             } else {
                 let seg_width = para.line_segs.first().map(|s| s.segment_width).unwrap_or(0);
                 let available_width_px = crate::renderer::hwpunit_to_px(seg_width, dpi);
@@ -1220,16 +1237,19 @@ impl DocumentCore {
         table_raw_header_extra[0..2].copy_from_slice(&1u16.to_le_bytes());
         table_raw_header_extra[4..6].copy_from_slice(&1u16.to_le_bytes());
 
-        let table_para = Paragraph {
-            text: String::new(),
-            char_count: 9, // 확장 제어문자(8 code units) + 문단끝(1)
-            control_mask: 0x00000800,
-            char_offsets: vec![],
-            char_shapes: vec![CharShapeRef {
+        let table_para = {
+            let mut paragraph_value = Paragraph::with_text(String::new(), vec![]);
+
+            paragraph_value.char_count = 9;
+            // 확장 제어문자(8 code units) + 문단끝(1)
+            paragraph_value.control_mask = 0x00000800;
+
+            paragraph_value.char_shapes = vec![CharShapeRef {
                 start_pos: 0,
                 char_shape_id: default_char_shape_id,
-            }],
-            line_segs: vec![LineSeg {
+            }];
+
+            paragraph_value.line_segs = vec![LineSeg {
                 text_start: 0,
                 line_height: 1000,
                 text_height: 1000,
@@ -1238,22 +1258,29 @@ impl DocumentCore {
                 segment_width: 0, // 한컴 표준: 표 문단의 segment_width는 0
                 tag: 0x00060000,
                 ..Default::default()
-            }],
-            para_shape_id: table_para_shape_id,
-            style_id: 0,
-            controls: vec![Control::Table(Box::new(table))],
-            ctrl_data_records: vec![None],
-            has_para_text: true,
-            raw_header_extra: table_raw_header_extra,
-            char_count_msb: false,
-            ..Default::default()
+            }];
+
+            paragraph_value.para_shape_id = table_para_shape_id;
+
+            paragraph_value.style_id = 0;
+
+            paragraph_value.controls = vec![Control::Table(Box::new(table))];
+
+            paragraph_value.ctrl_data_records = vec![None];
+
+            paragraph_value.has_para_text = true;
+
+            paragraph_value.raw_header_extra = table_raw_header_extra;
+
+            paragraph_value.char_count_msb = false;
+            paragraph_value
         };
 
         // --- 5. 커서 위치에 삽입 ---
         self.document.sections[section_idx].raw_stream = None;
 
         let para = &self.document.sections[section_idx].paragraphs[para_idx];
-        let is_empty_para = para.text.is_empty() && para.controls.is_empty();
+        let is_empty_para = para.text().is_empty() && para.controls.is_empty();
 
         let insert_para_idx;
         if is_empty_para && char_offset == 0 {
@@ -1268,7 +1295,7 @@ impl DocumentCore {
             insert_para_idx = para_idx;
         } else {
             // 문단 중간이면 분할 후 삽입
-            if char_offset > 0 && !para.text.is_empty() {
+            if char_offset > 0 && !para.text().is_empty() {
                 let new_para =
                     self.document.sections[section_idx].paragraphs[para_idx].split_at(char_offset);
                 self.document.sections[section_idx]
@@ -1292,18 +1319,25 @@ impl DocumentCore {
         let mut empty_raw_header_extra = vec![0u8; 10];
         empty_raw_header_extra[0..2].copy_from_slice(&1u16.to_le_bytes());
         empty_raw_header_extra[4..6].copy_from_slice(&1u16.to_le_bytes());
-        let empty_para = Paragraph {
-            text: String::new(),
-            char_count: 1,
-            char_count_msb: false,
-            control_mask: 0,
-            para_shape_id: default_para_shape_id,
-            style_id: 0,
-            char_shapes: vec![CharShapeRef {
+        let empty_para = {
+            let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new());
+
+            paragraph_value.char_count = 1;
+
+            paragraph_value.char_count_msb = false;
+
+            paragraph_value.control_mask = 0;
+
+            paragraph_value.para_shape_id = default_para_shape_id;
+
+            paragraph_value.style_id = 0;
+
+            paragraph_value.char_shapes = vec![CharShapeRef {
                 start_pos: 0,
                 char_shape_id: default_char_shape_id,
-            }],
-            line_segs: vec![LineSeg {
+            }];
+
+            paragraph_value.line_segs = vec![LineSeg {
                 text_start: 0,
                 line_height: 1000,
                 text_height: 1000,
@@ -1312,10 +1346,12 @@ impl DocumentCore {
                 segment_width: content_width as i32, // 한컴 표준: 편집 영역 폭
                 tag: 0x00060000,
                 ..Default::default()
-            }],
-            has_para_text: false,
-            raw_header_extra: empty_raw_header_extra,
-            ..Default::default()
+            }];
+
+            paragraph_value.has_para_text = false;
+
+            paragraph_value.raw_header_extra = empty_raw_header_extra;
+            paragraph_value
         };
         self.document.sections[section_idx]
             .paragraphs
@@ -1572,26 +1608,30 @@ impl DocumentCore {
 
         // char_offsets에 8 UTF-16 코드유닛 갭 삽입
         // 확장 제어문자는 8 코드유닛을 차지
-        let insert_utf16_pos = if char_offset < para.char_offsets.len() {
-            para.char_offsets[char_offset]
-        } else if !para.char_offsets.is_empty() {
-            let last_idx = para.char_offsets.len() - 1;
+        let insert_utf16_pos = if char_offset < para.char_offsets().len() {
+            para.char_offsets()[char_offset]
+        } else if !para.char_offsets().is_empty() {
+            let last_idx = para.char_offsets().len() - 1;
             let last_char_len = para
-                .text
+                .text()
                 .chars()
                 .nth(last_idx)
                 .map(|c| c.len_utf16() as u32)
                 .unwrap_or(1);
-            para.char_offsets[last_idx] + last_char_len
+            para.char_offsets()[last_idx] + last_char_len
         } else {
             0
         };
 
         // 이후 char_offsets를 8만큼 shift
-        for offset in para.char_offsets.iter_mut() {
-            if *offset >= insert_utf16_pos {
-                *offset += 8;
+        {
+            let mut paragraph_offsets = para.char_offsets().to_vec();
+            for offset in paragraph_offsets.iter_mut() {
+                if *offset >= insert_utf16_pos {
+                    *offset += 8;
+                }
             }
+            para.set_char_offsets(paragraph_offsets);
         }
 
         // char_count 갱신 (확장 제어문자 8 + 기존)
@@ -1842,16 +1882,19 @@ impl DocumentCore {
         pic_raw_header_extra[0..2].copy_from_slice(&1u16.to_le_bytes()); // n_char_shapes=1
         pic_raw_header_extra[4..6].copy_from_slice(&1u16.to_le_bytes()); // n_line_segs=1
 
-        let pic_para = Paragraph {
-            text: String::new(),
-            char_count: 9, // 확장 제어문자(8 code units) + 문단끝(1)
-            control_mask: 0x00000800,
-            char_offsets: vec![],
-            char_shapes: vec![CharShapeRef {
+        let pic_para = {
+            let mut paragraph_value = Paragraph::with_text(String::new(), vec![]);
+
+            paragraph_value.char_count = 9;
+            // 확장 제어문자(8 code units) + 문단끝(1)
+            paragraph_value.control_mask = 0x00000800;
+
+            paragraph_value.char_shapes = vec![CharShapeRef {
                 start_pos: 0,
                 char_shape_id: default_char_shape_id,
-            }],
-            line_segs: vec![LineSeg {
+            }];
+
+            paragraph_value.line_segs = vec![LineSeg {
                 text_start: 0,
                 line_height: height as i32,
                 text_height: height as i32,
@@ -1860,22 +1903,29 @@ impl DocumentCore {
                 segment_width: content_width as i32,
                 tag: 0x00060000,
                 ..Default::default()
-            }],
-            para_shape_id: default_para_shape_id,
-            style_id: 0,
-            controls: vec![Control::Picture(Box::new(pic))],
-            ctrl_data_records: vec![None],
-            has_para_text: true,
-            raw_header_extra: pic_raw_header_extra,
-            char_count_msb: false,
-            ..Default::default()
+            }];
+
+            paragraph_value.para_shape_id = default_para_shape_id;
+
+            paragraph_value.style_id = 0;
+
+            paragraph_value.controls = vec![Control::Picture(Box::new(pic))];
+
+            paragraph_value.ctrl_data_records = vec![None];
+
+            paragraph_value.has_para_text = true;
+
+            paragraph_value.raw_header_extra = pic_raw_header_extra;
+
+            paragraph_value.char_count_msb = false;
+            paragraph_value
         };
 
         // 커서 위치에 삽입
         self.document.sections[section_idx].raw_stream = None;
 
         let para = &self.document.sections[section_idx].paragraphs[para_idx];
-        let is_empty_para = para.text.is_empty() && para.controls.is_empty();
+        let is_empty_para = para.text().is_empty() && para.controls.is_empty();
 
         let insert_para_idx;
         if is_empty_para && char_offset == 0 {
@@ -1887,7 +1937,7 @@ impl DocumentCore {
                 .insert(para_idx, pic_para);
             insert_para_idx = para_idx;
         } else {
-            if char_offset > 0 && !para.text.is_empty() {
+            if char_offset > 0 && !para.text().is_empty() {
                 let new_para =
                     self.document.sections[section_idx].paragraphs[para_idx].split_at(char_offset);
                 self.document.sections[section_idx]
@@ -1909,18 +1959,25 @@ impl DocumentCore {
         let mut empty_raw_header_extra = vec![0u8; 10];
         empty_raw_header_extra[0..2].copy_from_slice(&1u16.to_le_bytes());
         empty_raw_header_extra[4..6].copy_from_slice(&1u16.to_le_bytes());
-        let empty_para = Paragraph {
-            text: String::new(),
-            char_count: 1,
-            char_count_msb: false,
-            control_mask: 0,
-            para_shape_id: default_para_shape_id,
-            style_id: 0,
-            char_shapes: vec![CharShapeRef {
+        let empty_para = {
+            let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new());
+
+            paragraph_value.char_count = 1;
+
+            paragraph_value.char_count_msb = false;
+
+            paragraph_value.control_mask = 0;
+
+            paragraph_value.para_shape_id = default_para_shape_id;
+
+            paragraph_value.style_id = 0;
+
+            paragraph_value.char_shapes = vec![CharShapeRef {
                 start_pos: 0,
                 char_shape_id: default_char_shape_id,
-            }],
-            line_segs: vec![LineSeg {
+            }];
+
+            paragraph_value.line_segs = vec![LineSeg {
                 text_start: 0,
                 line_height: 1000,
                 text_height: 1000,
@@ -1929,10 +1986,12 @@ impl DocumentCore {
                 segment_width: content_width as i32,
                 tag: 0x00060000,
                 ..Default::default()
-            }],
-            has_para_text: false,
-            raw_header_extra: empty_raw_header_extra,
-            ..Default::default()
+            }];
+
+            paragraph_value.has_para_text = false;
+
+            paragraph_value.raw_header_extra = empty_raw_header_extra;
+            paragraph_value
         };
         self.document.sections[section_idx]
             .paragraphs
@@ -2256,25 +2315,29 @@ impl DocumentCore {
         para.controls.push(control);
         para.ctrl_data_records.push(None);
 
-        let insert_utf16_pos = if char_offset < para.char_offsets.len() {
-            para.char_offsets[char_offset]
-        } else if !para.char_offsets.is_empty() {
-            let last_idx = para.char_offsets.len() - 1;
+        let insert_utf16_pos = if char_offset < para.char_offsets().len() {
+            para.char_offsets()[char_offset]
+        } else if !para.char_offsets().is_empty() {
+            let last_idx = para.char_offsets().len() - 1;
             let last_char_len = para
-                .text
+                .text()
                 .chars()
                 .nth(last_idx)
                 .map(|c| c.len_utf16() as u32)
                 .unwrap_or(1);
-            para.char_offsets[last_idx] + last_char_len
+            para.char_offsets()[last_idx] + last_char_len
         } else {
             0
         };
 
-        for offset in para.char_offsets.iter_mut() {
-            if *offset >= insert_utf16_pos {
-                *offset += 8;
+        {
+            let mut paragraph_offsets = para.char_offsets().to_vec();
+            for offset in paragraph_offsets.iter_mut() {
+                if *offset >= insert_utf16_pos {
+                    *offset += 8;
+                }
             }
+            para.set_char_offsets(paragraph_offsets);
         }
         para.char_count += 8;
         para.has_para_text = true;
@@ -2973,13 +3036,13 @@ impl DocumentCore {
         }
 
         // char_offsets 조정 (delete_picture_control_native와 동일)
-        let text_chars: Vec<char> = para.text.chars().collect();
+        let text_chars: Vec<char> = para.text().chars().collect();
         let mut ci = 0usize;
         let mut prev_end: u32 = 0;
         let mut gap_start: Option<u32> = None;
         'outer: for i in 0..text_chars.len() {
-            let offset = if i < para.char_offsets.len() {
-                para.char_offsets[i]
+            let offset = if i < para.char_offsets().len() {
+                para.char_offsets()[i]
             } else {
                 prev_end
             };
@@ -3012,10 +3075,14 @@ impl DocumentCore {
         }
         if let Some(gs) = gap_start {
             let threshold = gs + 8;
-            for offset in para.char_offsets.iter_mut() {
-                if *offset >= threshold {
-                    *offset -= 8;
+            {
+                let mut paragraph_offsets = para.char_offsets().to_vec();
+                for offset in paragraph_offsets.iter_mut() {
+                    if *offset >= threshold {
+                        *offset -= 8;
+                    }
                 }
+                para.set_char_offsets(paragraph_offsets);
             }
         }
 
@@ -3124,18 +3191,25 @@ impl DocumentCore {
         let mut inner_raw_header_extra = vec![0u8; 10];
         inner_raw_header_extra[0..2].copy_from_slice(&1u16.to_le_bytes());
         inner_raw_header_extra[4..6].copy_from_slice(&1u16.to_le_bytes());
-        let inner_para = Paragraph {
-            text: String::new(),
-            char_count: 1,
-            char_count_msb: true,
-            control_mask: 0,
-            para_shape_id: default_para_shape_id,
-            style_id: 0,
-            char_shapes: vec![CharShapeRef {
+        let inner_para = {
+            let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new());
+
+            paragraph_value.char_count = 1;
+
+            paragraph_value.char_count_msb = true;
+
+            paragraph_value.control_mask = 0;
+
+            paragraph_value.para_shape_id = default_para_shape_id;
+
+            paragraph_value.style_id = 0;
+
+            paragraph_value.char_shapes = vec![CharShapeRef {
                 start_pos: 0,
                 char_shape_id: default_char_shape_id,
-            }],
-            line_segs: vec![LineSeg {
+            }];
+
+            paragraph_value.line_segs = vec![LineSeg {
                 text_start: 0,
                 line_height: 1000,
                 text_height: 1000,
@@ -3144,10 +3218,12 @@ impl DocumentCore {
                 segment_width: tb_inner_width as i32,
                 tag: 0x00060000,
                 ..Default::default()
-            }],
-            has_para_text: false,
-            raw_header_extra: inner_raw_header_extra,
-            ..Default::default()
+            }];
+
+            paragraph_value.has_para_text = false;
+
+            paragraph_value.raw_header_extra = inner_raw_header_extra;
+            paragraph_value
         };
 
         // --- 도형 구조 조립 ---
@@ -3470,11 +3546,11 @@ impl DocumentCore {
             paragraph.ctrl_data_records.insert(insert_idx, None);
 
             // char_offsets에 raw offset 삽입
-            if !paragraph.char_offsets.is_empty() {
-                let raw_offset = if insert_idx > 0 && insert_idx <= paragraph.char_offsets.len() {
-                    paragraph.char_offsets[insert_idx - 1] + 8
-                } else if !paragraph.char_offsets.is_empty() {
-                    let first = paragraph.char_offsets[0];
+            if !paragraph.char_offsets().is_empty() {
+                let raw_offset = if insert_idx > 0 && insert_idx <= paragraph.char_offsets().len() {
+                    paragraph.char_offsets()[insert_idx - 1] + 8
+                } else if !paragraph.char_offsets().is_empty() {
+                    let first = paragraph.char_offsets()[0];
                     if first >= 8 {
                         first - 8
                     } else {
@@ -3483,12 +3559,20 @@ impl DocumentCore {
                 } else {
                     (char_offset * 2) as u32
                 };
-                paragraph.char_offsets.insert(insert_idx, raw_offset);
+                {
+                    let mut paragraph_offsets = paragraph.char_offsets().to_vec();
+                    paragraph_offsets.insert(insert_idx, raw_offset);
+                    paragraph.set_char_offsets(paragraph_offsets);
+                };
             }
 
             // 삽입된 컨트롤 이후의 char_offsets를 8만큼 증가 (텍스트 매핑 유지)
-            for co in paragraph.char_offsets.iter_mut().skip(insert_idx + 1) {
-                *co += 8;
+            {
+                let mut paragraph_offsets = paragraph.char_offsets().to_vec();
+                for co in paragraph_offsets.iter_mut().skip(insert_idx + 1) {
+                    *co += 8;
+                }
+                paragraph.set_char_offsets(paragraph_offsets);
             }
 
             // char_count 갱신 (확장 컨트롤 = 8 code units)
@@ -4389,13 +4473,13 @@ impl DocumentCore {
             let para = &mut self.document.sections[section_idx].paragraphs[pi];
 
             // char_offsets 조정
-            let text_chars: Vec<char> = para.text.chars().collect();
+            let text_chars: Vec<char> = para.text().chars().collect();
             let mut ctrl_ci = 0usize;
             let mut prev_end: u32 = 0;
             let mut gap_start: Option<u32> = None;
             'outer: for i in 0..text_chars.len() {
-                let offset = if i < para.char_offsets.len() {
-                    para.char_offsets[i]
+                let offset = if i < para.char_offsets().len() {
+                    para.char_offsets()[i]
                 } else {
                     prev_end
                 };
@@ -4428,10 +4512,14 @@ impl DocumentCore {
             }
             if let Some(gs) = gap_start {
                 let threshold = gs + 8;
-                for offset in para.char_offsets.iter_mut() {
-                    if *offset >= threshold {
-                        *offset -= 8;
+                {
+                    let mut paragraph_offsets = para.char_offsets().to_vec();
+                    for offset in paragraph_offsets.iter_mut() {
+                        if *offset >= threshold {
+                            *offset -= 8;
+                        }
                     }
+                    para.set_char_offsets(paragraph_offsets);
                 }
             }
 
@@ -4466,10 +4554,14 @@ impl DocumentCore {
 
             // char_offsets: 텍스트 문자 매핑이므로 컨트롤 인덱스와 무관
             // 기존 char_offsets에서 마지막 gap 위치 다음에 8바이트 추가
-            if !para.char_offsets.is_empty() {
+            if !para.char_offsets().is_empty() {
                 // 모든 기존 char_offsets를 8씩 증가 (컨트롤이 앞에 삽입되므로)
-                for co in para.char_offsets.iter_mut() {
-                    *co += 8;
+                {
+                    let mut paragraph_offsets = para.char_offsets().to_vec();
+                    for co in paragraph_offsets.iter_mut() {
+                        *co += 8;
+                    }
+                    para.set_char_offsets(paragraph_offsets);
                 }
             }
             para.char_count += 8;
@@ -4658,10 +4750,14 @@ impl DocumentCore {
 
         // char_offsets: 그룹 1개 → 자식 N개, net 변화 = (N-1) * 8
         let children_count = insert_idx - control_idx;
-        if children_count > 1 && !para.char_offsets.is_empty() {
+        if children_count > 1 && !para.char_offsets().is_empty() {
             let net_delta = ((children_count - 1) * 8) as u32;
-            for co in para.char_offsets.iter_mut() {
-                *co += net_delta;
+            {
+                let mut paragraph_offsets = para.char_offsets().to_vec();
+                for co in paragraph_offsets.iter_mut() {
+                    *co += net_delta;
+                }
+                para.set_char_offsets(paragraph_offsets);
             }
         }
 
@@ -5066,18 +5162,25 @@ impl DocumentCore {
             })
         };
 
-        let inner_para = Paragraph {
-            text: String::new(),
-            char_count: 1,
-            char_count_msb: true,
-            control_mask: 0,
-            para_shape_id: default_para_shape_id,
-            style_id: 0,
-            char_shapes: vec![CharShapeRef {
+        let inner_para = {
+            let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new());
+
+            paragraph_value.char_count = 1;
+
+            paragraph_value.char_count_msb = true;
+
+            paragraph_value.control_mask = 0;
+
+            paragraph_value.para_shape_id = default_para_shape_id;
+
+            paragraph_value.style_id = 0;
+
+            paragraph_value.char_shapes = vec![CharShapeRef {
                 start_pos: 0,
                 char_shape_id: default_char_shape_id,
-            }],
-            line_segs: vec![LineSeg {
+            }];
+
+            paragraph_value.line_segs = vec![LineSeg {
                 text_start: 0,
                 line_height: 1000,
                 text_height: 1000,
@@ -5086,9 +5189,10 @@ impl DocumentCore {
                 segment_width: 0,
                 tag: 0x00060000,
                 ..Default::default()
-            }],
-            has_para_text: false,
-            ..Default::default()
+            }];
+
+            paragraph_value.has_para_text = false;
+            paragraph_value
         };
 
         let footnote = Footnote {
@@ -5122,11 +5226,15 @@ impl DocumentCore {
         // char_offsets[i]는 텍스트 i번째 문자의 UTF-16 오프셋 (컨트롤은 갭으로 표현)
         // 주의: char_offset은 텍스트 기준 인덱스이지만, char_offsets 배열 길이는 text.chars().count()
         // text에 포함되지 않는 제어 문자(cc - text_len 차이)가 있을 수 있으므로 범위 확인
-        if !paragraph.char_offsets.is_empty() {
-            let text_len = paragraph.text.chars().count();
+        if !paragraph.char_offsets().is_empty() {
+            let text_len = paragraph.text().chars().count();
             let safe_offset = char_offset.min(text_len);
-            for co in paragraph.char_offsets[safe_offset..].iter_mut() {
-                *co += 8;
+            {
+                let mut paragraph_offsets = paragraph.char_offsets().to_vec();
+                for co in paragraph_offsets[safe_offset..].iter_mut() {
+                    *co += 8;
+                }
+                paragraph.set_char_offsets(paragraph_offsets);
             }
         }
         paragraph.char_count += 8;

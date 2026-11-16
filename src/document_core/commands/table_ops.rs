@@ -2150,9 +2150,9 @@ impl DocumentCore {
             let table = self.get_table_mut(section_idx, parent_para_idx, control_idx)?;
             let cap_max_width = table.caption.as_ref().map(|c| c.max_width).unwrap_or(0);
             let para = &mut table.caption.as_mut().unwrap().paragraphs[0];
-            para.text = caption_text;
+            para.replace_text(caption_text);
             // char_offsets: 순차적 (AutoNumber 갭 없음, 모델=렌더링 일치)
-            para.char_offsets = (0..char_count_text).collect();
+            para.set_char_offsets((0..char_count_text).collect());
             para.char_count = char_count_text + 1; // 텍스트 + 끝마커
                                                    // AutoNumber 컨트롤 제거 (번호가 텍스트에 직접 포함됨)
             para.controls.clear();
@@ -2178,7 +2178,7 @@ impl DocumentCore {
             let char_offset = {
                 let table = self.get_table_mut(section_idx, parent_para_idx, control_idx)?;
                 table.caption.as_ref().map_or(0, |c| {
-                    c.paragraphs.first().map_or(0, |p| p.text.chars().count())
+                    c.paragraphs.first().map_or(0, |p| p.text().chars().count())
                 })
             };
             Ok(format!(
@@ -2479,13 +2479,13 @@ impl DocumentCore {
 
         // 확장 컨트롤은 para.text에 포함되지 않고 char_offsets 간의 갭(8 code unit)에 배치된다.
         // 컨트롤 제거 시 해당 갭을 닫기 위해 후속 char_offsets를 8씩 감소시킨다.
-        let text_chars: Vec<char> = para.text.chars().collect();
+        let text_chars: Vec<char> = para.text().chars().collect();
         let mut ci = 0usize;
         let mut prev_end: u32 = 0;
         let mut gap_start: Option<u32> = None;
         'outer: for (i, ch) in text_chars.iter().enumerate() {
-            let offset = if i < para.char_offsets.len() {
-                para.char_offsets[i]
+            let offset = if i < para.char_offsets().len() {
+                para.char_offsets()[i]
             } else {
                 prev_end
             };
@@ -2519,10 +2519,14 @@ impl DocumentCore {
 
         if let Some(gs) = gap_start {
             let threshold = gs + 8;
-            for offset in para.char_offsets.iter_mut() {
-                if *offset >= threshold {
-                    *offset -= 8;
+            {
+                let mut paragraph_offsets = para.char_offsets().to_vec();
+                for offset in paragraph_offsets.iter_mut() {
+                    if *offset >= threshold {
+                        *offset -= 8;
+                    }
                 }
+                para.set_char_offsets(paragraph_offsets);
             }
         }
 
@@ -2686,7 +2690,7 @@ impl DocumentCore {
             cells
                 .get(idx)
                 .and_then(|cell| cell.paragraphs.first())
-                .and_then(|p| parse_cell_number(&p.text))
+                .and_then(|p| parse_cell_number(&p.text()))
         };
 
         let ctx = crate::document_core::table_calc::TableContext {
@@ -2713,9 +2717,7 @@ impl DocumentCore {
                         } else {
                             format!("{}", result)
                         };
-                        cell_para.text = text;
-                        let new_len = cell_para.text.chars().count();
-                        cell_para.char_offsets = (0..new_len).map(|i| i as u32).collect();
+                        cell_para.replace_text(text);
                     }
                 }
             }
@@ -2769,7 +2771,7 @@ impl DocumentCore {
                 cells
                     .get(idx)
                     .and_then(|cell| cell.paragraphs.first())
-                    .and_then(|p| parse_cell_number(&p.text))
+                    .and_then(|p| parse_cell_number(&p.text()))
             };
             let ctx = crate::document_core::table_calc::TableContext {
                 row_count,
@@ -2793,9 +2795,7 @@ impl DocumentCore {
                     } else {
                         format!("{}", result)
                     };
-                    cell_para.text = text;
-                    let new_len = cell_para.text.chars().count();
-                    cell_para.char_offsets = (0..new_len).map(|i| i as u32).collect();
+                    cell_para.replace_text(text);
                 }
             }
             table.dirty = true;

@@ -470,7 +470,7 @@ fn table_caption_formats_reflow_at_caption_width() {
         .as_ref()
         .unwrap()
         .paragraphs[0]
-        .text
+        .text()
         .chars()
         .count();
     fixture
@@ -744,7 +744,7 @@ fn insert_caption_text(fixture: &mut Fixture) -> usize {
         .as_ref()
         .unwrap()
         .paragraphs[0]
-        .text
+        .text()
         .chars()
         .count();
     fixture

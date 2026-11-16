@@ -108,7 +108,7 @@ impl DocumentCore {
         // 강제 줄바꿈(\n, 0x000A)이 줄 끝에 있으면 그 앞 위치를 char_end로 사용
         // (End 키가 다음 줄로 넘어가는 것을 방지)
         let char_end = if line_index + 1 < line_count && raw_char_end > char_start {
-            let chars: Vec<char> = para.text.chars().collect();
+            let chars: Vec<char> = para.text().chars().collect();
             if raw_char_end > 0 && chars.get(raw_char_end - 1) == Some(&'\n') {
                 raw_char_end - 1
             } else {
@@ -128,7 +128,7 @@ impl DocumentCore {
 
     /// 문단의 line_segs에서 각 줄의 시작 char index 배열을 구한다.
     pub(crate) fn build_line_char_starts(para: &crate::model::paragraph::Paragraph) -> Vec<usize> {
-        let char_offsets = &para.char_offsets;
+        let char_offsets = &para.char_offsets();
         para.line_segs
             .iter()
             .map(|ls| {
@@ -191,7 +191,7 @@ impl DocumentCore {
         let char_offset = if caret_utf16 == 0 {
             0
         } else {
-            utf16_pos_to_char_idx(&para.char_offsets, caret_utf16)
+            utf16_pos_to_char_idx(&para.char_offsets(), caret_utf16)
         };
 
         // char_offset이 문단 길이를 초과하지 않도록

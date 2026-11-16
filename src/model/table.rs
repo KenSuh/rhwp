@@ -250,17 +250,26 @@ impl Cell {
                 raw_header_extra[6..10].copy_from_slice(&[0, 0, 0, 0]);
             }
 
-            Paragraph {
-                char_count: 1,        // 빈 문단: 끝 마커(0x000D) 포함
-                char_count_msb: true, // 셀 문단은 항상 MSB 설정
-                text: String::new(),
-                char_shapes: tpl_para.char_shapes.iter().take(1).cloned().collect(),
-                line_segs: tpl_para.line_segs.iter().take(1).cloned().collect(),
-                para_shape_id: tpl_para.para_shape_id,
-                style_id: tpl_para.style_id,
-                raw_header_extra,
-                has_para_text: false, // 빈 셀은 PARA_TEXT 불필요
-                ..Default::default()
+            {
+                let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new());
+
+                paragraph_value.char_count = 1;
+                // 빈 문단: 끝 마커(0x000D) 포함
+                paragraph_value.char_count_msb = true;
+
+                paragraph_value.char_shapes =
+                    tpl_para.char_shapes.iter().take(1).cloned().collect();
+
+                paragraph_value.line_segs = tpl_para.line_segs.iter().take(1).cloned().collect();
+
+                paragraph_value.para_shape_id = tpl_para.para_shape_id;
+
+                paragraph_value.style_id = tpl_para.style_id;
+
+                paragraph_value.raw_header_extra = raw_header_extra;
+
+                paragraph_value.has_para_text = false;
+                paragraph_value
             }
         } else {
             Paragraph::new_empty()
@@ -995,21 +1004,33 @@ impl Table {
                 && cell.row <= end_row;
             if in_range {
                 for para in &cell.paragraphs {
-                    if !para.text.is_empty() {
-                        extra_paragraphs.push(Paragraph {
-                            text: para.text.clone(),
-                            char_count: para.char_count,
-                            char_count_msb: para.char_count_msb,
-                            control_mask: para.control_mask,
-                            char_offsets: para.char_offsets.clone(),
-                            char_shapes: para.char_shapes.clone(),
-                            line_segs: para.line_segs.clone(),
-                            range_tags: para.range_tags.clone(),
-                            para_shape_id: para.para_shape_id,
-                            style_id: para.style_id,
-                            raw_header_extra: para.raw_header_extra.clone(),
-                            has_para_text: para.has_para_text,
-                            ..Default::default()
+                    if !para.text().is_empty() {
+                        extra_paragraphs.push({
+                            let mut paragraph_value = Paragraph::with_text(
+                                para.text().to_owned(),
+                                para.char_offsets().to_owned(),
+                            );
+
+                            paragraph_value.char_count = para.char_count;
+
+                            paragraph_value.char_count_msb = para.char_count_msb;
+
+                            paragraph_value.control_mask = para.control_mask;
+
+                            paragraph_value.char_shapes = para.char_shapes.clone();
+
+                            paragraph_value.line_segs = para.line_segs.clone();
+
+                            paragraph_value.range_tags = para.range_tags.clone();
+
+                            paragraph_value.para_shape_id = para.para_shape_id;
+
+                            paragraph_value.style_id = para.style_id;
+
+                            paragraph_value.raw_header_extra = para.raw_header_extra.clone();
+
+                            paragraph_value.has_para_text = para.has_para_text;
+                            paragraph_value
                         });
                     }
                 }

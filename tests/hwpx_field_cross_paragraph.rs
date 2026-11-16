@@ -221,8 +221,8 @@ fn body_field_spanning_paragraphs_round_trips_two_saves() {
     let paras = &doc.sections[0].paragraphs;
     assert!(paras[0].field_ranges.is_empty());
     assert_eq!(paras[1].field_ranges.len(), 1);
-    assert_eq!(paras[0].text, "앞😀시작");
-    assert_eq!(paras[2].text, "끝뒤");
+    assert_eq!(paras[0].text(), "앞😀시작");
+    assert_eq!(paras[2].text(), "끝뒤");
 
     let saved = serialize_hwpx(&doc).expect("save");
     let saved_tokens = field_tokens(&section_xml(&saved));
@@ -410,13 +410,20 @@ fn c1_field_end_tracks_text_edits_and_paragraph_structure() {
 
 #[test]
 fn c1_deleted_or_reversed_endpoints_refuse_save() {
-    let mut core = rhwp::DocumentCore::from_bytes(&editable_cross_paragraph_fixture()).unwrap();
-    core.delete_text_native(0, 1, 1, 1).unwrap();
-    let err = core
-        .export_hwpx_native()
-        .err()
-        .unwrap_or_else(|| panic!("deleting the end's anchor text must refuse"));
-    assert!(err.to_string().contains("HWPX_FIELD_ENDPOINT"), "{err}");
+    let input = fixture(&format!(
+        "{}{}",
+        paragraph(&format!("<hp:t>ZZ</hp:t>{}<hp:t>12</hp:t>", begin(1))),
+        paragraph(&format!("<hp:t>AB</hp:t>{}<hp:t>CD</hp:t>", end(1)))
+    ));
+    for para in [0, 1] {
+        let mut core = rhwp::DocumentCore::from_bytes(&input).unwrap();
+        core.delete_text_native(0, para, 1, 2).unwrap();
+        let err = core.export_hwpx_native().unwrap_err();
+        assert!(
+            err.to_string().contains("HWPX_FIELD_ENDPOINT"),
+            "paragraph {para}: {err}"
+        );
+    }
 
     let mut doc = parse_hwpx(&editable_cross_paragraph_fixture()).unwrap();
     doc.sections[0].paragraphs.swap(0, 1);
@@ -512,6 +519,112 @@ fn c1_field_replacements_and_guide_cleanup_shift_enclosing_endpoint() {
             field_tokens(&section_xml(&saved)),
             field_tokens(&section_xml(&fixture(&body(expected)))),
             "guide={guide}"
+        );
+        assert_eq!(serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(), saved);
+    }
+}
+
+#[test]
+fn c1_formula_replacement_refuses_removed_begin() {
+    let content = format!(
+        "{}{}",
+        paragraph(&format!("<hp:t>Z</hp:t>{}<hp:t>12</hp:t>", begin(1))),
+        paragraph(&format!("<hp:t>AB</hp:t>{}<hp:t>CD</hp:t>", end(1)))
+    );
+    let mut doc =
+        rhwp::wasm_api::HwpDocument::from_bytes(&fixture(&wrapped_field_list("cell", &content)))
+            .unwrap();
+    doc.evaluate_table_formula(0, 0, 0, 0, 0, "=12345", true)
+        .unwrap();
+    let error = doc.export_hwpx_native().unwrap_err();
+    assert!(error.to_string().contains("HWPX_FIELD_ENDPOINT"), "{error}");
+}
+
+#[test]
+fn c1_nested_formula_replacement_refuses_removed_begin() {
+    let content = format!(
+        "{}{}",
+        paragraph(&format!("<hp:t>Z</hp:t>{}<hp:t>12</hp:t>", begin(1))),
+        paragraph(&format!("<hp:t>AB</hp:t>{}<hp:t>CD</hp:t>", end(1)))
+    );
+    let nested = wrapped_field_list("cell", &wrapped_field_list("cell", &content));
+    let mut doc = rhwp::wasm_api::HwpDocument::from_bytes(&fixture(&nested)).unwrap();
+    doc.evaluate_table_formula_by_path(0, 0, r#"[{"controlIndex":0,"cellIndex":0,"cellParaIndex":0},{"controlIndex":0,"cellIndex":0,"cellParaIndex":0}]"#, 0, 0, "=12345", true).unwrap();
+    let error = doc.export_hwpx_native().unwrap_err();
+    assert!(error.to_string().contains("HWPX_FIELD_ENDPOINT"), "{error}");
+}
+
+#[test]
+fn c1_boundary_insert_undo_redo_keeps_membership() {
+    for endpoint in ["begin", "end"] {
+        let input = fixture(&format!(
+            "{}{}",
+            paragraph(&format!("<hp:t>ZZ</hp:t>{}<hp:t>12</hp:t>", begin(1))),
+            paragraph(&format!("<hp:t>AB</hp:t>{}<hp:t>CD</hp:t>", end(1)))
+        ));
+        let mut doc = rhwp::wasm_api::HwpDocument::from_bytes(&input).unwrap();
+        let para = if endpoint == "begin" { 0 } else { 1 };
+        for (action, expected) in [("insert", "12ABXY"), ("undo", "12AB"), ("redo", "12ABXY")] {
+            if action == "undo" {
+                doc.delete_text(0, para, 2, 2).unwrap();
+            } else {
+                doc.insert_text(0, para, 2, "XY").unwrap();
+            }
+            let saved = doc
+                .export_hwpx_native()
+                .unwrap_or_else(|e| panic!("{endpoint}/{action}: {e}"));
+            let expected = if endpoint == "begin" && action != "undo" {
+                "XY12AB"
+            } else {
+                expected
+            };
+            assert_eq!(
+                field_content(&field_tokens(&section_xml(&saved))),
+                expected,
+                "{endpoint}/{action}"
+            );
+            assert_eq!(
+                serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(),
+                saved,
+                "{endpoint}/{action}: second save"
+            );
+        }
+    }
+}
+
+#[test]
+fn c1_delete_ending_at_endpoint_keeps_marker() {
+    assert_boundary_delete(0, 2, true);
+}
+
+#[test]
+fn c1_delete_starting_at_endpoint_keeps_marker() {
+    assert_boundary_delete(2, 1, false);
+}
+
+fn assert_boundary_delete(start: u32, count: u32, removes_inside: bool) {
+    for endpoint in ["begin", "end"] {
+        let input = fixture(&format!(
+            "{}{}",
+            paragraph(&format!("<hp:t>ZZ</hp:t>{}<hp:t>12</hp:t>", begin(1))),
+            paragraph(&format!("<hp:t>AB</hp:t>{}<hp:t>CD</hp:t>", end(1)))
+        ));
+        let mut doc = rhwp::wasm_api::HwpDocument::from_bytes(&input).unwrap();
+        let para = if endpoint == "begin" { 0 } else { 1 };
+        doc.delete_text(0, para, start, count).unwrap();
+        let saved = doc
+            .export_hwpx_native()
+            .unwrap_or_else(|e| panic!("{endpoint}/{start}+{count}: {e}"));
+        let expected = match (endpoint, removes_inside) {
+            ("begin", true) | ("end", false) => "12AB",
+            ("begin", false) => "2AB",
+            ("end", true) => "12",
+            _ => unreachable!(),
+        };
+        assert_eq!(
+            field_content(&field_tokens(&section_xml(&saved))),
+            expected,
+            "{endpoint}"
         );
         assert_eq!(serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(), saved);
     }
