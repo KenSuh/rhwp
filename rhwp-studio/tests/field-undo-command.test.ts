@@ -43,6 +43,7 @@ import {
   finishPictureResizeDrag,
   finishPictureRotateDrag,
   getObjectProperties,
+  setObjectProperties,
   updatePictureMoveDrag,
   updatePictureResizeDrag,
   updatePictureRotateDrag,
@@ -2880,6 +2881,157 @@ test('C11 multi resize finalization preserves independent corner and edge scale 
       assert.equal(history.entryLabels().undo.length, 1);
     } finally { history.clear(wasm); wasm.dispose(); }
   });
+});
+
+function c12NativeResizeCase(kind: 'single' | 'multi' | 'group', dir: string, smallSize?: number) {
+  const c = c11PointerCase(kind, dir);
+  c.refs.forEach((ref, index) => setObjectProperties.call(c.host, ref, {
+    width: smallSize ?? (kind === 'group' ? 9512 : 3001 + index * 1008),
+    height: smallSize ?? (kind === 'group' ? 3888 : 1507 + index * 504),
+    horzOffset: 1523 + index * 5503, vertOffset: 1571 + index * 1877,
+  }));
+  const items = c.refs.map(ref => {
+    const props: { width: number; height: number; horzOffset: number; vertOffset: number } = getObjectProperties.call(c.host, ref);
+    const bbox = findPictureBbox.call(c.host, ref);
+    if (!bbox) throw new RangeError('C12 native object has no layout');
+    return { ...ref, origWidth: props.width, origHeight: props.height, origHorzOffset: props.horzOffset,
+      origVertOffset: props.vertOffset, bboxX: bbox.x, bboxY: bbox.y, w: bbox.w, h: bbox.h };
+  });
+  const first = items[0];
+  assert.ok(first);
+  const x = Math.min(...items.map(item => item.bboxX)), y = Math.min(...items.map(item => item.bboxY));
+  const w = Math.max(...items.map(item => item.bboxX + item.w)) - x;
+  const h = Math.max(...items.map(item => item.bboxY + item.h)) - y;
+  Object.assign(c.state, { origWidth: kind === 'multi' ? Math.round(w * 75) : first.origWidth,
+    origHeight: kind === 'multi' ? Math.round(h * 75) : first.origHeight,
+    origHorzOffset: first.origHorzOffset, origVertOffset: first.origVertOffset, bbox: { x, y, w, h },
+    ...(kind === 'multi' ? { multiRefs: items } : {}) });
+  return { ...c, items, bbox: { x, y, w, h } };
+}
+
+test('C12 fractional native resize geometry and redo survive zero or rounded-to-zero motion on every handle', () => {
+  let cases = 0;
+  for (const kind of ['single', 'multi', 'group'] as const) for (const dir of ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'])
+    for (const terminal of ['mouseup', 'interrupt'] as const) for (const zoom of [0.67, 1.75]) {
+      withPointerHarness(({ flush }) => {
+        const c = c12NativeResizeCase(kind, dir), { wasm, history, host, state, clientX, clientY } = c;
+        try {
+          host.viewportManager.getZoom = () => zoom;
+          delete state.origHorzOffset; delete state.origVertOffset;
+          const target = wasm.getParagraphCount(0) - 1;
+          history.execute(new InsertTextCommand(position(target, 2), 'Z', 1000), wasm);
+          const typed = fullSemanticState(wasm, false);
+          assert.ok(history.undo(wasm));
+          const before = fullSemanticState(wasm, false), label = stateLabelOf(wasm), entries = history.entryLabels();
+          for (const [dx, dy] of [[0, 0], [-0.001, 0.001], [0.001, -0.001]]) {
+            Reflect.apply(onMouseMove, host, [{ clientX: clientX + dx, clientY: clientY + dy, buttons: 1 }]); flush();
+          }
+          assert.equal(Boolean(state.recorder?.started), false, `${kind}/${dir}: no recorder for zero HWP delta`);
+          if (terminal === 'mouseup') Reflect.apply(onMouseUp, host, [{ clientX: clientX + 0.001, clientY: clientY - 0.001, buttons: 0 }]);
+          else Reflect.apply(InputHandler.prototype.settleOpenPointerGesture, host, ['interrupt']);
+          assert.deepEqual(fullSemanticState(wasm, false), before, `${kind}/${dir}/${terminal}/${zoom}`);
+          assert.equal(stateLabelOf(wasm), label);
+          assert.deepEqual(history.entryLabels(), entries);
+          assert.equal(c.changes.count, 0);
+          assert.ok(history.redo(wasm));
+          assert.deepEqual(fullSemanticState(wasm, false), typed);
+          cases++;
+        } finally { history.clear(wasm); wasm.dispose(); }
+      });
+    }
+  console.log(`C12_NATIVE_IDENTITY cases=${cases} redo_preserved=${cases}/${cases}`);
+});
+
+test('C12 native baseline plus pointer delta preserves orthogonal dimensions and offsets on edges and corners', () => {
+  for (const kind of ['single', 'multi', 'group'] as const) for (const dir of ['e', 'n', 'nw', 'se']) for (const size of [undefined, 100, 30]) {
+    withPointerHarness(({ flush }) => {
+      const c = c12NativeResizeCase(kind, dir, size), { wasm, history, host, clientX, clientY } = c;
+      try {
+        const before = fullSemanticState(wasm, false);
+        const dx = size !== undefined && dir.includes('w') ? -2 : 2;
+        const dy = size !== undefined && dir.includes('n') ? -3 : 3;
+        const dw = dir.includes('e') ? dx : dir.includes('w') ? -dx : 0;
+        const dh = dir.includes('s') ? dy : dir.includes('n') ? -dy : 0;
+        const sx = 1 + dw / c.bbox.w, sy = 1 + dh / c.bbox.h;
+        Reflect.apply(onMouseMove, host, [{ clientX: clientX + dx, clientY: clientY + dy, buttons: 1 }]); flush();
+        const live = fullSemanticState(wasm, false);
+        Reflect.apply(onMouseUp, host, [{ clientX: clientX + dx, clientY: clientY + dy, buttons: 0 }]);
+        if (kind !== 'single') assert.deepEqual(fullSemanticState(wasm, false), live);
+        for (const item of c.items) {
+          const props = getObjectProperties.call(host, item);
+          assert.equal(props.width, Math.max(Math.min(283, item.origWidth), item.origWidth + Math.round(kind === 'multi' ? item.origWidth * (sx - 1) : dw * 75)));
+          assert.equal(props.height, Math.max(Math.min(283, item.origHeight), item.origHeight + Math.round(kind === 'multi' ? item.origHeight * (sy - 1) : dh * 75)));
+          assert.equal(props.horzOffset, item.origHorzOffset + Math.round(((dir.includes('w') ? dx : 0)
+            + (kind === 'multi' ? (item.bboxX - c.bbox.x) * (sx - 1) : 0)) * 75));
+          assert.equal(props.vertOffset, item.origVertOffset + Math.round(((dir.includes('n') ? dy : 0)
+            + (kind === 'multi' ? (item.bboxY - c.bbox.y) * (sy - 1) : 0)) * 75));
+        }
+        const after = fullSemanticState(wasm, false);
+        assert.ok(history.undo(wasm)); assert.deepEqual(fullSemanticState(wasm, false), before);
+        assert.ok(history.redo(wasm)); assert.deepEqual(fullSemanticState(wasm, false), after);
+      } finally { history.clear(wasm); wasm.dispose(); }
+    });
+  }
+});
+
+test('C12 fractional native drag out and back restores geometry and keeps older undo and redo labels connected', () => {
+  for (const kind of ['single', 'multi', 'group'] as const) for (const dir of ['n', 's', 'e', 'w', 'ne', 'sw'])
+    for (const terminal of ['mouseup', 'interrupt'] as const) withPointerHarness(({ flush }) => {
+      const c = c12NativeResizeCase(kind, dir), { wasm, history, host, state, clientX, clientY } = c;
+      try {
+        delete state.origHorzOffset; delete state.origVertOffset;
+        const target = wasm.getParagraphCount(0) - 1, initial = fullSemanticState(wasm, false);
+        history.execute(new InsertTextCommand(position(target, 2), 'K', 1000), wasm);
+        const older = fullSemanticState(wasm, false);
+        history.execute(new InsertTextCommand(position(target, 3), 'Z', 3000), wasm);
+        assert.ok(history.undo(wasm));
+        const beforeLabel = stateLabelOf(wasm);
+        for (const [dx, dy] of [[17.23, -9.87], [-11.09, 15.31], [0, 0]]) {
+          Reflect.apply(onMouseMove, host, [{ clientX: clientX + dx, clientY: clientY + dy, buttons: 1 }]); flush();
+        }
+        assert.deepEqual(fullSemanticState(wasm, false), older, `${kind}/${dir}: live return`);
+        if (terminal === 'mouseup') Reflect.apply(onMouseUp, host, [{ clientX, clientY, buttons: 0 }]);
+        else Reflect.apply(InputHandler.prototype.settleOpenPointerGesture, host, ['interrupt']);
+        assert.deepEqual(fullSemanticState(wasm, false), older, `${kind}/${dir}: final return`);
+        const afterLabel = stateLabelOf(wasm);
+        assert.equal(history.entryLabels().undo.length, kind === 'single' ? 1 : 2);
+        assert.equal(history.canRedo(), kind === 'single');
+        if (kind !== 'single') { assert.ok(history.undo(wasm)); assert.equal(stateLabelOf(wasm), beforeLabel); }
+        assert.ok(history.undo(wasm)); assert.deepEqual(fullSemanticState(wasm, false), initial);
+        assert.ok(history.redo(wasm));
+        if (kind !== 'single') assert.ok(history.redo(wasm));
+        assert.equal(stateLabelOf(wasm), afterLabel);
+        assert.deepEqual(fullSemanticState(wasm, false), older);
+      } finally { history.clear(wasm); wasm.dispose(); }
+    });
+});
+
+test('C12 valid subminimum and subpixel rotated shapes retain native dimensions on zero and orthogonal resize', () => {
+  for (const size of [100, 30]) for (const kind of ['single', 'multi', 'group'] as const)
+    for (const angle of kind === 'multi' ? [0] : [0, 45]) for (const terminal of ['mouseup', 'interrupt'] as const) {
+      withPointerHarness(({ flush }) => {
+        const c = c12NativeResizeCase(kind, 'e', size), { wasm, history, host, state, clientX, clientY } = c;
+        try {
+          if (angle !== 0) setObjectProperties.call(host, c.refs[0], { rotationAngle: angle });
+          state.rotationAngle = angle;
+          const target = wasm.getParagraphCount(0) - 1;
+          history.execute(new InsertTextCommand(position(target, 2), 'Z', 1000), wasm);
+          assert.ok(history.undo(wasm));
+          const before = fullSemanticState(wasm, false), label = stateLabelOf(wasm);
+          const radians = angle * Math.PI / 180;
+          const dx = -10 * Math.sin(radians), dy = 10 * Math.cos(radians);
+          for (const [mx, my] of [[0, 0], [0.001, -0.001], [dx, dy]]) {
+            Reflect.apply(onMouseMove, host, [{ clientX: clientX + mx, clientY: clientY + my, buttons: 1 }]); flush();
+          }
+          assert.equal(Boolean(state.recorder?.started), false);
+          if (terminal === 'mouseup') Reflect.apply(onMouseUp, host, [{ clientX: clientX + dx, clientY: clientY + dy, buttons: 0 }]);
+          else Reflect.apply(InputHandler.prototype.settleOpenPointerGesture, host, ['interrupt']);
+          assert.deepEqual(fullSemanticState(wasm, false), before, `${size}/${kind}/${angle}/${terminal}`);
+          assert.equal(stateLabelOf(wasm), label);
+          assert.ok(history.canRedo());
+        } finally { history.clear(wasm); wasm.dispose(); }
+      });
+    }
 });
 
 test('C10 source guard enforces press-epoch checks, replacement hooks, and recorder settlement across all pointer gestures', () => {

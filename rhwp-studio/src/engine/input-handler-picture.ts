@@ -325,6 +325,30 @@ type MultiResizeRef = Parameters<typeof setObjectProperties>[0] & {
   readonly bboxY: number;
 };
 
+function singleResizeTarget(
+  state: {
+    readonly origWidth: number; readonly origHeight: number;
+    origHorzOffset?: number; origVertOffset?: number;
+    readonly bbox: { readonly x: number; readonly y: number; readonly w: number; readonly h: number };
+  },
+  resized: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
+  getOriginal: () => { readonly horzOffset: number; readonly vertOffset: number },
+) {
+  if (state.origHorzOffset === undefined || state.origVertOffset === undefined) {
+    const original = getOriginal();
+    state.origHorzOffset ??= original.horzOffset;
+    state.origVertOffset ??= original.vertOffset;
+  }
+  // Layout bounds are rounded for display; only their deltas belong in native geometry.
+  const width = Math.max(state.origWidth + Math.round((resized.width - state.bbox.w) * PX_TO_HWP), Math.min(MIN_SIZE_HWP, state.origWidth));
+  const height = Math.max(state.origHeight + Math.round((resized.height - state.bbox.h) * PX_TO_HWP), Math.min(MIN_SIZE_HWP, state.origHeight));
+  const horzOffset = (state.origHorzOffset + Math.round((resized.x - state.bbox.x) * PX_TO_HWP)) >>> 0;
+  const vertOffset = (state.origVertOffset + Math.round((resized.y - state.bbox.y) * PX_TO_HWP)) >>> 0;
+  return { props: { width, height, horzOffset, vertOffset },
+    changed: width !== state.origWidth || height !== state.origHeight
+      || horzOffset !== state.origHorzOffset || vertOffset !== state.origVertOffset };
+}
+
 function multiResizeTargets(
   refs: readonly MultiResizeRef[],
   dir: string,
@@ -336,8 +360,8 @@ function multiResizeTargets(
   return refs.map(ref => {
     const deltaH = Math.round((resized.x + (ref.bboxX - bbox.x) * sx - ref.bboxX) * PX_TO_HWP);
     const deltaV = Math.round((resized.y + (ref.bboxY - bbox.y) * sy - ref.bboxY) * PX_TO_HWP);
-    const width = Math.max(Math.round(ref.origWidth * sx), MIN_SIZE_HWP);
-    const height = Math.max(Math.round(ref.origHeight * sy), MIN_SIZE_HWP);
+    const width = Math.max(ref.origWidth + Math.round(ref.origWidth * (sx - 1)), Math.min(MIN_SIZE_HWP, ref.origWidth));
+    const height = Math.max(ref.origHeight + Math.round(ref.origHeight * (sy - 1)), Math.min(MIN_SIZE_HWP, ref.origHeight));
     return {
       ref,
       changed: width !== ref.origWidth || height !== ref.origHeight || deltaH !== 0 || deltaV !== 0,
@@ -383,9 +407,8 @@ function calcResizedBboxRotated(
   if (dir.includes('n')) valH = h0 - localDy;
 
   // 최종 출력용 크기는 절대값 사용 (최소 크기는 아주 작게만 제한)
-  const MIN = 1; 
-  const newW = Math.max(Math.abs(valW), MIN);
-  const newH = Math.max(Math.abs(valH), MIN);
+  const newW = Math.max(Math.abs(valW), Math.min(1, w0));
+  const newH = Math.max(Math.abs(valH), Math.min(1, h0));
 
   // pivot: 드래그하지 않는 반대쪽 로컬 좌표 (원본 크기 기준)
   const pivotLocalX = dir.includes('e') ? -w0 / 2 : (dir.includes('w') ? w0 / 2 : 0);
@@ -451,15 +474,8 @@ export function updatePictureResizeDrag(this: any, e: MouseEvent): void {
 
   // 그룹 단일 선택: 드래그 중 실시간 크기 반영
   if (!state.multiRefs && state.ref.type === 'group') {
-    const newW = Math.max(Math.round(newBbox.width * PX_TO_HWP), MIN_SIZE_HWP);
-    const newH = Math.max(Math.round(newBbox.height * PX_TO_HWP), MIN_SIZE_HWP);
-    const newHorzOffset = Math.round(newBbox.x * PX_TO_HWP);
-    const newVertOffset = Math.round(newBbox.y * PX_TO_HWP);
-    const origHorzOffset = state.origHorzOffset ?? Math.round(state.bbox.x * PX_TO_HWP);
-    const origVertOffset = state.origVertOffset ?? Math.round(state.bbox.y * PX_TO_HWP);
-    const groupChanged = Boolean(state.recorder?.started)
-      || newW !== state.origWidth || newH !== state.origHeight
-      || newHorzOffset !== origHorzOffset || newVertOffset !== origVertOffset;
+    const target = singleResizeTarget(state, newBbox, () => (this.getObjectProperties ?? getObjectProperties).call(this, state.ref));
+    const groupChanged = Boolean(state.recorder?.started) || target.changed;
     if (!groupChanged) return;
     try {
       state.recorder ??= new ObjectGestureRecorder(
@@ -471,12 +487,7 @@ export function updatePictureResizeDrag(this: any, e: MouseEvent): void {
         InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
         return;
       }
-      setObjectProperties.call(this, state.ref, {
-        width: newW,
-        height: newH,
-        horzOffset: (newHorzOffset >>> 0),
-        vertOffset: (newVertOffset >>> 0),
-      });
+      setObjectProperties.call(this, state.ref, target.props);
       try { this.wasm.updateConnectorsInSection(state.ref.sec); } catch { /* ignore */ }
       this.eventBus?.emit('document-changed');
     } catch { /* ignore */ }
@@ -508,7 +519,6 @@ export function finishPictureResizeDrag(this: any, e?: MouseEvent): void {
       clientY: state.lastClientY ?? state.startClientY,
     } as MouseEvent);
     const zoom = this.viewportManager.getZoom();
-    const PX2HWP = PX_TO_HWP;
 
     const pointerMoved = Boolean(
       state.recorder?.started
@@ -543,19 +553,14 @@ export function finishPictureResizeDrag(this: any, e?: MouseEvent): void {
     } else if (pointerMoved && (!state.multiRefs || state.multiRefs.length === 0)) {
       // 단일 선택 리사이즈 (회전 반영: pivot 고정, 위치도 갱신)
       const newBbox = calcResizedBboxRotated(state, effectiveEvent, zoom);
-      const newW = Math.max(Math.round(newBbox.width * PX2HWP), MIN_SIZE_HWP);
-      const newH = Math.max(Math.round(newBbox.height * PX_TO_HWP), MIN_SIZE_HWP);
-      const newHorzOffset = Math.round(newBbox.x * PX2HWP);
-      const newVertOffset = Math.round(newBbox.y * PX2HWP);
-      const origHorzOffset = state.origHorzOffset ?? Math.round(state.bbox.x * PX2HWP);
-      const origVertOffset = state.origVertOffset ?? Math.round(state.bbox.y * PX2HWP);
+      const { props } = singleResizeTarget(state, newBbox, () => (this.getObjectProperties ?? getObjectProperties).call(this, state.ref));
 
       try {
         const updated: Record<string, unknown> = {};
-        if (state.recorder?.started || newW !== state.origWidth) updated['width'] = newW;
-        if (state.recorder?.started || newH !== state.origHeight) updated['height'] = newH;
-        if (state.recorder?.started || newHorzOffset !== origHorzOffset) updated['horzOffset'] = (newHorzOffset >>> 0);
-        if (state.recorder?.started || newVertOffset !== origVertOffset) updated['vertOffset'] = (newVertOffset >>> 0);
+        if (state.recorder?.started || props.width !== state.origWidth) updated['width'] = props.width;
+        if (state.recorder?.started || props.height !== state.origHeight) updated['height'] = props.height;
+        if (state.recorder?.started || props.horzOffset !== state.origHorzOffset) updated['horzOffset'] = props.horzOffset;
+        if (state.recorder?.started || props.vertOffset !== state.origVertOffset) updated['vertOffset'] = props.vertOffset;
         if (Object.keys(updated).length > 0) {
           state.recorder ??= new ObjectGestureRecorder(
             'resizeObjects',
@@ -593,7 +598,8 @@ export function calcResizedBbox(this: any, e: MouseEvent, zoom: number): { x: nu
   const s = this.pictureResizeState!;
   const dx = (e.clientX - s.startClientX) / zoom; // page px
   const dy = (e.clientY - s.startClientY) / zoom;
-  const MIN = 1;
+  const minW = Math.min(1, s.bbox.w);
+  const minH = Math.min(1, s.bbox.h);
 
   let { x, y, w, h } = s.bbox;
   const dir = s.dir;
@@ -601,11 +607,11 @@ export function calcResizedBbox(this: any, e: MouseEvent, zoom: number): { x: nu
   // 가로 크기 및 위치 계산 (Flip 허용)
   if (dir.includes('e')) {
     const valW = s.bbox.w + dx;
-    w = Math.max(Math.abs(valW), MIN);
+    w = Math.max(Math.abs(valW), minW);
     if (valW < 0) x = s.bbox.x + valW; // 반대편으로 넘어가면 시작점 이동
   } else if (dir.includes('w')) {
     const valW = s.bbox.w - dx;
-    w = Math.max(Math.abs(valW), MIN);
+    w = Math.max(Math.abs(valW), minW);
     if (valW >= 0) x = s.bbox.x + dx;
     else x = s.bbox.x + s.bbox.w; // 반대편으로 넘어가면 오른쪽 끝이 시작점
   }
@@ -613,11 +619,11 @@ export function calcResizedBbox(this: any, e: MouseEvent, zoom: number): { x: nu
   // 세로 크기 및 위치 계산 (Flip 허용)
   if (dir.includes('s')) {
     const valH = s.bbox.h + dy;
-    h = Math.max(Math.abs(valH), MIN);
+    h = Math.max(Math.abs(valH), minH);
     if (valH < 0) y = s.bbox.y + valH;
   } else if (dir.includes('n')) {
     const valH = s.bbox.h - dy;
-    h = Math.max(Math.abs(valH), MIN);
+    h = Math.max(Math.abs(valH), minH);
     if (valH >= 0) y = s.bbox.y + dy;
     else y = s.bbox.y + s.bbox.h;
   }
