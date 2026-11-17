@@ -317,6 +317,20 @@ export function deleteObjectControl(this: any, ref: { sec: number; ppi: number; 
 /** 1 page px = 7200/96 = 75 HWPUNIT */
 const PX_TO_HWP = 7200 / 96;
 const MIN_SIZE_HWP = 283; // ≈1mm
+const MIN_NATIVE_SIZE_HWP = 200;
+
+function resolveNativeDimension(orig: number, clamped: number): number {
+  return clamped === orig ? orig : Math.max(clamped, MIN_NATIVE_SIZE_HWP);
+}
+
+type SingleResizeState = {
+  readonly origWidth: number; readonly origHeight: number;
+  origHorzOffset?: number; origVertOffset?: number;
+  readonly dir: string; readonly rotationAngle?: number;
+  readonly startClientX: number; readonly startClientY: number;
+  readonly ref: { readonly type: string };
+  readonly bbox: { readonly x: number; readonly y: number; readonly w: number; readonly h: number };
+};
 
 type MultiResizeRef = Parameters<typeof setObjectProperties>[0] & {
   readonly origWidth: number;
@@ -328,12 +342,8 @@ type MultiResizeRef = Parameters<typeof setObjectProperties>[0] & {
 };
 
 function singleResizeTarget(
-  state: {
-    readonly origWidth: number; readonly origHeight: number;
-    origHorzOffset?: number; origVertOffset?: number;
-    readonly bbox: { readonly x: number; readonly y: number; readonly w: number; readonly h: number };
-  },
-  resized: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
+  state: SingleResizeState,
+  resized: ReturnType<typeof calcResizedBboxRotated>,
   getOriginal: () => { readonly horzOffset: number; readonly vertOffset: number },
 ) {
   if (state.origHorzOffset === undefined || state.origVertOffset === undefined) {
@@ -341,11 +351,9 @@ function singleResizeTarget(
     state.origHorzOffset ??= original.horzOffset;
     state.origVertOffset ??= original.vertOffset;
   }
-  // Layout bounds are rounded for display; only their deltas belong in native geometry.
-  const width = Math.max(state.origWidth + Math.round((resized.width - state.bbox.w) * PX_TO_HWP), Math.min(MIN_SIZE_HWP, state.origWidth));
-  const height = Math.max(state.origHeight + Math.round((resized.height - state.bbox.h) * PX_TO_HWP), Math.min(MIN_SIZE_HWP, state.origHeight));
-  const horzOffset = (state.origHorzOffset + Math.round((resized.x - state.bbox.x) * PX_TO_HWP)) >>> 0;
-  const vertOffset = (state.origVertOffset + Math.round((resized.y - state.bbox.y) * PX_TO_HWP)) >>> 0;
+  const { nativeWidth: width, nativeHeight: height } = resized;
+  const horzOffset = ((state.origHorzOffset | 0) + resized.deltaH) >>> 0;
+  const vertOffset = ((state.origVertOffset | 0) + resized.deltaV) >>> 0;
   return { props: { width, height, horzOffset, vertOffset },
     changed: width !== state.origWidth || height !== state.origHeight
       || horzOffset !== state.origHorzOffset || vertOffset !== state.origVertOffset };
@@ -362,14 +370,18 @@ function multiResizeTargets(
   const sx = dir.includes('e') || dir.includes('w') ? 1 + (resized.width - bbox.w) / baseW : 1;
   const sy = dir.includes('n') || dir.includes('s') ? 1 + (resized.height - bbox.h) / baseH : 1;
   return refs.map(ref => {
-    const deltaH = Math.round((resized.x + (ref.bboxX - bbox.x) * sx - ref.bboxX) * PX_TO_HWP);
-    const deltaV = Math.round((resized.y + (ref.bboxY - bbox.y) * sy - ref.bboxY) * PX_TO_HWP);
-    const width = Math.max(ref.origWidth + Math.round(ref.origWidth * (sx - 1)), Math.min(MIN_SIZE_HWP, ref.origWidth));
-    const height = Math.max(ref.origHeight + Math.round(ref.origHeight * (sy - 1)), Math.min(MIN_SIZE_HWP, ref.origHeight));
+    const clampedW = Math.max(ref.origWidth + Math.round(ref.origWidth * (sx - 1)), Math.min(MIN_SIZE_HWP, ref.origWidth));
+    const clampedH = Math.max(ref.origHeight + Math.round(ref.origHeight * (sy - 1)), Math.min(MIN_SIZE_HWP, ref.origHeight));
+    const width = ref.type === 'image' ? clampedW : resolveNativeDimension(ref.origWidth, clampedW);
+    const height = ref.type === 'image' ? clampedH : resolveNativeDimension(ref.origHeight, clampedH);
+    const deltaH = Math.round((resized.x + (ref.bboxX - bbox.x) * sx - ref.bboxX) * PX_TO_HWP)
+      - (dir.includes('w') ? width - clampedW : 0);
+    const deltaV = Math.round((resized.y + (ref.bboxY - bbox.y) * sy - ref.bboxY) * PX_TO_HWP)
+      - (dir.includes('n') ? height - clampedH : 0);
     return {
       ref,
       changed: width !== ref.origWidth || height !== ref.origHeight || deltaH !== 0 || deltaV !== 0,
-      props: { width, height, horzOffset: (ref.origHorzOffset + deltaH) >>> 0, vertOffset: (ref.origVertOffset + deltaV) >>> 0 },
+      props: { width, height, horzOffset: ((ref.origHorzOffset | 0) + deltaH) >>> 0, vertOffset: ((ref.origVertOffset | 0) + deltaV) >>> 0 },
     };
   });
 }
@@ -407,12 +419,8 @@ function resizeProperties(
  * - 마우스 delta를 도형 로컬 좌표계로 역변환한다.
  * - 반대편 꼭짓점(pivot)이 page 좌표에서 고정되도록 중심을 재계산한다.
  */
-function calcResizedBboxRotated(
-  state: any,
-  e: MouseEvent,
-  zoom: number,
-): { x: number; y: number; width: number; height: number } {
-  const angleDeg = (state.rotationAngle ?? 0) as number;
+function calcResizedBboxRotated(state: SingleResizeState, e: MouseEvent, zoom: number) {
+  const angleDeg = state.rotationAngle ?? 0;
   const rad = angleDeg * Math.PI / 180;
   const cosA = Math.cos(rad);
   const sinA = Math.sin(rad);
@@ -426,8 +434,6 @@ function calcResizedBboxRotated(
 
   const w0 = state.bbox.w;
   const h0 = state.bbox.h;
-  const cx0 = state.bbox.x + w0 / 2;
-  const cy0 = state.bbox.y + h0 / 2;
   const dir: string = state.dir;
 
   // 크기 제한 없이 마우스 이동 반영 (반대편으로 넘어가면 음수 발생 가능)
@@ -438,34 +444,22 @@ function calcResizedBboxRotated(
   if (dir.includes('s')) valH = h0 + localDy;
   if (dir.includes('n')) valH = h0 - localDy;
 
-  const minW = typeof state.origWidth === 'number'
-    ? Math.max(0, w0 + (Math.min(MIN_SIZE_HWP, state.origWidth) - state.origWidth) / PX_TO_HWP)
-    : Math.min(1, w0);
-  const minH = typeof state.origHeight === 'number'
-    ? Math.max(0, h0 + (Math.min(MIN_SIZE_HWP, state.origHeight) - state.origHeight) / PX_TO_HWP)
-    : Math.min(1, h0);
-  const newW = Math.max(Math.abs(valW), minW);
-  const newH = Math.max(Math.abs(valH), minH);
-
-  // pivot: 드래그하지 않는 반대쪽 로컬 좌표 (원본 크기 기준)
-  const pivotLocalX = dir.includes('e') ? -w0 / 2 : (dir.includes('w') ? w0 / 2 : 0);
-  const pivotLocalY = dir.includes('s') ? -h0 / 2 : (dir.includes('n') ? h0 / 2 : 0);
-
-  // pivot의 page 좌표 (고정)
-  const pivotPageX = cx0 + pivotLocalX * cosA - pivotLocalY * sinA;
-  const pivotPageY = cy0 + pivotLocalX * sinA + pivotLocalY * cosA;
-
-  // 새 크기에서 pivot의 로컬 좌표 (valW/valH가 음수면 pivot 방향이 반전됨)
-  const signedW = valW < 0 ? -newW : newW;
-  const signedH = valH < 0 ? -newH : newH;
-  const newPivotLocalX = dir.includes('e') ? -signedW / 2 : (dir.includes('w') ? signedW / 2 : 0);
-  const newPivotLocalY = dir.includes('s') ? -signedH / 2 : (dir.includes('n') ? signedH / 2 : 0);
-
-  // pivot 고정 조건으로 새 중심 계산
-  const newCx = pivotPageX - (newPivotLocalX * cosA - newPivotLocalY * sinA);
-  const newCy = pivotPageY - (newPivotLocalX * sinA + newPivotLocalY * cosA);
-
-  return { x: newCx - newW / 2, y: newCy - newH / 2, width: newW, height: newH };
+  // Resolve setter normalization before deriving the opposite native pivot.
+  const clampedW = Math.max(state.origWidth + Math.round((Math.abs(valW) - w0) * PX_TO_HWP), Math.min(MIN_SIZE_HWP, state.origWidth));
+  const clampedH = Math.max(state.origHeight + Math.round((Math.abs(valH) - h0) * PX_TO_HWP), Math.min(MIN_SIZE_HWP, state.origHeight));
+  // Picture setters store dimensions directly; only shape/group setters impose 200 HWP.
+  const nativeWidth = state.ref.type === 'image' ? clampedW : resolveNativeDimension(state.origWidth, clampedW);
+  const nativeHeight = state.ref.type === 'image' ? clampedH : resolveNativeDimension(state.origHeight, clampedH);
+  const flipX = valW < 0 && Math.round(localDx * PX_TO_HWP) !== 0;
+  const flipY = valH < 0 && Math.round(localDy * PX_TO_HWP) !== 0;
+  const x0 = dir.includes('e') ? -state.origWidth / 2 : (dir.includes('w') ? state.origWidth / 2 : 0);
+  const y0 = dir.includes('s') ? -state.origHeight / 2 : (dir.includes('n') ? state.origHeight / 2 : 0);
+  const x1 = (dir.includes('e') ? -nativeWidth / 2 : (dir.includes('w') ? nativeWidth / 2 : 0)) * (flipX ? -1 : 1);
+  const y1 = (dir.includes('s') ? -nativeHeight / 2 : (dir.includes('n') ? nativeHeight / 2 : 0)) * (flipY ? -1 : 1);
+  const deltaH = Math.round((state.origWidth - nativeWidth) / 2 + (x0 - x1) * cosA - (y0 - y1) * sinA);
+  const deltaV = Math.round((state.origHeight - nativeHeight) / 2 + (x0 - x1) * sinA + (y0 - y1) * cosA);
+  return { x: state.bbox.x + deltaH / PX_TO_HWP, y: state.bbox.y + deltaV / PX_TO_HWP,
+    width: nativeWidth / PX_TO_HWP, height: nativeHeight / PX_TO_HWP, nativeWidth, nativeHeight, deltaH, deltaV };
 }
 
 export function updatePictureResizeDrag(this: any, e: MouseEvent): void {
@@ -482,17 +476,29 @@ export function updatePictureResizeDrag(this: any, e: MouseEvent): void {
   const newBbox = state.multiRefs
     ? (this.calcResizedBbox ?? calcResizedBbox).call(this, e, zoom)
     : calcResizedBboxRotated(state, e, zoom);
+  const targets = state.multiRefs?.length ? multiResizeTargets(state.multiRefs, state.dir, state.bbox, newBbox) : null;
+  let { x, y, width, height } = newBbox;
+  if (targets) {
+    const boxes = targets.map(({ ref, props }) => ({
+      x: ref.bboxX + ((props.horzOffset | 0) - (ref.origHorzOffset | 0)) / PX_TO_HWP,
+      y: ref.bboxY + ((props.vertOffset | 0) - (ref.origVertOffset | 0)) / PX_TO_HWP,
+      w: props.width / PX_TO_HWP, h: props.height / PX_TO_HWP,
+    }));
+    x = Math.min(...boxes.map(box => box.x));
+    y = Math.min(...boxes.map(box => box.y));
+    width = Math.max(...boxes.map(box => box.x + box.w)) - x;
+    height = Math.max(...boxes.map(box => box.y + box.h)) - y;
+  }
 
   // 모든 경우에 점선 프리뷰만 갱신하여 앵커는 제자리에 머물게 함
   this.pictureObjectRenderer?.renderDragPreview(
-    { pageIndex: state.pageIndex, ...newBbox },
+    { pageIndex: state.pageIndex, x, y, width, height },
     zoom,
     rotAngle,
   );
 
   // 다중 선택: 드래그 중 실시간으로 개체 크기/위치 반영
-  if (state.multiRefs && state.multiRefs.length > 0) {
-    const targets = multiResizeTargets(state.multiRefs, state.dir, state.bbox, newBbox);
+  if (targets) {
     const anyChanged = Boolean(state.recorder?.started) || targets.some(target => target.changed);
     if (!anyChanged) return;
     try {
@@ -634,14 +640,11 @@ export function finishPictureResizeDrag(this: any, e?: MouseEvent): void {
 
 export function calcResizedBbox(this: any, e: MouseEvent, zoom: number): { x: number; y: number; width: number; height: number } {
   const s = this.pictureResizeState!;
+  if (!s.multiRefs) return calcResizedBboxRotated(s, e, zoom);
   const dx = (e.clientX - s.startClientX) / zoom; // page px
   const dy = (e.clientY - s.startClientY) / zoom;
-  const minW = !s.multiRefs && typeof s.origWidth === 'number'
-    ? Math.max(0, s.bbox.w + (Math.min(MIN_SIZE_HWP, s.origWidth) - s.origWidth) / PX_TO_HWP)
-    : Math.min(1, s.bbox.w);
-  const minH = !s.multiRefs && typeof s.origHeight === 'number'
-    ? Math.max(0, s.bbox.h + (Math.min(MIN_SIZE_HWP, s.origHeight) - s.origHeight) / PX_TO_HWP)
-    : Math.min(1, s.bbox.h);
+  const minW = Math.min(1, s.bbox.w);
+  const minH = Math.min(1, s.bbox.h);
 
   let { x, y, w, h } = s.bbox;
   const dir = s.dir;

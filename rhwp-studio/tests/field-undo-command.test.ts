@@ -3154,6 +3154,96 @@ test('C13 inward resize blocked at the native floor keeps the rotated pivot labe
   console.log(`C13_CLAMPED_PIVOT cases=${cases} redo_preserved=${cases}/${cases}`);
 });
 
+test('C14 changed sub-200 dimensions keep the opposite native edge fixed after crossing the setter floor', () => {
+  let cases = 0;
+  for (const kind of ['single', 'multi'] as const) for (const dir of ['w', 'n'])
+    for (const zoom of [0.41, 2.625]) for (const terminal of ['mouseup', 'interrupt'] as const)
+      withPointerHarness(({ flush }) => {
+        const c = c12NativeResizeCase(kind, dir, [[1, 3], [3, 1]]), { wasm, history, host, clientX, clientY } = c;
+        try {
+          host.viewportManager.getZoom = () => zoom;
+          const before = fullSemanticState(wasm, false);
+          const anchorBefore = Math.max(...c.items.map(item => dir === 'w'
+            ? item.origHorzOffset + item.origWidth : item.origVertOffset + item.origHeight));
+          const previews: { width: number; height: number }[] = [];
+          Object.assign(host.pictureObjectRenderer, { renderDragPreview(box: { width: number; height: number }) { previews.push(box); } });
+          for (const distance of [12, 0.8]) {
+            Reflect.apply(onMouseMove, host, [{ clientX: clientX - (dir === 'w' ? distance * zoom : 0),
+              clientY: clientY - (dir === 'n' ? distance * zoom : 0), buttons: 1 }]); flush();
+            if (kind === 'multi' && distance === 12) for (const item of c.items) {
+              const props = getObjectProperties.call(host, item);
+              assert.ok((dir === 'w' ? props.width : props.height) > 200);
+            }
+          }
+          if (terminal === 'mouseup') Reflect.apply(onMouseUp, host, [{ clientX: clientX - (dir === 'w' ? 0.8 * zoom : 0),
+            clientY: clientY - (dir === 'n' ? 0.8 * zoom : 0), buttons: 0 }]);
+          else Reflect.apply(InputHandler.prototype.settleOpenPointerGesture, host, ['interrupt']);
+          const actual = c.items.map(item => getObjectProperties.call(host, item));
+          const anchorAfter = Math.max(...actual.map(props => dir === 'w' ? props.horzOffset + props.width : props.vertOffset + props.height));
+          assert.ok(Math.abs(anchorAfter - anchorBefore) <= 1, `${kind}/${dir}/${zoom}/${terminal}: native anchor moved ${anchorAfter - anchorBefore}`);
+          actual.forEach((props, index) => {
+            assert.equal(dir === 'w' ? props.width : props.height, 200);
+            assert.equal(dir === 'w' ? props.height : props.width, dir === 'w' ? c.items[index]?.origHeight : c.items[index]?.origWidth);
+          });
+          const preview = previews.at(-1);
+          if (!preview) throw new RangeError('C14 resize has no drag preview');
+          const nativeExtent = Math.max(...actual.map(props => dir === 'w' ? (props.horzOffset | 0) + props.width : (props.vertOffset | 0) + props.height))
+            - Math.min(...actual.map(props => dir === 'w' ? props.horzOffset | 0 : props.vertOffset | 0));
+          assert.ok(Math.abs((dir === 'w' ? preview.width : preview.height) * 75 - nativeExtent) <= 1, 'preview matches resolved native extent');
+          const after = fullSemanticState(wasm, false);
+          assert.ok(history.undo(wasm)); assert.deepEqual(fullSemanticState(wasm, false), before);
+          assert.ok(history.redo(wasm)); assert.deepEqual(fullSemanticState(wasm, false), after);
+          cases++;
+        } finally { history.clear(wasm); wasm.dispose(); }
+      });
+  console.log(`C14_THRESHOLD cases=${cases} fixed_native_edge=${cases}/${cases}`);
+});
+
+test('C14 flipped tiny standard and unchanged-size rectangles keep their native pivot across every rotated handle', () => {
+  const pivot = (props: { width: number; height: number; horzOffset: number; vertOffset: number },
+    handle: { dir: string; angle: number; flipped: boolean }) => {
+    const sign = handle.flipped ? -1 : 1, rad = handle.angle * Math.PI / 180;
+    const x = (handle.dir.includes('e') ? -props.width / 2 : handle.dir.includes('w') ? props.width / 2 : 0) * sign;
+    const y = (handle.dir.includes('s') ? -props.height / 2 : handle.dir.includes('n') ? props.height / 2 : 0) * sign;
+    return [(props.horzOffset | 0) + props.width / 2 + x * Math.cos(rad) - y * Math.sin(rad),
+      (props.vertOffset | 0) + props.height / 2 + x * Math.sin(rad) + y * Math.cos(rad)];
+  };
+  let cases = 0;
+  for (const sizes of [[[1, 3], [3, 1]], [[200, 200], [200, 200]], [[3000, 1500], [3000, 1500]]] as const)
+    for (const angle of [0, 37, 137, 271]) for (const dir of ['e', 'w', 'n', 's', 'ne', 'nw', 'se', 'sw'])
+      for (const terminal of ['mouseup', 'interrupt'] as const) withPointerHarness(({ flush }) => {
+        const c = c12NativeResizeCase('single', dir, sizes), { wasm, history, host, state, clientX, clientY } = c;
+        try {
+          const ref = c.refs[0]; assert.ok(ref);
+          setObjectProperties.call(host, ref, { rotationAngle: angle, horzOffset: 23, vertOffset: 31 });
+          state.rotationAngle = angle; state.origHorzOffset = 23; state.origVertOffset = 31;
+          host.viewportManager.getZoom = () => 1.375;
+          const original = getObjectProperties.call(host, ref), before = fullSemanticState(wasm, false), label = stateLabelOf(wasm);
+          const localX = dir.includes('e') ? -c.bbox.w - 1.13 : dir.includes('w') ? c.bbox.w + 1.13 : 0;
+          const localY = dir.includes('s') ? -c.bbox.h - 1.37 : dir.includes('n') ? c.bbox.h + 1.37 : 0;
+          const rad = angle * Math.PI / 180;
+          const dx = 1.375 * (localX * Math.cos(rad) - localY * Math.sin(rad));
+          const dy = 1.375 * (localX * Math.sin(rad) + localY * Math.cos(rad));
+          Reflect.apply(onMouseMove, host, [{ clientX: clientX + dx, clientY: clientY + dy, buttons: 1 }]); flush();
+          if (terminal === 'mouseup') Reflect.apply(onMouseUp, host, [{ clientX: clientX + dx, clientY: clientY + dy, buttons: 0 }]);
+          else Reflect.apply(InputHandler.prototype.settleOpenPointerGesture, host, ['interrupt']);
+          const actual = getObjectProperties.call(host, ref);
+          const priorPivot = pivot(original, { dir, angle, flipped: false }), finalPivot = pivot(actual, { dir, angle, flipped: true });
+          assert.ok(Math.hypot(finalPivot[0] - priorPivot[0], finalPivot[1] - priorPivot[1]) <= 1,
+            `${sizes[0]}/${angle}/${dir}/${terminal}: opposite native pivot moved`);
+          if (sizes[0][0] === 200) {
+            assert.equal(actual.width, original.width); assert.equal(actual.height, original.height);
+            assert.notDeepEqual(actual, original, 'equal dimensions must still cross the pivot');
+          }
+          const after = fullSemanticState(wasm, false), afterLabel = stateLabelOf(wasm);
+          assert.ok(history.undo(wasm)); assert.deepEqual(fullSemanticState(wasm, false), before); assert.equal(stateLabelOf(wasm), label);
+          assert.ok(history.redo(wasm)); assert.deepEqual(fullSemanticState(wasm, false), after); assert.equal(stateLabelOf(wasm), afterLabel);
+          cases++;
+        } finally { history.clear(wasm); wasm.dispose(); }
+      });
+  console.log(`C14_FLIPPED_PIVOT cases=${cases} fixed_native_pivot=${cases}/${cases}`);
+});
+
 test('C10 source guard enforces press-epoch checks, replacement hooks, and recorder settlement across all pointer gestures', () => {
   const engineDir = new URL('../src/engine', import.meta.url).pathname;
   const tableCode = readFileSync(join(engineDir, 'input-handler-table.ts'), 'utf8');
