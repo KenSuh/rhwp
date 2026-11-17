@@ -2888,7 +2888,7 @@ function c12NativeResizeCase(kind: 'single' | 'multi' | 'group', dir: string, sm
   c.refs.forEach((ref, index) => setObjectProperties.call(c.host, ref, {
     width: smallSize ?? (kind === 'group' ? 9512 : 3001 + index * 1008),
     height: smallSize ?? (kind === 'group' ? 3888 : 1507 + index * 504),
-    horzOffset: 1523 + index * 5503, vertOffset: 1571 + index * 1877,
+    horzOffset: 1523 + (smallSize === 1 ? 0 : index * 5503), vertOffset: 1571 + (smallSize === 1 ? 0 : index * 1877),
   }));
   const items = c.refs.map(ref => {
     const props: { width: number; height: number; horzOffset: number; vertOffset: number } = getObjectProperties.call(c.host, ref);
@@ -2943,7 +2943,7 @@ test('C12 fractional native resize geometry and redo survive zero or rounded-to-
 });
 
 test('C12 native baseline plus pointer delta preserves orthogonal dimensions and offsets on edges and corners', () => {
-  for (const kind of ['single', 'multi', 'group'] as const) for (const dir of ['e', 'n', 'nw', 'se']) for (const size of [undefined, 100, 30]) {
+  for (const kind of ['single', 'multi', 'group'] as const) for (const dir of ['e', 'n', 'nw', 'se']) for (const size of [undefined, 100, 30, 1]) {
     withPointerHarness(({ flush }) => {
       const c = c12NativeResizeCase(kind, dir, size), { wasm, history, host, clientX, clientY } = c;
       try {
@@ -2952,7 +2952,9 @@ test('C12 native baseline plus pointer delta preserves orthogonal dimensions and
         const dy = size !== undefined && dir.includes('n') ? -3 : 3;
         const dw = dir.includes('e') ? dx : dir.includes('w') ? -dx : 0;
         const dh = dir.includes('s') ? dy : dir.includes('n') ? -dy : 0;
-        const sx = 1 + dw / c.bbox.w, sy = 1 + dh / c.bbox.h;
+        const nativeW = Math.max(...c.items.map(item => item.origWidth)) / 75;
+        const nativeH = Math.max(...c.items.map(item => item.origHeight)) / 75;
+        const sx = 1 + dw / (c.bbox.w || nativeW), sy = 1 + dh / (c.bbox.h || nativeH);
         Reflect.apply(onMouseMove, host, [{ clientX: clientX + dx, clientY: clientY + dy, buttons: 1 }]); flush();
         const live = fullSemanticState(wasm, false);
         Reflect.apply(onMouseUp, host, [{ clientX: clientX + dx, clientY: clientY + dy, buttons: 0 }]);
@@ -3007,7 +3009,7 @@ test('C12 fractional native drag out and back restores geometry and keeps older 
 });
 
 test('C12 valid subminimum and subpixel rotated shapes retain native dimensions on zero and orthogonal resize', () => {
-  for (const size of [100, 30]) for (const kind of ['single', 'multi', 'group'] as const)
+  for (const size of [100, 30, 1]) for (const kind of ['single', 'multi', 'group'] as const)
     for (const angle of kind === 'multi' ? [0] : [0, 45]) for (const terminal of ['mouseup', 'interrupt'] as const) {
       withPointerHarness(({ flush }) => {
         const c = c12NativeResizeCase(kind, 'e', size), { wasm, history, host, state, clientX, clientY } = c;

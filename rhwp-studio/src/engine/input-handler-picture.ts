@@ -355,8 +355,10 @@ function multiResizeTargets(
   bbox: { readonly x: number; readonly y: number; readonly w: number; readonly h: number },
   resized: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
 ) {
-  const sx = dir.includes('e') || dir.includes('w') ? resized.width / bbox.w : 1;
-  const sy = dir.includes('n') || dir.includes('s') ? resized.height / bbox.h : 1;
+  const baseW = bbox.w || Math.max(1, ...refs.map(ref => ref.origWidth)) / PX_TO_HWP;
+  const baseH = bbox.h || Math.max(1, ...refs.map(ref => ref.origHeight)) / PX_TO_HWP;
+  const sx = dir.includes('e') || dir.includes('w') ? 1 + (resized.width - bbox.w) / baseW : 1;
+  const sy = dir.includes('n') || dir.includes('s') ? 1 + (resized.height - bbox.h) / baseH : 1;
   return refs.map(ref => {
     const deltaH = Math.round((resized.x + (ref.bboxX - bbox.x) * sx - ref.bboxX) * PX_TO_HWP);
     const deltaV = Math.round((resized.y + (ref.bboxY - bbox.y) * sy - ref.bboxY) * PX_TO_HWP);
