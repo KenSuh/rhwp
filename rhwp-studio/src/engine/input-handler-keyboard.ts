@@ -5,6 +5,7 @@ import { InsertTextCommand, InsertLineBreakCommand, InsertTabCommand, SplitParag
 import { matchShortcut, defaultShortcuts } from '@/command/shortcut-map';
 import * as _connector from './input-handler-connector';
 import { hasOpenPointerGesture } from './input-handler-table';
+import { InputHandler } from './input-handler';
 import type { DocumentPosition, CellPathEntry } from '@/core/types';
 import type { WasmBridge } from '@/core/wasm-bridge';
 
@@ -152,6 +153,7 @@ export function onKeyDown(this: any, e: KeyboardEvent): void {
   // 개체·표 포인터 제스처가 열려 있는 동안에는 키 입력을 받지 않는다. 제스처는 마우스업에서
   // 히스토리 항목 하나로 닫히고, 그 뒤에야 키보드 이동·Undo 같은 다음 작업이 순서대로 기록된다.
   if (hasOpenPointerGesture(this)) {
+    if (e.key === 'Escape') InputHandler.prototype.settleOpenPointerGesture.call(this, 'interrupt');
     e.preventDefault();
     return;
   }

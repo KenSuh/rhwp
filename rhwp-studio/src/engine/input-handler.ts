@@ -6,7 +6,7 @@ import { FieldMarkerRenderer } from './field-marker-renderer';
 import { SelectionRenderer } from './selection-renderer';
 import { CommandHistory } from './history';
 import { DeleteSelectionCommand, ApplyCharFormatCommand, SnapshotCommand } from './command';
-import type { OperationDescriptor } from './command';
+import type { OperationDescriptor, ObjectGestureRecorder } from './command';
 import { VirtualScroll } from '@/view/virtual-scroll';
 import { ViewportManager } from '@/view/viewport-manager';
 import type { DocumentPosition, CharProperties, ParaProperties, CursorRect, FormObjectHitResult, CellPathEntry } from '@/core/types';
@@ -86,6 +86,7 @@ export class InputHandler {
   // 마우스 드래그 선택 상태
   private isDragging = false;
   private isCellDragSelecting = false;
+  private cellDragAnchorRange: { startRow: number; startCol: number; endRow: number; endCol: number } | null = null;
   private dragRafId = 0; // requestAnimationFrame throttle용
   private pageTextLayoutCache = new Map<number, PageTextLayout>();
 
@@ -171,6 +172,7 @@ export class InputHandler {
   // 그림/글상자 이동 드래그 상태
   private isPictureMoveDragging = false;
   private pictureMoveState: {
+    recorder?: ObjectGestureRecorder;
     ref: { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'equation' | 'group' };
     origHorzOffset: number;
     origVertOffset: number;
@@ -244,6 +246,10 @@ export class InputHandler {
   private onContextMenuBound: (e: MouseEvent) => void;
   private onMouseMoveBound: (e: MouseEvent) => void;
   private onMouseUpBound: (e: MouseEvent) => void;
+  private onPointerInterruptedBound = (event: Event) => {
+    if (event instanceof FocusEvent && event.relatedTarget instanceof Node && this.container.contains(event.relatedTarget)) return;
+    this.settleOpenPointerGesture('interrupt');
+  };
   private onF11InterceptBound: (e: KeyboardEvent) => void;
 
   constructor(
@@ -327,6 +333,10 @@ export class InputHandler {
     container.addEventListener('dblclick', this.onDblClickBound);
     container.addEventListener('contextmenu', this.onContextMenuBound);
     container.addEventListener('mousemove', this.onMouseMoveBound);
+    window.addEventListener('blur', this.onPointerInterruptedBound);
+    container.addEventListener('blur', this.onPointerInterruptedBound, true);
+    document.addEventListener('pointercancel', this.onPointerInterruptedBound, true);
+    this.textarea.addEventListener('blur', this.onPointerInterruptedBound);
     this.textarea.addEventListener('keydown', this.onKeyDownBound);
     this.textarea.addEventListener('input', this.onInputBound);
     this.textarea.addEventListener('compositionstart', this.onCompositionStartBound);
@@ -2875,7 +2885,57 @@ export class InputHandler {
     this.focusTextarea();
   }
 
+  settleOpenPointerGesture(kind: 'release' | 'interrupt' | 'cancel', release?: () => void): void {
+    if (kind !== 'release' && !_table.hasOpenPointerGesture(this) && !this.dragRafId && !this.resizeHoverRafId) return;
+    const recorder = this.pictureMoveState?.recorder;
+    try {
+      switch (kind) {
+        case 'release': release?.(); break;
+        case 'interrupt':
+          if (this.isMoveDragging || this.moveDragState) this.finishMoveDrag();
+          if (this.isPictureMoveDragging || this.pictureMoveState) this.finishPictureMoveDrag();
+          break;
+        case 'cancel': break;
+      }
+    } finally {
+      try { recorder?.cancel(this.wasm); }
+      finally {
+        this.isMoveDragging = false;
+        this.moveDragState = null;
+        this.isPictureMoveDragging = false;
+        this.pictureMoveState = null;
+        this.isPictureResizeDragging = false;
+        this.pictureResizeState = null;
+        this.isPictureRotateDragging = false;
+        this.pictureRotateState = null;
+        this.isLineEndpointDragging = false;
+        this.lineEndpointState = null;
+        this.isResizeDragging = false;
+        this.resizeDragState = null;
+        this.isDragging = false;
+        this.isCellDragSelecting = false;
+        this.cellDragAnchorRange = null;
+        this.cachedTableRef = null;
+        this.cachedCellBboxes = null;
+        if (this.dragRafId) {
+          cancelAnimationFrame(this.dragRafId);
+          this.dragRafId = 0;
+        }
+        if (this.resizeHoverRafId) {
+          cancelAnimationFrame(this.resizeHoverRafId);
+          this.resizeHoverRafId = 0;
+        }
+        if (typeof document !== 'undefined') document.removeEventListener('mouseup', this.onMouseUpBound);
+        this.container.style.cursor = '';
+        this.pictureObjectRenderer?.clearDragPreview();
+        this.tableResizeRenderer?.clear();
+        this.tableObjectRenderer?.clearDragPreview();
+      }
+    }
+  }
+
   deactivate(): void {
+    InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
     this.active = false;
     this.caret.hide();
     this.fieldMarker.hide();
@@ -2894,6 +2954,7 @@ export class InputHandler {
   }
 
   dispose(): void {
+    InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
     if (this.compositionSelectionSnapshot !== null) {
       this.wasm.discardSnapshot(this.compositionSelectionSnapshot.id);
       this.compositionSelectionSnapshot = null;
@@ -2914,6 +2975,10 @@ export class InputHandler {
     this.container.removeEventListener('dblclick', this.onDblClickBound);
     this.container.removeEventListener('contextmenu', this.onContextMenuBound);
     this.container.removeEventListener('mousemove', this.onMouseMoveBound);
+    window.removeEventListener('blur', this.onPointerInterruptedBound);
+    this.container.removeEventListener('blur', this.onPointerInterruptedBound, true);
+    document.removeEventListener('pointercancel', this.onPointerInterruptedBound, true);
+    this.textarea.removeEventListener('blur', this.onPointerInterruptedBound);
     document.removeEventListener('mouseup', this.onMouseUpBound);
     this.textarea.removeEventListener('keydown', this.onKeyDownBound);
     this.textarea.removeEventListener('input', this.onInputBound);

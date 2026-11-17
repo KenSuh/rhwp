@@ -26,6 +26,7 @@ import { onPaste, onCut, onCopy, onKeyDown } from '../src/engine/input-handler-k
 import { finishMoveDrag, moveSelectedPicture, moveSelectedTable, updateMoveDrag } from '../src/engine/input-handler-table';
 import { updatePictureMoveDrag, finishPictureMoveDrag } from '../src/engine/input-handler-picture';
 import { onMouseUp } from '../src/engine/input-handler-mouse';
+import { hasOpenPointerGesture } from '../src/engine/input-handler-table';
 import { onCompositionStart, onCompositionEnd, onInput, getTextAt, insertTextAtRaw } from '../src/engine/input-handler-text';
 import { HwpCtrl } from '../src/hwpctl/index';
 
@@ -2002,5 +2003,78 @@ test('C8 R8-C overlapping gesture recorders keep their own snapshot ids and labe
     assert.equal(history.canUndo(), false, 'a forged pair is not recorded');
     assert.equal(rawSnapshotLabels(wasm, a), undefined, 'the refused pair released its snapshots');
     assert.equal(rawSnapshotLabels(wasm, b), undefined);
+  } finally { history.clear(wasm); wasm.dispose(); }
+});
+
+test('C9 stale gesture finish and cancellation preserve the new document snapshot ids and undo bytes', () => {
+  for (const cancel of [false, true]) {
+    const wasm = new WasmBridge(), history = new CommandHistory();
+    try {
+      wasm.loadDocument(r8Field(), 'A.hwpx');
+      const recorder = new ObjectGestureRecorder('moveObjects', position(0, 0));
+      recorder.begin(wasm);
+      wasm.loadDocument(fixture(para('<hp:t>NEW</hp:t>')), 'B.hwpx');
+      const original = wasm.exportHwpx();
+      history.execute(new ApplyCharFormatCommand(position(0, 0), position(0, 1), { bold: true }), wasm);
+      if (cancel) recorder.cancel(wasm);
+      else {
+        const command = recorder.finish(wasm);
+        if (command === null) throw new Error('expected stale captured command');
+        history.recordWithoutExecute(command, wasm);
+      }
+      assert.ok(rawSnapshotLabels(wasm, 0));
+      assert.ok(rawSnapshotLabels(wasm, 1));
+      assert.equal(rawSnapshotLabels(wasm, 2), undefined, 'a stale finish must not allocate in B');
+      assert.equal(history.entryLabels().undo.length, 1);
+      assert.ok(history.undo(wasm));
+      assert.deepEqual(wasm.exportHwpx(), original);
+    } finally { history.clear(wasm); wasm.dispose(); }
+  }
+});
+
+test('C9 pointer interruption clears every latch and resources even when finish fails', () => {
+  const wasm = new WasmBridge(), history = new CommandHistory();
+  const previousDocument = globalThis.document;
+  const documentEvents = new EventTarget();
+  Object.assign(globalThis, { document: documentEvents });
+  try {
+    wasm.loadDocument(r8Field(), 'pointer-fault.hwpx');
+    const recorder = new ObjectGestureRecorder('moveObjects', position(0, 0));
+    recorder.begin(wasm);
+    const terminal = () => { throw new Error('injected finish'); };
+    const host = {
+      wasm, history, container: { style: { cursor: 'move' } },
+      isMoveDragging: false, moveDragState: null,
+      isPictureMoveDragging: true, pictureMoveState: { recorder },
+      isPictureResizeDragging: true, pictureResizeState: {},
+      isPictureRotateDragging: true, pictureRotateState: {},
+      isLineEndpointDragging: true, lineEndpointState: {},
+      isResizeDragging: true, resizeDragState: {}, isCellDragSelecting: true, isDragging: true,
+      cellDragAnchorRange: {}, onMouseUpBound() {}, finishPictureMoveDrag: terminal,
+    };
+    assert.throws(() => InputHandler.prototype.settleOpenPointerGesture.call(host, 'interrupt'), /injected finish/);
+    assert.equal(hasOpenPointerGesture(host), false);
+    assert.equal(host.container.style.cursor, '');
+    assert.equal(rawSnapshotLabels(wasm, 0), undefined);
+    assert.equal(recorder.started, false);
+  } finally { Object.assign(globalThis, { document: previousDocument }); history.clear(wasm); wasm.dispose(); }
+});
+
+test('C9 picture move cleanup releases both captures when history registration throws', () => {
+  const wasm = new WasmBridge(), history = new CommandHistory();
+  try {
+    wasm.loadDocument(r8Field(), 'picture-fault.hwpx');
+    const recorder = new ObjectGestureRecorder('moveObjects', position(0, 0));
+    recorder.begin(wasm);
+    wasm.insertText(0, 0, 0, 'X');
+    const host = {
+      wasm, history: { recordWithoutExecute() { throw new Error('injected registration'); } },
+      isPictureMoveDragging: true, pictureMoveState: { recorder }, dragRafId: 0,
+      container: { style: { cursor: 'move' } },
+    };
+    assert.throws(() => finishPictureMoveDrag.call(host), /injected registration/);
+    assert.equal(hasOpenPointerGesture(host), false);
+    assert.equal(rawSnapshotLabels(wasm, 0), undefined);
+    assert.equal(rawSnapshotLabels(wasm, 1), undefined);
   } finally { history.clear(wasm); wasm.dispose(); }
 });

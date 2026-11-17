@@ -1030,10 +1030,11 @@ export class SnapshotCommand implements EditCommand {
    */
   static recorded(operationType: string, beforeId: number, afterId: number,
     before: DocumentPosition, after: DocumentPosition,
-    beforeLabel?: string | null, afterLabel?: string | null): SnapshotCommand {
+    beforeLabel?: string | null, afterLabel?: string | null, capturedEpoch?: string | null): SnapshotCommand {
     const command = new SnapshotCommand(operationType, before, after, null);
     command.beforeId = beforeId;
     command.afterId = afterId;
+    command.epoch = capturedEpoch ?? beforeLabel?.split(':')[0] ?? null;
     if (beforeLabel && afterLabel) command.explicitLabels = { undoLabel: afterLabel, redoLabel: beforeLabel };
     return command;
   }
@@ -1054,6 +1055,9 @@ export class SnapshotCommand implements EditCommand {
 
   execute(wasm: WasmBridge): DocumentPosition {
     if (this.afterId !== null) {
+      if (this.epoch !== null && documentEpochOf(wasm) !== this.epoch) {
+        throw new InvalidEditHandleError('INVALID_EDIT_HANDLE: snapshot document epoch differs');
+      }
       // Redo: after 스냅샷으로 복원
       try {
         wasm.restoreSnapshot(this.afterId);
@@ -1084,6 +1088,9 @@ export class SnapshotCommand implements EditCommand {
 
   undo(wasm: WasmBridge): DocumentPosition {
     if (this.beforeId !== null) {
+      if (this.epoch !== null && documentEpochOf(wasm) !== this.epoch) {
+        throw new InvalidEditHandleError('INVALID_EDIT_HANDLE: snapshot document epoch differs');
+      }
       try {
         wasm.restoreSnapshot(this.beforeId);
       } catch (error: unknown) {
@@ -1096,15 +1103,19 @@ export class SnapshotCommand implements EditCommand {
 
   recordedLabels(wasm: WasmBridge): { undoLabel: string; redoLabel: string } | null {
     if (this.beforeId === null || this.afterId === null) return null;
-    this.epoch ??= documentEpochOf(wasm);
+    const liveEpoch = documentEpochOf(wasm);
+    if (this.epoch !== null && this.epoch !== liveEpoch) return null;
     const beforeCapture = snapshotCaptureLabel(wasm, this.beforeId);
     const afterCapture = snapshotCaptureLabel(wasm, this.afterId);
     const captured = beforeCapture && afterCapture ? { undoLabel: afterCapture, redoLabel: beforeCapture } : null;
     const explicit = this.explicitLabels;
-    if (explicit && captured
+    if (!captured || captured.redoLabel.split(':')[0] !== liveEpoch
+      || captured.undoLabel.split(':')[0] !== liveEpoch) return null;
+    if (explicit
       && (explicit.undoLabel !== captured.undoLabel || explicit.redoLabel !== captured.redoLabel)) {
       return null;
     }
+    this.epoch ??= captured.redoLabel.split(':')[0];
     return explicit ? { ...explicit } : captured;
   }
 
@@ -1125,7 +1136,7 @@ export class SnapshotCommand implements EditCommand {
 
   discard(wasm: WasmBridge): void {
     // 재로드된 다른 문서의 같은 번호 스냅샷을 지우지 않는다
-    const owned = this.epoch === null || documentEpochOf(wasm) === this.epoch;
+    const owned = this.epoch !== null && documentEpochOf(wasm) === this.epoch;
     if (this.beforeId !== null) {
       if (owned) wasm.discardSnapshot(this.beforeId);
       this.beforeId = null;
@@ -1156,7 +1167,7 @@ function snapshotCaptureLabel(wasm: WasmBridge, id: number): string | null {
  */
 export class ObjectGestureRecorder {
   /** begin()이 봉인한 제스처 이전 스냅샷 ID와 그 시점 상태 라벨 */
-  private before: { id: number; label: string | null } | null = null;
+  private before: { id: number; label: string | null; epoch: string | null } | null = null;
 
   constructor(
     private readonly operationType: string,
@@ -1169,7 +1180,7 @@ export class ObjectGestureRecorder {
   begin(wasm: WasmBridge): void {
     if (this.before !== null) return;
     const label = stateLabelOf(wasm);
-    this.before = { id: wasm.saveSnapshot(), label };
+    this.before = { id: wasm.saveSnapshot(), label, epoch: label?.split(':')[0] ?? null };
   }
 
   /**
@@ -1180,10 +1191,29 @@ export class ObjectGestureRecorder {
     const before = this.before;
     if (before === null) return null;
     this.before = null;
+    if (before.epoch !== documentEpochOf(wasm)) {
+      return SnapshotCommand.recorded(
+        this.operationType, before.id, before.id, this.cursor, this.cursor,
+        before.label, before.label, before.epoch,
+      );
+    }
     const afterLabel = stateLabelOf(wasm);
-    const afterId = wasm.saveSnapshot();
+    let afterId: number;
+    try { afterId = wasm.saveSnapshot(); }
+    catch (error: unknown) {
+      if (before.epoch !== null && documentEpochOf(wasm) === before.epoch) wasm.discardSnapshot(before.id);
+      throw error;
+    }
     return SnapshotCommand.recorded(
-      this.operationType, before.id, afterId, this.cursor, this.cursor, before.label, afterLabel,
+      this.operationType, before.id, afterId, this.cursor, this.cursor, before.label, afterLabel, before.epoch,
     );
+  }
+
+  cancel(wasm: WasmBridge): void {
+    const before = this.before;
+    this.before = null;
+    if (before !== null && before.epoch !== null && documentEpochOf(wasm) === before.epoch) {
+      wasm.discardSnapshot(before.id);
+    }
   }
 }

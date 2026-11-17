@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { ObjectGestureRecorder } from './command';
+import type { EditCommand } from './command';
 
 /** 클릭 좌표에서 그림, 글상자, 수식 개체를 찾는다. */
 /** 점과 선분 사이 최소 거리 (px) */
@@ -596,17 +597,27 @@ export function updatePictureMoveDrag(this: any, e: MouseEvent): void {
 }
 
 export function finishPictureMoveDrag(this: any): void {
-  if (this.pictureMoveState) {
-    // 드래그 전체(모든 대상 + 연결선)를 실제 이전/이후 라벨 쌍을 가진 항목 하나로 기록
-    const command = this.pictureMoveState.recorder?.finish(this.wasm) ?? null;
-    if (command) this.history.recordWithoutExecute(command, this.wasm);
-  }
-  this.isPictureMoveDragging = false;
-  this.pictureMoveState = null;
-  this.container.style.cursor = '';
-  if (this.dragRafId) {
-    cancelAnimationFrame(this.dragRafId);
-    this.dragRafId = 0;
+  let command: EditCommand | null = null;
+  try {
+    if (this.pictureMoveState) {
+      // 드래그 전체(모든 대상 + 연결선)를 실제 이전/이후 라벨 쌍을 가진 항목 하나로 기록
+      command = this.pictureMoveState.recorder?.finish(this.wasm) ?? null;
+      if (command) this.history.recordWithoutExecute(command, this.wasm);
+      command = null;
+    }
+  } finally {
+    try {
+      command?.discard?.(this.wasm);
+      this.pictureMoveState?.recorder?.cancel(this.wasm);
+    } finally {
+      this.isPictureMoveDragging = false;
+      this.pictureMoveState = null;
+      this.container.style.cursor = '';
+      if (this.dragRafId) {
+        cancelAnimationFrame(this.dragRafId);
+        this.dragRafId = 0;
+      }
+    }
   }
 }
 

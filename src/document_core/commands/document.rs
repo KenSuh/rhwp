@@ -748,7 +748,7 @@ impl DocumentCore {
 
     // ─── Undo/Redo 스냅샷 API ──────────────────────────
 
-    /// 현재 Document를 클론하여 스냅샷 저장소에 보관한다.
+    /// 문서 구조를 복제하고 큰 불변 바이너리는 Arc 풀로 공유해 보관한다.
     /// 반환값: 스냅샷 ID (u32)
     ///
     /// 스냅샷은 저장 시점의 상태 라벨 하나만 봉인한다. before/after 짝을 전역 대기 슬롯으로
@@ -758,11 +758,12 @@ impl DocumentCore {
         self.invalidate_edit_redo();
         let id = self.next_snapshot_id;
         self.next_snapshot_id += 1;
-        self.snapshot_store.push(crate::document_core::SnapshotRecord {
-            id,
-            document: (*self.document).clone(),
-            label: self.document.state_label().unwrap_or_default(),
-        });
+        self.snapshot_store
+            .push(crate::document_core::SnapshotRecord {
+                id,
+                document: self.document.snapshot(),
+                label: self.document.state_label().unwrap_or_default(),
+            });
 
         // 스냅샷 수명은 Studio CommandHistory가 항목 제거·밀어내기·redo 정리 때
         // discard()로 관리한다(MAX_HISTORY_SIZE = 1000 항목 × 항목당 스냅샷 2개 + IME 등
@@ -819,7 +820,7 @@ impl DocumentCore {
                 "live content is not captured by any snapshot".into(),
             ));
         }
-        let doc = self.snapshot_store[idx].document.clone();
+        let doc = self.snapshot_store[idx].document.restore();
         let ticket = self.document.begin_inverse(&live_label, &produced_label)?;
         *self.document = doc;
         // 캐시 전체 재구성
@@ -845,6 +846,7 @@ impl DocumentCore {
     /// 지정 ID의 스냅샷을 저장소에서 제거하여 메모리를 해제한다.
     pub fn discard_snapshot_native(&mut self, id: u32) {
         self.snapshot_store.retain(|record| record.id != id);
+        self.document.prune_snapshot_payloads();
     }
 
     pub fn measure_width_diagnostic_native(

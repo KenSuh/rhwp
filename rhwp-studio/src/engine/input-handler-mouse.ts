@@ -5,6 +5,8 @@ import type { ContextMenuItem } from '@/ui/context-menu';
 import * as _connector from './input-handler-connector';
 import { stateLabelOf } from './history';
 import { computeCellDragRange } from './table-selection-utils';
+import { hasOpenPointerGesture } from './input-handler-table';
+import { InputHandler } from './input-handler';
 
 function sameCellPath(a?: unknown[], b?: unknown[]): boolean {
   if (!a?.length && !b?.length) return true;
@@ -1240,6 +1242,10 @@ function updateTextDragSelection(this: any, e: MouseEvent): void {
 }
 
 export function onMouseMove(this: any, e: MouseEvent): void {
+  if ((e.buttons & 1) === 0 && (hasOpenPointerGesture(this) || this.isDragging || this.isCellDragSelecting)) {
+    InputHandler.prototype.settleOpenPointerGesture.call(this, 'interrupt');
+    return;
+  }
   // 연결선 드로잉 모드: 연결점 오버레이 + 프리뷰
   if (this.connectorDrawingMode) {
     const sc = this.container.querySelector('#scroll-content');
@@ -1668,6 +1674,10 @@ export function handleResizeHover(this: any, e: MouseEvent): void {
 }
 
 export function onMouseUp(this: any, e: MouseEvent): void {
+  InputHandler.prototype.settleOpenPointerGesture.call(this, 'release', () => finishMouseUp.call(this, e));
+}
+
+function finishMouseUp(this: any, e: MouseEvent): void {
   // 그림 배치 모드 마우스업 → 삽입 실행
   if (this.imagePlacementMode && this.imagePlacementDrag && this.imagePlacementData) {
     this.finishImagePlacement(e);

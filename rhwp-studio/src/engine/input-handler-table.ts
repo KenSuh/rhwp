@@ -379,7 +379,8 @@ export function hasOpenPointerGesture(handler: any): boolean {
     || handler.isPictureRotateDragging || handler.pictureRotateState
     || handler.isLineEndpointDragging || handler.lineEndpointState
     || handler.isMoveDragging || handler.moveDragState
-    || handler.isResizeDragging || handler.resizeDragState,
+    || handler.isResizeDragging || handler.resizeDragState
+    || handler.isDragging || handler.isCellDragSelecting,
   );
 }
 

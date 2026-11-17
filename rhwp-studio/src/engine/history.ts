@@ -268,7 +268,8 @@ export class CommandHistory {
       return;
     }
     const labels = this.resolveRecordedLabels(command, wasm, beforeLabel);
-    if (!labels) {
+    const epoch = stateLabelOf(wasm)?.split(':')[0];
+    if (!labels || labels.undoLabel.split(':')[0] !== epoch || labels.redoLabel.split(':')[0] !== epoch) {
       command.discard?.(wasm);
       return;
     }

@@ -26,7 +26,177 @@ use crate::renderer::DEFAULT_DPI;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
+/// Snapshot-only storage: the editable model stays owned, while immutable byte
+/// vectors are interned by value. Weak entries never keep discarded history alive.
+#[derive(Default)]
+struct SnapshotPayloadPool {
+    buffers: HashMap<u64, Vec<std::sync::Weak<Vec<u8>>>>,
+    previews: Vec<std::sync::Weak<Option<crate::model::document::Preview>>>,
+}
+
+impl SnapshotPayloadPool {
+    fn capture_bytes(&mut self, bytes: &[u8]) -> std::sync::Arc<Vec<u8>> {
+        use std::hash::{Hash, Hasher};
+        let mut hash = std::collections::hash_map::DefaultHasher::new();
+        bytes.hash(&mut hash);
+        let bucket = self.buffers.entry(hash.finish()).or_default();
+        bucket.retain(|entry| entry.strong_count() > 0);
+        for entry in bucket.iter().filter_map(std::sync::Weak::upgrade) {
+            if entry.as_slice() == bytes {
+                return entry;
+            }
+        }
+        let shared = std::sync::Arc::new(bytes.to_vec());
+        bucket.push(std::sync::Arc::downgrade(&shared));
+        shared
+    }
+
+    fn capture_preview(
+        &mut self,
+        preview: &Option<crate::model::document::Preview>,
+    ) -> std::sync::Arc<Option<crate::model::document::Preview>> {
+        self.previews.retain(|entry| entry.strong_count() > 0);
+        for entry in self.previews.iter().filter_map(std::sync::Weak::upgrade) {
+            let equal = match (entry.as_ref(), preview) {
+                (None, None) => true,
+                (Some(a), Some(b)) => {
+                    a.text == b.text
+                        && match (&a.image, &b.image) {
+                            (None, None) => true,
+                            (Some(a), Some(b)) => a.format == b.format && a.data == b.data,
+                            _ => false,
+                        }
+                }
+                _ => false,
+            };
+            if equal {
+                return entry;
+            }
+        }
+        let shared = std::sync::Arc::new(preview.clone());
+        self.previews.push(std::sync::Arc::downgrade(&shared));
+        shared
+    }
+
+    fn prune(&mut self) {
+        self.buffers.retain(|_, bucket| {
+            bucket.retain(|entry| entry.strong_count() > 0);
+            !bucket.is_empty()
+        });
+        self.previews.retain(|entry| entry.strong_count() > 0);
+    }
+}
+
+struct DocumentSnapshot {
+    document: Document,
+    bin_data: Vec<std::sync::Arc<Vec<u8>>>,
+    preview: std::sync::Arc<Option<crate::model::document::Preview>>,
+    extra_streams: Vec<std::sync::Arc<Vec<u8>>>,
+    doc_info_raw: Option<std::sync::Arc<Vec<u8>>>,
+    section_raw: Vec<Option<std::sync::Arc<Vec<u8>>>>,
+}
+
+impl DocumentSnapshot {
+    fn capture(document: &Document, pool: &mut SnapshotPayloadPool) -> Self {
+        use crate::model::document::{DocInfo, Section};
+        // Explicit construction avoids cloning a payload only to clear it and
+        // makes additions to Document/DocInfo/Section a compile-time obligation.
+        let Document {
+            header,
+            doc_properties,
+            doc_info,
+            sections,
+            preview,
+            bin_data_content,
+            extra_streams,
+        } = document;
+        let light_info = DocInfo {
+            hwpx_track_change_flags: doc_info.hwpx_track_change_flags,
+            bin_data_list: doc_info.bin_data_list.clone(),
+            font_faces: doc_info.font_faces.clone(),
+            border_fills: doc_info.border_fills.clone(),
+            char_shapes: doc_info.char_shapes.clone(),
+            tab_defs: doc_info.tab_defs.clone(),
+            numberings: doc_info.numberings.clone(),
+            bullets: doc_info.bullets.clone(),
+            para_shapes: doc_info.para_shapes.clone(),
+            styles: doc_info.styles.clone(),
+            extra_records: doc_info.extra_records.clone(),
+            raw_stream: None,
+            bullet_count: doc_info.bullet_count,
+            memo_shape_count: doc_info.memo_shape_count,
+            distribute_doc_data_removed: doc_info.distribute_doc_data_removed,
+            raw_stream_dirty: doc_info.raw_stream_dirty,
+        };
+        Self {
+            document: Document {
+                header: header.clone(),
+                doc_properties: doc_properties.clone(),
+                doc_info: light_info,
+                sections: sections
+                    .iter()
+                    .map(|s| Section {
+                        section_def: s.section_def.clone(),
+                        paragraphs: s.paragraphs.clone(),
+                        raw_stream: None,
+                    })
+                    .collect(),
+                preview: None,
+                bin_data_content: bin_data_content
+                    .iter()
+                    .map(|b| crate::model::bin_data::BinDataContent {
+                        id: b.id,
+                        extension: b.extension.clone(),
+                        data: Vec::new(),
+                    })
+                    .collect(),
+                extra_streams: extra_streams
+                    .iter()
+                    .map(|(name, _)| (name.clone(), Vec::new()))
+                    .collect(),
+            },
+            bin_data: bin_data_content
+                .iter()
+                .map(|b| pool.capture_bytes(&b.data))
+                .collect(),
+            preview: pool.capture_preview(preview),
+            extra_streams: extra_streams
+                .iter()
+                .map(|(_, bytes)| pool.capture_bytes(bytes))
+                .collect(),
+            doc_info_raw: doc_info
+                .raw_stream
+                .as_ref()
+                .map(|bytes| pool.capture_bytes(bytes)),
+            section_raw: sections
+                .iter()
+                .map(|s| s.raw_stream.as_ref().map(|bytes| pool.capture_bytes(bytes)))
+                .collect(),
+        }
+    }
+
+    fn restore(&self) -> Document {
+        let mut document = self.document.clone();
+        for (bin, bytes) in document.bin_data_content.iter_mut().zip(&self.bin_data) {
+            bin.data = bytes.as_ref().clone();
+        }
+        document.preview = self.preview.as_ref().clone();
+        for ((_, data), bytes) in document.extra_streams.iter_mut().zip(&self.extra_streams) {
+            *data = bytes.as_ref().clone();
+        }
+        document.doc_info.raw_stream = self
+            .doc_info_raw
+            .as_ref()
+            .map(|bytes| bytes.as_ref().clone());
+        for (section, bytes) in document.sections.iter_mut().zip(&self.section_raw) {
+            section.raw_stream = bytes.as_ref().map(|bytes| bytes.as_ref().clone());
+        }
+        document
+    }
+}
+
 mod mutation {
+    use super::{DocumentSnapshot, SnapshotPayloadPool};
     use crate::error::HwpError;
     use crate::model::document::Document;
     use std::ops::{Deref, DerefMut};
@@ -43,7 +213,7 @@ mod mutation {
         produced_state: u64,
         /// Content at `expected_state`, taken lazily at the first mutation inside
         /// the scope so an aborted inverse can restore it exactly.
-        checkpoint: Option<Box<Document>>,
+        checkpoint: Option<Box<DocumentSnapshot>>,
         /// Set by a nested abort: the outer close must roll back, never publish.
         poisoned: bool,
     }
@@ -58,6 +228,7 @@ mod mutation {
         active_inverse: Option<ActiveInverse>,
         /// True after a scope rollback until the owner rebuilds derived caches.
         rolled_back: bool,
+        snapshot_payloads: SnapshotPayloadPool,
     }
 
     impl DocumentMutation {
@@ -75,11 +246,20 @@ mod mutation {
                 next_ticket_id: 0,
                 active_inverse: None,
                 rolled_back: false,
+                snapshot_payloads: SnapshotPayloadPool::default(),
             }
         }
 
         pub(super) fn epoch(&self) -> Result<&str, &str> {
             self.epoch.as_deref().map_err(String::as_str)
+        }
+
+        pub(super) fn snapshot(&mut self) -> DocumentSnapshot {
+            DocumentSnapshot::capture(&self.document, &mut self.snapshot_payloads)
+        }
+
+        pub(super) fn prune_snapshot_payloads(&mut self) {
+            self.snapshot_payloads.prune();
         }
 
         pub(super) fn state_label(&self) -> Result<String, HwpError> {
@@ -187,7 +367,7 @@ mod mutation {
             };
             if closed.poisoned {
                 if let Some(checkpoint) = closed.checkpoint {
-                    self.document = *checkpoint;
+                    self.document = checkpoint.restore();
                     self.rolled_back = true;
                 }
                 self.current_state = closed.expected_state;
@@ -244,7 +424,10 @@ mod mutation {
             match &mut self.active_inverse {
                 Some(active) => {
                     if active.checkpoint.is_none() {
-                        active.checkpoint = Some(Box::new(self.document.clone()));
+                        active.checkpoint = Some(Box::new(DocumentSnapshot::capture(
+                            &self.document,
+                            &mut self.snapshot_payloads,
+                        )));
                     }
                 }
                 None => self.previous_state = self.current_state,
@@ -310,6 +493,112 @@ mod mutation {
             assert_eq!(gate.state_label().unwrap(), after);
             assert!(!gate.take_rolled_back(), "no mutation, nothing to restore");
         }
+
+        fn binary_document() -> Document {
+            use crate::model::bin_data::BinDataContent;
+            use crate::model::document::{Preview, PreviewImage, PreviewImageFormat};
+            Document {
+                bin_data_content: vec![BinDataContent {
+                    id: 7,
+                    extension: "png".into(),
+                    data: vec![7; 1024 * 1024],
+                }],
+                preview: Some(Preview {
+                    text: Some("preview".into()),
+                    image: Some(PreviewImage {
+                        format: PreviewImageFormat::Png,
+                        data: vec![8; 1024],
+                    }),
+                }),
+                extra_streams: vec![("extra".into(), vec![9; 1024])],
+                doc_info: crate::model::document::DocInfo {
+                    raw_stream: Some(vec![10; 1024]),
+                    ..Default::default()
+                },
+                sections: vec![Section {
+                    raw_stream: Some(vec![11; 1024]),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            }
+        }
+
+        #[test]
+        fn c9_snapshots_share_all_binary_payloads_without_mutating_the_document() {
+            use std::sync::Arc;
+            let mut gate = DocumentMutation::new(binary_document());
+            let label = gate.state_label().unwrap();
+            let first = gate.snapshot();
+            for _ in 0..1025 {
+                let next = gate.snapshot();
+                assert!(Arc::ptr_eq(&first.bin_data[0], &next.bin_data[0]));
+                assert!(Arc::ptr_eq(&first.preview, &next.preview));
+                assert!(Arc::ptr_eq(&first.extra_streams[0], &next.extra_streams[0]));
+                assert!(Arc::ptr_eq(
+                    first.doc_info_raw.as_ref().unwrap(),
+                    next.doc_info_raw.as_ref().unwrap()
+                ));
+                assert!(Arc::ptr_eq(
+                    first.section_raw[0].as_ref().unwrap(),
+                    next.section_raw[0].as_ref().unwrap()
+                ));
+                assert!(next.document.bin_data_content[0].data.is_empty());
+                assert!(next.document.preview.is_none());
+            }
+            assert_eq!(gate.state_label().unwrap(), label);
+            gate.bin_data_content[0].data[0] = 99;
+            let changed = gate.snapshot();
+            assert!(!Arc::ptr_eq(&first.bin_data[0], &changed.bin_data[0]));
+            let restored = first.restore();
+            assert_eq!(restored.bin_data_content[0].data, vec![7; 1024 * 1024]);
+            assert_eq!(restored.bin_data_content[0].id, 7);
+            assert_eq!(restored.bin_data_content[0].extension, "png");
+            let preview = restored.preview.unwrap();
+            assert_eq!(preview.text.as_deref(), Some("preview"));
+            assert_eq!(preview.image.unwrap().data, vec![8; 1024]);
+            assert_eq!(
+                restored.extra_streams,
+                vec![("extra".into(), vec![9; 1024])]
+            );
+            assert_eq!(restored.doc_info.raw_stream, Some(vec![10; 1024]));
+            assert_eq!(restored.sections[0].raw_stream, Some(vec![11; 1024]));
+        }
+
+        #[test]
+        fn c9_inverse_checkpoint_shares_payloads_and_rolls_back_changed_bytes() {
+            use std::sync::Arc;
+            let mut gate = DocumentMutation::new(binary_document());
+            let before = gate.state_label().unwrap();
+            gate.sections.push(Section::default());
+            let after = gate.state_label().unwrap();
+            let captured = gate.snapshot();
+            let ticket = gate.begin_inverse(&after, &before).unwrap();
+            gate.bin_data_content[0].data[0] = 99;
+            let checkpoint = gate
+                .active_inverse
+                .as_ref()
+                .unwrap()
+                .checkpoint
+                .as_ref()
+                .unwrap();
+            assert!(Arc::ptr_eq(&captured.bin_data[0], &checkpoint.bin_data[0]));
+            gate.preview = None;
+            gate.extra_streams.clear();
+            gate.doc_info.raw_stream = None;
+            gate.sections.clear();
+            gate.abort_inverse(ticket);
+            assert_eq!(gate.state_label().unwrap(), after);
+            assert_eq!(gate.bin_data_content[0].data, vec![7; 1024 * 1024]);
+            assert!(gate.preview.is_some());
+            assert_eq!(gate.extra_streams[0].1, vec![9; 1024]);
+            assert_eq!(gate.doc_info.raw_stream, Some(vec![10; 1024]));
+            assert_eq!(gate.sections[0].raw_stream, Some(vec![11; 1024]));
+            assert_eq!(gate.sections.len(), 2);
+            drop(captured);
+            gate.prune_snapshot_payloads();
+            assert!(gate.snapshot_payloads.buffers.is_empty());
+            assert!(gate.snapshot_payloads.previews.is_empty());
+        }
     }
 }
 
@@ -339,7 +628,7 @@ pub(crate) enum EditJournalEntry {
 
 pub(crate) struct SnapshotRecord {
     pub(crate) id: u32,
-    pub(crate) document: Document,
+    document: DocumentSnapshot,
     /// 저장 시점의 상태 라벨 — 이 스냅샷 내용의 정체. 짝(before/after)은 여기서 맺지 않고
     /// 복원 시 호출부가 명시한 라벨 쌍을 단일 역실행 게이트가 이 값과 대조한다.
     pub(crate) label: String,
@@ -542,9 +831,14 @@ impl DocumentCore {
             .epoch()
             .map_err(|reason| crate::error::HwpError::InvalidEditHandle(reason.to_string()))?
             .to_string();
-        self.next_command_inverse_seq = self.next_command_inverse_seq.checked_add(1).ok_or_else(
-            || crate::error::HwpError::InvalidEditHandle("command inverse sequence exhausted".into()),
-        )?;
+        self.next_command_inverse_seq =
+            self.next_command_inverse_seq
+                .checked_add(1)
+                .ok_or_else(|| {
+                    crate::error::HwpError::InvalidEditHandle(
+                        "command inverse sequence exhausted".into(),
+                    )
+                })?;
         let token = format!("{epoch}:cmd:{}", self.next_command_inverse_seq);
         self.pending_command_inverse = Some((token.clone(), ticket));
         self.text_edit_history.journal = Some(Vec::new());
