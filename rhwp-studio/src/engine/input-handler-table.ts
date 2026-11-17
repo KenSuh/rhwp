@@ -1,7 +1,7 @@
 /** input-handler table methods — extracted from InputHandler class */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { MoveTableCommand, MovePictureCommand, MoveShapeCommand } from './command';
+import { MoveTableCommand, ObjectGestureRecorder } from './command';
 import { stateLabelOf } from './history';
 import { getObjectProperties, setObjectProperties } from './input-handler-picture';
 import type { CellBbox } from '@/core/types';
@@ -416,34 +416,33 @@ export function moveSelectedPicture(this: any, key: 'ArrowUp' | 'ArrowDown' | 'A
     case 'ArrowDown':  deltaV = step;  break;
   }
 
-  // 다중 선택: 모든 선택된 개체를 동일 delta만큼 이동
+  // 다중 선택: 모든 선택된 개체를 동일 delta만큼 이동.
+  // 한 번의 키 입력(모든 대상 + 연결선 갱신)을 히스토리 항목 하나로 기록한다.
   const targets = refs.length > 1 ? refs : [ref];
+  const recorder = new ObjectGestureRecorder('moveObjects', {
+    sectionIndex: targets[0].sec, paragraphIndex: targets[0].ppi, charOffset: 0,
+  });
   try {
-    for (let i = 0; i < targets.length; i++) {
-      const r = targets[i];
+    for (const r of targets) {
       const props = getObjectProperties.call(this, r);
       if (props.treatAsChar) continue; // treat_as_char 개체는 이동 불가
-      const beforeLabel = stateLabelOf(this.wasm);
-      const newHorzOffset = ((props.horzOffset + deltaH) >>> 0);
-      const newVertOffset = ((props.vertOffset + deltaV) >>> 0);
+      recorder.begin(this.wasm);
       setObjectProperties.call(this, r, {
-        horzOffset: newHorzOffset,
-        vertOffset: newVertOffset,
+        horzOffset: ((props.horzOffset + deltaH) >>> 0),
+        vertOffset: ((props.vertOffset + deltaV) >>> 0),
       });
-      if (i === targets.length - 1) {
-        try { this.wasm.updateConnectorsInSection(targets[0].sec); } catch { /* ignore */ }
-      }
-      const CmdClass = r.type === 'shape' || r.type === 'line' || r.type === 'group' ? MoveShapeCommand : MovePictureCommand;
-      this.executeOperation({
-        kind: 'record',
-        beforeLabel,
-        command: new CmdClass(r.sec, r.ppi, r.ci, deltaH, deltaV, props.horzOffset, props.vertOffset),
-      });
+    }
+    if (recorder.started) {
+      try { this.wasm.updateConnectorsInSection(targets[0].sec); } catch { /* ignore */ }
     }
     this.eventBus.emit('document-changed');
     this.renderPictureObjectSelection();
   } catch (err) {
     console.warn('[InputHandler] 개체 이동 실패:', err);
+  } finally {
+    // 일부 대상만 바뀐 뒤 실패해도 실제로 바뀐 상태는 같은 항목으로 기록한다
+    const command = recorder.finish(this.wasm);
+    if (command) this.executeOperation({ kind: 'record', command });
   }
 }
 

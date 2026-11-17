@@ -1,7 +1,7 @@
 //! 텍스트 삽입/삭제/문단 분리·병합/범위 삭제/문단 쿼리 관련 native 메서드
 
 use super::super::helpers::get_textbox_from_shape;
-use crate::document_core::{DocumentCore, EditRecord, TextEditState};
+use crate::document_core::{DocumentCore, EditJournalEntry, EditRecord, TextEditState};
 use crate::error::HwpError;
 use crate::model::control::Control;
 use crate::model::event::DocumentEvent;
@@ -15,7 +15,13 @@ use crate::renderer::px_to_hwpunit;
 
 impl DocumentCore {
     pub(crate) fn invalidate_edit_redo(&mut self) {
-        self.text_edit_history.redo.clear();
+        let history = &mut self.text_edit_history;
+        let cleared = std::mem::take(&mut history.redo);
+        if let Some(journal) = history.journal.as_mut() {
+            if !cleared.is_empty() {
+                journal.push(EditJournalEntry::RedoCleared(cleared));
+            }
+        }
     }
 
     /// Additive undo API: capture the owner before edits, including cell subtrees.
@@ -32,7 +38,7 @@ impl DocumentCore {
         if self.text_edit_history.undo.len() >= 1024 {
             return Err(HwpError::RenderError("text edit token limit (1024)".into()));
         }
-        self.text_edit_history.redo.clear();
+        self.invalidate_edit_redo();
         self.text_edit_history.next_sequence += 1;
         self.text_edit_history.undo.push(EditRecord {
             handle: handle.clone(),
@@ -40,6 +46,9 @@ impl DocumentCore {
             undo_to_label: before_label,
             state,
         });
+        if let Some(journal) = self.text_edit_history.journal.as_mut() {
+            journal.push(EditJournalEntry::Captured(handle.clone()));
+        }
         Ok(handle)
     }
 
@@ -204,6 +213,13 @@ impl DocumentCore {
             self.document.abort_inverse(ticket);
             return Err(HwpError::InvalidEditHandle("history is empty".into()));
         };
+        // Inside an open command inverse the consumed record is journaled so a
+        // later refusal of that command restores this handle exactly.
+        let journaled = self
+            .text_edit_history
+            .journal
+            .is_some()
+            .then(|| record.clone());
         match record.state {
             TextEditState::Paragraph {
                 section,
@@ -248,6 +264,13 @@ impl DocumentCore {
             undo_to_label: expected_label,
             state: reciprocal,
         });
+        if let (Some(journal), Some(original)) = (history.journal.as_mut(), journaled) {
+            journal.push(EditJournalEntry::Moved {
+                undoing,
+                original,
+                reciprocal_handle: handle.clone(),
+            });
+        }
         Ok(handle)
     }
 

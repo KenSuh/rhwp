@@ -1,7 +1,7 @@
 /** input-handler picture/shape methods — extracted from InputHandler class */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { MovePictureCommand, MoveShapeCommand } from './command';
+import { ObjectGestureRecorder } from './command';
 
 /** 클릭 좌표에서 그림, 글상자, 수식 개체를 찾는다. */
 /** 점과 선분 사이 최소 거리 (px) */
@@ -569,6 +569,12 @@ export function updatePictureMoveDrag(this: any, e: MouseEvent): void {
   try {
     // 다중 선택: 모든 개체를 동일 delta로 이동
     const targets = this.pictureMoveState.multiRefs || [this.pictureMoveState.ref];
+    // 제스처 이전 문서·라벨은 첫 실제 변이 직전에 한 번 봉인한다 —
+    // 선택된 모든 개체와 연결선 갱신이 하나의 히스토리 항목에 담긴다
+    this.pictureMoveState.recorder ??= new ObjectGestureRecorder('moveObjects', {
+      sectionIndex: targets[0].sec, paragraphIndex: targets[0].ppi, charOffset: 0,
+    });
+    this.pictureMoveState.recorder.begin(this.wasm);
     for (const ref of targets) {
       const props = getObjectProperties.call(this, ref);
       setObjectProperties.call(this, ref, {
@@ -591,22 +597,9 @@ export function updatePictureMoveDrag(this: any, e: MouseEvent): void {
 
 export function finishPictureMoveDrag(this: any): void {
   if (this.pictureMoveState) {
-    const { totalDeltaH, totalDeltaV, multiRefs, beforeLabel } = this.pictureMoveState;
-    if (totalDeltaH !== 0 || totalDeltaV !== 0) {
-      const targets = multiRefs || [{ ...this.pictureMoveState.ref, origHorzOffset: this.pictureMoveState.origHorzOffset, origVertOffset: this.pictureMoveState.origVertOffset }];
-      for (const r of targets) {
-        const CmdClass = (r.type === 'shape' || r.type === 'line' || r.type === 'group') ? MoveShapeCommand : MovePictureCommand;
-        this.history.recordWithoutExecute(
-          new CmdClass(
-            r.sec, r.ppi, r.ci,
-            totalDeltaH, totalDeltaV,
-            r.origHorzOffset, r.origVertOffset,
-          ),
-          this.wasm,
-          targets.length === 1 ? beforeLabel : undefined,
-        );
-      }
-    }
+    // 드래그 전체(모든 대상 + 연결선)를 실제 이전/이후 라벨 쌍을 가진 항목 하나로 기록
+    const command = this.pictureMoveState.recorder?.finish(this.wasm) ?? null;
+    if (command) this.history.recordWithoutExecute(command, this.wasm);
   }
   this.isPictureMoveDragging = false;
   this.pictureMoveState = null;

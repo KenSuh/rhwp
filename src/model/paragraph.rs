@@ -350,9 +350,11 @@ impl Paragraph {
                         }
                     }
                 }
+                // D6: a field is selected when both endpoints lie in the inclusive
+                // range, including an empty field with b == e == end.
                 if matches!(
                     (begin, finish),
-                    (Some((_, b)), Some((_, e))) if start <= b && b <= e && e <= end && b < end
+                    (Some((_, b)), Some((_, e))) if start <= b && b <= e && e <= end
                 ) {
                     included.push((pi, ci, id));
                 }

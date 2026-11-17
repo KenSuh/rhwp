@@ -11,8 +11,6 @@ interface GateWasmDoc {
   beginCommandInverse?: (expectedLabel: string, producedLabel: string) => string;
   finishCommandInverse?: (scopeToken: string) => void;
   abortCommandInverse?: (scopeToken: string) => void;
-  charShapeCount?: () => number;
-  truncateCharShapes?: (len: number) => void;
   deleteRangeInCellByPath?: (
     sec: number,
     ppi: number,
@@ -116,6 +114,27 @@ function discardEntries(entries: HistoryEntry[], wasm: WasmBridge): void {
   }
 }
 
+/**
+ * 적용 라벨이 live와 같은 가장 높은 항목(꼭대기 포함) 위의 항목을 스택에서 떼어 돌려준다.
+ * live가 없거나 맞는 항목이 없으면 스택 전체를 뗀다.
+ */
+function applicableSuffix(
+  stack: HistoryEntry[],
+  labelOf: (entry: HistoryEntry) => string,
+  live: string | null,
+): HistoryEntry[] {
+  let keepUntil = -1;
+  if (live !== null) {
+    for (let i = stack.length - 1; i >= 0; i--) {
+      if (labelOf(stack[i]) === live) {
+        keepUntil = i;
+        break;
+      }
+    }
+  }
+  return stack.splice(keepUntil + 1);
+}
+
 /** Undo/Redo 히스토리 관리 */
 export class CommandHistory {
   private undoStack: HistoryEntry[] = [];
@@ -188,7 +207,7 @@ export class CommandHistory {
       return cursorAfter;
     } catch (error: unknown) {
       if (error instanceof InvalidEditHandleError) {
-        this.truncateInvalidUndoSuffix(wasm);
+        this.reconcileWithLiveLabel(wasm);
         return null;
       }
       throw error;
@@ -212,7 +231,7 @@ export class CommandHistory {
       return cursorAfter;
     } catch (error: unknown) {
       if (error instanceof InvalidEditHandleError) {
-        this.truncateInvalidRedoSuffix(wasm);
+        this.reconcileWithLiveLabel(wasm);
         return null;
       }
       throw error;
@@ -279,34 +298,17 @@ export class CommandHistory {
     return { undoLabel: after, redoLabel: before };
   }
 
-  private truncateInvalidUndoSuffix(wasm: WasmBridge): void {
+  /**
+   * 거부(InvalidEditHandle) 뒤 두 스택을 모두 살아 있는 라벨에 맞춘다.
+   * 각 스택은 적용 라벨(undo는 undoLabel, redo는 redoLabel)이 live와 같은 가장
+   * 높은 항목까지만 남긴다. 게이트가 원자적으로 롤백해 라벨이 그대로면 꼭대기가
+   * 여전히 맞아 아무것도 버리지 않고, 대역 밖 변이로 라벨이 바뀌었으면 반대쪽
+   * 스택에 남은 유령 항목까지 함께 정리한다.
+   */
+  private reconcileWithLiveLabel(wasm: WasmBridge): void {
     const live = stateLabelOf(wasm);
-    let keepUntil = -1;
-    if (live !== null) {
-      for (let i = this.undoStack.length - 2; i >= 0; i--) {
-        if (this.undoStack[i].undoLabel === live) {
-          keepUntil = i;
-          break;
-        }
-      }
-    }
-    const removed = this.undoStack.splice(keepUntil + 1);
-    discardEntries(removed, wasm);
-  }
-
-  private truncateInvalidRedoSuffix(wasm: WasmBridge): void {
-    const live = stateLabelOf(wasm);
-    let keepUntil = -1;
-    if (live !== null) {
-      for (let i = this.redoStack.length - 2; i >= 0; i--) {
-        if (this.redoStack[i].redoLabel === live) {
-          keepUntil = i;
-          break;
-        }
-      }
-    }
-    const removed = this.redoStack.splice(keepUntil + 1);
-    discardEntries(removed, wasm);
+    discardEntries(applicableSuffix(this.undoStack, entry => entry.undoLabel, live), wasm);
+    discardEntries(applicableSuffix(this.redoStack, entry => entry.redoLabel, live), wasm);
   }
 
   entryLabels(): {

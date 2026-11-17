@@ -1934,3 +1934,293 @@ fn g17_rust_single_inverse_authority_and_single_membership_owner_guard() {
         membership_fns.len()
     );
 }
+
+// ── C7: atomic command-inverse refusal, end-boundary empty field, size-changing direct restore ──
+
+/// A forward insert captured as a native handle, with that handle's (undo, redo) labels.
+fn c7_captured_insert() -> (rhwp::DocumentCore, String, String, String) {
+    let mut doc = rhwp::DocumentCore::from_bytes(&fixture(&paragraph("<hp:t>AB</hp:t>"))).unwrap();
+    let token = doc.begin_text_edit_native(0, 0, false).unwrap();
+    doc.insert_text_native(0, 0, 1, "X").unwrap();
+    doc.finish_text_edit_native(&token).unwrap();
+    let (undo_label, redo_label) = doc.edit_handle_labels_native(&token).unwrap();
+    (doc, token, undo_label, redo_label)
+}
+
+fn c7_bold_at(doc: &rhwp::DocumentCore, para: usize) -> bool {
+    doc.get_char_properties_at_native(0, para, 0)
+        .unwrap()
+        .contains("\"bold\":true")
+}
+
+#[test]
+fn c7_command_abort_after_real_text_edit_step_restores_bytes_label_and_handle() {
+    let (mut doc, token, undo_label, redo_label) = c7_captured_insert();
+    let bytes = doc.export_hwpx_native().unwrap();
+    let svg = doc.render_page_svg_native(0).unwrap();
+    assert_eq!(
+        doc.render_page_svg_native(0).unwrap(),
+        svg,
+        "render is deterministic"
+    );
+    assert_eq!(doc.state_label_native().unwrap(), undo_label);
+    let live = doc.live_edit_count_native();
+
+    let scope = doc
+        .begin_command_inverse_native(&undo_label, &redo_label)
+        .unwrap();
+    let reciprocal = doc.undo_edit_native(&token).unwrap();
+    assert_eq!(
+        doc.document().sections[0].paragraphs[0].text(),
+        "AB",
+        "first step mutated"
+    );
+    doc.abort_command_inverse_native(&scope);
+
+    assert_eq!(doc.state_label_native().unwrap(), undo_label);
+    assert_eq!(doc.export_hwpx_native().unwrap(), bytes);
+    assert_eq!(
+        doc.render_page_svg_native(0).unwrap(),
+        svg,
+        "caches follow the rollback"
+    );
+    assert_eq!(doc.live_edit_count_native(), live);
+    assert!(
+        doc.edit_handle_labels_native(&reciprocal).is_none(),
+        "reciprocal leaked"
+    );
+    assert_eq!(
+        doc.edit_handle_labels_native(&token),
+        Some((undo_label.clone(), redo_label.clone())),
+        "the consumed handle is applicable again"
+    );
+
+    let scope = doc
+        .begin_command_inverse_native(&undo_label, &redo_label)
+        .unwrap();
+    let redo = doc.undo_edit_native(&token).unwrap();
+    doc.finish_command_inverse_native(&scope).unwrap();
+    assert_eq!(doc.document().sections[0].paragraphs[0].text(), "AB");
+    assert_eq!(doc.state_label_native().unwrap(), redo_label);
+    let scope = doc
+        .begin_command_inverse_native(&redo_label, &undo_label)
+        .unwrap();
+    doc.undo_edit_native(&redo).unwrap();
+    doc.finish_command_inverse_native(&scope).unwrap();
+    assert_eq!(doc.export_hwpx_native().unwrap(), bytes);
+    assert_eq!(doc.state_label_native().unwrap(), undo_label);
+}
+
+#[test]
+fn c7_command_abort_after_real_snapshot_step_restores_document_and_caches() {
+    let mut doc = rhwp::DocumentCore::from_bytes(&fixture(&format!(
+        "{}{}",
+        paragraph("<hp:t>AA</hp:t>"),
+        paragraph("<hp:t>BB</hp:t>")
+    )))
+    .unwrap();
+    let before_id = doc.save_snapshot_native();
+    doc.apply_char_format_native(0, 0, 0, 2, r#"{"bold":true}"#)
+        .unwrap();
+    doc.apply_char_format_native(0, 1, 0, 2, r#"{"bold":true}"#)
+        .unwrap();
+    doc.save_snapshot_native();
+    let (undo_label, redo_label) = doc.snapshot_labels_native(before_id).unwrap();
+    assert_eq!(doc.state_label_native().unwrap(), undo_label);
+    let bytes = doc.export_hwpx_native().unwrap();
+    let svg = doc.render_page_svg_native(0).unwrap();
+
+    let scope = doc
+        .begin_command_inverse_native(&undo_label, &redo_label)
+        .unwrap();
+    doc.restore_snapshot_native(before_id).unwrap();
+    assert!(
+        !c7_bold_at(&doc, 0) && !c7_bold_at(&doc, 1),
+        "first step mutated"
+    );
+    doc.abort_command_inverse_native(&scope);
+
+    assert_eq!(doc.state_label_native().unwrap(), undo_label);
+    assert_eq!(doc.export_hwpx_native().unwrap(), bytes);
+    assert_eq!(
+        doc.render_page_svg_native(0).unwrap(),
+        svg,
+        "caches follow the rollback"
+    );
+    assert!(c7_bold_at(&doc, 0) && c7_bold_at(&doc, 1));
+
+    let scope = doc
+        .begin_command_inverse_native(&undo_label, &redo_label)
+        .unwrap();
+    doc.restore_snapshot_native(before_id).unwrap();
+    doc.finish_command_inverse_native(&scope).unwrap();
+    assert_eq!(doc.state_label_native().unwrap(), redo_label);
+    assert!(!c7_bold_at(&doc, 0) && !c7_bold_at(&doc, 1));
+}
+
+#[test]
+fn c7_refused_scope_restores_redo_records_cleared_inside_it() {
+    let (mut doc, token, undo_label, redo_label) = c7_captured_insert();
+    let scope = doc
+        .begin_command_inverse_native(&undo_label, &redo_label)
+        .unwrap();
+    let redo = doc.undo_edit_native(&token).unwrap();
+    doc.finish_command_inverse_native(&scope).unwrap();
+    let bytes = doc.export_hwpx_native().unwrap();
+    let live = doc.live_edit_count_native();
+
+    let scope = doc
+        .begin_command_inverse_native(&redo_label, &undo_label)
+        .unwrap();
+    doc.insert_text_native(0, 0, 0, "Z").unwrap();
+    assert!(
+        doc.edit_handle_labels_native(&redo).is_none(),
+        "the step cleared native redo"
+    );
+    doc.abort_command_inverse_native(&scope);
+
+    assert_eq!(doc.export_hwpx_native().unwrap(), bytes);
+    assert_eq!(doc.state_label_native().unwrap(), redo_label);
+    assert_eq!(doc.live_edit_count_native(), live);
+    let scope = doc
+        .begin_command_inverse_native(&redo_label, &undo_label)
+        .unwrap();
+    doc.undo_edit_native(&redo).unwrap();
+    doc.finish_command_inverse_native(&scope).unwrap();
+    assert_eq!(doc.document().sections[0].paragraphs[0].text(), "AXB");
+    assert_eq!(doc.state_label_native().unwrap(), undo_label);
+}
+
+#[test]
+fn c7_empty_field_at_included_end_boundary_is_copied_whole() {
+    // R7 E: field 2 is empty with both endpoints at the selection end (b == e == end).
+    let r7 = format!(
+        "{}{}",
+        paragraph(&format!(
+            "{}<hp:t>A</hp:t>{}{}{}",
+            begin(1),
+            end(1),
+            begin(2),
+            end(2)
+        )),
+        paragraph("<hp:t>DEST</hp:t>")
+    );
+    // The same boundary inside a paragraph, with a third empty field past the end.
+    let interior = format!(
+        "{}{}",
+        paragraph(&format!(
+            "{}<hp:t>A</hp:t>{}{}{}<hp:t>B</hp:t>{}{}",
+            begin(1),
+            end(1),
+            begin(2),
+            end(2),
+            begin(3),
+            end(3)
+        )),
+        paragraph("<hp:t>DEST</hp:t>")
+    );
+    for (name, body, before, after) in [("r7", r7, 2, 4), ("interior", interior, 3, 5)] {
+        let mut doc = rhwp::DocumentCore::from_bytes(&fixture(&body)).unwrap();
+        let count = |doc: &rhwp::DocumentCore| {
+            section_xml(&doc.export_hwpx_native().unwrap())
+                .matches("<hp:fieldBegin")
+                .count()
+        };
+        assert_eq!(count(&doc), before, "{name}");
+        doc.copy_selection_native(0, 0, 0, 0, 1).unwrap();
+        doc.paste_internal_native(0, 1, 0).unwrap();
+        assert_eq!(
+            count(&doc),
+            after,
+            "{name}: D6 includes b == e == end, excludes b > end"
+        );
+        let saved = doc.export_hwpx_native().unwrap();
+        assert_eq!(
+            serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(),
+            saved,
+            "{name}"
+        );
+    }
+}
+
+#[test]
+fn c7_size_changing_direct_char_shape_restore_reflows_body_and_cells() {
+    let cell_table = |content: &str| {
+        paragraph(&format!(
+            r#"<hp:tbl rowCnt="1" colCnt="1" borderFillIDRef="1"><hp:tr><hp:tc borderFillIDRef="1"><hp:subList>{content}</hp:subList><hp:cellAddr colAddr="0" rowAddr="0"/><hp:cellSpan colSpan="1" rowSpan="1"/><hp:cellSz width="30000" height="1000"/></hp:tc></hp:tr></hp:tbl>"#
+        ))
+    };
+    let body = format!(
+        "{}{}",
+        paragraph("<hp:t>AB</hp:t>"),
+        cell_table(&paragraph("<hp:t>AB</hp:t>"))
+    );
+    #[derive(Clone, Copy, Debug)]
+    enum Target {
+        Body,
+        Cell,
+        CellPath,
+    }
+    let apply = |doc: &mut rhwp::DocumentCore, target: Target, props: &str| match target {
+        Target::Body => doc.apply_char_format_native(0, 0, 0, 2, props).map(|_| ()),
+        Target::Cell => doc
+            .apply_char_format_in_cell_native(0, 1, 0, 0, 0, 0, 2, props)
+            .map(|_| ()),
+        Target::CellPath => doc
+            .apply_char_format_in_cell_by_path_native(0, 1, &[(0, 0, 0)], 0, 2, props)
+            .map(|_| ()),
+    };
+    let line = |doc: &rhwp::DocumentCore, target: Target| {
+        let para = &doc.document().sections[0].paragraphs;
+        let seg = match target {
+            Target::Body => &para[0].line_segs[0],
+            Target::Cell | Target::CellPath => match &para[1].controls[0] {
+                Control::Table(table) => &table.cells[0].paragraphs[0].line_segs[0],
+                _ => panic!("table control expected"),
+            },
+        };
+        (seg.line_height, seg.text_height, seg.baseline_distance)
+    };
+    for target in [Target::Body, Target::Cell, Target::CellPath] {
+        // Reference: back to the original size through the size-modifying path.
+        let mut reference = rhwp::DocumentCore::from_bytes(&fixture(&body)).unwrap();
+        apply(&mut reference, target, r#"{"fontSize":3600}"#).unwrap();
+        let grown = line(&reference, target);
+        apply(&mut reference, target, r#"{"fontSize":1000}"#).unwrap();
+        let restored = line(&reference, target);
+        assert!(
+            grown.0 > restored.0,
+            "{target:?}: 36pt line must be taller ({grown:?} vs {restored:?})"
+        );
+
+        // A direct charShapeId restore that shrinks the size must reflow the same way.
+        let mut doc = rhwp::DocumentCore::from_bytes(&fixture(&body)).unwrap();
+        let original_id = doc
+            .get_char_properties_at_native(0, 0, 0)
+            .unwrap()
+            .split("\"charShapeId\":")
+            .nth(1)
+            .and_then(|rest| rest.split(|c: char| !c.is_ascii_digit()).next())
+            .map(str::to_string)
+            .unwrap();
+        apply(&mut doc, target, r#"{"fontSize":3600}"#).unwrap();
+        assert_eq!(line(&doc, target), grown, "{target:?}");
+        apply(
+            &mut doc,
+            target,
+            &format!(r#"{{"charShapeId":{original_id}}}"#),
+        )
+        .unwrap();
+        assert_eq!(
+            line(&doc, target),
+            restored,
+            "{target:?}: direct restore left stale line segments"
+        );
+        let saved = doc.export_hwpx_native().unwrap();
+        assert_eq!(
+            serialize_hwpx(&parse_hwpx(&saved).unwrap()).unwrap(),
+            saved,
+            "{target:?}"
+        );
+    }
+}

@@ -41,6 +41,11 @@ mod mutation {
         depth: usize,
         expected_state: u64,
         produced_state: u64,
+        /// Content at `expected_state`, taken lazily at the first mutation inside
+        /// the scope so an aborted inverse can restore it exactly.
+        checkpoint: Option<Box<Document>>,
+        /// Set by a nested abort: the outer close must roll back, never publish.
+        poisoned: bool,
     }
 
     pub(super) struct DocumentMutation {
@@ -51,6 +56,8 @@ mod mutation {
         previous_state: u64,
         next_ticket_id: u64,
         active_inverse: Option<ActiveInverse>,
+        /// True after a scope rollback until the owner rebuilds derived caches.
+        rolled_back: bool,
     }
 
     impl DocumentMutation {
@@ -67,6 +74,7 @@ mod mutation {
                 previous_state: 0,
                 next_ticket_id: 0,
                 active_inverse: None,
+                rolled_back: false,
             }
         }
 
@@ -147,10 +155,15 @@ mod mutation {
                 depth: 1,
                 expected_state: expected,
                 produced_state: produced,
+                checkpoint: None,
+                poisoned: false,
             });
             Ok(InverseTicket { id, outer: true })
         }
 
+        /// Closes a scope. The outer close publishes `produced` only when every
+        /// nested step finished; a poisoned scope restores the checkpoint and the
+        /// `expected` label instead, so a refusal never changes bytes or label.
         pub(super) fn finish_inverse(&mut self, ticket: InverseTicket) -> Result<(), HwpError> {
             let Some(active) = &mut self.active_inverse else {
                 return Err(HwpError::InvalidEditHandle(
@@ -162,26 +175,50 @@ mod mutation {
                     "inverse ticket mismatch".into(),
                 ));
             }
-            let produced = active.produced_state;
-            if ticket.outer {
-                self.active_inverse = None;
-            } else {
+            if !ticket.outer {
                 active.depth = active.depth.saturating_sub(1);
+                self.current_state = active.produced_state;
+                return Ok(());
             }
-            self.current_state = produced;
+            let Some(closed) = self.active_inverse.take() else {
+                return Err(HwpError::InvalidEditHandle(
+                    "no active inverse scope".into(),
+                ));
+            };
+            if closed.poisoned {
+                if let Some(checkpoint) = closed.checkpoint {
+                    self.document = *checkpoint;
+                    self.rolled_back = true;
+                }
+                self.current_state = closed.expected_state;
+                return Err(HwpError::InvalidEditHandle(
+                    "inverse step failed; scope rolled back".into(),
+                ));
+            }
+            self.current_state = closed.produced_state;
             Ok(())
         }
 
+        /// Aborts a scope. A nested abort poisons the outer scope; an outer abort
+        /// closes it through the rollback path of `finish_inverse`.
         pub(super) fn abort_inverse(&mut self, ticket: InverseTicket) {
-            if let Some(active) = &mut self.active_inverse {
-                if active.id == ticket.id {
-                    if ticket.outer {
-                        self.active_inverse = None;
-                    } else {
-                        active.depth = active.depth.saturating_sub(1);
-                    }
-                }
+            let Some(active) = &mut self.active_inverse else {
+                return;
+            };
+            if active.id != ticket.id {
+                return;
             }
+            active.poisoned = true;
+            if ticket.outer {
+                let _rolled_back = self.finish_inverse(ticket);
+            } else {
+                active.depth = active.depth.saturating_sub(1);
+            }
+        }
+
+        /// Reports (once) that a rollback replaced the document content.
+        pub(super) fn take_rolled_back(&mut self) -> bool {
+            std::mem::take(&mut self.rolled_back)
         }
     }
 
@@ -204,20 +241,100 @@ mod mutation {
                     .checked_add(1)
                     .expect("document revision exhausted");
             }
-            if self.active_inverse.is_none() {
-                self.previous_state = self.current_state;
+            match &mut self.active_inverse {
+                Some(active) => {
+                    if active.checkpoint.is_none() {
+                        active.checkpoint = Some(Box::new(self.document.clone()));
+                    }
+                }
+                None => self.previous_state = self.current_state,
             }
             self.current_state = self.next_state;
             &mut self.document
         }
     }
+
+    #[cfg(test)]
+    mod tests {
+        use super::DocumentMutation;
+        use crate::model::document::{Document, Section};
+
+        /// A gate whose content moved one revision forward (one section added),
+        /// with the labels before and after that edit.
+        fn edited_gate() -> (DocumentMutation, String, String) {
+            let mut gate = DocumentMutation::new(Document::default());
+            let before = gate.state_label().unwrap();
+            gate.sections.push(Section::default());
+            let after = gate.state_label().unwrap();
+            (gate, before, after)
+        }
+
+        #[test]
+        fn c7_poisoned_nested_step_rolls_back_partial_mutation() {
+            let (mut gate, before, after) = edited_gate();
+            let outer = gate.begin_inverse(&after, &before).unwrap();
+            let nested = gate.begin_inverse(&after, &before).unwrap();
+            gate.sections.clear();
+            gate.abort_inverse(nested);
+            assert!(
+                gate.finish_inverse(outer).is_err(),
+                "a scope with a failed step must not publish its produced label"
+            );
+            assert_eq!(gate.sections.len(), 1, "checkpoint content restored");
+            assert_eq!(gate.state_label().unwrap(), after, "label stays expected");
+            assert!(gate.take_rolled_back());
+            assert!(!gate.take_rolled_back(), "rollback is reported once");
+
+            let outer = gate.begin_inverse(&after, &before).unwrap();
+            gate.sections.clear();
+            gate.finish_inverse(outer).unwrap();
+            assert!(gate.sections.is_empty());
+            assert_eq!(gate.state_label().unwrap(), before);
+            assert!(!gate.take_rolled_back());
+        }
+
+        #[test]
+        fn c7_outer_abort_after_real_mutation_restores_content_and_label() {
+            let (mut gate, before, after) = edited_gate();
+            let outer = gate.begin_inverse(&after, &before).unwrap();
+            gate.sections.clear();
+            gate.sections.push(Section::default());
+            gate.sections.push(Section::default());
+            gate.abort_inverse(outer);
+            assert_eq!(gate.sections.len(), 1);
+            assert_eq!(gate.state_label().unwrap(), after);
+            assert!(gate.take_rolled_back());
+
+            let outer = gate.begin_inverse(&after, &before).unwrap();
+            gate.abort_inverse(outer);
+            assert_eq!(gate.state_label().unwrap(), after);
+            assert!(!gate.take_rolled_back(), "no mutation, nothing to restore");
+        }
+    }
 }
 
+#[derive(Clone)]
 pub(crate) struct EditRecord {
     handle: String,
     undo_from_label: Option<String>,
     undo_to_label: String,
     state: TextEditState,
+}
+
+/// A native text-edit stack change made inside an open command inverse. A scope
+/// that rolls back replays these in reverse, so every handle that was applicable
+/// before the scope is applicable again and nothing the scope created leaks.
+pub(crate) enum EditJournalEntry {
+    /// `undo_edit_native` consumed `original` and pushed its reciprocal.
+    Moved {
+        undoing: bool,
+        original: EditRecord,
+        reciprocal_handle: String,
+    },
+    /// A new edit cleared these redo records.
+    RedoCleared(Vec<EditRecord>),
+    /// `begin_text_edit_native` pushed this capture.
+    Captured(String),
 }
 
 pub(crate) struct SnapshotRecord {
@@ -227,6 +344,7 @@ pub(crate) struct SnapshotRecord {
     pub(crate) produced_label: String,
 }
 
+#[derive(Clone)]
 pub(crate) enum TextEditState {
     Paragraph {
         section: usize,
@@ -244,6 +362,8 @@ pub(crate) struct TextEditHistory {
     next_sequence: u64,
     undo: Vec<EditRecord>,
     redo: Vec<EditRecord>,
+    /// Some while a command inverse is open (see `EditJournalEntry`).
+    journal: Option<Vec<EditJournalEntry>>,
 }
 
 impl TextEditHistory {
@@ -252,6 +372,37 @@ impl TextEditHistory {
             next_sequence: 0,
             undo: Vec::new(),
             redo: Vec::new(),
+            journal: None,
+        }
+    }
+
+    fn roll_back_journal(&mut self) {
+        let Some(journal) = self.journal.take() else {
+            return;
+        };
+        for entry in journal.into_iter().rev() {
+            match entry {
+                EditJournalEntry::Moved {
+                    undoing,
+                    original,
+                    reciprocal_handle,
+                } => {
+                    let (source, target) = if undoing {
+                        (&mut self.undo, &mut self.redo)
+                    } else {
+                        (&mut self.redo, &mut self.undo)
+                    };
+                    target.retain(|record| record.handle != reciprocal_handle);
+                    source.push(original);
+                }
+                EditJournalEntry::RedoCleared(records) => {
+                    let later = std::mem::replace(&mut self.redo, records);
+                    self.redo.extend(later);
+                }
+                EditJournalEntry::Captured(handle) => {
+                    self.undo.retain(|record| record.handle != handle);
+                }
+            }
         }
     }
 }
@@ -397,6 +548,7 @@ impl DocumentCore {
         )?;
         let token = format!("{epoch}:cmd:{}", self.next_command_inverse_seq);
         self.pending_command_inverse = Some((token.clone(), ticket));
+        self.text_edit_history.journal = Some(Vec::new());
         Ok(token)
     }
 
@@ -419,9 +571,13 @@ impl DocumentCore {
                 "no active command inverse".into(),
             ));
         };
-        self.document.finish_inverse(ticket)
+        let result = self.document.finish_inverse(ticket);
+        self.close_command_inverse(result.is_ok());
+        result
     }
 
+    /// Refuses the open command inverse atomically: content, label and native
+    /// text-edit handles return to their state at `begin_command_inverse_native`.
     pub fn abort_command_inverse_native(&mut self, scope_token: &str) {
         if self
             .pending_command_inverse
@@ -430,8 +586,40 @@ impl DocumentCore {
         {
             if let Some((_, ticket)) = self.pending_command_inverse.take() {
                 self.document.abort_inverse(ticket);
+                self.close_command_inverse(false);
             }
         }
+    }
+
+    fn close_command_inverse(&mut self, committed: bool) {
+        if committed {
+            self.text_edit_history.journal = None;
+        } else {
+            self.text_edit_history.roll_back_journal();
+        }
+        if self.document.take_rolled_back() {
+            self.rebuild_after_inverse_rollback();
+        }
+    }
+
+    /// Derived caches follow the restored checkpoint (same rebuild as a snapshot restore).
+    fn rebuild_after_inverse_rollback(&mut self) {
+        self.styles =
+            crate::renderer::style_resolver::resolve_styles(&self.document.doc_info, self.dpi);
+        self.composed = self
+            .document
+            .sections
+            .iter()
+            .map(crate::renderer::composer::compose_section)
+            .collect();
+        self.mark_all_sections_dirty();
+        self.measured_tables.clear();
+        self.measured_sections.clear();
+        self.dirty_paragraphs.clear();
+        self.para_column_map.clear();
+        self.page_tree_cache.borrow_mut().clear();
+        self.overflow_links_cache.borrow_mut().clear();
+        self.paginate();
     }
 
     /// 총 페이지 수를 반환한다.

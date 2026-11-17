@@ -8,8 +8,8 @@ import { env } from 'node:process';
 import { inflateRawSync } from 'node:zlib';
 import ts from 'typescript';
 import { initSync } from '../../pkg/rhwp.js';
-import { WasmBridge } from '../src/core/wasm-bridge';
-import type { DocumentPosition } from '../src/core/types';
+import { WasmBridge, InvalidEditHandleError } from '../src/core/wasm-bridge';
+import type { CharProperties, DocumentPosition } from '../src/core/types';
 import {
   DeleteSelectionCommand, DeleteTextCommand, InsertLineBreakCommand, InsertTabCommand,
   InsertTextCommand, MergeNextParagraphCommand, MergeParagraphCommand,
@@ -22,7 +22,8 @@ import type { EditCommand, OperationDescriptor } from '../src/engine/command';
 import { CommandHistory, HistorySuspendedError, stateLabelOf } from '../src/engine/history';
 import { InputHandler } from '../src/engine/input-handler';
 import { onPaste, onCut, onCopy } from '../src/engine/input-handler-keyboard';
-import { finishMoveDrag } from '../src/engine/input-handler-table';
+import { finishMoveDrag, moveSelectedPicture } from '../src/engine/input-handler-table';
+import { updatePictureMoveDrag, finishPictureMoveDrag } from '../src/engine/input-handler-picture';
 import { onMouseUp } from '../src/engine/input-handler-mouse';
 import { onCompositionStart, onCompositionEnd, onInput, getTextAt, insertTextAtRaw } from '../src/engine/input-handler-text';
 import { HwpCtrl } from '../src/hwpctl/index';
@@ -1129,7 +1130,9 @@ test('R6 MIX1/3/4/5/6 mixed command chains and FindDialog/HwpCtrl invalidation s
   }
 });
 
-test('deterministic mixed-sequence property test preserves inverse, reachability and non-duplication invariants across seeds 0..63', { timeout: 30_000 }, () => {
+// C7: size-changing format steps reflow and the format inverse is an exact snapshot pair, so the
+// 1536-step run needs more than the C6 30 s budget on a loaded host (same seeds, same invariants).
+test('deterministic mixed-sequence property test preserves inverse, reachability and non-duplication invariants across seeds 0..63', { timeout: 120_000 }, () => {
   const SEED_START = 0;
   const SEED_END = 63;
   const STEPS_PER_SEED = 24;
@@ -1193,11 +1196,18 @@ test('deterministic mixed-sequence property test preserves inverse, reachability
             recordLiveState();
           }
         } else if (action === 3) {
-          // Recorded character format command
-          const len0 = wasm.getParagraphLength(0, 0);
-          if (len0 > 0) {
-            const props = pick(3) === 0 ? { bold: true } : pick(2) === 0 ? { italic: true } : { underline: true };
-            history.execute(new ApplyCharFormatCommand(position(0, 0), position(0, len0), props), wasm);
+          // Recorded character format command. Size-changing formats reflow line segments,
+          // so they also run on a later paragraph and across a paragraph boundary.
+          const lastPara = wasm.getParagraphCount(0) - 1;
+          const targetPara = pick(2) === 0 ? 0 : lastPara;
+          const len = wasm.getParagraphLength(0, targetPara);
+          if (len > 0) {
+            const kind = pick(5);
+            const props: Partial<CharProperties> = kind === 0 ? { bold: true } : kind === 1 ? { italic: true }
+              : kind === 2 ? { underline: true } : { fontSize: [800, 1400, 2400][pick(3)] };
+            const spanning = kind >= 3 && targetPara > 0 && pick(2) === 0;
+            const start = spanning ? position(targetPara - 1, 0) : position(targetPara, 0);
+            history.execute(new ApplyCharFormatCommand(start, position(targetPara, len), props), wasm);
             recordLiveState();
           }
         } else if (action === 4) {
@@ -1452,4 +1462,281 @@ test('G17 TypeScript AST guard enforces one command-inverse authority and privat
     ['redo', 'undo'],
   );
   console.log(`G17_TS_GUARD inverse_callers=${beginCallSites.length} private_stacks=${privateStacks} dual_label_entry=${historyEntryLabels === 2}`);
+});
+
+// ─── C7: R7 A–E regressions through production commands and handlers ──────
+
+const wideCell = (inner: string): string => para(`<hp:tbl rowCnt="1" colCnt="1" borderFillIDRef="1"><hp:tr><hp:tc borderFillIDRef="1"><hp:subList>${inner}</hp:subList><hp:cellAddr colAddr="0" rowAddr="0"/><hp:cellSpan colSpan="1" rowSpan="1"/><hp:cellSz width="30000" height="1000"/></hp:tc></hp:tr></hp:tbl>`);
+const cellAt = (cellParaIndex: number, charOffset: number): DocumentPosition => ({
+  ...position(0, charOffset), parentParaIndex: 0, controlIndex: 0, cellIndex: 0, cellParaIndex,
+});
+
+interface ObjectRef { sec: number; ppi: number; ci: number; type: 'shape'; origHorzOffset: number; origVertOffset: number }
+
+/**
+ * Two floating rectangles joined by a real connector, plus a typing target paragraph.
+ * The HWPX writer does not serialize these drawing objects and exportHwp runs a
+ * mutating adapter, so object tests compare `objectState`: every control's full
+ * properties, every paragraph's text and the rendered page SVG.
+ */
+function connectedShapes(wasm: WasmBridge): { shapes: ObjectRef[]; link: { ppi: number; ci: number }; target: number } {
+  wasm.loadDocument(fixture(para('<hp:t>ONE</hp:t>') + para('<hp:t>TWO</hp:t>') + para('<hp:t>LINK</hp:t>')
+    + para(`${begin}<hp:t>AB</hp:t>${end}`)), 'c7-objects.hwpx');
+  const insts: number[] = [];
+  const shapes = [0, 1].map(p => {
+    const r = wasm.createShapeControl({ sectionIdx: 0, paraIdx: p, charOffset: 0, width: 4000, height: 4000,
+      horzOffset: 1000 + p * 19000, vertOffset: 1000, shapeType: 'rectangle', treatAsChar: false });
+    const props = wasm.getShapeProperties(0, r.paraIdx, r.controlIdx) as { horzOffset: number; vertOffset: number; scInstId: number };
+    insts.push(props.scInstId);
+    return { sec: 0, ppi: r.paraIdx, ci: r.controlIdx, type: 'shape' as const, origHorzOffset: props.horzOffset, origVertOffset: props.vertOffset };
+  });
+  const link = wasm.createShapeControl({ sectionIdx: 0, paraIdx: 2, charOffset: 0, width: 15000, height: 1,
+    horzOffset: 5000, vertOffset: 3000, shapeType: 'connector-straight',
+    startSubjectID: insts[0], startSubjectIndex: 1, endSubjectID: insts[1], endSubjectIndex: 3 });
+  return { shapes, link: { ppi: link.paraIdx, ci: link.controlIdx }, target: wasm.getParagraphCount(0) - 1 };
+}
+
+/** Side-effect-free full state of the object fixture (see `connectedShapes`). */
+function objectState(wasm: WasmBridge): string {
+  const paragraphs: unknown[] = [];
+  for (let p = 0; p < wasm.getParagraphCount(0); p++) {
+    let shape: unknown = null;
+    try { shape = wasm.getShapeProperties(0, p, 0); } catch { /* text-only paragraph */ }
+    paragraphs.push({ text: wasm.getTextRange(0, p, 0, wasm.getParagraphLength(0, p)), shape });
+  }
+  return JSON.stringify({ paragraphs, svg: wasm.renderPageSvg(0) });
+}
+
+function shapeBox(wasm: WasmBridge, ppi: number, ci: number): number[] {
+  const p = wasm.getShapeProperties(0, ppi, ci) as { horzOffset: number; vertOffset: number; width: number; height: number };
+  return [p.horzOffset, p.vertOffset, p.width, p.height];
+}
+
+test('C7 R7-A font-size undo and redo restore line segments, bytes and the reused label in body and cell', () => {
+  for (const where of ['body', 'cell'] as const) {
+    const wasm = new WasmBridge(), history = new CommandHistory();
+    try {
+      const content = para(`${begin}<hp:t>AB</hp:t>${end}`) + para('<hp:t>TAIL</hp:t>');
+      wasm.loadDocument(fixture(where === 'body' ? content : wideCell(content)), `r7a-${where}.hwpx`);
+      const at = (p: number, off: number): DocumentPosition => (where === 'body' ? position(p, off) : cellAt(p, off));
+      history.execute(new InsertTextCommand(at(0, 1), 'X', 1000), wasm);
+      const typed = wasm.exportHwpx(), typedLabel = stateLabelOf(wasm);
+      history.execute(new ApplyCharFormatCommand(at(0, 0), at(1, 2), { fontSize: 3600 }), wasm);
+      const formatted = wasm.exportHwpx(), formattedLabel = stateLabelOf(wasm);
+      assert.notDeepEqual(formatted, typed, `${where}: the format changed the document`);
+      assert.ok(history.undo(wasm));
+      assert.equal(stateLabelOf(wasm), typedLabel);
+      assert.deepEqual(wasm.exportHwpx(), typed, `${where}: undo reused a label for different bytes`);
+      assert.ok(history.redo(wasm));
+      assert.equal(stateLabelOf(wasm), formattedLabel);
+      assert.deepEqual(wasm.exportHwpx(), formatted, `${where}: redo reused a label for different bytes`);
+      assert.ok(history.undo(wasm));
+      assert.ok(history.undo(wasm));
+      assert.equal(history.canUndo(), false);
+      roundTrip(wasm);
+    } finally { history.clear(wasm); wasm.dispose(); }
+  }
+});
+
+test('C7 R7-B a failure after a real inverse step leaves bytes, label, history and native handles unchanged', () => {
+  for (const step of ['restoreSnapshot', 'undoEdit'] as const) {
+    for (const failure of ['refusal', 'error'] as const) {
+      const name = `${step}/${failure}`;
+      const wasm = new WasmBridge(), history = new CommandHistory();
+      try {
+        wasm.loadDocument(fixture(para('<hp:t>AA</hp:t>') + para('<hp:t>BB</hp:t>')), 'r7b.hwpx');
+        history.execute(new InsertTextCommand(position(0, 0), 'X', 1000), wasm);
+        const typed = wasm.exportHwpx();
+        // restoreSnapshot: the top entry is a two-paragraph format; undoEdit: the top entry is the typing.
+        if (step === 'restoreSnapshot') {
+          history.execute(new ApplyCharFormatCommand(position(0, 0), position(1, 2), { bold: true }), wasm);
+        }
+        const before = wasm.exportHwpx(), label = stateLabelOf(wasm);
+        const entries = history.entryLabels(), live = wasm.liveEditCount();
+        const bridge = wasm as unknown as Record<string, (...args: unknown[]) => unknown>;
+        const real = bridge[step].bind(wasm);
+        let calls = 0, mutated = false;
+        bridge[step] = (...args: unknown[]) => {
+          calls++;
+          const result = real(...args);
+          mutated = stateLabelOf(wasm) !== label;
+          void result;
+          if (failure === 'refusal') throw new InvalidEditHandleError('INVALID_EDIT_HANDLE: injected failure after a real inverse step');
+          throw new Error('injected failure after a real inverse step');
+        };
+        try {
+          if (failure === 'refusal') assert.equal(history.undo(wasm), null, name);
+          else assert.throws(() => history.undo(wasm), /injected failure/, name);
+        } finally { delete bridge[step]; }
+        assert.equal(calls, 1, `${name}: the injected step ran`);
+        assert.equal(mutated, true, `${name}: the real step mutated before the failure`);
+        assert.deepEqual(wasm.exportHwpx(), before, `${name}: bytes changed`);
+        assert.equal(stateLabelOf(wasm), label, `${name}: label changed`);
+        assert.deepEqual(history.entryLabels(), entries, `${name}: history entries changed`);
+        assert.equal(wasm.liveEditCount(), live, `${name}: native handles changed`);
+        // The refused entry and every older entry still apply exactly.
+        assert.ok(history.undo(wasm), name);
+        if (step === 'restoreSnapshot') {
+          assert.deepEqual(wasm.exportHwpx(), typed, name);
+          assert.ok(history.undo(wasm), name);
+        }
+        assert.equal(wasm.getTextRange(0, 0, 0, 2), 'AA', name);
+        assert.equal(history.canUndo(), false, name);
+        assert.ok(history.redo(wasm), name);
+        if (step === 'restoreSnapshot') assert.ok(history.redo(wasm), name);
+        assert.deepEqual(wasm.exportHwpx(), before, name);
+        roundTrip(wasm);
+      } finally { history.clear(wasm); wasm.dispose(); }
+    }
+  }
+});
+
+test('C7 R7-C multi-object drag is one exact entry with the true label pair and connector side effects', () => {
+  const wasm = new WasmBridge(), history = new CommandHistory();
+  try {
+    const { shapes, link, target } = connectedShapes(wasm);
+    history.execute(new InsertTextCommand(position(target, 0), 'X', 1000), wasm);
+    const typed = objectState(wasm), typedLabel = stateLabelOf(wasm);
+    const linkBefore = shapeBox(wasm, link.ppi, link.ci);
+    const sc = { clientWidth: 100, getBoundingClientRect: () => ({ left: 0, top: 0 }) };
+    const host = {
+      wasm, history, dragRafId: 0, isPictureMoveDragging: true,
+      pictureMoveState: { ref: shapes[0], lastPageX: 0, lastPageY: 0, pageIndex: 0, totalDeltaH: 0, totalDeltaV: 0,
+        multiRefs: shapes, beforeLabel: typedLabel },
+      container: { style: { cursor: 'move' }, querySelector: () => sc },
+      viewportManager: { getZoom: () => 1 },
+      virtualScroll: { getPageOffset: () => 0, getPageWidth: () => 100, getPageLeft: () => 0 },
+      eventBus: { emit() {} }, renderPictureObjectSelection() {},
+    };
+    for (let n = 1; n <= 3; n++) updatePictureMoveDrag.call(host, { clientX: n * 10, clientY: n * 4 } as MouseEvent);
+    finishPictureMoveDrag.call(host);
+    const dragged = objectState(wasm), draggedLabel = stateLabelOf(wasm);
+    for (const s of shapes) {
+      assert.equal(wasm.getShapeProperties(0, s.ppi, s.ci).horzOffset, s.origHorzOffset + 30 * 75, 'every selected object moved');
+    }
+    assert.notDeepEqual(shapeBox(wasm, link.ppi, link.ci), linkBefore, 'the connector followed the objects');
+    assert.deepEqual(history.entryLabels().undo, [
+      { type: 'insertText', undoLabel: typedLabel, redoLabel: history.entryLabels().undo[0].redoLabel },
+      { type: 'snapshot:moveObjects', undoLabel: draggedLabel, redoLabel: typedLabel },
+    ], 'one drag entry carrying the true pre/post labels');
+
+    assert.ok(history.undo(wasm));
+    assert.deepEqual(objectState(wasm), typed, 'one undo restores every object and the connector');
+    assert.equal(stateLabelOf(wasm), typedLabel);
+    assert.deepEqual(shapeBox(wasm, link.ppi, link.ci), linkBefore);
+    assert.ok(history.undo(wasm), 'the older typing is still reachable');
+    assert.equal(wasm.getTextRange(0, target, 0, 2), 'AB');
+    assert.equal(history.undo(wasm), null);
+    assert.ok(history.redo(wasm));
+    assert.ok(history.redo(wasm));
+    assert.deepEqual(objectState(wasm), dragged);
+    assert.equal(stateLabelOf(wasm), draggedLabel);
+  } finally { history.clear(wasm); wasm.dispose(); }
+});
+
+test('C7 keyboard nudge of a multi-object selection is one exact entry including connectors', () => {
+  const wasm = new WasmBridge(), history = new CommandHistory();
+  try {
+    const { shapes, link, target } = connectedShapes(wasm);
+    history.execute(new InsertTextCommand(position(target, 0), 'X', 1000), wasm);
+    const typed = objectState(wasm), typedLabel = stateLabelOf(wasm);
+    const linkBefore = shapeBox(wasm, link.ppi, link.ci);
+    const refs = shapes.map(({ sec, ppi, ci, type }) => ({ sec, ppi, ci, type }));
+    const host = {
+      wasm, history, gridStepMm: 1,
+      cursor: { getSelectedPictureRefs: () => refs, getSelectedPictureRef: () => refs[0] },
+      eventBus: { emit() {} }, renderPictureObjectSelection() {},
+      executeOperation: InputHandler.prototype.executeOperation,
+    };
+    moveSelectedPicture.call(host, 'ArrowRight');
+    const nudged = objectState(wasm), nudgedLabel = stateLabelOf(wasm);
+    const step = Math.round(7200 / 25.4);
+    for (const s of shapes) assert.equal(wasm.getShapeProperties(0, s.ppi, s.ci).horzOffset, s.origHorzOffset + step);
+    assert.notDeepEqual(shapeBox(wasm, link.ppi, link.ci), linkBefore, 'the connector followed the objects');
+    const undo = history.entryLabels().undo;
+    assert.equal(undo.length, 2);
+    assert.deepEqual(undo[1], { type: 'snapshot:moveObjects', undoLabel: nudgedLabel, redoLabel: typedLabel });
+    assert.ok(history.undo(wasm));
+    assert.deepEqual(objectState(wasm), typed);
+    assert.equal(stateLabelOf(wasm), typedLabel);
+    assert.ok(history.undo(wasm));
+    assert.equal(history.canUndo(), false);
+    assert.ok(history.redo(wasm));
+    assert.ok(history.redo(wasm));
+    assert.deepEqual(objectState(wasm), nudged);
+  } finally { history.clear(wasm); wasm.dispose(); }
+});
+
+test('C7 R7-D a refusal reconciles both stacks against the live label', () => {
+  const wasm = new WasmBridge(), history = new CommandHistory();
+  try {
+    wasm.loadDocument(fixture(para('<hp:t>AB</hp:t>')), 'r7d.hwpx');
+    history.execute(new InsertTextCommand(position(0, 0), 'X', 1000), wasm);
+    history.execute(new InsertTextCommand(position(0, 3), 'Y', 2000), wasm);
+    assert.ok(history.undo(wasm));
+    assert.equal(history.canRedo(), true);
+    wasm.replaceAll('AB', 'NEW', true);
+    const afterUndoSide = wasm.exportHwpx();
+    assert.equal(history.undo(wasm), null);
+    assert.deepEqual(wasm.exportHwpx(), afterUndoSide, 'refused undo changed bytes');
+    assert.equal(history.canUndo(), false);
+    assert.equal(history.canRedo(), false, 'a phantom redo survived the undo refusal');
+
+    history.execute(new InsertTextCommand(position(0, 0), 'P', 3000), wasm);
+    history.execute(new InsertTextCommand(position(0, 1), 'Q', 4000), wasm);
+    assert.ok(history.undo(wasm));
+    assert.equal(history.canUndo(), true);
+    wasm.replaceAll('NEW', 'OUT', true);
+    const afterRedoSide = wasm.exportHwpx();
+    assert.equal(history.redo(wasm), null);
+    assert.deepEqual(wasm.exportHwpx(), afterRedoSide, 'refused redo changed bytes');
+    assert.equal(history.canRedo(), false);
+    assert.equal(history.canUndo(), false, 'a phantom undo survived the redo refusal');
+
+    history.execute(new InsertTextCommand(position(0, 0), 'Z', 5000), wasm);
+    assert.ok(history.undo(wasm));
+    assert.deepEqual(wasm.exportHwpx(), afterRedoSide);
+    roundTrip(wasm);
+  } finally { history.clear(wasm); wasm.dispose(); }
+});
+
+test('C7 R7-E an empty field at the included end boundary is copied whole and undone exactly', () => {
+  const wasm = new WasmBridge(), history = new CommandHistory();
+  try {
+    wasm.loadDocument(fixture(para(`${beginId(1)}<hp:t>A</hp:t>${endId(1)}${beginId(2)}${endId(2)}`)
+      + para('<hp:t>DEST</hp:t>')), 'r7e.hwpx');
+    const original = wasm.exportHwpx();
+    assert.equal(countXmlTag(readSectionXmlFast(original), 'fieldBegin'), 2);
+    wasm.copySelection(0, 0, 0, 0, 1);
+    history.execute(new SnapshotCommand('paste', position(1, 0), position(1, 1), w => {
+      w.pasteInternal(0, 1, 0);
+      return position(1, 1);
+    }), wasm);
+    assert.equal(countXmlTag(readSectionXmlFast(wasm.exportHwpx()), 'fieldBegin'), 4,
+      'D6: a field with b == e == end belongs to the selection');
+    roundTrip(wasm);
+    assert.ok(history.undo(wasm));
+    assert.deepEqual(wasm.exportHwpx(), original);
+  } finally { history.clear(wasm); wasm.dispose(); }
+});
+
+test('C7 discarding a snapshot command after a reload leaves the reloaded document snapshots intact', () => {
+  const wasm = new WasmBridge(), stale = new CommandHistory(), fresh = new CommandHistory();
+  try {
+    wasm.loadDocument(fixture(para('<hp:t>AB</hp:t>')), 'old.hwpx');
+    stale.execute(new SnapshotCommand('insert', position(0, 0), position(0, 1), w => {
+      w.insertText(0, 0, 0, 'S');
+      return position(0, 1);
+    }), wasm);
+    wasm.loadDocument(fixture(para('<hp:t>CD</hp:t>')), 'new.hwpx');
+    fresh.execute(new SnapshotCommand('insert', position(0, 0), position(0, 1), w => {
+      w.insertText(0, 0, 0, 'T');
+      return position(0, 1);
+    }), wasm);
+    stale.clear(wasm);
+    assert.ok(fresh.undo(wasm), 'a stale discard deleted the reloaded document snapshot');
+    assert.equal(wasm.getTextRange(0, 0, 0, 2), 'CD');
+    assert.ok(fresh.redo(wasm));
+    assert.equal(wasm.getTextRange(0, 0, 0, 3), 'TCD');
+  } finally { stale.clear(); fresh.clear(wasm); wasm.dispose(); }
 });

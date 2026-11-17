@@ -25,6 +25,25 @@ fn parse_direct_char_shape_id(props_json: &str) -> Option<u32> {
     digits.parse::<u32>().ok()
 }
 
+/// Whether re-pointing `[start, end)` at `new_id` changes the base size of any
+/// covered character, in which case the paragraph's line segments must reflow.
+fn direct_id_changes_size(
+    doc_info: &crate::model::document::DocInfo,
+    para: &Paragraph,
+    start: usize,
+    end: usize,
+    new_id: u32,
+) -> bool {
+    let size_of = |id: u32| {
+        doc_info
+            .char_shapes
+            .get(id as usize)
+            .map(|shape| shape.base_size)
+    };
+    let new_size = size_of(new_id);
+    (start..end).any(|offset| size_of(para.char_shape_id_at(offset).unwrap_or(0)) != new_size)
+}
+
 impl DocumentCore {
     pub fn get_char_properties_at_native(
         &self,
@@ -924,7 +943,15 @@ impl DocumentCore {
         }
 
         let mut mods = parse_char_shape_mods(props_json);
+        let mut size_changed = false;
         if let Some(direct_id) = parse_direct_char_shape_id(props_json) {
+            size_changed = direct_id_changes_size(
+                &self.document.doc_info,
+                &self.document.sections[sec_idx].paragraphs[para_idx],
+                start_offset,
+                end_offset,
+                direct_id,
+            );
             self.document.sections[sec_idx].paragraphs[para_idx]
                 .apply_char_shape_range(start_offset, end_offset, direct_id);
         } else {
@@ -936,8 +963,9 @@ impl DocumentCore {
             self.apply_char_mods_to_paragraph(sec_idx, para_idx, start_offset, end_offset, &mods);
         }
 
-        // 글꼴 크기 변경 시 LineSeg 재계산 (line_height, baseline_distance 갱신)
-        if mods.base_size.is_some() {
+        // 글꼴 크기 변경 시 LineSeg 재계산 (line_height, baseline_distance 갱신).
+        // 직접 charShapeId 적용도 크기가 바뀌면 같은 재계산을 거친다.
+        if mods.base_size.is_some() || size_changed {
             let styles = resolve_styles(&self.document.doc_info, self.dpi);
             let section = &self.document.sections[sec_idx];
             let page_def = &section.section_def.page_def;
@@ -1039,7 +1067,24 @@ impl DocumentCore {
         props_json: &str,
     ) -> Result<String, HwpError> {
         let mut mods = parse_char_shape_mods(props_json);
+        let mut size_changed = false;
         if let Some(direct_id) = parse_direct_char_shape_id(props_json) {
+            let para = self
+                .get_cell_paragraph_ref(
+                    sec_idx,
+                    parent_para_idx,
+                    control_idx,
+                    cell_idx,
+                    cell_para_idx,
+                )
+                .ok_or_else(|| HwpError::RenderError("셀 문단을 찾을 수 없음".to_string()))?;
+            size_changed = direct_id_changes_size(
+                &self.document.doc_info,
+                para,
+                start_offset,
+                end_offset,
+                direct_id,
+            );
             let cell_para = self.get_cell_paragraph_mut(
                 sec_idx,
                 parent_para_idx,
@@ -1081,7 +1126,7 @@ impl DocumentCore {
         }
 
         // 글꼴 크기 변경 시 셀 내 LineSeg 재계산 — 구역 단 폭이 아니라 셀(글상자·캡션) 안쪽 폭 기준
-        if mods.base_size.is_some() {
+        if mods.base_size.is_some() || size_changed {
             if self.is_vertical_table_cell(sec_idx, parent_para_idx, control_idx, cell_idx) {
                 self.reflow_vertical_cell_format_legacy(
                     sec_idx,
@@ -1133,7 +1178,16 @@ impl DocumentCore {
         props_json: &str,
     ) -> Result<String, HwpError> {
         let mut mods = parse_char_shape_mods(props_json);
+        let mut size_changed = false;
         if let Some(direct_id) = parse_direct_char_shape_id(props_json) {
+            let para = self.resolve_paragraph_by_path(sec_idx, parent_para_idx, path)?;
+            size_changed = direct_id_changes_size(
+                &self.document.doc_info,
+                para,
+                start_offset,
+                end_offset,
+                direct_id,
+            );
             let cell_para = self.get_cell_paragraph_mut_by_path(sec_idx, parent_para_idx, path)?;
             cell_para.apply_char_shape_range(start_offset, end_offset, direct_id);
         } else {
@@ -1153,7 +1207,7 @@ impl DocumentCore {
             }
         }
 
-        if mods.base_size.is_some() {
+        if mods.base_size.is_some() || size_changed {
             // 방금 만든 글자 모양이 줄 계산에 보이도록 스타일을 먼저 다시 해소한다
             if !self.is_vertical_cell_path(sec_idx, parent_para_idx, path) {
                 self.styles = resolve_styles(&self.document.doc_info, self.dpi);

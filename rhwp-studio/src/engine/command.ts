@@ -1,5 +1,5 @@
 import type { WasmBridge } from '@/core/wasm-bridge';
-import { asInvalidEditHandleError, isInvalidEditHandleError, rawGateDoc, withHistorySuspended } from './history';
+import { asInvalidEditHandleError, isInvalidEditHandleError, rawGateDoc, stateLabelOf, withHistorySuspended } from './history';
 import { InvalidEditHandleError } from '@/core/wasm-bridge';
 import type { DocumentPosition, CharProperties } from '@/core/types';
 
@@ -180,17 +180,6 @@ function withCellParaIndex(pos: DocumentPosition, cellParaIndex: number): Docume
     };
   }
   return { ...pos, cellParaIndex };
-}
-
-function doGetCharPropertiesAt(wasm: WasmBridge, pos: DocumentPosition): CharProperties {
-  if (isNestedCell(pos)) {
-    return wasm.getCellCharPropertiesAtByPath(pos.sectionIndex, pos.parentParaIndex!, cellPathJson(pos), pos.charOffset);
-  } else if (isCell(pos)) {
-    return wasm.getCellCharPropertiesAt(
-      pos.sectionIndex, pos.parentParaIndex!, pos.controlIndex!, pos.cellIndex!, pos.cellParaIndex!, pos.charOffset,
-    );
-  }
-  return wasm.getCharPropertiesAt(pos.sectionIndex, pos.paragraphIndex, pos.charOffset);
 }
 
 function doApplyCharFormat(wasm: WasmBridge, start: DocumentPosition, end: DocumentPosition, propsJson: string): void {
@@ -583,57 +572,54 @@ export class DeleteSelectionCommand implements EditCommand {
 
 // ─── 글자 서식 적용 명령 ─────────────────────────────
 
-/** 문단 하나에 대한 서식 적용 정보 */
-interface ParaFormatEntry {
-  paraIndex: number;       // 본문: paragraphIndex, 셀: cellParaIndex
-  startOffset: number;
-  endOffset: number;
-  /** undo용: 적용 전 charShapeId */
-  prevCharShapeId?: number;
-}
-
+/**
+ * 글자 서식 적용 명령.
+ *
+ * 서식은 글자 모양 구간뿐 아니라 줄 배치(LineSeg 높이·첫 줄 vpos·태그)와 DocInfo
+ * (글자 모양·글꼴·테두리 목록, 원본 스트림)까지 바꾼다. 손으로 쓴 charShapeId
+ * 부분 복원은 이 부수효과를 되돌리지 못한 채 이전 라벨을 발행했으므로(R7 A),
+ * 역연산은 실행 전후 문서 스냅샷 쌍으로 정확히 되돌리고 라벨은 그 쌍이 봉인한
+ * 값으로만 발행한다.
+ */
 export class ApplyCharFormatCommand implements EditCommand {
   readonly type = 'applyCharFormat';
   readonly timestamp = Date.now();
 
-  private entries: ParaFormatEntry[] = [];
-  private prevCharShapeCount: number | null = null;
+  private readonly capture: SnapshotCommand;
 
   constructor(
     private start: DocumentPosition,
     private end: DocumentPosition,
     private props: Partial<CharProperties>,
-  ) {}
+  ) {
+    this.capture = new SnapshotCommand('applyCharFormat', start, start, wasm => this.applyFormat(wasm));
+  }
 
   execute(wasm: WasmBridge): DocumentPosition {
+    return this.capture.execute(wasm);
+  }
+
+  undo(wasm: WasmBridge): DocumentPosition {
+    return this.capture.undo(wasm);
+  }
+
+  discard(wasm: WasmBridge): void { this.capture.discard(wasm); }
+
+  mergeWith(): null { return null; }
+
+  private applyFormat(wasm: WasmBridge): DocumentPosition {
     const { start, end } = this;
     const propsJson = JSON.stringify(this.props);
-    this.prevCharShapeCount = rawGateDoc(wasm)?.charShapeCount?.() ?? null;
 
     if (isCell(start)) {
       const startPara = cellParaIndexOf(start);
       const endPara = cellParaIndexOf(end);
-
-      this.entries = [];
       for (let p = startPara; p <= endPara; p++) {
         const paraStart = withCellParaIndex(start, p);
         const paraEnd = withCellParaIndex(end, p);
         const from = p === startPara ? start.charOffset : 0;
         const to = p === endPara ? end.charOffset : doGetParagraphLength(wasm, paraStart);
         if (to <= from) continue;
-
-        let runStart = from;
-        let runId = doGetCharPropertiesAt(wasm, { ...paraStart, charOffset: from }).charShapeId;
-        for (let off = from + 1; off < to; off++) {
-          const nextId = doGetCharPropertiesAt(wasm, { ...paraStart, charOffset: off }).charShapeId;
-          if (nextId !== runId) {
-            this.entries.push({ paraIndex: p, startOffset: runStart, endOffset: off, prevCharShapeId: runId });
-            runStart = off;
-            runId = nextId;
-          }
-        }
-        this.entries.push({ paraIndex: p, startOffset: runStart, endOffset: to, prevCharShapeId: runId });
-
         doApplyCharFormat(
           wasm,
           { ...paraStart, charOffset: from },
@@ -645,55 +631,16 @@ export class ApplyCharFormatCommand implements EditCommand {
       const sec = start.sectionIndex;
       const startPara = start.paragraphIndex;
       const endPara = end.paragraphIndex;
-
-      this.entries = [];
       for (let p = startPara; p <= endPara; p++) {
         const from = p === startPara ? start.charOffset : 0;
         const to = p === endPara ? end.charOffset : wasm.getParagraphLength(sec, p);
         if (to <= from) continue;
-
-        let runStart = from;
-        let runId = wasm.getCharPropertiesAt(sec, p, from).charShapeId;
-        for (let off = from + 1; off < to; off++) {
-          const nextId = wasm.getCharPropertiesAt(sec, p, off).charShapeId;
-          if (nextId !== runId) {
-            this.entries.push({ paraIndex: p, startOffset: runStart, endOffset: off, prevCharShapeId: runId });
-            runStart = off;
-            runId = nextId;
-          }
-        }
-        this.entries.push({ paraIndex: p, startOffset: runStart, endOffset: to, prevCharShapeId: runId });
-
         wasm.applyCharFormat(sec, p, from, to, propsJson);
       }
     }
 
     return { ...this.start };
   }
-
-  undo(wasm: WasmBridge): DocumentPosition {
-    const { start } = this;
-
-    // 이전 charShapeId 구간별 복원
-    for (const entry of this.entries) {
-      if (entry.prevCharShapeId === undefined) continue;
-      const restoreJson = JSON.stringify({ charShapeId: entry.prevCharShapeId });
-
-      if (isCell(start)) {
-        const paraPos = withCellParaIndex(start, entry.paraIndex);
-        doApplyCharFormat(wasm, { ...paraPos, charOffset: entry.startOffset }, { ...paraPos, charOffset: entry.endOffset }, restoreJson);
-      } else {
-        wasm.applyCharFormat(start.sectionIndex, entry.paraIndex, entry.startOffset, entry.endOffset, restoreJson);
-      }
-    }
-    if (this.prevCharShapeCount !== null) {
-      rawGateDoc(wasm)?.truncateCharShapes?.(this.prevCharShapeCount);
-    }
-
-    return { ...this.start };
-  }
-
-  mergeWith(): null { return null; }
 }
 
 // ─── 문단 끝에서 Delete로 다음 문단 병합 ─────────────
@@ -1011,6 +958,8 @@ export class SnapshotCommand implements EditCommand {
 
   private beforeId: number | null = null;
   private afterId: number | null = null;
+  /** 스냅샷 ID를 발급한 문서 epoch — ID는 문서마다 0부터 다시 매겨진다 */
+  private epoch: string | null = null;
 
   static recorded(operationType: string, beforeId: number, afterId: number,
     before: DocumentPosition, after: DocumentPosition): SnapshotCommand {
@@ -1047,6 +996,7 @@ export class SnapshotCommand implements EditCommand {
     }
 
     // 최초 실행: before 저장 → 작업 수행 → after 저장
+    this.epoch = documentEpochOf(wasm);
     this.beforeId = wasm.saveSnapshot();
     try {
       const operation = this.operation;
@@ -1077,6 +1027,7 @@ export class SnapshotCommand implements EditCommand {
 
   recordedLabels(wasm: WasmBridge): { undoLabel: string; redoLabel: string } | null {
     if (this.beforeId === null) return null;
+    this.epoch ??= documentEpochOf(wasm);
     const raw = rawGateDoc(wasm)?.snapshotLabels?.(this.beforeId);
     if (!raw) return null;
     return JSON.parse(raw) as { undoLabel: string; redoLabel: string };
@@ -1085,13 +1036,50 @@ export class SnapshotCommand implements EditCommand {
   mergeWith(): null { return null; }
 
   discard(wasm: WasmBridge): void {
+    // 재로드된 다른 문서의 같은 번호 스냅샷을 지우지 않는다
+    const owned = this.epoch === null || documentEpochOf(wasm) === this.epoch;
     if (this.beforeId !== null) {
-      wasm.discardSnapshot(this.beforeId);
+      if (owned) wasm.discardSnapshot(this.beforeId);
       this.beforeId = null;
     }
     if (this.afterId !== null) {
-      wasm.discardSnapshot(this.afterId);
+      if (owned) wasm.discardSnapshot(this.afterId);
       this.afterId = null;
     }
+  }
+}
+
+function documentEpochOf(wasm: WasmBridge): string | null {
+  return stateLabelOf(wasm)?.split(':')[0] ?? null;
+}
+
+/**
+ * 여러 개체와 연결선을 함께 바꾸는 한 제스처(다중 선택 드래그, 키보드 이동)를
+ * 정확한 히스토리 항목 하나로 기록한다. 첫 실제 변이 직전의 begin()이 제스처
+ * 이전 문서와 라벨을 봉인하고, finish()가 이후 스냅샷과 짝지은 SnapshotCommand를
+ * 돌려준다 — 선택된 모든 대상과 연결선 갱신이 같은 (이전, 이후) 라벨 쌍에 담긴다.
+ */
+export class ObjectGestureRecorder {
+  private beforeId: number | null = null;
+
+  constructor(
+    private readonly operationType: string,
+    private readonly cursor: DocumentPosition,
+  ) {}
+
+  get started(): boolean { return this.beforeId !== null; }
+
+  /** 첫 실제 변이 직전에 호출한다. 두 번째 호출부터는 아무 일도 하지 않는다. */
+  begin(wasm: WasmBridge): void {
+    if (this.beforeId === null) this.beforeId = wasm.saveSnapshot();
+  }
+
+  /** 마지막 변이 뒤 호출한다. 변이가 없었으면 null. */
+  finish(wasm: WasmBridge): EditCommand | null {
+    const beforeId = this.beforeId;
+    if (beforeId === null) return null;
+    this.beforeId = null;
+    const afterId = wasm.saveSnapshot();
+    return SnapshotCommand.recorded(this.operationType, beforeId, afterId, this.cursor, this.cursor);
   }
 }
