@@ -3,6 +3,8 @@
 
 import { ObjectGestureRecorder, documentEpochOf } from './command';
 import type { EditCommand } from './command';
+import type { WasmBridge } from '../core/wasm-bridge';
+import { stateLabelOf } from './history';
 import { InputHandler } from './input-handler';
 import {
   bindPointerHostToWasm,
@@ -372,6 +374,34 @@ function multiResizeTargets(
   });
 }
 
+function restoreRecorderBefore(wasm: WasmBridge, recorder: ObjectGestureRecorder): boolean {
+  if (!recorder.started || typeof wasm.restoreSnapshot !== 'function') return false;
+  // The recorder owns the snapshot; restoring it avoids native dimension normalization.
+  const before: unknown = Reflect.get(recorder, 'before');
+  if (!before || typeof before !== 'object' || !('id' in before) || typeof before.id !== 'number'
+    || !('label' in before) || !('epoch' in before) || before.epoch !== documentEpochOf(wasm)
+    || stateLabelOf(wasm) === before.label) return false;
+  const tempId = typeof wasm.saveSnapshot === 'function' ? wasm.saveSnapshot() : null;
+  try {
+    wasm.restoreSnapshot(before.id);
+    return true;
+  } finally {
+    if (tempId !== null) wasm.discardSnapshot(tempId);
+  }
+}
+
+function resizeProperties(
+  original: { readonly origWidth: number; readonly origHeight: number },
+  target: ReturnType<typeof singleResizeTarget>['props'],
+  restored: boolean,
+): Record<string, number> {
+  // Each caller has begun recording; offset writes connect a return to the original label.
+  const props: Record<string, number> = { horzOffset: target.horzOffset, vertOffset: target.vertOffset };
+  if (!restored || target.width !== original.origWidth) props['width'] = target.width;
+  if (!restored || target.height !== original.origHeight) props['height'] = target.height;
+  return props;
+}
+
 /**
  * 회전각을 반영하여 리사이즈 후 새 bbox(비회전 기준)를 계산한다.
  * - 마우스 delta를 도형 로컬 좌표계로 역변환한다.
@@ -408,9 +438,14 @@ function calcResizedBboxRotated(
   if (dir.includes('s')) valH = h0 + localDy;
   if (dir.includes('n')) valH = h0 - localDy;
 
-  // 최종 출력용 크기는 절대값 사용 (최소 크기는 아주 작게만 제한)
-  const newW = Math.max(Math.abs(valW), Math.min(1, w0));
-  const newH = Math.max(Math.abs(valH), Math.min(1, h0));
+  const minW = typeof state.origWidth === 'number'
+    ? Math.max(0, w0 + (Math.min(MIN_SIZE_HWP, state.origWidth) - state.origWidth) / PX_TO_HWP)
+    : Math.min(1, w0);
+  const minH = typeof state.origHeight === 'number'
+    ? Math.max(0, h0 + (Math.min(MIN_SIZE_HWP, state.origHeight) - state.origHeight) / PX_TO_HWP)
+    : Math.min(1, h0);
+  const newW = Math.max(Math.abs(valW), minW);
+  const newH = Math.max(Math.abs(valH), minH);
 
   // pivot: 드래그하지 않는 반대쪽 로컬 좌표 (원본 크기 기준)
   const pivotLocalX = dir.includes('e') ? -w0 / 2 : (dir.includes('w') ? w0 / 2 : 0);
@@ -421,8 +456,10 @@ function calcResizedBboxRotated(
   const pivotPageY = cy0 + pivotLocalX * sinA + pivotLocalY * cosA;
 
   // 새 크기에서 pivot의 로컬 좌표 (valW/valH가 음수면 pivot 방향이 반전됨)
-  const newPivotLocalX = dir.includes('e') ? -valW / 2 : (dir.includes('w') ? valW / 2 : 0);
-  const newPivotLocalY = dir.includes('s') ? -valH / 2 : (dir.includes('n') ? valH / 2 : 0);
+  const signedW = valW < 0 ? -newW : newW;
+  const signedH = valH < 0 ? -newH : newH;
+  const newPivotLocalX = dir.includes('e') ? -signedW / 2 : (dir.includes('w') ? signedW / 2 : 0);
+  const newPivotLocalY = dir.includes('s') ? -signedH / 2 : (dir.includes('n') ? signedH / 2 : 0);
 
   // pivot 고정 조건으로 새 중심 계산
   const newCx = pivotPageX - (newPivotLocalX * cosA - newPivotLocalY * sinA);
@@ -459,6 +496,7 @@ export function updatePictureResizeDrag(this: any, e: MouseEvent): void {
     const anyChanged = Boolean(state.recorder?.started) || targets.some(target => target.changed);
     if (!anyChanged) return;
     try {
+      const restored = !state.recorder?.started || restoreRecorderBefore(this.wasm, state.recorder);
       state.recorder ??= new ObjectGestureRecorder(
         'resizeObjects',
         { sectionIndex: state.ref.sec, paragraphIndex: state.ref.ppi, charOffset: 0 },
@@ -468,7 +506,7 @@ export function updatePictureResizeDrag(this: any, e: MouseEvent): void {
         InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
         return;
       }
-      for (const { ref, props } of targets) setObjectProperties.call(this, ref, props);
+      for (const { ref, props } of targets) setObjectProperties.call(this, ref, resizeProperties(ref, props, restored));
       try { this.wasm.updateConnectorsInSection(state.ref.sec); } catch { /* ignore */ }
       this.eventBus?.emit('document-changed');
     } catch { /* ignore */ }
@@ -480,6 +518,7 @@ export function updatePictureResizeDrag(this: any, e: MouseEvent): void {
     const groupChanged = Boolean(state.recorder?.started) || target.changed;
     if (!groupChanged) return;
     try {
+      const restored = !state.recorder?.started || restoreRecorderBefore(this.wasm, state.recorder);
       state.recorder ??= new ObjectGestureRecorder(
         'resizeObjects',
         { sectionIndex: state.ref.sec, paragraphIndex: state.ref.ppi, charOffset: 0 },
@@ -489,7 +528,7 @@ export function updatePictureResizeDrag(this: any, e: MouseEvent): void {
         InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
         return;
       }
-      setObjectProperties.call(this, state.ref, target.props);
+      setObjectProperties.call(this, state.ref, resizeProperties(state, target.props, restored));
       try { this.wasm.updateConnectorsInSection(state.ref.sec); } catch { /* ignore */ }
       this.eventBus?.emit('document-changed');
     } catch { /* ignore */ }
@@ -536,6 +575,7 @@ export function finishPictureResizeDrag(this: any, e?: MouseEvent): void {
 
       if (anyChanged) {
         try {
+          const restored = !state.recorder?.started || restoreRecorderBefore(this.wasm, state.recorder);
           state.recorder ??= new ObjectGestureRecorder(
             'resizeObjects',
             { sectionIndex: state.ref.sec, paragraphIndex: state.ref.ppi, charOffset: 0 },
@@ -545,7 +585,7 @@ export function finishPictureResizeDrag(this: any, e?: MouseEvent): void {
             InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
             return;
           }
-          for (const { ref, props } of targets) setObjectProperties.call(this, ref, props);
+          for (const { ref, props } of targets) setObjectProperties.call(this, ref, resizeProperties(ref, props, restored));
           try { this.wasm.updateConnectorsInSection(state.ref.sec); } catch { /* ignore */ }
           this.eventBus?.emit('document-changed');
         } catch (err) {
@@ -555,15 +595,11 @@ export function finishPictureResizeDrag(this: any, e?: MouseEvent): void {
     } else if (pointerMoved && (!state.multiRefs || state.multiRefs.length === 0)) {
       // 단일 선택 리사이즈 (회전 반영: pivot 고정, 위치도 갱신)
       const newBbox = calcResizedBboxRotated(state, effectiveEvent, zoom);
-      const { props } = singleResizeTarget(state, newBbox, () => (this.getObjectProperties ?? getObjectProperties).call(this, state.ref));
+      const { props, changed } = singleResizeTarget(state, newBbox, () => (this.getObjectProperties ?? getObjectProperties).call(this, state.ref));
 
       try {
-        const updated: Record<string, unknown> = {};
-        if (state.recorder?.started || props.width !== state.origWidth) updated['width'] = props.width;
-        if (state.recorder?.started || props.height !== state.origHeight) updated['height'] = props.height;
-        if (state.recorder?.started || props.horzOffset !== state.origHorzOffset) updated['horzOffset'] = props.horzOffset;
-        if (state.recorder?.started || props.vertOffset !== state.origVertOffset) updated['vertOffset'] = props.vertOffset;
-        if (Object.keys(updated).length > 0) {
+        if (state.recorder?.started || changed) {
+          const restored = !state.recorder?.started || restoreRecorderBefore(this.wasm, state.recorder);
           state.recorder ??= new ObjectGestureRecorder(
             'resizeObjects',
             { sectionIndex: state.ref.sec, paragraphIndex: state.ref.ppi, charOffset: 0 },
@@ -573,7 +609,7 @@ export function finishPictureResizeDrag(this: any, e?: MouseEvent): void {
             InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
             return;
           }
-          setObjectProperties.call(this, state.ref, updated);
+          setObjectProperties.call(this, state.ref, resizeProperties(state, props, restored));
           try { this.wasm.updateConnectorsInSection(state.ref.sec); } catch { /* ignore */ }
           this.eventBus?.emit('document-changed');
         }
@@ -600,8 +636,12 @@ export function calcResizedBbox(this: any, e: MouseEvent, zoom: number): { x: nu
   const s = this.pictureResizeState!;
   const dx = (e.clientX - s.startClientX) / zoom; // page px
   const dy = (e.clientY - s.startClientY) / zoom;
-  const minW = Math.min(1, s.bbox.w);
-  const minH = Math.min(1, s.bbox.h);
+  const minW = !s.multiRefs && typeof s.origWidth === 'number'
+    ? Math.max(0, s.bbox.w + (Math.min(MIN_SIZE_HWP, s.origWidth) - s.origWidth) / PX_TO_HWP)
+    : Math.min(1, s.bbox.w);
+  const minH = !s.multiRefs && typeof s.origHeight === 'number'
+    ? Math.max(0, s.bbox.h + (Math.min(MIN_SIZE_HWP, s.origHeight) - s.origHeight) / PX_TO_HWP)
+    : Math.min(1, s.bbox.h);
 
   let { x, y, w, h } = s.bbox;
   const dir = s.dir;
@@ -610,11 +650,11 @@ export function calcResizedBbox(this: any, e: MouseEvent, zoom: number): { x: nu
   if (dir.includes('e')) {
     const valW = s.bbox.w + dx;
     w = Math.max(Math.abs(valW), minW);
-    if (valW < 0) x = s.bbox.x + valW; // 반대편으로 넘어가면 시작점 이동
+    if (valW < 0) x = s.bbox.x - w; // 반대편으로 넘어가면 시작점 이동
   } else if (dir.includes('w')) {
     const valW = s.bbox.w - dx;
     w = Math.max(Math.abs(valW), minW);
-    if (valW >= 0) x = s.bbox.x + dx;
+    if (valW >= 0) x = s.bbox.x + (s.bbox.w - w);
     else x = s.bbox.x + s.bbox.w; // 반대편으로 넘어가면 오른쪽 끝이 시작점
   }
 
@@ -622,11 +662,11 @@ export function calcResizedBbox(this: any, e: MouseEvent, zoom: number): { x: nu
   if (dir.includes('s')) {
     const valH = s.bbox.h + dy;
     h = Math.max(Math.abs(valH), minH);
-    if (valH < 0) y = s.bbox.y + valH;
+    if (valH < 0) y = s.bbox.y - h;
   } else if (dir.includes('n')) {
     const valH = s.bbox.h - dy;
     h = Math.max(Math.abs(valH), minH);
-    if (valH >= 0) y = s.bbox.y + dy;
+    if (valH >= 0) y = s.bbox.y + (s.bbox.h - h);
     else y = s.bbox.y + s.bbox.h;
   }
 
