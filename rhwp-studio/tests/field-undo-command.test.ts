@@ -2704,6 +2704,184 @@ test('C10 keyboard table cell resize and zero-motion pointer gestures keep histo
   }
 });
 
+type C11ObjectRef = { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'group' | 'line' };
+const c11GestureKinds = ['single', 'multi', 'group', 'rotate', 'picture-move', 'multi-move', 'table-move', 'line-endpoint', 'table-resize'] as const;
+
+function c11PointerCase(kind: typeof c11GestureKinds[number], dir = 'nw') {
+  const wasm = new WasmBridge(), history = new CommandHistory();
+  wasm.createNewDocument();
+  assert.equal(wasm.createTable(0, 0, 0, 2, 2).ok, true);
+  const image = wasm.insertPicture(0, 1, 0, c10Png, 3000, 3000, 1, 1, 'png');
+  wasm.setPictureProperties(0, image.paraIdx, image.controlIdx, { treatAsChar: false, horzOffset: 1500, vertOffset: 1500 });
+  let refs: C11ObjectRef[] = [{ sec: 0, ppi: image.paraIdx, ci: image.controlIdx, type: 'image' }];
+  if (kind === 'multi' || kind === 'multi-move' || kind === 'group' || kind === 'line-endpoint') {
+    refs = (kind === 'line-endpoint' ? [1500] : [7500, 12000]).map(horzOffset => {
+      const shape = wasm.createShapeControl({ sectionIdx: 0, paraIdx: wasm.getParagraphCount(0) - 1, charOffset: 0, width: 3000, height: 1500,
+        horzOffset, vertOffset: 1500, shapeType: kind === 'line-endpoint' ? 'line' : 'rectangle', treatAsChar: false });
+      assert.equal(shape.ok, true);
+      return { sec: 0, ppi: shape.paraIdx, ci: shape.controlIdx, type: kind === 'line-endpoint' ? 'line' : 'shape' };
+    });
+    if (kind === 'group') {
+      const group = wasm.groupShapes(0, refs.map(r => ({ paraIdx: r.ppi, controlIdx: r.ci })));
+      assert.equal(group.ok, true);
+      refs = [{ sec: 0, ppi: group.paraIdx, ci: group.controlIdx, type: 'group' }];
+    }
+  }
+  const ref = refs[0];
+  assert.ok(ref);
+  wasm.insertText(0, wasm.getParagraphCount(0) - 1, 0, 'AB');
+  const table = wasm.getPageControlLayout(0).controls.find(control => control.type === 'table');
+  if (!table || table.secIdx === undefined || table.paraIdx === undefined || table.controlIdx === undefined) throw new Error('C11 fixture table has no layout');
+  const tableRef = { sec: table.secIdx, ppi: table.paraIdx, ci: table.controlIdx };
+  const changes = { count: 0 };
+  const sc = { clientWidth: 1000, getBoundingClientRect: () => ({ left: 0, top: 0 }) };
+  const host = {
+    active: true, wasm, history, dragRafId: 0,
+    container: { style: { cursor: '' }, querySelector: () => sc },
+    viewportManager: { getZoom: () => 1 },
+    virtualScroll: { getPageOffset: () => 0, getPageWidth: () => 800, getPageLeft: () => 0 },
+    pictureObjectRenderer: { renderDragPreview() {}, clearDragPreview() {} },
+    tableResizeRenderer: { showDragMarker() {}, clear() {} },
+    eventBus: { emit(name: string) { if (name === 'document-changed') changes.count++; } },
+    onMouseUpBound() {},
+  };
+  const state: Record<string, unknown> & { recorder?: ObjectGestureRecorder } = { epoch: documentEpochOf(wasm), beforeLabel: stateLabelOf(wasm) };
+  let clientX = 100, clientY = 100;
+  switch (kind) {
+    case 'single': case 'multi': case 'group': {
+      const items = refs.map(r => {
+        const props = getObjectProperties.call(host, r), bbox = findPictureBbox.call(host, r);
+        if (!bbox) throw new Error('C11 fixture object has no layout');
+        return { ...r, origWidth: props.width, origHeight: props.height, origHorzOffset: props.horzOffset,
+          origVertOffset: props.vertOffset, bboxX: bbox.x, bboxY: bbox.y, w: bbox.w, h: bbox.h, pageIndex: bbox.pageIndex };
+      });
+      const first = items[0];
+      assert.ok(first);
+      const x = Math.min(...items.map(r => r.bboxX)), y = Math.min(...items.map(r => r.bboxY));
+      const w = Math.max(...items.map(r => r.bboxX + r.w)) - x, h = Math.max(...items.map(r => r.bboxY + r.h)) - y;
+      Object.assign(state, { dir, ref, origWidth: Math.round(w * 75), origHeight: Math.round(h * 75),
+        startClientX: clientX, startClientY: clientY, lastClientX: clientX, lastClientY: clientY,
+        pageIndex: first.pageIndex, rotationAngle: 0, bbox: { x, y, w, h }, ...(kind === 'multi' ? { multiRefs: items } : {}) });
+      Object.assign(host, { isPictureResizeDragging: true, pictureResizeState: state });
+      break;
+    }
+    case 'rotate':
+      Object.assign(state, { ref, origAngle: 0, centerX: 50, centerY: 100, startAngle: 0, pageIndex: 0 });
+      Object.assign(host, { isPictureRotateDragging: true, pictureRotateState: state });
+      break;
+    case 'picture-move': case 'multi-move':
+      Object.assign(state, { ref, pageIndex: 0, lastPageX: clientX, lastPageY: clientY, totalDeltaH: 0, totalDeltaV: 0,
+        ...(kind === 'multi-move' ? { multiRefs: refs } : {}) });
+      Object.assign(host, { isPictureMoveDragging: true, pictureMoveState: state });
+      break;
+    case 'table-move':
+      Object.assign(state, { tableRef, startPpi: tableRef.ppi, pageIndex: 0,
+        lastPageX: clientX, lastPageY: clientY, totalDeltaH: 0, totalDeltaV: 0 });
+      Object.assign(host, { isMoveDragging: true, moveDragState: state });
+      break;
+    case 'line-endpoint': {
+      const bbox = findPictureBbox.call(host, ref);
+      if (!bbox || bbox.x2 === undefined || bbox.y2 === undefined) throw new Error('C11 fixture line has no endpoint');
+      clientX = bbox.x2; clientY = bbox.y2;
+      Object.assign(state, { ref, endpoint: 'end', pageIndex: 0, pageLeft: 0, pageOffset: 0, zoom: 1 });
+      Object.assign(host, { isLineEndpointDragging: true, lineEndpointState: state });
+      break;
+    }
+    case 'table-resize': {
+      const boxes = wasm.getTableCellBboxes(tableRef.sec, tableRef.ppi, tableRef.ci);
+      const borders = TableResizeRenderer.prototype.computeBorderLines(boxes);
+      const border = borders.colLines[1];
+      assert.ok(border);
+      clientX = border.x;
+      Object.assign(state, { tableRef, edge: { type: 'col', index: border.index, pageIndex: 0 },
+        borderOriginalPos: clientX, pageBboxes: boxes, lastClientX: clientX, lastClientY: clientY });
+      Object.assign(host, { isResizeDragging: true, resizeDragState: state });
+      break;
+    }
+    default: { const unreachable: never = kind; throw new RangeError(unreachable); }
+  }
+  return { wasm, history, host, state, changes, clientX, clientY, refs, canExport: refs.every(r => r.type === 'image') };
+}
+
+test('C11 zero-motion pointer move and mouseup or interrupt preserve redo across every gesture family', () => {
+  for (const kind of c11GestureKinds) for (const terminal of ['mouseup', 'interrupt'] as const) for (const delta of [0, 0.001]) {
+    withPointerHarness(({ flush }) => {
+      const c = c11PointerCase(kind);
+      const { wasm, history, host, state, changes, clientX, clientY } = c;
+      try {
+        const target = wasm.getParagraphCount(0) - 1;
+        history.execute(new InsertTextCommand(position(target, 2), 'Z', 1000), wasm);
+        const typed = fullSemanticState(wasm, c.canExport);
+        assert.ok(history.undo(wasm));
+        const before = fullSemanticState(wasm, c.canExport), label = stateLabelOf(wasm), entries = history.entryLabels();
+        assert.equal(history.canRedo(), true);
+        Reflect.apply(onMouseMove, host, [{ clientX: clientX + delta, clientY: clientY + delta, buttons: 1, ctrlKey: false, shiftKey: false }]);
+        flush();
+        assert.equal(Boolean(state.recorder?.started), false, `${kind}/${terminal}: no recorder at zero motion`);
+        if (terminal === 'mouseup') Reflect.apply(onMouseUp, host, [{ clientX: clientX + delta, clientY: clientY + delta, buttons: 0 }]);
+        else Reflect.apply(InputHandler.prototype.settleOpenPointerGesture, host, ['interrupt']);
+        assert.equal(hasOpenPointerGesture(host), false);
+        assert.deepEqual(fullSemanticState(wasm, c.canExport), before, `${kind}/${terminal}: no document edit`);
+        assert.equal(stateLabelOf(wasm), label, `${kind}/${terminal}: no native label advance`);
+        assert.deepEqual(history.entryLabels(), entries, `${kind}/${terminal}: history unchanged`);
+        assert.equal(changes.count, 0, `${kind}/${terminal}: no document-changed event`);
+        assert.equal(history.canRedo(), true);
+        assert.ok(history.redo(wasm), `${kind}/${terminal}: redo remains applicable`);
+        assert.deepEqual(fullSemanticState(wasm, c.canExport), typed, `${kind}/${terminal}: redo restores typed state`);
+      } finally { history.clear(wasm); wasm.dispose(); }
+    });
+  }
+  console.log('C11_ZERO_MOTION gestures=9 terminals=2 deltas=2 cases=36 redo_preserved=36/36');
+});
+
+test('C11 resize drag out and return restores live geometry and keeps native label history connected', () => {
+  for (const kind of ['single', 'multi', 'group'] as const) for (const terminal of ['mouseup', 'interrupt'] as const) {
+    withPointerHarness(({ flush }) => {
+      const c = c11PointerCase(kind), { wasm, history, host, clientX, clientY } = c;
+      try {
+        const target = wasm.getParagraphCount(0) - 1;
+        history.execute(new InsertTextCommand(position(target, 2), 'Z', 1000), wasm);
+        const before = fullSemanticState(wasm, c.canExport), label = stateLabelOf(wasm);
+        for (const [dx, dy] of [[-20, -10], [0, 0]]) {
+          Reflect.apply(onMouseMove, host, [{ clientX: clientX + dx, clientY: clientY + dy, buttons: 1 }]);
+          flush();
+        }
+        assert.deepEqual(fullSemanticState(wasm, c.canExport), before, `${kind}/${terminal}: live return geometry`);
+        if (terminal === 'mouseup') Reflect.apply(onMouseUp, host, [{ clientX, clientY, buttons: 0 }]);
+        else Reflect.apply(InputHandler.prototype.settleOpenPointerGesture, host, ['interrupt']);
+        assert.deepEqual(fullSemanticState(wasm, c.canExport), before, `${kind}/${terminal}: settled return geometry`);
+        const liveLabel = stateLabelOf(wasm);
+        assert.equal(history.entryLabels().undo.length, kind === 'single' ? 1 : 2);
+        if (kind !== 'single') {
+          assert.notEqual(liveLabel, label, 'a real live edit keeps its new label even when geometry returns');
+          assert.ok(history.undo(wasm));
+          assert.equal(stateLabelOf(wasm), label);
+        }
+        assert.ok(history.undo(wasm), `${kind}/${terminal}: older typing remains undoable`);
+        assert.equal(wasm.getTextRange(0, target, 0, 3), 'AB');
+        assert.ok(history.redo(wasm));
+        if (kind !== 'single') assert.ok(history.redo(wasm));
+        assert.equal(stateLabelOf(wasm), liveLabel);
+        assert.deepEqual(fullSemanticState(wasm, c.canExport), before);
+      } finally { history.clear(wasm); wasm.dispose(); }
+    });
+  }
+});
+
+test('C11 multi resize finalization preserves independent corner and edge scale from the live update', () => {
+  for (const dir of ['nw', 'se', 'e', 'n']) withPointerHarness(({ flush }) => {
+    const { wasm, history, host, clientX, clientY } = c11PointerCase('multi', dir);
+    try {
+      Reflect.apply(onMouseMove, host, [{ clientX: clientX + 20, clientY: clientY + 5, buttons: 1 }]);
+      flush();
+      const live = fullSemanticState(wasm, false);
+      Reflect.apply(onMouseUp, host, [{ clientX: clientX + 20, clientY: clientY + 5, buttons: 0 }]);
+      assert.deepEqual(fullSemanticState(wasm, false), live, `${dir}: mouseup must retain the previewed geometry`);
+      assert.equal(history.entryLabels().undo.length, 1);
+    } finally { history.clear(wasm); wasm.dispose(); }
+  });
+});
+
 test('C10 source guard enforces press-epoch checks, replacement hooks, and recorder settlement across all pointer gestures', () => {
   const engineDir = new URL('../src/engine', import.meta.url).pathname;
   const tableCode = readFileSync(join(engineDir, 'input-handler-table.ts'), 'utf8');

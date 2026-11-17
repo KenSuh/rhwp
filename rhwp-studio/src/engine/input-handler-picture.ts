@@ -316,6 +316,36 @@ export function deleteObjectControl(this: any, ref: { sec: number; ppi: number; 
 const PX_TO_HWP = 7200 / 96;
 const MIN_SIZE_HWP = 283; // ≈1mm
 
+type MultiResizeRef = Parameters<typeof setObjectProperties>[0] & {
+  readonly origWidth: number;
+  readonly origHeight: number;
+  readonly origHorzOffset: number;
+  readonly origVertOffset: number;
+  readonly bboxX: number;
+  readonly bboxY: number;
+};
+
+function multiResizeTargets(
+  refs: readonly MultiResizeRef[],
+  dir: string,
+  bbox: { readonly x: number; readonly y: number; readonly w: number; readonly h: number },
+  resized: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
+) {
+  const sx = dir.includes('e') || dir.includes('w') ? resized.width / bbox.w : 1;
+  const sy = dir.includes('n') || dir.includes('s') ? resized.height / bbox.h : 1;
+  return refs.map(ref => {
+    const deltaH = Math.round((resized.x + (ref.bboxX - bbox.x) * sx - ref.bboxX) * PX_TO_HWP);
+    const deltaV = Math.round((resized.y + (ref.bboxY - bbox.y) * sy - ref.bboxY) * PX_TO_HWP);
+    const width = Math.max(Math.round(ref.origWidth * sx), MIN_SIZE_HWP);
+    const height = Math.max(Math.round(ref.origHeight * sy), MIN_SIZE_HWP);
+    return {
+      ref,
+      changed: width !== ref.origWidth || height !== ref.origHeight || deltaH !== 0 || deltaV !== 0,
+      props: { width, height, horzOffset: (ref.origHorzOffset + deltaH) >>> 0, vertOffset: (ref.origVertOffset + deltaV) >>> 0 },
+    };
+  });
+}
+
 /**
  * 회전각을 반영하여 리사이즈 후 새 bbox(비회전 기준)를 계산한다.
  * - 마우스 delta를 도형 로컬 좌표계로 역변환한다.
@@ -400,14 +430,9 @@ export function updatePictureResizeDrag(this: any, e: MouseEvent): void {
 
   // 다중 선택: 드래그 중 실시간으로 개체 크기/위치 반영
   if (state.multiRefs && state.multiRefs.length > 0) {
-    const scaleX = newBbox.width / state.bbox.w;
-    const scaleY = newBbox.height / state.bbox.h;
-    const origX = state.bbox.x;
-    const origY = state.bbox.y;
-    const newOrigX = newBbox.x;
-    const newOrigY = newBbox.y;
-    const PX2HWP = PX_TO_HWP;
-    const isCorner = ['nw', 'ne', 'sw', 'se'].includes(state.dir);
+    const targets = multiResizeTargets(state.multiRefs, state.dir, state.bbox, newBbox);
+    const anyChanged = Boolean(state.recorder?.started) || targets.some(target => target.changed);
+    if (!anyChanged) return;
     try {
       state.recorder ??= new ObjectGestureRecorder(
         'resizeObjects',
@@ -418,23 +443,7 @@ export function updatePictureResizeDrag(this: any, e: MouseEvent): void {
         InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
         return;
       }
-      for (const r of state.multiRefs) {
-        const relX = r.bboxX - origX;
-        const relY = r.bboxY - origY;
-        // 코너: 자유 리사이즈 (scaleX, scaleY 독립 반영), 측면: 해당 축만
-        const sx = (isCorner || state.dir === 'e' || state.dir === 'w') ? scaleX : 1;
-        const sy = (isCorner || state.dir === 'n' || state.dir === 's') ? scaleY : 1;
-        const newPx = newOrigX + relX * scaleX;
-        const newPy = newOrigY + relY * scaleY;
-        const deltaH = Math.round((newPx - r.bboxX) * PX2HWP);
-        const deltaV = Math.round((newPy - r.bboxY) * PX2HWP);
-        const newW = Math.max(Math.round(r.origWidth * sx), MIN_SIZE_HWP);
-        const newH = Math.max(Math.round(r.origHeight * sy), MIN_SIZE_HWP);
-        const updated: Record<string, unknown> = { width: newW, height: newH };
-        if (deltaH !== 0) updated['horzOffset'] = ((r.origHorzOffset + deltaH) >>> 0);
-        if (deltaV !== 0) updated['vertOffset'] = ((r.origVertOffset + deltaV) >>> 0);
-        setObjectProperties.call(this, r, updated);
-      }
+      for (const { ref, props } of targets) setObjectProperties.call(this, ref, props);
       try { this.wasm.updateConnectorsInSection(state.ref.sec); } catch { /* ignore */ }
       this.eventBus?.emit('document-changed');
     } catch { /* ignore */ }
@@ -446,6 +455,12 @@ export function updatePictureResizeDrag(this: any, e: MouseEvent): void {
     const newH = Math.max(Math.round(newBbox.height * PX_TO_HWP), MIN_SIZE_HWP);
     const newHorzOffset = Math.round(newBbox.x * PX_TO_HWP);
     const newVertOffset = Math.round(newBbox.y * PX_TO_HWP);
+    const origHorzOffset = state.origHorzOffset ?? Math.round(state.bbox.x * PX_TO_HWP);
+    const origVertOffset = state.origVertOffset ?? Math.round(state.bbox.y * PX_TO_HWP);
+    const groupChanged = Boolean(state.recorder?.started)
+      || newW !== state.origWidth || newH !== state.origHeight
+      || newHorzOffset !== origHorzOffset || newVertOffset !== origVertOffset;
+    if (!groupChanged) return;
     try {
       state.recorder ??= new ObjectGestureRecorder(
         'resizeObjects',
@@ -504,27 +519,8 @@ export function finishPictureResizeDrag(this: any, e?: MouseEvent): void {
     // 다중 선택 리사이즈: 드래그 중 실시간 반영 완료 → 최종 확정 + 히스토리 항목 하나로 봉인
     if (pointerMoved && state.multiRefs && state.multiRefs.length > 0) {
       const newBbox = (this.calcResizedBbox ?? calcResizedBbox).call(this, effectiveEvent, zoom);
-      const scaleX = newBbox.width / state.bbox.w;
-      const scaleY = newBbox.height / state.bbox.h;
-      const origX = state.bbox.x;
-      const origY = state.bbox.y;
-      const newOrigX = newBbox.x;
-      const newOrigY = newBbox.y;
-      const isCorner = ['nw', 'ne', 'sw', 'se'].includes(state.dir);
-
-      const anyChanged = state.recorder?.started || state.multiRefs.some((r: any) => {
-        const relX = r.bboxX - origX;
-        const relY = r.bboxY - origY;
-        const sx = isCorner ? scaleX : (state.dir === 'n' || state.dir === 's' ? 1 : scaleX);
-        const sy = isCorner ? scaleX : (state.dir === 'e' || state.dir === 'w' ? 1 : scaleY);
-        const newPx = newOrigX + relX * sx;
-        const newPy = newOrigY + relY * sy;
-        const deltaH = Math.round((newPx - r.bboxX) * PX2HWP);
-        const deltaV = Math.round((newPy - r.bboxY) * PX2HWP);
-        const newW = Math.max(Math.round(r.origWidth * sx), MIN_SIZE_HWP);
-        const newH = Math.max(Math.round(r.origHeight * sy), MIN_SIZE_HWP);
-        return newW !== r.origWidth || newH !== r.origHeight || deltaH !== 0 || deltaV !== 0;
-      });
+      const targets = multiResizeTargets(state.multiRefs, state.dir, state.bbox, newBbox);
+      const anyChanged = Boolean(state.recorder?.started) || targets.some(target => target.changed);
 
       if (anyChanged) {
         try {
@@ -537,22 +533,7 @@ export function finishPictureResizeDrag(this: any, e?: MouseEvent): void {
             InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
             return;
           }
-          for (const r of state.multiRefs) {
-            const relX = r.bboxX - origX;
-            const relY = r.bboxY - origY;
-            const sx = isCorner ? scaleX : (state.dir === 'n' || state.dir === 's' ? 1 : scaleX);
-            const sy = isCorner ? scaleX : (state.dir === 'e' || state.dir === 'w' ? 1 : scaleY);
-            const newPx = newOrigX + relX * sx;
-            const newPy = newOrigY + relY * sy;
-            const deltaH = Math.round((newPx - r.bboxX) * PX2HWP);
-            const deltaV = Math.round((newPy - r.bboxY) * PX2HWP);
-            const newW = Math.max(Math.round(r.origWidth * sx), MIN_SIZE_HWP);
-            const newH = Math.max(Math.round(r.origHeight * sy), MIN_SIZE_HWP);
-            const updated: Record<string, unknown> = { width: newW, height: newH };
-            if (deltaH !== 0) updated['horzOffset'] = ((r.origHorzOffset + deltaH) >>> 0);
-            if (deltaV !== 0) updated['vertOffset'] = ((r.origVertOffset + deltaV) >>> 0);
-            setObjectProperties.call(this, r, updated);
-          }
+          for (const { ref, props } of targets) setObjectProperties.call(this, ref, props);
           try { this.wasm.updateConnectorsInSection(state.ref.sec); } catch { /* ignore */ }
           this.eventBus?.emit('document-changed');
         } catch (err) {
@@ -566,8 +547,8 @@ export function finishPictureResizeDrag(this: any, e?: MouseEvent): void {
       const newH = Math.max(Math.round(newBbox.height * PX_TO_HWP), MIN_SIZE_HWP);
       const newHorzOffset = Math.round(newBbox.x * PX2HWP);
       const newVertOffset = Math.round(newBbox.y * PX2HWP);
-      const origHorzOffset = Math.round(state.bbox.x * PX2HWP);
-      const origVertOffset = Math.round(state.bbox.y * PX2HWP);
+      const origHorzOffset = state.origHorzOffset ?? Math.round(state.bbox.x * PX2HWP);
+      const origVertOffset = state.origVertOffset ?? Math.round(state.bbox.y * PX2HWP);
 
       try {
         const updated: Record<string, unknown> = {};
