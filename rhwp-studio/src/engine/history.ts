@@ -261,7 +261,11 @@ export class CommandHistory {
   }
 
   /** execute() 없이 히스토리에만 기록 (IME compositionend, 개체 이동 완료 등) */
-  recordWithoutExecute(command: EditCommand, wasm: WasmBridge, beforeLabel?: string | null): void {
+  recordWithoutExecute(command: EditCommand | null | undefined, wasm: WasmBridge, beforeLabel?: string | null): void {
+    if (!command) {
+      if (this.isSuspended(wasm)) throw new HistorySuspendedError();
+      return;
+    }
     this.assertRecordingAllowed(command, wasm);
     if (wasm.editHistoryDisabledReason !== null) {
       command.discard?.(wasm);

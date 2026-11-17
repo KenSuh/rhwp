@@ -16,17 +16,45 @@ import {
   SplitParagraphCommand, SplitParagraphInCellCommand, MergeParagraphInCellCommand,
   MergeNextParagraphInCellCommand,
   ApplyCharFormatCommand, MoveTableCommand, MovePictureCommand, MoveShapeCommand, SnapshotCommand,
-  ObjectGestureRecorder,
+  ObjectGestureRecorder, documentEpochOf,
 } from '../src/engine/command';
 import { EmbedInsertTableCommand, EmbedInsertPictureCommand } from '../src/engine/embed-commands';
 import type { EditCommand, OperationDescriptor } from '../src/engine/command';
 import { CommandHistory, HistorySuspendedError, MAX_HISTORY_SIZE, stateLabelOf } from '../src/engine/history';
 import { InputHandler } from '../src/engine/input-handler';
 import { onPaste, onCut, onCopy, onKeyDown } from '../src/engine/input-handler-keyboard';
-import { finishMoveDrag, moveSelectedPicture, moveSelectedTable, updateMoveDrag } from '../src/engine/input-handler-table';
-import { updatePictureMoveDrag, finishPictureMoveDrag } from '../src/engine/input-handler-picture';
-import { onMouseUp } from '../src/engine/input-handler-mouse';
-import { hasOpenPointerGesture } from '../src/engine/input-handler-table';
+import {
+  cleanupResizeDrag,
+  finishMoveDrag,
+  finishResizeDrag,
+  hasOpenPointerGesture,
+  moveSelectedPicture,
+  moveSelectedTable,
+  resizeCellByKeyboard,
+  resizeTableProportional,
+  startResizeDrag,
+  updateMoveDrag,
+  updateResizeDrag,
+} from '../src/engine/input-handler-table';
+import {
+  cleanupPictureResizeDrag,
+  findPictureBbox,
+  finishPictureMoveDrag,
+  finishPictureResizeDrag,
+  finishPictureRotateDrag,
+  getObjectProperties,
+  updatePictureMoveDrag,
+  updatePictureResizeDrag,
+  updatePictureRotateDrag,
+} from '../src/engine/input-handler-picture';
+import {
+  finishLineEndpointDrag,
+  onClick,
+  onMouseMove,
+  onMouseUp,
+  updateLineEndpointDrag,
+} from '../src/engine/input-handler-mouse';
+import { TableResizeRenderer } from '../src/engine/table-resize-renderer';
 import { onCompositionStart, onCompositionEnd, onInput, getTextAt, insertTextAtRaw } from '../src/engine/input-handler-text';
 import { HwpCtrl } from '../src/hwpctl/index';
 
@@ -2019,7 +2047,7 @@ test('C9 stale gesture finish and cancellation preserve the new document snapsho
       if (cancel) recorder.cancel(wasm);
       else {
         const command = recorder.finish(wasm);
-        if (command === null) throw new Error('expected stale captured command');
+        assert.equal(command, null, 'a stale finish returns null without allocating or recording in B');
         history.recordWithoutExecute(command, wasm);
       }
       assert.ok(rawSnapshotLabels(wasm, 0));
@@ -2077,4 +2105,657 @@ test('C9 picture move cleanup releases both captures when history registration t
     assert.equal(rawSnapshotLabels(wasm, 0), undefined);
     assert.equal(rawSnapshotLabels(wasm, 1), undefined);
   } finally { history.clear(wasm); wasm.dispose(); }
+});
+
+// ─── C10: R10-B & R10-C regressions (press-epoch replacement cancellation + full gesture coverage) ───
+
+const c10Png = Uint8Array.from(
+  atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jqK8AAAAASUVORK5CYII='),
+  ch => ch.charCodeAt(0),
+);
+
+const twoColTable = (left: string, right: string): string => para(
+  '<hp:tbl rowCnt="1" colCnt="2" borderFillIDRef="1"><hp:tr>'
+  + `<hp:tc borderFillIDRef="1"><hp:subList>${left}</hp:subList><hp:cellAddr colAddr="0" rowAddr="0"/><hp:cellSpan colSpan="1" rowSpan="1"/><hp:cellSz width="10000" height="1500"/></hp:tc>`
+  + `<hp:tc borderFillIDRef="1"><hp:subList>${right}</hp:subList><hp:cellAddr colAddr="1" rowAddr="0"/><hp:cellSpan colSpan="1" rowSpan="1"/><hp:cellSz width="10000" height="1500"/></hp:tc>`
+  + '</hp:tr></hp:tbl>',
+);
+
+function withPointerHarness<T>(fn: (ctx: { docEvents: EventTarget; flush: () => void }) => T): T {
+  const docEvents = new EventTarget();
+  const rafs: Array<(time: number) => void> = [];
+  const savedDoc = Object.getOwnPropertyDescriptor(globalThis, 'document');
+  const savedRaf = globalThis.requestAnimationFrame;
+  const savedCaf = globalThis.cancelAnimationFrame;
+  Object.defineProperty(globalThis, 'document', { configurable: true, writable: true, value: docEvents });
+  globalThis.requestAnimationFrame = cb => { rafs.push(cb); return rafs.length; };
+  // Intentionally a no-op like R10 probes to prove queued RAFs also self-reject stale epochs/states.
+  globalThis.cancelAnimationFrame = () => {};
+  try {
+    return fn({
+      docEvents,
+      flush: () => { while (rafs.length > 0) rafs.shift()!(0); },
+    });
+  } finally {
+    if (savedDoc) Object.defineProperty(globalThis, 'document', savedDoc);
+    else Reflect.deleteProperty(globalThis, 'document');
+    globalThis.requestAnimationFrame = savedRaf;
+    globalThis.cancelAnimationFrame = savedCaf;
+  }
+}
+
+test('C10 R10-B loadDocument and createNewDocument synchronously cancel every open pointer gesture before deactivate', () => {
+  const gestureKinds = [
+    'table-move',
+    'picture-move-unbegun',
+    'picture-move-begun',
+    'picture-rotate',
+    'picture-resize',
+    'line-endpoint',
+    'table-border-resize',
+  ] as const;
+
+  for (const replacement of ['loadDocument', 'createNewDocument'] as const) {
+    for (const kind of gestureKinds) {
+      withPointerHarness(({ docEvents, flush }) => {
+        const wasm = new WasmBridge(), history = new CommandHistory();
+        try {
+          const docABytes = fixture(twoColTable(para('<hp:t>L</hp:t>'), para('<hp:t>R</hp:t>')) + para('<hp:t>AB</hp:t>'));
+          const docBBytes = fixture(twoColTable(para('<hp:t>NL</hp:t>'), para('<hp:t>NR</hp:t>')) + para('<hp:t>CD</hp:t>'));
+          wasm.loadDocument(docABytes, 'A.hwpx');
+          const picA = wasm.insertPicture(0, 1, 0, c10Png, 3000, 3000, 1, 1, 'png');
+          wasm.setPictureProperties(0, picA.paraIdx, picA.controlIdx, { treatAsChar: false, horzOffset: 750, vertOffset: 750 });
+          const lineA = wasm.createShapeControl({
+            sectionIdx: 0, paraIdx: 1, charOffset: 0, width: 3000, height: 1500,
+            horzOffset: 1500, vertOffset: 1500, shapeType: 'line', treatAsChar: false,
+          });
+
+          let selectedTable = { sec: 0, ppi: 0, ci: 0 };
+          const sc = { clientWidth: 1000, getBoundingClientRect: () => ({ left: 0, top: 0 }) };
+          const host: any = {
+            active: true, wasm, history, dragRafId: 0,
+            cursor: {
+              isInTableObjectSelection: () => kind === 'table-move',
+              getSelectedTableRef: () => ({ ...selectedTable }),
+              updateSelectedTableRef: (sec: number, ppi: number, ci: number) => { selectedTable = { sec, ppi, ci }; },
+              isInCellSelectionMode: () => false,
+            },
+            container: {
+              style: { cursor: '' }, clientWidth: 1000, clientHeight: 1000,
+              getBoundingClientRect: () => ({ left: 0, top: 0 }), querySelector: () => sc,
+            },
+            getTableObjectBBox: () => ({ x: 0, y: 0, width: 200, height: 100 }),
+            tableResizeRenderer: {
+              computeBorderLines: (boxes: any[]) => TableResizeRenderer.prototype.computeBorderLines(boxes),
+              showDragMarker() {},
+              clear() {},
+            },
+            pictureObjectRenderer: { renderDragPreview() {}, clearDragPreview() {}, clear() {} },
+            viewportManager: { getZoom: () => 1 },
+            virtualScroll: { getPageAtXY: () => 0, getPageOffset: () => 0, getPageWidth: () => 800, getPageLeft: () => 0 },
+            textarea: { focus() {} },
+            eventBus: { emit() {} },
+            renderTableObjectSelection() {},
+            renderPictureObjectSelection() {},
+            executeOperation: InputHandler.prototype.executeOperation,
+          };
+          host.onMouseUpBound = (event: MouseEvent) => onMouseUp.call(host, event);
+          host.getObjectProperties = (r: any) => getObjectProperties.call(host, r);
+          host.findPictureBbox = (r: any) => findPictureBbox.call(host, r);
+          host.updateMoveDrag = (e: MouseEvent) => updateMoveDrag.call(host, e);
+          host.finishMoveDrag = () => finishMoveDrag.call(host);
+          host.updatePictureMoveDrag = (e: MouseEvent) => updatePictureMoveDrag.call(host, e);
+          host.finishPictureMoveDrag = () => finishPictureMoveDrag.call(host);
+          host.updatePictureRotateDrag = (e: MouseEvent) => updatePictureRotateDrag.call(host, e);
+          host.finishPictureRotateDrag = (e?: MouseEvent) => finishPictureRotateDrag.call(host, e);
+          host.updatePictureResizeDrag = (e: MouseEvent) => updatePictureResizeDrag.call(host, e);
+          host.finishPictureResizeDrag = (e?: MouseEvent) => finishPictureResizeDrag.call(host, e);
+          host.updateLineEndpointDrag = (e: MouseEvent) => updateLineEndpointDrag.call(host, e);
+          host.finishLineEndpointDrag = () => finishLineEndpointDrag.call(host);
+          host.updateResizeDrag = (e: MouseEvent) => updateResizeDrag.call(host, e);
+          host.finishResizeDrag = (e?: MouseEvent) => finishResizeDrag.call(host, e);
+          host.cleanupResizeDrag = () => cleanupResizeDrag.call(host);
+          host.cleanupPictureResizeDrag = () => cleanupPictureResizeDrag.call(host);
+
+          const picRef = { sec: 0, ppi: picA.paraIdx, ci: picA.controlIdx, type: 'image' as const };
+          const lineRef = { sec: 0, ppi: lineA.paraIdx, ci: lineA.controlIdx, type: 'line' as const };
+
+          if (kind === 'table-move') {
+            onClick.call(host, { button: 0, detail: 1, clientX: 10, clientY: 10, target: { closest: () => null }, preventDefault() {} } as unknown as MouseEvent);
+            onMouseMove.call(host, { clientX: 25, clientY: 10, buttons: 1 } as MouseEvent);
+            flush();
+          } else if (kind === 'picture-move-unbegun' || kind === 'picture-move-begun') {
+            const pa = host.getObjectProperties(picRef);
+            host.isPictureMoveDragging = true;
+            host.pictureMoveState = {
+              ref: { ...picRef, origHorzOffset: pa.horzOffset, origVertOffset: pa.vertOffset },
+              origHorzOffset: pa.horzOffset, origVertOffset: pa.vertOffset,
+              startPageX: 10, startPageY: 10, lastPageX: 10, lastPageY: 10, totalDeltaH: 0, totalDeltaV: 0,
+              pageIndex: 0, beforeLabel: stateLabelOf(wasm),
+              multiRefs: [{ ...picRef, origHorzOffset: pa.horzOffset, origVertOffset: pa.vertOffset }],
+            };
+            docEvents.addEventListener('mouseup', host.onMouseUpBound, { once: true });
+            if (kind === 'picture-move-begun') {
+              onMouseMove.call(host, { clientX: 25, clientY: 10, buttons: 1 } as MouseEvent);
+              flush();
+            }
+          } else if (kind === 'picture-rotate') {
+            host.getObjectProperties(picRef);
+            host.isPictureRotateDragging = true;
+            host.pictureRotateState = {
+              ref: picRef, origAngle: 0, centerX: 50, centerY: 50, startAngle: 0,
+              pageIndex: 0, epoch: documentEpochOf(wasm), beforeLabel: stateLabelOf(wasm),
+            };
+            docEvents.addEventListener('mouseup', host.onMouseUpBound, { once: true });
+            // Queue a pre-reload RAF without flushing yet to test orphaned RAF cancellation too
+            onMouseMove.call(host, { clientX: 50, clientY: 100, buttons: 1, ctrlKey: false } as MouseEvent);
+          } else if (kind === 'picture-resize') {
+            const pa = host.getObjectProperties(picRef);
+            const bb = host.findPictureBbox(picRef)!;
+            host.isPictureResizeDragging = true;
+            host.pictureResizeState = {
+              dir: 'se', ref: picRef, origWidth: pa.width, origHeight: pa.height,
+              rotationAngle: 0, startClientX: 20, startClientY: 20, lastClientX: 20, lastClientY: 20,
+              pageIndex: bb.pageIndex, bbox: { x: bb.x, y: bb.y, w: bb.w, h: bb.h },
+              epoch: documentEpochOf(wasm), beforeLabel: stateLabelOf(wasm),
+            };
+            docEvents.addEventListener('mouseup', host.onMouseUpBound, { once: true });
+          } else if (kind === 'line-endpoint') {
+            host.getObjectProperties(lineRef);
+            const bb = host.findPictureBbox(lineRef)!;
+            host.isLineEndpointDragging = true;
+            host.lineEndpointState = {
+              ref: lineRef, endpoint: 'end', pageIndex: bb.pageIndex,
+              pageLeft: 0, pageOffset: 0, zoom: 1,
+              epoch: documentEpochOf(wasm), beforeLabel: stateLabelOf(wasm),
+            };
+            docEvents.addEventListener('mouseup', host.onMouseUpBound, { once: true });
+          } else if (kind === 'table-border-resize') {
+            const allBboxes = wasm.getTableCellBboxes(0, 0, 0);
+            const pageBboxes = allBboxes.filter(b => b.pageIndex === 0);
+            const { colLines } = host.tableResizeRenderer.computeBorderLines(pageBboxes);
+            host.cachedTableRef = { sec: 0, ppi: 0, ci: 0 };
+            host.cachedCellBboxes = allBboxes;
+            startResizeDrag.call(host, { type: 'col', index: colLines[1].index, pageIndex: 0 }, colLines[1].x, 10, pageBboxes);
+            onMouseMove.call(host, { clientX: colLines[1].x + 20, clientY: 10, buttons: 1 } as MouseEvent);
+          }
+
+          assert.equal(hasOpenPointerGesture(host), true, `${replacement}/${kind}: gesture opened in A`);
+
+          if (replacement === 'loadDocument') {
+            wasm.loadDocument(docBBytes, 'B.hwpx');
+            const picB = wasm.insertPicture(0, 1, 0, c10Png, 3000, 3000, 1, 1, 'png');
+            wasm.setPictureProperties(0, picB.paraIdx, picB.controlIdx, { treatAsChar: false, horzOffset: 750, vertOffset: 750 });
+          } else {
+            wasm.createNewDocument();
+          }
+          history.clear(wasm);
+
+          const bSnap = wasm.exportHwpx();
+          const bLabel = stateLabelOf(wasm);
+
+          assert.equal(hasOpenPointerGesture(host), false, `${replacement}/${kind}: synchronously cancelled before deactivate`);
+          flush();
+          onMouseMove.call(host, { clientX: 80, clientY: 80, buttons: 1, ctrlKey: false } as MouseEvent);
+          flush();
+          docEvents.dispatchEvent(new Event('mouseup'));
+          InputHandler.prototype.settleOpenPointerGesture.call(host, 'interrupt');
+
+          assert.deepEqual(wasm.exportHwpx(), bSnap, `${replacement}/${kind}: replacement document bytes mutated`);
+          assert.equal(stateLabelOf(wasm), bLabel, `${replacement}/${kind}: replacement document label changed`);
+          assert.deepEqual(history.entryLabels().undo, [], `${replacement}/${kind}: stale gesture recorded into replacement history`);
+        } finally {
+          history.clear(wasm);
+          wasm.dispose();
+        }
+      });
+    }
+  }
+});
+
+function fullSemanticState(wasm: WasmBridge, canExportHwpx: boolean): { snapshot: string; hwpx: Uint8Array | null } {
+  const paragraphs: unknown[] = [];
+  for (let p = 0; p < wasm.getParagraphCount(0); p++) {
+    const controls: unknown[] = [];
+    for (let ci = 0; ci < 6; ci++) {
+      try { controls.push({ kind: 'shape', ci, props: wasm.getShapeProperties(0, p, ci) }); } catch { /* not shape */ }
+      try { controls.push({ kind: 'pic', ci, props: wasm.getPictureProperties(0, p, ci) }); } catch { /* not pic */ }
+      try {
+        controls.push({
+          kind: 'tbl',
+          ci,
+          props: wasm.getTableProperties(0, p, ci),
+          cells: wasm.getTableCellBboxes(0, p, ci),
+        });
+      } catch { /* not tbl */ }
+    }
+    paragraphs.push({ text: wasm.getTextRange(0, p, 0, wasm.getParagraphLength(0, p)), controls });
+  }
+  return {
+    snapshot: JSON.stringify({
+      paragraphs,
+      layout: wasm.getPageControlLayout(0),
+      svg: wasm.renderPageSvg(0),
+    }),
+    hwpx: canExportHwpx ? wasm.exportHwpx() : null,
+  };
+}
+
+test('C10 R10-C every pointer gesture kind records one exact history entry on mouseup and interrupt and preserves older typing', () => {
+  const terminals = ['mouseup', 'buttons0', 'Escape', 'blur'] as const;
+  const kinds = [
+    'picture-move',
+    'picture-resize-single',
+    'picture-resize-multi',
+    'picture-resize-group',
+    'picture-rotate',
+    'line-endpoint',
+    'table-move',
+    'table-move-back-to-origin',
+    'table-border-resize',
+  ] as const;
+
+  for (const kind of kinds) {
+    for (const terminal of terminals) {
+      withPointerHarness(({ docEvents, flush }) => {
+        const wasm = new WasmBridge(), history = new CommandHistory();
+        try {
+          wasm.loadDocument(
+            fixture(twoColTable(para('<hp:t>L</hp:t>'), para('<hp:t>R</hp:t>')) + para('<hp:t>ONE</hp:t>') + para('<hp:t>AB</hp:t>')),
+            `${kind}-${terminal}.hwpx`,
+          );
+          const usesRuntimeShapes = kind === 'picture-resize-multi' || kind === 'picture-resize-group' || kind === 'line-endpoint';
+          const canExportHwpx = !usesRuntimeShapes;
+
+          const pic = wasm.insertPicture(0, 1, 0, c10Png, 3000, 3000, 1, 1, 'png');
+          wasm.setPictureProperties(0, pic.paraIdx, pic.controlIdx, { treatAsChar: false, horzOffset: 1500, vertOffset: 1500 });
+
+          let s1: { paraIdx: number; controlIdx: number } | null = null;
+          let s2: { paraIdx: number; controlIdx: number } | null = null;
+          let line: { paraIdx: number; controlIdx: number } | null = null;
+          let groupRef: { sec: number; ppi: number; ci: number; type: 'group' } | null = null;
+
+          if (kind === 'picture-resize-multi') {
+            s1 = wasm.createShapeControl({
+              sectionIdx: 0, paraIdx: 1, charOffset: 0, width: 3000, height: 3000,
+              horzOffset: 1500, vertOffset: 1500, shapeType: 'rectangle', treatAsChar: false,
+            });
+            s2 = wasm.createShapeControl({
+              sectionIdx: 0, paraIdx: 1, charOffset: 0, width: 3000, height: 3000,
+              horzOffset: 6000, vertOffset: 1500, shapeType: 'rectangle', treatAsChar: false,
+            });
+          } else if (kind === 'picture-resize-group') {
+            const g1 = wasm.createShapeControl({
+              sectionIdx: 0, paraIdx: 1, charOffset: 0, width: 2250, height: 2250,
+              horzOffset: 9000, vertOffset: 1500, shapeType: 'rectangle', treatAsChar: false,
+            });
+            const g2 = wasm.createShapeControl({
+              sectionIdx: 0, paraIdx: 1, charOffset: 0, width: 2250, height: 2250,
+              horzOffset: 12000, vertOffset: 1500, shapeType: 'rectangle', treatAsChar: false,
+            });
+            const grouped = wasm.groupShapes(0, [
+              { paraIdx: g1.paraIdx, controlIdx: g1.controlIdx },
+              { paraIdx: g2.paraIdx, controlIdx: g2.controlIdx },
+            ]);
+            assert.equal(grouped.ok, true);
+            groupRef = { sec: 0, ppi: grouped.paraIdx, ci: grouped.controlIdx, type: 'group' };
+          } else if (kind === 'line-endpoint') {
+            line = wasm.createShapeControl({
+              sectionIdx: 0, paraIdx: 1, charOffset: 0, width: 4500, height: 1500,
+              horzOffset: 1500, vertOffset: 6000, shapeType: 'line', treatAsChar: false,
+            });
+          }
+          history.clear(wasm);
+
+          // Two distinct older typing entries (non-merged timestamps)
+          const targetPara = wasm.getParagraphCount(0) - 1;
+          const initial = fullSemanticState(wasm, canExportHwpx);
+          history.execute(new InsertTextCommand(position(targetPara, 2), 'X', 1000), wasm);
+          history.execute(new InsertTextCommand(position(targetPara, 3), 'Y', 5000), wasm);
+          assert.equal(history.entryLabels().undo.length, 2);
+          const preGesture = fullSemanticState(wasm, canExportHwpx);
+          const preGestureLabel = stateLabelOf(wasm)!;
+
+          let selectedTable = { sec: 0, ppi: 0, ci: 0 };
+          const sc = { clientWidth: 1000, getBoundingClientRect: () => ({ left: 0, top: 0 }) };
+          const host: any = {
+            active: true, wasm, history, dragRafId: 0,
+            cursor: {
+              isInTableObjectSelection: () => kind.startsWith('table-move'),
+              getSelectedTableRef: () => ({ ...selectedTable }),
+              updateSelectedTableRef: (sec: number, ppi: number, ci: number) => { selectedTable = { sec, ppi, ci }; },
+              isInCellSelectionMode: () => false,
+            },
+            container: {
+              style: { cursor: '' }, clientWidth: 1000, clientHeight: 1000,
+              getBoundingClientRect: () => ({ left: 0, top: 0 }), querySelector: () => sc,
+            },
+            getTableObjectBBox: () => ({ x: 0, y: 0, width: 200, height: 100 }),
+            tableResizeRenderer: {
+              computeBorderLines: (boxes: any[]) => TableResizeRenderer.prototype.computeBorderLines(boxes),
+              showDragMarker() {},
+              clear() {},
+            },
+            pictureObjectRenderer: { renderDragPreview() {}, clearDragPreview() {}, clear() {} },
+            viewportManager: { getZoom: () => 1 },
+            virtualScroll: { getPageAtXY: () => 0, getPageOffset: () => 0, getPageWidth: () => 800, getPageLeft: () => 0 },
+            textarea: { focus() {} },
+            eventBus: { emit() {} },
+            renderTableObjectSelection() {},
+            renderPictureObjectSelection() {},
+            executeOperation: InputHandler.prototype.executeOperation,
+          };
+          host.onMouseUpBound = (event: MouseEvent) => onMouseUp.call(host, event);
+          host.getObjectProperties = (r: any) => getObjectProperties.call(host, r);
+          host.findPictureBbox = (r: any) => findPictureBbox.call(host, r);
+          host.updateMoveDrag = (e: MouseEvent) => updateMoveDrag.call(host, e);
+          host.finishMoveDrag = () => finishMoveDrag.call(host);
+          host.updatePictureMoveDrag = (e: MouseEvent) => updatePictureMoveDrag.call(host, e);
+          host.finishPictureMoveDrag = () => finishPictureMoveDrag.call(host);
+          host.updatePictureRotateDrag = (e: MouseEvent) => updatePictureRotateDrag.call(host, e);
+          host.finishPictureRotateDrag = (e?: MouseEvent) => finishPictureRotateDrag.call(host, e);
+          host.updatePictureResizeDrag = (e: MouseEvent) => updatePictureResizeDrag.call(host, e);
+          host.finishPictureResizeDrag = (e?: MouseEvent) => finishPictureResizeDrag.call(host, e);
+          host.updateLineEndpointDrag = (e: MouseEvent) => updateLineEndpointDrag.call(host, e);
+          host.finishLineEndpointDrag = () => finishLineEndpointDrag.call(host);
+          host.updateResizeDrag = (e: MouseEvent) => updateResizeDrag.call(host, e);
+          host.finishResizeDrag = (e?: MouseEvent) => finishResizeDrag.call(host, e);
+          host.cleanupResizeDrag = () => cleanupResizeDrag.call(host);
+          host.cleanupPictureResizeDrag = () => cleanupPictureResizeDrag.call(host);
+
+          const picRef = { sec: 0, ppi: pic.paraIdx, ci: pic.controlIdx, type: 'image' as const };
+          let endClientX = 60;
+          let endClientY = 60;
+          let expectedType = '';
+
+          if (kind === 'picture-move') {
+            expectedType = 'snapshot:moveObjects';
+            const p1 = host.getObjectProperties(picRef);
+            host.isPictureMoveDragging = true;
+            host.pictureMoveState = {
+              ref: picRef, origHorzOffset: p1.horzOffset, origVertOffset: p1.vertOffset,
+              startPageX: 20, startPageY: 20, lastPageX: 20, lastPageY: 20, totalDeltaH: 0, totalDeltaV: 0,
+              pageIndex: 0, epoch: documentEpochOf(wasm), beforeLabel: preGestureLabel,
+            };
+            docEvents.addEventListener('mouseup', host.onMouseUpBound, { once: true });
+            onMouseMove.call(host, { clientX: 50, clientY: 35, buttons: 1 } as MouseEvent);
+            flush();
+            endClientX = 50; endClientY = 35;
+          } else if (kind === 'picture-resize-single') {
+            expectedType = 'snapshot:resizeObjects';
+            const p1 = host.getObjectProperties(picRef);
+            const bb1 = host.findPictureBbox(picRef)!;
+            host.isPictureResizeDragging = true;
+            host.pictureResizeState = {
+              dir: 'se', ref: picRef, origWidth: p1.width, origHeight: p1.height, rotationAngle: 0,
+              startClientX: 40, startClientY: 40, lastClientX: 40, lastClientY: 40,
+              pageIndex: bb1.pageIndex, bbox: { x: bb1.x, y: bb1.y, w: bb1.w, h: bb1.h },
+              epoch: documentEpochOf(wasm), beforeLabel: preGestureLabel,
+            };
+            docEvents.addEventListener('mouseup', host.onMouseUpBound, { once: true });
+            onMouseMove.call(host, { clientX: 70, clientY: 65, buttons: 1 } as MouseEvent);
+            flush();
+            endClientX = 70; endClientY = 65;
+          } else if (kind === 'picture-resize-multi') {
+            expectedType = 'snapshot:resizeObjects';
+            const ref1 = { sec: 0, ppi: s1!.paraIdx, ci: s1!.controlIdx, type: 'shape' as const };
+            const ref2 = { sec: 0, ppi: s2!.paraIdx, ci: s2!.controlIdx, type: 'shape' as const };
+            const p1 = host.getObjectProperties(ref1);
+            const p2 = host.getObjectProperties(ref2);
+            const bb1 = host.findPictureBbox(ref1)!;
+            const bb2 = host.findPictureBbox(ref2)!;
+            const minX = Math.min(bb1.x, bb2.x), minY = Math.min(bb1.y, bb2.y);
+            const maxX = Math.max(bb1.x + bb1.w, bb2.x + bb2.w), maxY = Math.max(bb1.y + bb1.h, bb2.y + bb2.h);
+            host.isPictureResizeDragging = true;
+            host.pictureResizeState = {
+              dir: 'se', ref: ref1,
+              origWidth: Math.round((maxX - minX) * 75), origHeight: Math.round((maxY - minY) * 75),
+              startClientX: 100, startClientY: 50, lastClientX: 100, lastClientY: 50,
+              pageIndex: bb1.pageIndex, bbox: { x: minX, y: minY, w: maxX - minX, h: maxY - minY },
+              multiRefs: [
+                { ...ref1, origWidth: p1.width, origHeight: p1.height, origHorzOffset: p1.horzOffset, origVertOffset: p1.vertOffset, bboxX: bb1.x, bboxY: bb1.y },
+                { ...ref2, origWidth: p2.width, origHeight: p2.height, origHorzOffset: p2.horzOffset, origVertOffset: p2.vertOffset, bboxX: bb2.x, bboxY: bb2.y },
+              ],
+              epoch: documentEpochOf(wasm), beforeLabel: preGestureLabel,
+            };
+            docEvents.addEventListener('mouseup', host.onMouseUpBound, { once: true });
+            onMouseMove.call(host, { clientX: 140, clientY: 80, buttons: 1 } as MouseEvent);
+            flush();
+            endClientX = 140; endClientY = 80;
+          } else if (kind === 'picture-resize-group') {
+            expectedType = 'snapshot:resizeObjects';
+            const pg = host.getObjectProperties(groupRef!);
+            const bbg = host.findPictureBbox(groupRef!)!;
+            host.isPictureResizeDragging = true;
+            host.pictureResizeState = {
+              dir: 'se', ref: groupRef!, origWidth: pg.width, origHeight: pg.height, rotationAngle: 0,
+              startClientX: 120, startClientY: 50, lastClientX: 120, lastClientY: 50,
+              pageIndex: bbg.pageIndex, bbox: { x: bbg.x, y: bbg.y, w: bbg.w, h: bbg.h },
+              epoch: documentEpochOf(wasm), beforeLabel: preGestureLabel,
+            };
+            docEvents.addEventListener('mouseup', host.onMouseUpBound, { once: true });
+            onMouseMove.call(host, { clientX: 155, clientY: 75, buttons: 1 } as MouseEvent);
+            flush();
+            endClientX = 155; endClientY = 75;
+          } else if (kind === 'picture-rotate') {
+            expectedType = 'snapshot:rotateObject';
+            host.isPictureRotateDragging = true;
+            host.pictureRotateState = {
+              ref: picRef, origAngle: 0, centerX: 50, centerY: 50, startAngle: Math.atan2(0, 50),
+              pageIndex: 0, epoch: documentEpochOf(wasm), beforeLabel: preGestureLabel,
+            };
+            docEvents.addEventListener('mouseup', host.onMouseUpBound, { once: true });
+            onMouseMove.call(host, { clientX: 50, clientY: 100, buttons: 1, ctrlKey: false } as MouseEvent);
+            flush();
+            endClientX = 50; endClientY = 100;
+          } else if (kind === 'line-endpoint') {
+            expectedType = 'snapshot:moveLineEndpoint';
+            const lineRef = { sec: 0, ppi: line!.paraIdx, ci: line!.controlIdx, type: 'line' as const };
+            const bbl = host.findPictureBbox(lineRef)!;
+            host.isLineEndpointDragging = true;
+            host.lineEndpointState = {
+              ref: lineRef, endpoint: 'end', pageIndex: bbl.pageIndex,
+              pageLeft: 0, pageOffset: 0, zoom: 1,
+              epoch: documentEpochOf(wasm), beforeLabel: preGestureLabel,
+            };
+            docEvents.addEventListener('mouseup', host.onMouseUpBound, { once: true });
+            onMouseMove.call(host, { clientX: 120, clientY: 130, buttons: 1, shiftKey: false } as MouseEvent);
+            flush();
+            endClientX = 120; endClientY = 130;
+          } else if (kind === 'table-move' || kind === 'table-move-back-to-origin') {
+            expectedType = 'moveTable';
+            onClick.call(host, { button: 0, detail: 1, clientX: 10, clientY: 10, target: { closest: () => null }, preventDefault() {} } as unknown as MouseEvent);
+            onMouseMove.call(host, { clientX: 30, clientY: 10, buttons: 1 } as MouseEvent);
+            flush();
+            if (kind === 'table-move-back-to-origin') {
+              onMouseMove.call(host, { clientX: 10, clientY: 10, buttons: 1 } as MouseEvent);
+              flush();
+              endClientX = 10; endClientY = 10;
+            } else {
+              endClientX = 30; endClientY = 10;
+            }
+          } else if (kind === 'table-border-resize') {
+            expectedType = 'snapshot:resizeTableCells';
+            const allBboxes = wasm.getTableCellBboxes(0, 0, 0);
+            const pageBboxes = allBboxes.filter(b => b.pageIndex === 0);
+            const { colLines } = host.tableResizeRenderer.computeBorderLines(pageBboxes);
+            host.cachedTableRef = { sec: 0, ppi: 0, ci: 0 };
+            host.cachedCellBboxes = allBboxes;
+            startResizeDrag.call(host, { type: 'col', index: colLines[1].index, pageIndex: 0 }, colLines[1].x, 10, pageBboxes);
+            endClientX = colLines[1].x + 25;
+            endClientY = 10;
+            onMouseMove.call(host, { clientX: endClientX, clientY: endClientY, buttons: 1 } as MouseEvent);
+            flush();
+          }
+
+          if (terminal === 'mouseup') {
+            onMouseUp.call(host, { clientX: endClientX, clientY: endClientY, buttons: 0 } as MouseEvent);
+          } else if (terminal === 'buttons0') {
+            onMouseMove.call(host, { clientX: endClientX, clientY: endClientY, buttons: 0 } as MouseEvent);
+          } else if (terminal === 'Escape') {
+            const k = keyEvent('Escape');
+            onKeyDown.call(host, k.event);
+            assert.equal(k.prevented(), 1);
+          } else if (terminal === 'blur') {
+            InputHandler.prototype.settleOpenPointerGesture.call(host, 'interrupt');
+          }
+
+          const tag = `${kind}/${terminal}`;
+          assert.equal(hasOpenPointerGesture(host), false, `${tag}: latch must close`);
+          const postGesture = fullSemanticState(wasm, canExportHwpx);
+          const postGestureLabel = stateLabelOf(wasm)!;
+          if (kind !== 'table-move-back-to-origin') {
+            assert.notEqual(postGesture.snapshot, preGesture.snapshot, `${tag}: gesture must mutate state`);
+          }
+
+          const entries = history.entryLabels().undo;
+          assert.equal(entries.length, 3, `${tag}: gesture must add exactly 1 history entry`);
+          assert.equal(entries[2].type, expectedType, `${tag}: entry type`);
+          assert.equal(entries[2].redoLabel, preGestureLabel, `${tag}: redoLabel matches pre-gesture label`);
+          assert.equal(entries[2].undoLabel, postGestureLabel, `${tag}: undoLabel matches post-gesture label`);
+
+          // Undo gesture -> exact pre-gesture state & bytes, older typing still intact!
+          assert.notEqual(history.undo(wasm), null, `${tag}: gesture undo must succeed`);
+          assert.equal(stateLabelOf(wasm), preGestureLabel, `${tag}: undo restores pre-gesture label`);
+          const afterGestureUndo = fullSemanticState(wasm, canExportHwpx);
+          assert.equal(afterGestureUndo.snapshot, preGesture.snapshot, `${tag}: undo restores pre-gesture semantic state`);
+          if (canExportHwpx) assert.deepEqual(afterGestureUndo.hwpx, preGesture.hwpx, `${tag}: undo restores pre-gesture bytes`);
+          assert.equal(history.entryLabels().undo.length, 2, `${tag}: older typing entries preserved`);
+          assert.equal(history.canUndo(), true, `${tag}: older typing stays undoable`);
+
+          // Undo both older typing edits!
+          assert.notEqual(history.undo(wasm), null, `${tag}: undo Y`);
+          assert.equal(wasm.getTextRange(0, targetPara, 0, 3), 'ABX', `${tag}: text after undoing Y`);
+          assert.notEqual(history.undo(wasm), null, `${tag}: undo X`);
+          assert.equal(wasm.getTextRange(0, targetPara, 0, 2), 'AB', `${tag}: text after undoing X`);
+          const afterFullUndo = fullSemanticState(wasm, canExportHwpx);
+          assert.equal(afterFullUndo.snapshot, initial.snapshot, `${tag}: full undo restores initial state`);
+          if (canExportHwpx) assert.deepEqual(afterFullUndo.hwpx, initial.hwpx, `${tag}: full undo restores initial bytes`);
+          assert.equal(history.canUndo(), false, `${tag}: stack exhausted cleanly`);
+
+          // Redo all three!
+          assert.notEqual(history.redo(wasm), null, `${tag}: redo X`);
+          assert.notEqual(history.redo(wasm), null, `${tag}: redo Y`);
+          assert.notEqual(history.redo(wasm), null, `${tag}: redo gesture`);
+          assert.equal(stateLabelOf(wasm), postGestureLabel, `${tag}: full redo restores post-gesture label`);
+          const afterFullRedo = fullSemanticState(wasm, canExportHwpx);
+          assert.equal(afterFullRedo.snapshot, postGesture.snapshot, `${tag}: full redo restores post-gesture state`);
+          if (canExportHwpx) assert.deepEqual(afterFullRedo.hwpx, postGesture.hwpx, `${tag}: full redo restores post-gesture bytes`);
+        } finally {
+          history.clear(wasm);
+          wasm.dispose();
+        }
+      });
+    }
+  }
+});
+
+test('C10 keyboard table cell resize and zero-motion pointer gestures keep history exact without leaking snapshots', () => {
+  const wasm = new WasmBridge(), history = new CommandHistory();
+  try {
+    wasm.loadDocument(
+      fixture(twoColTable(para('<hp:t>L</hp:t>'), para('<hp:t>R</hp:t>')) + para('<hp:t>AB</hp:t>')),
+      'c10-kbd-table.hwpx',
+    );
+    history.execute(new InsertTextCommand(position(1, 2), 'Z', 1000), wasm);
+    const typedBytes = wasm.exportHwpx();
+    const typedLabel = stateLabelOf(wasm)!;
+
+    const host: any = {
+      active: true, wasm, history,
+      cursor: {
+        getCellTableContext: () => ({ sec: 0, ppi: 0, ci: 0 }),
+        getSelectedCellRange: () => ({ startRow: 0, startCol: 0, endRow: 0, endCol: 0 }),
+      },
+      eventBus: { emit() {} },
+      updateCellSelection() {},
+    };
+    resizeCellByKeyboard.call(host, 'ArrowRight');
+    const afterCellResizeBytes = wasm.exportHwpx();
+    assert.notDeepEqual(afterCellResizeBytes, typedBytes);
+    assert.equal(history.entryLabels().undo.length, 2);
+    assert.equal(history.entryLabels().undo[1].type, 'snapshot:resizeTableCells');
+
+    resizeTableProportional.call(host, 'ArrowDown');
+    assert.equal(history.entryLabels().undo.length, 3);
+    assert.equal(history.entryLabels().undo[2].type, 'snapshot:resizeTableCells');
+
+    assert.ok(history.undo(wasm));
+    assert.deepEqual(wasm.exportHwpx(), afterCellResizeBytes);
+    assert.ok(history.undo(wasm));
+    assert.deepEqual(wasm.exportHwpx(), typedBytes);
+    assert.equal(stateLabelOf(wasm), typedLabel);
+
+    // Expected-epoch binding & no-op finish on ObjectGestureRecorder
+    const expectedEpoch = documentEpochOf(wasm)!;
+    const noopRec = new ObjectGestureRecorder('resizeObjects', position(0, 0), expectedEpoch);
+    assert.equal(noopRec.begin(wasm), true);
+    assert.equal(noopRec.finish(wasm), null, 'no-op gesture discards before snapshot and returns null');
+    assert.equal(rawSnapshotLabels(wasm, 4), undefined, 'no-op snapshot id was discarded');
+
+    const staleBoundRec = new ObjectGestureRecorder('moveObjects', position(0, 0), expectedEpoch);
+    wasm.loadDocument(fixture(para('<hp:t>FRESH</hp:t>')), 'fresh.hwpx');
+    history.clear(wasm);
+    assert.equal(staleBoundRec.begin(wasm), false, 'expectedEpoch mismatch refuses begin without saveSnapshot');
+    assert.equal(rawSnapshotLabels(wasm, 0), undefined, 'no snapshot allocated in fresh document');
+  } finally {
+    history.clear(wasm);
+    wasm.dispose();
+  }
+});
+
+test('C10 source guard enforces press-epoch checks, replacement hooks, and recorder settlement across all pointer gestures', () => {
+  const engineDir = new URL('../src/engine', import.meta.url).pathname;
+  const tableCode = readFileSync(join(engineDir, 'input-handler-table.ts'), 'utf8');
+  const pictureCode = readFileSync(join(engineDir, 'input-handler-picture.ts'), 'utf8');
+  const mouseCode = readFileSync(join(engineDir, 'input-handler-mouse.ts'), 'utf8');
+  const handlerCode = readFileSync(join(engineDir, 'input-handler.ts'), 'utf8');
+
+  // Replacement hooks wrap both loadDocument and createNewDocument without touching wasm-bridge.ts
+  assert.match(tableCode, /\['loadDocument',\s*'createNewDocument'\]/);
+  assert.match(handlerCode, /_table\.bindPointerHostToWasm\(this\)/);
+
+  // Every pointer update/finish handler validates epoch ownership
+  const requiredHandlers: Array<[string, string, RegExp]> = [
+    ['input-handler-table.ts', tableCode, /export function updateMoveDrag[\s\S]*?ensureGestureMatchesLiveEpoch\(this\)/],
+    ['input-handler-table.ts', tableCode, /export function finishMoveDrag[\s\S]*?isActiveGestureEpochStale\(this\)/],
+    ['input-handler-table.ts', tableCode, /export function updateResizeDrag[\s\S]*?ensureGestureMatchesLiveEpoch\(this\)/],
+    ['input-handler-table.ts', tableCode, /export function finishResizeDrag[\s\S]*?isActiveGestureEpochStale\(this\)/],
+    ['input-handler-picture.ts', pictureCode, /export function updatePictureMoveDrag[\s\S]*?ensureGestureMatchesLiveEpoch\(this\)/],
+    ['input-handler-picture.ts', pictureCode, /export function finishPictureMoveDrag[\s\S]*?isActiveGestureEpochStale\(this\)/],
+    ['input-handler-picture.ts', pictureCode, /export function updatePictureResizeDrag[\s\S]*?ensureGestureMatchesLiveEpoch\(this\)/],
+    ['input-handler-picture.ts', pictureCode, /export function finishPictureResizeDrag[\s\S]*?isActiveGestureEpochStale\(this\)/],
+    ['input-handler-picture.ts', pictureCode, /export function updatePictureRotateDrag[\s\S]*?ensureGestureMatchesLiveEpoch\(this\)/],
+    ['input-handler-picture.ts', pictureCode, /export function finishPictureRotateDrag[\s\S]*?isActiveGestureEpochStale\(this\)/],
+    ['input-handler-mouse.ts', mouseCode, /export function updateLineEndpointDrag[\s\S]*?ensureGestureMatchesLiveEpoch\(this\)/],
+    ['input-handler-mouse.ts', mouseCode, /export function finishLineEndpointDrag[\s\S]*?isActiveGestureEpochStale\(this\)/],
+  ];
+  for (const [file, code, pattern] of requiredHandlers) {
+    assert.match(code, pattern, `${file}: missing epoch check for ${pattern}`);
+  }
+
+  // settleOpenPointerGesture settles all 6 mutating pointer gesture families on interrupt
+  const settleStart = handlerCode.indexOf('settleOpenPointerGesture(kind:');
+  assert.ok(settleStart >= 0);
+  const settleSlice = handlerCode.slice(settleStart, settleStart + 4500);
+  for (const finishName of [
+    'finishMoveDrag',
+    'finishPictureMoveDrag',
+    'finishPictureRotateDrag',
+    'finishPictureResizeDrag',
+    'finishLineEndpointDrag',
+    'finishResizeDrag',
+  ]) {
+    assert.ok(settleSlice.includes(finishName), `settleOpenPointerGesture missing ${finishName}`);
+  }
+  for (const recorderOwner of [
+    'pictureMoveState?.recorder',
+    'pictureResizeState?.recorder',
+    'pictureRotateState?.recorder',
+    'lineEndpointState?.recorder',
+    'resizeDragState?.recorder',
+  ]) {
+    assert.ok(settleSlice.includes(recorderOwner), `settleOpenPointerGesture missing recorder cancel for ${recorderOwner}`);
+  }
+  console.log('C10_POINTER_GUARD handlers=12 interrupt_finishers=6 cancel_recorders=5 replacement_hooks=2');
 });

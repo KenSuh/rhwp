@@ -1148,7 +1148,7 @@ export class SnapshotCommand implements EditCommand {
   }
 }
 
-function documentEpochOf(wasm: WasmBridge): string | null {
+export function documentEpochOf(wasm: WasmBridge): string | null {
   return stateLabelOf(wasm)?.split(':')[0] ?? null;
 }
 
@@ -1160,10 +1160,9 @@ function snapshotCaptureLabel(wasm: WasmBridge, id: number): string | null {
 }
 
 /**
- * 여러 개체와 연결선을 함께 바꾸는 한 제스처(다중 선택 드래그, 키보드 이동)를
- * 정확한 히스토리 항목 하나로 기록한다. 첫 실제 변이 직전의 begin()이 제스처
- * 이전 문서와 라벨을 봉인하고, finish()가 이후 스냅샷과 짝지은 SnapshotCommand를
- * 돌려준다 — 선택된 모든 대상과 연결선 갱신이 같은 (이전, 이후) 라벨 쌍에 담긴다.
+ * 여러 개체와 연결선을 함께 바꾸는 한 제스처(다중 선택 드래그, 키보드 이동, 회전, 리사이즈,
+ * 끝점 드래그, 표 셀 경계 리사이즈)를 정확한 히스토리 항목 하나로 기록한다.
+ * 제스처 시작 시점 expectedEpoch에 구속되어 문서 교체 뒤에는 스냅샷을 만들거나 기록하지 않는다.
  */
 export class ObjectGestureRecorder {
   /** begin()이 봉인한 제스처 이전 스냅샷 ID와 그 시점 상태 라벨 */
@@ -1172,32 +1171,45 @@ export class ObjectGestureRecorder {
   constructor(
     private readonly operationType: string,
     private readonly cursor: DocumentPosition,
+    private readonly expectedEpoch: string | null = null,
   ) {}
 
   get started(): boolean { return this.before !== null; }
 
-  /** 첫 실제 변이 직전에 호출한다. 두 번째 호출부터는 아무 일도 하지 않는다. */
-  begin(wasm: WasmBridge): void {
-    if (this.before !== null) return;
+  get ownerEpoch(): string | null { return this.expectedEpoch ?? this.before?.epoch ?? null; }
+
+  /** 첫 실제 변이 직전에 호출한다. 기대 epoch와 다르면 스냅샷 없이 false를 반환한다. */
+  begin(wasm: WasmBridge): boolean {
+    if (this.expectedEpoch !== null && documentEpochOf(wasm) !== this.expectedEpoch) {
+      return false;
+    }
+    if (this.before !== null) {
+      return this.before.epoch === documentEpochOf(wasm);
+    }
     const label = stateLabelOf(wasm);
     this.before = { id: wasm.saveSnapshot(), label, epoch: label?.split(':')[0] ?? null };
+    return true;
   }
 
   /**
-   * 마지막 변이 뒤 호출한다. 변이가 없었으면 null. 이 기록기가 직접 봉인한 (ID, 라벨)
-   * 두 쌍으로만 명령을 만든다 — 겹친 다른 기록기와 서로의 스냅샷·라벨을 짝짓지 않는다.
+   * 마지막 변이 뒤 호출한다. 변이가 없었거나 다른 문서 epoch로 교체됐으면 null.
+   * 이 기록기가 직접 봉인한 (ID, 라벨) 두 쌍으로만 명령을 만든다 — 겹친 다른 기록기와 서로의 스냅샷·라벨을 짝짓지 않는다.
    */
   finish(wasm: WasmBridge): EditCommand | null {
     const before = this.before;
     if (before === null) return null;
     this.before = null;
-    if (before.epoch !== documentEpochOf(wasm)) {
-      return SnapshotCommand.recorded(
-        this.operationType, before.id, before.id, this.cursor, this.cursor,
-        before.label, before.label, before.epoch,
-      );
+    const liveEpoch = documentEpochOf(wasm);
+    if ((this.expectedEpoch !== null && liveEpoch !== this.expectedEpoch) || before.epoch !== liveEpoch) {
+      return null;
     }
     const afterLabel = stateLabelOf(wasm);
+    if (afterLabel === before.label) {
+      if (before.epoch !== null && documentEpochOf(wasm) === before.epoch) {
+        wasm.discardSnapshot(before.id);
+      }
+      return null;
+    }
     let afterId: number;
     try { afterId = wasm.saveSnapshot(); }
     catch (error: unknown) {
