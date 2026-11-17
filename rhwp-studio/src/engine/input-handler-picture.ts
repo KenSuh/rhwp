@@ -369,15 +369,41 @@ function multiResizeTargets(
   const baseH = bbox.h || Math.max(1, ...refs.map(ref => ref.origHeight)) / PX_TO_HWP;
   const sx = dir.includes('e') || dir.includes('w') ? 1 + (resized.width - bbox.w) / baseW : 1;
   const sy = dir.includes('n') || dir.includes('s') ? 1 + (resized.height - bbox.h) / baseH : 1;
-  return refs.map(ref => {
-    const clampedW = Math.max(ref.origWidth + Math.round(ref.origWidth * (sx - 1)), Math.min(MIN_SIZE_HWP, ref.origWidth));
-    const clampedH = Math.max(ref.origHeight + Math.round(ref.origHeight * (sy - 1)), Math.min(MIN_SIZE_HWP, ref.origHeight));
+  const items = refs.map(ref => {
+    const rawW = ref.origWidth + Math.round(ref.origWidth * (sx - 1));
+    const rawH = ref.origHeight + Math.round(ref.origHeight * (sy - 1));
+    const clampedW = Math.max(rawW, Math.min(MIN_SIZE_HWP, ref.origWidth));
+    const clampedH = Math.max(rawH, Math.min(MIN_SIZE_HWP, ref.origHeight));
     const width = ref.type === 'image' ? clampedW : resolveNativeDimension(ref.origWidth, clampedW);
     const height = ref.type === 'image' ? clampedH : resolveNativeDimension(ref.origHeight, clampedH);
-    const deltaH = Math.round((resized.x + (ref.bboxX - bbox.x) * sx - ref.bboxX) * PX_TO_HWP)
-      - ((dir.includes('w') && !resized.flipX) || (dir.includes('e') && resized.flipX) ? width - clampedW : 0);
-    const deltaV = Math.round((resized.y + (ref.bboxY - bbox.y) * sy - ref.bboxY) * PX_TO_HWP)
-      - ((dir.includes('n') && !resized.flipY) || (dir.includes('s') && resized.flipY) ? height - clampedH : 0);
+    const deltaH0 = Math.round((resized.x + (ref.bboxX - bbox.x) * sx - ref.bboxX) * PX_TO_HWP);
+    const deltaV0 = Math.round((resized.y + (ref.bboxY - bbox.y) * sy - ref.bboxY) * PX_TO_HWP);
+    return { ref, rawW, rawH, width, height, deltaH0, deltaV0 };
+  });
+  // Floors and flips change the union extent; translate it uniformly back to the fixed edge.
+  let corrX = 0, corrY = 0;
+  if (/[ew]/.test(dir) && (resized.flipX || items.some(item => item.width !== item.rawW))) {
+    const priorAnchorX = dir.includes('w')
+      ? Math.max(...refs.map(ref => (ref.origHorzOffset | 0) + ref.origWidth))
+      : Math.min(...refs.map(ref => ref.origHorzOffset | 0));
+    const useRightEdgeX = dir.includes('w') !== Boolean(resized.flipX);
+    const currentAnchorX = useRightEdgeX
+      ? Math.max(...items.map(item => (item.ref.origHorzOffset | 0) + item.deltaH0 + item.width))
+      : Math.min(...items.map(item => (item.ref.origHorzOffset | 0) + item.deltaH0));
+    corrX = priorAnchorX - currentAnchorX;
+  }
+  if (/[ns]/.test(dir) && (resized.flipY || items.some(item => item.height !== item.rawH))) {
+    const priorAnchorY = dir.includes('n')
+      ? Math.max(...refs.map(ref => (ref.origVertOffset | 0) + ref.origHeight))
+      : Math.min(...refs.map(ref => ref.origVertOffset | 0));
+    const useBottomEdgeY = dir.includes('n') !== Boolean(resized.flipY);
+    const currentAnchorY = useBottomEdgeY
+      ? Math.max(...items.map(item => (item.ref.origVertOffset | 0) + item.deltaV0 + item.height))
+      : Math.min(...items.map(item => (item.ref.origVertOffset | 0) + item.deltaV0));
+    corrY = priorAnchorY - currentAnchorY;
+  }
+  return items.map(({ ref, width, height, deltaH0, deltaV0 }) => {
+    const deltaH = deltaH0 + corrX, deltaV = deltaV0 + corrY;
     return {
       ref,
       changed: width !== ref.origWidth || height !== ref.origHeight || deltaH !== 0 || deltaV !== 0,
@@ -653,12 +679,12 @@ export function calcResizedBbox(this: any, e: MouseEvent, zoom: number): { x: nu
   // 가로 크기 및 위치 계산 (Flip 허용)
   if (dir.includes('e')) {
     const valW = s.bbox.w + dx;
-    flipX = valW < 0;
+    flipX = valW < 0 && Math.round(dx * PX_TO_HWP) !== 0;
     w = Math.max(Math.abs(valW), minW);
     if (valW < 0) x = s.bbox.x - w; // 반대편으로 넘어가면 시작점 이동
   } else if (dir.includes('w')) {
     const valW = s.bbox.w - dx;
-    flipX = valW < 0;
+    flipX = valW < 0 && Math.round(dx * PX_TO_HWP) !== 0;
     w = Math.max(Math.abs(valW), minW);
     if (valW >= 0) x = s.bbox.x + (s.bbox.w - w);
     else x = s.bbox.x + s.bbox.w; // 반대편으로 넘어가면 오른쪽 끝이 시작점
@@ -667,12 +693,12 @@ export function calcResizedBbox(this: any, e: MouseEvent, zoom: number): { x: nu
   // 세로 크기 및 위치 계산 (Flip 허용)
   if (dir.includes('s')) {
     const valH = s.bbox.h + dy;
-    flipY = valH < 0;
+    flipY = valH < 0 && Math.round(dy * PX_TO_HWP) !== 0;
     h = Math.max(Math.abs(valH), minH);
     if (valH < 0) y = s.bbox.y - h;
   } else if (dir.includes('n')) {
     const valH = s.bbox.h - dy;
-    flipY = valH < 0;
+    flipY = valH < 0 && Math.round(dy * PX_TO_HWP) !== 0;
     h = Math.max(Math.abs(valH), minH);
     if (valH >= 0) y = s.bbox.y + (s.bbox.h - h);
     else y = s.bbox.y + s.bbox.h;

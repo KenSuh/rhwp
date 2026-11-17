@@ -3274,6 +3274,91 @@ test('C14 flipped multi-object floor promotion anchors the edge fixed after cros
   console.log(`C14_MULTI_FLIP cases=${cases} fixed_native_edge=${cases}/${cases}`);
 });
 
+test('C15 multi-object floors keep the union fixed edge through clamps flips preview settlement and exact undo redo', () => {
+  type Bounds = { readonly width: number; readonly height: number; readonly horzOffset: number; readonly vertOffset: number };
+  const profiles = [
+    { kind: 'shape', sizes: [[3000, 1500], [4500, 2250]], zooms: [1.375] },
+    { kind: 'image', sizes: [[3000, 1500], [4500, 2250]], zooms: [1.375] },
+    { kind: 'mixed', sizes: [[3000, 1500], [4500, 2250]], zooms: [1.375] },
+    { kind: 'mixed', sizes: [[17, 91], [83, 29]], zooms: [0.625, 3.2] },
+  ] as const;
+  let cases = 0;
+  for (const profile of profiles) for (const dir of ['e', 'w', 'n', 's', 'ne', 'nw', 'se', 'sw'])
+    for (const zoom of profile.zooms) for (const flipped of [false, true])
+      for (const terminal of ['mouseup', 'interrupt'] as const) withPointerHarness(({ flush }) => {
+        const c = c11PointerCase('multi', dir, profile.sizes), { wasm, history, host, state, clientX, clientY } = c;
+        try {
+          for (const [index, size] of profile.sizes.entries()) {
+            if (profile.kind === 'image' || profile.kind === 'mixed' && index === 1) {
+              const picture = wasm.insertPicture(0, wasm.getParagraphCount(0) - 1, 0, c10Png, size[0], size[1], 1, 1, 'png');
+              assert.equal(picture.ok, true);
+              c.refs[index] = { sec: 0, ppi: picture.paraIdx, ci: picture.controlIdx, type: 'image' };
+            }
+          }
+          c.refs.forEach(ref => setObjectProperties.call(host, ref, { treatAsChar: false,
+            horzRelTo: 'Paper', vertRelTo: 'Paper', horzOffset: 23, vertOffset: 31 }));
+          const original: Bounds[] = c.refs.map(ref => getObjectProperties.call(host, ref));
+          const items = c.refs.map((ref, index) => {
+            const props = original[index], box = findPictureBbox.call(host, ref);
+            if (!props || !box) throw new RangeError('C15 native object has no layout');
+            return { ...ref, origWidth: props.width, origHeight: props.height, origHorzOffset: props.horzOffset,
+              origVertOffset: props.vertOffset, bboxX: box.x, bboxY: box.y, w: box.w, h: box.h };
+          });
+          const x = Math.min(...items.map(item => item.bboxX)), y = Math.min(...items.map(item => item.bboxY));
+          const w = Math.max(...items.map(item => item.bboxX + item.w)) - x;
+          const h = Math.max(...items.map(item => item.bboxY + item.h)) - y;
+          Object.assign(state, { ref: c.refs[0], multiRefs: items, bbox: { x, y, w, h }, origWidth: Math.round(w * 75), origHeight: Math.round(h * 75) });
+          host.viewportManager.getZoom = () => zoom;
+          const previews: { width: number; height: number }[] = [];
+          Object.assign(host.pictureObjectRenderer, { renderDragPreview(box: { width: number; height: number }) { previews.push(box); } });
+          const before = fullSemanticState(wasm, false), beforeLabel = stateLabelOf(wasm);
+          const tiny = profile.sizes[0][0] < 200;
+          const localX = dir.includes('e') ? (flipped ? -w - 0.83 : tiny ? 0.83 : -w + 0.83)
+            : dir.includes('w') ? (flipped ? w + 0.83 : tiny ? -0.83 : w - 0.83) : 0;
+          const localY = dir.includes('s') ? (flipped ? -h - 0.83 : tiny ? 0.83 : -h + 0.83)
+            : dir.includes('n') ? (flipped ? h + 0.83 : tiny ? -0.83 : h - 0.83) : 0;
+          const dx = localX * zoom, dy = localY * zoom;
+          const checkAnchor = () => {
+            const actual: Bounds[] = c.refs.map(ref => getObjectProperties.call(host, ref));
+            for (const axis of ['x', 'y'] as const) {
+              if (!(axis === 'x' ? /[ew]/ : /[ns]/).test(dir)) continue;
+              const priorFar = dir.includes(axis === 'x' ? 'w' : 'n'), nextFar = priorFar !== flipped;
+              const edge = (props: Bounds, far: boolean) => axis === 'x'
+                ? (props.horzOffset | 0) + (far ? props.width : 0) : (props.vertOffset | 0) + (far ? props.height : 0);
+              const prior = (priorFar ? Math.max : Math.min)(...original.map(props => edge(props, priorFar)));
+              const next = (nextFar ? Math.max : Math.min)(...actual.map(props => edge(props, nextFar)));
+              assert.equal(next, prior, `${profile.kind}/${tiny}/${dir}/${zoom}/${flipped}/${terminal}/${axis}: fixed union edge`);
+            }
+            actual.forEach((props, index) => {
+              if (!tiny) {
+                if (/[ew]/.test(dir)) assert.equal(props.width, 283);
+                if (/[ns]/.test(dir)) assert.equal(props.height, 283);
+              } else if (c.refs[index]?.type === 'image') {
+                assert.ok(props.width < 200 && props.height < 200, 'images retain direct-store dimensions');
+              }
+            });
+            return actual;
+          };
+          Reflect.apply(onMouseMove, host, [{ clientX: clientX + dx, clientY: clientY + dy, buttons: 1 }]); flush();
+          const live = fullSemanticState(wasm, false), actual = checkAnchor(), preview = previews.at(-1);
+          if (!preview) throw new RangeError('C15 resize has no drag preview');
+          const width = Math.max(...actual.map(props => (props.horzOffset | 0) + props.width)) - Math.min(...actual.map(props => props.horzOffset | 0));
+          const height = Math.max(...actual.map(props => (props.vertOffset | 0) + props.height)) - Math.min(...actual.map(props => props.vertOffset | 0));
+          assert.ok(Math.abs(preview.width * 75 - width) <= 1 && Math.abs(preview.height * 75 - height) <= 1);
+          if (terminal === 'mouseup') Reflect.apply(onMouseUp, host, [{ clientX: clientX + dx, clientY: clientY + dy, buttons: 0 }]);
+          else Reflect.apply(InputHandler.prototype.settleOpenPointerGesture, host, ['interrupt']);
+          checkAnchor();
+          const after = fullSemanticState(wasm, false), afterLabel = stateLabelOf(wasm);
+          assert.deepEqual(after, live);
+          assert.equal(history.entryLabels().undo.length, 1);
+          assert.ok(history.undo(wasm)); assert.deepEqual(fullSemanticState(wasm, false), before); assert.equal(stateLabelOf(wasm), beforeLabel);
+          assert.ok(history.redo(wasm)); assert.deepEqual(fullSemanticState(wasm, false), after); assert.equal(stateLabelOf(wasm), afterLabel);
+          cases++;
+        } finally { history.clear(wasm); wasm.dispose(); }
+      });
+  console.log(`C15_MULTI_FLOORS cases=${cases} fixed_native_edge=${cases}/${cases} exact_undo_redo=${cases}/${cases}`);
+});
+
 test('C10 source guard enforces press-epoch checks, replacement hooks, and recorder settlement across all pointer gestures', () => {
   const engineDir = new URL('../src/engine', import.meta.url).pathname;
   const tableCode = readFileSync(join(engineDir, 'input-handler-table.ts'), 'utf8');
