@@ -367,7 +367,24 @@ export function finishImagePlacement(this: any, e: MouseEvent): void {
   this.container.style.cursor = '';
 }
 
+/**
+ * 마우스업 전까지 열려 있는 개체·표 포인터 제스처(이동·크기·회전·끝점·셀 경계 드래그)가
+ * 있는가. 열린 제스처는 마우스업에서 히스토리 항목 하나로 닫히므로 그 사이에는 다른
+ * 편집(키보드 이동·Undo 등)을 받지 않는다 — 항목이 겹치거나 라벨 쌍이 교차하지 않는다.
+ */
+export function hasOpenPointerGesture(handler: any): boolean {
+  return Boolean(
+    handler.isPictureMoveDragging || handler.pictureMoveState
+    || handler.isPictureResizeDragging || handler.pictureResizeState
+    || handler.isPictureRotateDragging || handler.pictureRotateState
+    || handler.isLineEndpointDragging || handler.lineEndpointState
+    || handler.isMoveDragging || handler.moveDragState
+    || handler.isResizeDragging || handler.resizeDragState,
+  );
+}
+
 export function moveSelectedTable(this: any, key: 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight'): void {
+  if (hasOpenPointerGesture(this)) return; // 열린 드래그와 교차하는 이동은 받지 않는다
   const ref = this.cursor.getSelectedTableRef();
   if (!ref) return;
 
@@ -402,6 +419,7 @@ export function moveSelectedTable(this: any, key: 'ArrowUp' | 'ArrowDown' | 'Arr
 }
 
 export function moveSelectedPicture(this: any, key: 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight'): void {
+  if (hasOpenPointerGesture(this)) return; // 열린 드래그와 교차하는 이동은 받지 않는다
   const refs = this.cursor.getSelectedPictureRefs();
   const ref = this.cursor.getSelectedPictureRef();
   if (!ref) return;

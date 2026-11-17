@@ -89,7 +89,6 @@ impl DocumentCore {
             event_log: Vec::new(),
             overflow_links_cache: RefCell::new(HashMap::new()),
             snapshot_store: Vec::new(),
-            pending_snapshot_id: None,
             next_snapshot_id: 0,
             text_edit_history: crate::document_core::TextEditHistory::new(),
             pending_command_inverse: None,
@@ -633,7 +632,6 @@ impl DocumentCore {
         self.para_column_map = Vec::new();
         self.page_tree_cache.borrow_mut().clear();
         self.snapshot_store.clear();
-        self.pending_snapshot_id = None;
         self.text_edit_history = crate::document_core::TextEditHistory::new();
         self.pending_command_inverse = None;
         self.next_command_inverse_seq = 0;
@@ -716,7 +714,6 @@ impl DocumentCore {
     pub fn set_document(&mut self, doc: Document) {
         self.document = crate::document_core::mutation::DocumentMutation::new(doc);
         self.snapshot_store.clear();
-        self.pending_snapshot_id = None;
         self.next_snapshot_id = 0;
         self.text_edit_history = crate::document_core::TextEditHistory::new();
         self.pending_command_inverse = None;
@@ -753,87 +750,77 @@ impl DocumentCore {
 
     /// 현재 Document를 클론하여 스냅샷 저장소에 보관한다.
     /// 반환값: 스냅샷 ID (u32)
+    ///
+    /// 스냅샷은 저장 시점의 상태 라벨 하나만 봉인한다. before/after 짝을 전역 대기 슬롯으로
+    /// 암묵적으로 맺지 않으므로 겹치거나 교차한 제스처가 서로의 스냅샷을 짝지을 수 없다 —
+    /// 짝은 호출부(히스토리 항목)가 명시한 라벨 쌍이고, 복원 시 게이트가 그 쌍을 검증한다.
     pub fn save_snapshot_native(&mut self) -> u32 {
         self.invalidate_edit_redo();
         let id = self.next_snapshot_id;
         self.next_snapshot_id += 1;
-        let live_label = self.document.state_label().unwrap_or_default();
-        let snapshot_doc = (*self.document).clone();
+        self.snapshot_store.push(crate::document_core::SnapshotRecord {
+            id,
+            document: (*self.document).clone(),
+            label: self.document.state_label().unwrap_or_default(),
+        });
 
-        if let Some(before_id) = self.pending_snapshot_id.take() {
-            if let Some(before_record) = self
-                .snapshot_store
-                .iter_mut()
-                .find(|record| record.id == before_id)
-            {
-                let before_produced = before_record.produced_label.clone();
-                if !live_label.is_empty() && !before_produced.is_empty() {
-                    before_record.expected_label = Some(live_label.clone());
-                }
-                self.snapshot_store.push(crate::document_core::SnapshotRecord {
-                    id,
-                    document: snapshot_doc,
-                    expected_label: (!live_label.is_empty() && !before_produced.is_empty())
-                        .then_some(before_produced),
-                    produced_label: live_label,
-                });
-            } else {
-                self.snapshot_store.push(crate::document_core::SnapshotRecord {
-                    id,
-                    document: snapshot_doc,
-                    expected_label: None,
-                    produced_label: live_label,
-                });
-                self.pending_snapshot_id = Some(id);
-            }
-        } else {
-            self.snapshot_store.push(crate::document_core::SnapshotRecord {
-                id,
-                document: snapshot_doc,
-                expected_label: None,
-                produced_label: live_label,
-            });
-            self.pending_snapshot_id = Some(id);
-        }
-
-        // 최대 100개 제한 — 초과 시 가장 오래된 스냅샷 제거
-        const MAX_SNAPSHOTS: usize = 100;
+        // 스냅샷 수명은 Studio CommandHistory가 항목 제거·밀어내기·redo 정리 때
+        // discard()로 관리한다(MAX_HISTORY_SIZE = 1000 항목 × 항목당 스냅샷 2개 + IME 등
+        // 일시 캡처). 이 상한은 누수 안전판일 뿐이라 정상 세션의 살아 있는 쌍을 내보내지
+        // 않도록 그 합보다 넉넉히 크다. 안전판이 오래된 스냅샷을 내보내면 Studio는 그
+        // 항목을 영구 자원 부재로 보고 닿을 수 없는 이전 항목과 함께 정리한다.
+        const MAX_SNAPSHOTS: usize = 4096;
         while self.snapshot_store.len() > MAX_SNAPSHOTS {
-            let evicted = self.snapshot_store.remove(0);
-            if self.pending_snapshot_id == Some(evicted.id) {
-                self.pending_snapshot_id = None;
-            }
+            self.snapshot_store.remove(0);
         }
         id
     }
 
-    pub fn snapshot_labels_native(&self, before_id: u32) -> Option<(String, String)> {
-        let record = self
-            .snapshot_store
-            .iter()
-            .find(|record| record.id == before_id)?;
-        let undo_label = record.expected_label.clone()?;
-        if record.produced_label.is_empty() {
+    /// `id` 스냅샷을 지금 상태에서 복원할 때 게이트에 제시할 (기대, 산출) 라벨 —
+    /// 즉 (live 라벨, 스냅샷이 저장 시점에 봉인한 라벨). 스냅샷이 없으면 None.
+    pub fn snapshot_labels_native(&self, id: u32) -> Option<(String, String)> {
+        let record = self.snapshot_store.iter().find(|record| record.id == id)?;
+        if record.label.is_empty() {
             return None;
         }
-        Some((undo_label, record.produced_label.clone()))
+        let live_label = self.document.state_label().ok()?;
+        Some((live_label, record.label.clone()))
     }
 
     /// 지정 ID의 스냅샷으로 Document를 복원한다.
-    /// 단일 역실행 게이트의 상태 라벨 일치를 먼저 검증하고 불일치 시 InvalidEditHandle을 반환한다.
+    ///
+    /// 단일 역실행 게이트에 (live 라벨, 스냅샷 라벨)을 제시한다. 명령 역실행 범위 안이면
+    /// 게이트가 이 쌍을 범위가 명시한 (undo, redo) 라벨과 대조해 다른 항목의 스냅샷을
+    /// 거부한다. 범위 밖이면 live 내용이 어느 스냅샷에도 담겨 있지 않을 때(기록되지 않은
+    /// 편집을 잃게 될 때) 바이트를 바꾸지 않고 InvalidEditHandle을 반환한다.
     pub fn restore_snapshot_native(&mut self, id: u32) -> Result<String, HwpError> {
         let idx = self
             .snapshot_store
             .iter()
             .position(|record| record.id == id)
             .ok_or_else(|| HwpError::InvalidEditHandle(format!("snapshot {id} not found")))?;
-        let expected_label = self.snapshot_store[idx]
-            .expected_label
-            .clone()
-            .ok_or_else(|| HwpError::InvalidEditHandle("snapshot is not sealed".into()))?;
-        let produced_label = self.snapshot_store[idx].produced_label.clone();
+        let produced_label = self.snapshot_store[idx].label.clone();
+        if produced_label.is_empty() {
+            return Err(HwpError::InvalidEditHandle(
+                "snapshot has no state label".into(),
+            ));
+        }
+        let live_label = self
+            .document
+            .state_label()
+            .map_err(|error| HwpError::InvalidEditHandle(error.to_string()))?;
+        if self.pending_command_inverse.is_none()
+            && !self
+                .snapshot_store
+                .iter()
+                .any(|record| record.label == live_label)
+        {
+            return Err(HwpError::InvalidEditHandle(
+                "live content is not captured by any snapshot".into(),
+            ));
+        }
         let doc = self.snapshot_store[idx].document.clone();
-        let ticket = self.document.begin_inverse(&expected_label, &produced_label)?;
+        let ticket = self.document.begin_inverse(&live_label, &produced_label)?;
         *self.document = doc;
         // 캐시 전체 재구성
         self.styles = resolve_styles(&self.document.doc_info, self.dpi);
@@ -857,9 +844,6 @@ impl DocumentCore {
 
     /// 지정 ID의 스냅샷을 저장소에서 제거하여 메모리를 해제한다.
     pub fn discard_snapshot_native(&mut self, id: u32) {
-        if self.pending_snapshot_id == Some(id) {
-            self.pending_snapshot_id = None;
-        }
         self.snapshot_store.retain(|record| record.id != id);
     }
 

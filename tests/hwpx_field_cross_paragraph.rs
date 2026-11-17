@@ -2224,3 +2224,105 @@ fn c7_size_changing_direct_char_shape_restore_reflows_body_and_cells() {
         );
     }
 }
+
+fn c8_italic_at(doc: &rhwp::DocumentCore, para: usize) -> bool {
+    doc.get_char_properties_at_native(0, para, 0)
+        .unwrap()
+        .contains("\"italic\":true")
+}
+
+/// R8_C at the native owner: two overlapping gestures (A opens, B opens and closes inside A, then A
+/// closes) used to be paired by one global pending slot, so B's before was sealed against A's.
+/// Each record now seals only its own capture label, and only the pair a scope declares restores.
+#[test]
+fn c8_interleaved_snapshot_pairs_seal_only_their_own_labels_and_never_cross() {
+    let mut doc = rhwp::DocumentCore::from_bytes(&fixture(&format!(
+        "{}{}",
+        paragraph("<hp:t>AA</hp:t>"),
+        paragraph("<hp:t>BB</hp:t>")
+    )))
+    .unwrap();
+    let l0 = doc.state_label_native().unwrap();
+    let a_before = doc.save_snapshot_native();
+    doc.apply_char_format_native(0, 0, 0, 2, r#"{"bold":true}"#)
+        .unwrap();
+    let l1 = doc.state_label_native().unwrap();
+    let b_before = doc.save_snapshot_native();
+    doc.apply_char_format_native(0, 1, 0, 2, r#"{"italic":true}"#)
+        .unwrap();
+    let l2 = doc.state_label_native().unwrap();
+    let b_after = doc.save_snapshot_native();
+    let a_after = doc.save_snapshot_native();
+
+    for (id, captured) in [(a_before, &l0), (b_before, &l1), (b_after, &l2), (a_after, &l2)] {
+        assert_eq!(
+            doc.snapshot_labels_native(id),
+            Some((l2.clone(), captured.clone())),
+            "snapshot {id} must report (live, its own capture label)"
+        );
+    }
+
+    // A scope declared for B's pair refuses A's before snapshot and rolls back exactly.
+    let bytes = doc.export_hwpx_native().unwrap();
+    let scope = doc.begin_command_inverse_native(&l2, &l1).unwrap();
+    let err = doc.restore_snapshot_native(a_before).unwrap_err();
+    assert!(err.to_string().contains("INVALID_EDIT_HANDLE"), "{err}");
+    doc.abort_command_inverse_native(&scope);
+    assert_eq!(doc.export_hwpx_native().unwrap(), bytes);
+    assert_eq!(doc.state_label_native().unwrap(), l2);
+
+    // B's own pair reverts only B's change, then B's redo and A's own pair complete.
+    let scope = doc.begin_command_inverse_native(&l2, &l1).unwrap();
+    doc.restore_snapshot_native(b_before).unwrap();
+    doc.finish_command_inverse_native(&scope).unwrap();
+    assert_eq!(doc.state_label_native().unwrap(), l1);
+    assert!(c7_bold_at(&doc, 0) && !c8_italic_at(&doc, 1));
+    let scope = doc.begin_command_inverse_native(&l1, &l2).unwrap();
+    doc.restore_snapshot_native(b_after).unwrap();
+    doc.finish_command_inverse_native(&scope).unwrap();
+    assert_eq!(doc.export_hwpx_native().unwrap(), bytes);
+    let scope = doc.begin_command_inverse_native(&l2, &l0).unwrap();
+    doc.restore_snapshot_native(a_before).unwrap();
+    doc.finish_command_inverse_native(&scope).unwrap();
+    assert_eq!(doc.state_label_native().unwrap(), l0);
+    assert!(!c7_bold_at(&doc, 0) && !c8_italic_at(&doc, 1));
+
+    // A discarded record is a permanently missing resource: refused without touching bytes.
+    doc.discard_snapshot_native(b_before);
+    assert_eq!(doc.snapshot_labels_native(b_before), None);
+    let at_l0 = doc.export_hwpx_native().unwrap();
+    let scope = doc.begin_command_inverse_native(&l0, &l1).unwrap();
+    let missing = doc.restore_snapshot_native(b_before).unwrap_err();
+    assert!(missing.to_string().contains("not found"), "{missing}");
+    doc.abort_command_inverse_native(&scope);
+    assert_eq!(doc.export_hwpx_native().unwrap(), at_l0);
+}
+
+/// R8_A at the native owner: Studio keeps MAX_HISTORY_SIZE = 1000 entries of two snapshots each.
+/// The old FIFO cap of 100 evicted live pairs after 50 commands; the leak backstop now sits above
+/// a full history and still evicts the oldest record first.
+#[test]
+fn c8_snapshot_store_keeps_every_pair_of_a_full_studio_history() {
+    const STUDIO_MAX_HISTORY_SIZE: u32 = 1000;
+    const BACKSTOP: u32 = 4096;
+    let mut doc = rhwp::DocumentCore::from_bytes(&fixture(&paragraph("<hp:t>AB</hp:t>"))).unwrap();
+    let first = doc.save_snapshot_native();
+    for _ in 1..2 * STUDIO_MAX_HISTORY_SIZE {
+        doc.save_snapshot_native();
+    }
+    assert!(
+        doc.snapshot_labels_native(first).is_some(),
+        "a snapshot of a full Studio history was evicted"
+    );
+    for _ in 2 * STUDIO_MAX_HISTORY_SIZE..BACKSTOP {
+        doc.save_snapshot_native();
+    }
+    assert!(doc.snapshot_labels_native(first).is_some());
+    doc.save_snapshot_native();
+    assert_eq!(
+        doc.snapshot_labels_native(first),
+        None,
+        "the leak backstop evicts the oldest record first"
+    );
+    assert!(doc.snapshot_labels_native(first + 1).is_some());
+}

@@ -59,6 +59,19 @@ function previousStateLabelOf(wasm: WasmBridge): string | null {
   }
 }
 
+/** 열린 명령 역실행 범위 안에서 바뀐 Studio 쪽 역실행 상태의 되돌리기 함수 (문서별, 등록 순) */
+const inverseStateJournals = new WeakMap<WasmBridge, Array<() => void>>();
+
+/**
+ * 명령 역실행 범위 안에서 Studio 쪽 역실행 상태(편집 핸들 토큰·방향 등)를 바꾸기 직전에
+ * 부른다. 범위가 거부되면(단계 실패·finishCommandInverse 실패) 네이티브 저널이 핸들을
+ * 되돌린 뒤 restore가 역순으로 실행되어 두 쪽이 같은 시도 전 상태로 돌아간다.
+ * 열린 범위가 없으면 아무 일도 하지 않는다.
+ */
+export function journalInverseState(wasm: WasmBridge, restore: () => void): void {
+  inverseStateJournals.get(wasm)?.push(restore);
+}
+
 function runGateInverse(
   wasm: WasmBridge,
   expectedLabel: string,
@@ -77,6 +90,8 @@ function runGateInverse(
     throw error;
   }
   let finished = false;
+  const journal: Array<() => void> = [];
+  inverseStateJournals.set(wasm, journal);
   try {
     const cursorAfter = operation();
     doc.finishCommandInverse(scopeToken);
@@ -85,9 +100,13 @@ function runGateInverse(
   } catch (error: unknown) {
     if (!finished) {
       try { doc.abortCommandInverse?.(scopeToken); } catch { /* ignore */ }
+      // 네이티브는 범위 시작 상태로 돌아갔다 — Studio 쪽 상태도 시도 전 값으로 되돌린다
+      for (let i = journal.length - 1; i >= 0; i--) journal[i]();
     }
     if (isInvalidEditHandleError(error)) throw asInvalidEditHandleError(error);
     throw error;
+  } finally {
+    inverseStateJournals.delete(wasm);
   }
 }
 
@@ -135,11 +154,14 @@ function applicableSuffix(
   return stack.splice(keepUntil + 1);
 }
 
+/** 히스토리가 보관하는 최대 항목 수. 네이티브 스냅샷 안전판(4096)은 항목당 2개를 넉넉히 넘는다. */
+export const MAX_HISTORY_SIZE = 1000;
+
 /** Undo/Redo 히스토리 관리 */
 export class CommandHistory {
   private undoStack: HistoryEntry[] = [];
   private redoStack: HistoryEntry[] = [];
-  private maxSize = 1000;
+  private maxSize = MAX_HISTORY_SIZE;
 
   /** 명령 실행 + 히스토리 기록. 실행 후 커서 위치 반환 */
   execute(command: EditCommand, wasm: WasmBridge): DocumentPosition {
@@ -207,7 +229,7 @@ export class CommandHistory {
       return cursorAfter;
     } catch (error: unknown) {
       if (error instanceof InvalidEditHandleError) {
-        this.reconcileWithLiveLabel(wasm);
+        this.reconcileAfterRefusal(wasm, this.undoStack, entry, 'undo');
         return null;
       }
       throw error;
@@ -231,7 +253,7 @@ export class CommandHistory {
       return cursorAfter;
     } catch (error: unknown) {
       if (error instanceof InvalidEditHandleError) {
-        this.reconcileWithLiveLabel(wasm);
+        this.reconcileAfterRefusal(wasm, this.redoStack, entry, 'redo');
         return null;
       }
       throw error;
@@ -290,8 +312,9 @@ export class CommandHistory {
     wasm: WasmBridge,
     beforeLabel?: string | null,
   ): { undoLabel: string; redoLabel: string } | null {
-    const intrinsic = command.recordedLabels?.(wasm) ?? null;
-    if (intrinsic) return intrinsic;
+    // 스스로 라벨을 봉인하는 명령(스냅샷 쌍·편집 핸들)은 그 라벨로만 기록한다. 만들지 못하면
+    // (자원 부재·명시 라벨 불일치) 직전 상태 라벨로 짝을 추측하지 않고 기록하지 않는다.
+    if (typeof command.recordedLabels === 'function') return command.recordedLabels(wasm);
     const after = stateLabelOf(wasm);
     const before = beforeLabel ?? previousStateLabelOf(wasm);
     if (!after || !before) return null;
@@ -309,6 +332,24 @@ export class CommandHistory {
     const live = stateLabelOf(wasm);
     discardEntries(applicableSuffix(this.undoStack, entry => entry.undoLabel, live), wasm);
     discardEntries(applicableSuffix(this.redoStack, entry => entry.redoLabel, live), wasm);
+  }
+
+  /**
+   * 거부 뒤 정리. 거부된 꼭대기 항목의 역실행 자원(네이티브 스냅샷·편집 핸들)이 영구히
+   * 사라졌으면 라벨이 맞아도 다시 시도할 수 없으므로, 그 항목과 그 항목을 지나야만 닿는
+   * 같은 스택의 나머지 항목을 모두 버린다. 자원이 남아 있는 일시적 롤백이면 아무것도
+   * 버리지 않는다. 이어서 두 스택을 live 라벨에 맞춘다.
+   */
+  private reconcileAfterRefusal(
+    wasm: WasmBridge,
+    stack: HistoryEntry[],
+    entry: HistoryEntry,
+    direction: 'undo' | 'redo',
+  ): void {
+    if (stack.at(-1) === entry && entry.command.inverseAvailable?.(wasm, direction) === false) {
+      discardEntries(stack.splice(0), wasm);
+    }
+    this.reconcileWithLiveLabel(wasm);
   }
 
   entryLabels(): {

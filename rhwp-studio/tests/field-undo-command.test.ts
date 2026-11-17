@@ -16,13 +16,14 @@ import {
   SplitParagraphCommand, SplitParagraphInCellCommand, MergeParagraphInCellCommand,
   MergeNextParagraphInCellCommand,
   ApplyCharFormatCommand, MoveTableCommand, MovePictureCommand, MoveShapeCommand, SnapshotCommand,
+  ObjectGestureRecorder,
 } from '../src/engine/command';
 import { EmbedInsertTableCommand, EmbedInsertPictureCommand } from '../src/engine/embed-commands';
 import type { EditCommand, OperationDescriptor } from '../src/engine/command';
-import { CommandHistory, HistorySuspendedError, stateLabelOf } from '../src/engine/history';
+import { CommandHistory, HistorySuspendedError, MAX_HISTORY_SIZE, stateLabelOf } from '../src/engine/history';
 import { InputHandler } from '../src/engine/input-handler';
-import { onPaste, onCut, onCopy } from '../src/engine/input-handler-keyboard';
-import { finishMoveDrag, moveSelectedPicture } from '../src/engine/input-handler-table';
+import { onPaste, onCut, onCopy, onKeyDown } from '../src/engine/input-handler-keyboard';
+import { finishMoveDrag, moveSelectedPicture, moveSelectedTable, updateMoveDrag } from '../src/engine/input-handler-table';
 import { updatePictureMoveDrag, finishPictureMoveDrag } from '../src/engine/input-handler-picture';
 import { onMouseUp } from '../src/engine/input-handler-mouse';
 import { onCompositionStart, onCompositionEnd, onInput, getTextAt, insertTextAtRaw } from '../src/engine/input-handler-text';
@@ -1739,4 +1740,267 @@ test('C7 discarding a snapshot command after a reload leaves the reloaded docume
     assert.ok(fresh.redo(wasm));
     assert.equal(wasm.getTextRange(0, 0, 0, 3), 'TCD');
   } finally { stale.clear(); fresh.clear(wasm); wasm.dispose(); }
+});
+
+// ─── C8: R8 A–C regressions (snapshot retention, token rollback, gesture pairing) ──────
+
+const r8Field = (): Uint8Array => fixture(para(`${begin}<hp:t>AB</hp:t>${end}`));
+type SnapshotIds = { beforeId: number | null; afterId: number | null };
+const captureIds = (command: ApplyCharFormatCommand): SnapshotIds => {
+  const capture = (command as unknown as { capture: SnapshotIds }).capture;
+  return { beforeId: capture.beforeId, afterId: capture.afterId };
+};
+const rawSnapshotLabels = (wasm: WasmBridge, id: number): string | undefined =>
+  (wasm as unknown as { doc: { snapshotLabels(id: number): string | undefined } }).doc.snapshotLabels(id);
+const keyEvent = (key: string, extra: Partial<KeyboardEvent> = {}): { event: KeyboardEvent; prevented: () => number } => {
+  let prevented = 0;
+  const event = { key, code: key, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false,
+    isComposing: false, keyCode: 0, preventDefault() { prevented++; }, stopPropagation() {}, ...extra };
+  return { event: event as unknown as KeyboardEvent, prevented: () => prevented };
+};
+const stateNumber = (label: string): number => Number(label.split(':')[1]);
+
+test('C8 R8-A 51 formats keep all 52 entries undoable to AB and a full MAX_HISTORY_SIZE of snapshot entries stays complete', () => {
+  const wasm = new WasmBridge(), history = new CommandHistory();
+  try {
+    wasm.loadDocument(r8Field(), 'r8a.hwpx');
+    history.execute(new InsertTextCommand(position(0, 0), 'X', 1000), wasm);
+    for (let i = 0; i < 51; i++) {
+      history.execute(new ApplyCharFormatCommand(position(0, 0), position(0, 1), { fontSize: i % 2 === 0 ? 1200 : 1400 }), wasm);
+    }
+    let undone = 0;
+    while (undone < 60 && history.undo(wasm) !== null) undone++;
+    assert.equal(undone, 52, '51 formatting commands and the older typing all stay undoable');
+    assert.equal(wasm.getTextRange(0, 0, 0, 3), 'AB');
+    assert.equal(history.canUndo(), false);
+    let redone = 0;
+    while (redone < 60 && history.redo(wasm) !== null) redone++;
+    assert.equal(redone, 52);
+    assert.equal(wasm.getTextRange(0, 0, 0, 3), 'XAB');
+  } finally { history.clear(wasm); wasm.dispose(); }
+
+  const full = new WasmBridge(), fullHistory = new CommandHistory();
+  try {
+    full.loadDocument(r8Field(), 'r8a-full.hwpx');
+    const ids: SnapshotIds[] = [];
+    for (let i = 0; i <= MAX_HISTORY_SIZE; i++) {
+      const command = new ApplyCharFormatCommand(position(0, 0), position(0, 1), { fontSize: i % 2 === 0 ? 1200 : 1400 });
+      fullHistory.execute(command, full);
+      ids.push(captureIds(command));
+    }
+    assert.equal(fullHistory.entryLabels().undo.length, MAX_HISTORY_SIZE);
+    const [evicted, oldest] = ids;
+    assert.equal(rawSnapshotLabels(full, evicted.beforeId ?? -1), undefined, 'history eviction released the oldest pair');
+    assert.equal(rawSnapshotLabels(full, evicted.afterId ?? -1), undefined);
+    assert.notEqual(rawSnapshotLabels(full, oldest.beforeId ?? -1), undefined, 'the oldest retained entry kept its pair');
+    assert.notEqual(rawSnapshotLabels(full, oldest.afterId ?? -1), undefined);
+    let undoneFull = 0;
+    while (undoneFull <= MAX_HISTORY_SIZE && fullHistory.undo(full) !== null) undoneFull++;
+    assert.equal(undoneFull, MAX_HISTORY_SIZE, 'every retained snapshot entry undoes');
+    assert.equal(fullHistory.canUndo(), false);
+  } finally { fullHistory.clear(full); full.dispose(); }
+});
+
+test('C8 R8-A a permanently missing native inverse drops the dead entry and the entries behind it but keeps redo', () => {
+  for (const kind of ['snapshot', 'text'] as const) {
+    const wasm = new WasmBridge(), history = new CommandHistory();
+    try {
+      wasm.loadDocument(r8Field(), `r8a-missing-${kind}.hwpx`);
+      history.execute(new InsertTextCommand(position(0, 0), 'X', 1000), wasm);
+      const bold = new ApplyCharFormatCommand(position(0, 0), position(0, 1), { bold: true });
+      history.execute(bold, wasm);
+      const typing = new InsertTextCommand(position(0, 1), 'Y', 5000);
+      if (kind === 'text') history.execute(typing, wasm);
+      history.execute(new ApplyCharFormatCommand(position(0, 0), position(0, 1), { italic: true }), wasm);
+      assert.ok(history.undo(wasm), 'the italic entry moves to the redo stack');
+      const redoBefore = JSON.stringify(history.entryLabels().redo);
+
+      if (kind === 'snapshot') wasm.discardSnapshot(captureIds(bold).beforeId ?? -1);
+      else wasm.discardEdit((typing as unknown as { inverse: { token: string } }).inverse.token);
+      const bytes = wasm.exportHwpx(), label = stateLabelOf(wasm);
+      assert.equal(history.undo(wasm), null, `${kind}: the missing native inverse refuses`);
+      assert.deepEqual(wasm.exportHwpx(), bytes, `${kind}: the refusal changed bytes`);
+      assert.equal(stateLabelOf(wasm), label);
+      assert.equal(history.canUndo(), false, `${kind}: the dead entry and the older entries it blocks are dropped`);
+      assert.equal(history.undo(wasm), null);
+      assert.equal(JSON.stringify(history.entryLabels().redo), redoBefore, `${kind}: the valid redo side is kept`);
+      assert.ok(history.redo(wasm), `${kind}: the kept redo still applies`);
+      assert.ok(history.undo(wasm), `${kind}: and undoes again`);
+      assert.equal(history.canUndo(), false);
+      roundTrip(wasm);
+    } finally { history.clear(wasm); wasm.dispose(); }
+  }
+});
+
+test('C8 R8-B a finishCommandInverse fault after a real text inverse rolls back both sides and the retry succeeds', () => {
+  for (const direction of ['undo', 'redo'] as const) {
+    const wasm = new WasmBridge(), history = new CommandHistory();
+    try {
+      wasm.loadDocument(fixture(para('<hp:t>AB</hp:t>')), `r8b-${direction}.hwpx`);
+      history.execute(new InsertTextCommand(position(0, 0), 'X', 1000), wasm);
+      if (direction === 'redo') assert.ok(history.undo(wasm));
+      const before = wasm.exportHwpx(), label = stateLabelOf(wasm);
+      const entries = JSON.stringify(history.entryLabels()), handles = wasm.liveEditCount();
+      const raw = (wasm as unknown as { doc: Record<string, unknown> }).doc;
+      let injected = 0;
+      raw.finishCommandInverse = () => {
+        injected++;
+        throw new InvalidEditHandleError('INVALID_EDIT_HANDLE: injected after the text inverse returned its reciprocal token');
+      };
+      let refused: DocumentPosition | null;
+      try { refused = direction === 'undo' ? history.undo(wasm) : history.redo(wasm); }
+      finally { delete raw.finishCommandInverse; }
+      assert.equal(injected, 1, `${direction}: the real inverse step ran before the injected finish fault`);
+      assert.equal(refused, null);
+      assert.deepEqual(wasm.exportHwpx(), before, `${direction}: the rolled-back scope changed bytes`);
+      assert.equal(stateLabelOf(wasm), label);
+      assert.equal(JSON.stringify(history.entryLabels()), entries, `${direction}: a transient rollback keeps the entry`);
+      assert.equal(wasm.liveEditCount(), handles);
+      const retried = direction === 'undo' ? history.undo(wasm) : history.redo(wasm);
+      assert.ok(retried, `${direction}: the retry after the rolled-back scope succeeds`);
+      assert.equal(wasm.getTextRange(0, 0, 0, 3), direction === 'undo' ? 'AB' : 'XAB');
+      assert.ok(direction === 'undo' ? history.redo(wasm) : history.undo(wasm), `${direction}: the opposite direction still works`);
+      assert.equal(wasm.getTextRange(0, 0, 0, 3), direction === 'undo' ? 'XAB' : 'AB');
+      roundTrip(wasm);
+    } finally { history.clear(wasm); wasm.dispose(); }
+  }
+});
+
+test('C8 R8-C an open object drag refuses interleaved nudges and keys, then drag and nudge record sequential entries', () => {
+  const wasm = new WasmBridge(), history = new CommandHistory();
+  try {
+    const { shapes, target } = connectedShapes(wasm);
+    history.execute(new InsertTextCommand(position(target, 0), 'X', 1000), wasm);
+    const typed = objectState(wasm), typedLabel = stateLabelOf(wasm) ?? '';
+    const refs = shapes.map(({ sec, ppi, ci, type }) => ({ sec, ppi, ci, type }));
+    const sc = { clientWidth: 100, getBoundingClientRect: () => ({ left: 0, top: 0 }) };
+    const host = {
+      active: true, wasm, history, gridStepMm: 1, dragRafId: 0, isPictureMoveDragging: true,
+      pictureMoveState: { ref: shapes[0], lastPageX: 0, lastPageY: 0, pageIndex: 0, totalDeltaH: 0, totalDeltaV: 0,
+        multiRefs: shapes, beforeLabel: typedLabel } as Record<string, unknown> | null,
+      cursor: { getSelectedPictureRefs: () => refs, getSelectedPictureRef: () => refs[0] },
+      container: { style: { cursor: 'move' }, querySelector: () => sc },
+      viewportManager: { getZoom: () => 1 },
+      virtualScroll: { getPageOffset: () => 0, getPageWidth: () => 100, getPageLeft: () => 0 },
+      eventBus: { emit() {} }, renderPictureObjectSelection() {},
+      executeOperation: InputHandler.prototype.executeOperation,
+    };
+    updatePictureMoveDrag.call(host, { clientX: 10, clientY: 0 } as MouseEvent);
+    const midDrag = objectState(wasm);
+    moveSelectedPicture.call(host, 'ArrowRight');
+    const keys = [keyEvent('ArrowRight'), keyEvent('z', { ctrlKey: true }), keyEvent('Delete')];
+    for (const k of keys) onKeyDown.call(host, k.event);
+    assert.deepEqual(keys.map(k => k.prevented()), [1, 1, 1], 'every key is consumed while the drag is open');
+    assert.deepEqual(objectState(wasm), midDrag, 'no nudge or key mutated the document inside the open drag');
+    assert.deepEqual(history.entryLabels().undo.map(e => e.type), ['insertText'], 'no key recorded or discarded history');
+    updatePictureMoveDrag.call(host, { clientX: 20, clientY: 0 } as MouseEvent);
+    finishPictureMoveDrag.call(host);
+    const draggedLabel = stateLabelOf(wasm) ?? '';
+    moveSelectedPicture.call(host, 'ArrowRight');
+    const nudgedLabel = stateLabelOf(wasm) ?? '';
+    const step = Math.round(7200 / 25.4);
+    for (const s of shapes) assert.equal(wasm.getShapeProperties(0, s.ppi, s.ci).horzOffset, s.origHorzOffset + 20 * 75 + step);
+    const undo = history.entryLabels().undo;
+    assert.deepEqual(undo.map(e => e.type), ['insertText', 'snapshot:moveObjects', 'snapshot:moveObjects']);
+    assert.deepEqual(undo.slice(1).map(e => [e.redoLabel, e.undoLabel]), [[typedLabel, draggedLabel], [draggedLabel, nudgedLabel]],
+      'drag then nudge: sequential, non-overlapping label pairs');
+    for (const e of undo) assert.ok(stateNumber(e.redoLabel) < stateNumber(e.undoLabel), 'monotonic label pair');
+    assert.ok(history.undo(wasm));
+    for (const s of shapes) assert.equal(wasm.getShapeProperties(0, s.ppi, s.ci).horzOffset, s.origHorzOffset + 20 * 75);
+    assert.ok(history.undo(wasm));
+    assert.deepEqual(objectState(wasm), typed, 'the drag undo restores the exact pre-drag objects');
+    assert.ok(history.undo(wasm));
+    assert.equal(wasm.getTextRange(0, target, 0, 2), 'AB');
+    for (const s of shapes) assert.equal(wasm.getShapeProperties(0, s.ppi, s.ci).horzOffset, s.origHorzOffset);
+    assert.equal(history.canUndo(), false);
+  } finally { history.clear(wasm); wasm.dispose(); }
+});
+
+test('C8 R8-C an open table drag refuses interleaved nudges and keys, then drag and nudge record sequential entries', () => {
+  const wasm = new WasmBridge(), history = new CommandHistory();
+  try {
+    wasm.loadDocument(fixture(cell(para('<hp:t>T</hp:t>')) + para(`${begin}<hp:t>AB</hp:t>${end}`)), 'r8c-table.hwpx');
+    const original = wasm.getTableProperties(0, 0, 0);
+    history.execute(new InsertTextCommand(position(1, 0), 'X', 1000), wasm);
+    const typedLabel = stateLabelOf(wasm) ?? '';
+    let selected = { sec: 0, ppi: 0, ci: 0 };
+    const sc = { clientWidth: 100, getBoundingClientRect: () => ({ left: 0, top: 0 }) };
+    const host = {
+      active: true, wasm, history, gridStepMm: 1, dragRafId: 0, isMoveDragging: true,
+      moveDragState: { tableRef: { ...selected }, startPpi: 0, lastPageX: 0, lastPageY: 0, pageIndex: 0,
+        totalDeltaH: 0, totalDeltaV: 0, beforeLabel: typedLabel } as Record<string, unknown> | null,
+      cursor: {
+        getSelectedTableRef: () => ({ ...selected }),
+        updateSelectedTableRef(sec: number, ppi: number, ci: number) { selected = { sec, ppi, ci }; },
+      },
+      container: { style: { cursor: 'move' }, querySelector: () => sc },
+      viewportManager: { getZoom: () => 1 },
+      virtualScroll: { getPageOffset: () => 0, getPageWidth: () => 100, getPageLeft: () => 0 },
+      eventBus: { emit() {} }, renderTableObjectSelection() {},
+      executeOperation: InputHandler.prototype.executeOperation,
+    };
+    updateMoveDrag.call(host, { clientX: 10, clientY: 0 } as MouseEvent);
+    const midDrag = wasm.exportHwpx(), midLabel = stateLabelOf(wasm);
+    moveSelectedTable.call(host, 'ArrowRight');
+    const keys = [keyEvent('ArrowRight'), keyEvent('z', { ctrlKey: true })];
+    for (const k of keys) onKeyDown.call(host, k.event);
+    assert.deepEqual(keys.map(k => k.prevented()), [1, 1]);
+    assert.deepEqual(wasm.exportHwpx(), midDrag, 'no nudge or key mutated the table inside the open drag');
+    assert.equal(stateLabelOf(wasm), midLabel);
+    assert.deepEqual(history.entryLabels().undo.map(e => e.type), ['insertText']);
+    finishMoveDrag.call(host);
+    const draggedLabel = stateLabelOf(wasm) ?? '';
+    assert.deepEqual(history.entryLabels().undo.slice(1).map(e => [e.type, e.redoLabel, e.undoLabel]),
+      [['moveTable', typedLabel, draggedLabel]], 'the drag closes as one entry starting at the typing label');
+    moveSelectedTable.call(host, 'ArrowRight');
+    const nudgedLabel = stateLabelOf(wasm) ?? '';
+    // A later nudge of the same table continues the drag entry through MoveTableCommand.mergeWith;
+    // the merged pair still starts where the typing ends and ends at the live label.
+    const undo = history.entryLabels().undo;
+    assert.deepEqual(undo.map(e => [e.type, e.redoLabel, e.undoLabel]).slice(1),
+      [['moveTable', typedLabel, nudgedLabel]], 'table drag then nudge: sequential, non-overlapping label pairs');
+    assert.equal(undo[0].undoLabel, typedLabel);
+    assert.ok(stateNumber(draggedLabel) < stateNumber(nudgedLabel));
+    assert.ok(history.undo(wasm));
+    const restored = wasm.getTableProperties(0, selected.ppi, selected.ci);
+    assert.equal(restored.horzOffset, original.horzOffset);
+    assert.equal(restored.vertOffset, original.vertOffset);
+    assert.ok(history.undo(wasm));
+    assert.equal(wasm.getTextRange(0, 1, 0, 2), 'AB');
+    assert.equal(history.canUndo(), false);
+    roundTrip(wasm);
+  } finally { history.clear(wasm); wasm.dispose(); }
+});
+
+test('C8 R8-C overlapping gesture recorders keep their own snapshot ids and labels and a forged pair is not recorded', () => {
+  const wasm = new WasmBridge(), history = new CommandHistory();
+  try {
+    const { shapes } = connectedShapes(wasm);
+    const outer = new ObjectGestureRecorder('moveObjects', position(0, 0));
+    const inner = new ObjectGestureRecorder('moveObjects', position(0, 0));
+    const l0 = stateLabelOf(wasm) ?? '';
+    outer.begin(wasm);
+    wasm.setShapeProperties(0, shapes[0].ppi, shapes[0].ci, { horzOffset: shapes[0].origHorzOffset + 750 });
+    const l1 = stateLabelOf(wasm) ?? '';
+    inner.begin(wasm);
+    wasm.setShapeProperties(0, shapes[1].ppi, shapes[1].ci, { horzOffset: shapes[1].origHorzOffset + 750 });
+    const l2 = stateLabelOf(wasm) ?? '';
+    const innerCommand = inner.finish(wasm);
+    const outerCommand = outer.finish(wasm);
+    assert.ok(innerCommand && outerCommand);
+    assert.deepEqual(innerCommand.recordedLabels?.(wasm), { undoLabel: l2, redoLabel: l1 }, 'the inner gesture keeps its own pair');
+    assert.deepEqual(outerCommand.recordedLabels?.(wasm), { undoLabel: l2, redoLabel: l0 }, 'the outer gesture keeps its own pair');
+    innerCommand.discard?.(wasm);
+    outerCommand.discard?.(wasm);
+
+    const a = wasm.saveSnapshot();
+    wasm.setShapeProperties(0, shapes[0].ppi, shapes[0].ci, { horzOffset: shapes[0].origHorzOffset });
+    const b = wasm.saveSnapshot();
+    const forged = SnapshotCommand.recorded('moveObjects', a, b, position(0, 0), position(0, 0), l0, stateLabelOf(wasm));
+    assert.equal(forged.recordedLabels(wasm), null, 'explicit labels that disagree with the snapshots are refused');
+    history.recordWithoutExecute(forged, wasm);
+    assert.equal(history.canUndo(), false, 'a forged pair is not recorded');
+    assert.equal(rawSnapshotLabels(wasm, a), undefined, 'the refused pair released its snapshots');
+    assert.equal(rawSnapshotLabels(wasm, b), undefined);
+  } finally { history.clear(wasm); wasm.dispose(); }
 });

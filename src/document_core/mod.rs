@@ -340,8 +340,9 @@ pub(crate) enum EditJournalEntry {
 pub(crate) struct SnapshotRecord {
     pub(crate) id: u32,
     pub(crate) document: Document,
-    pub(crate) expected_label: Option<String>,
-    pub(crate) produced_label: String,
+    /// 저장 시점의 상태 라벨 — 이 스냅샷 내용의 정체. 짝(before/after)은 여기서 맺지 않고
+    /// 복원 시 호출부가 명시한 라벨 쌍을 단일 역실행 게이트가 이 값과 대조한다.
+    pub(crate) label: String,
 }
 
 #[derive(Clone)]
@@ -473,8 +474,6 @@ pub struct DocumentCore {
         RefCell<HashMap<usize, Vec<queries::doc_tree_nav::OverflowLink>>>,
     /// Undo/Redo용 Document 스냅샷 저장소 (ID → 상태 라벨 바인딩 스냅샷)
     pub(crate) snapshot_store: Vec<SnapshotRecord>,
-    /// 아직 after 스냅샷으로 봉인되지 않은 직전 before 스냅샷 ID
-    pub(crate) pending_snapshot_id: Option<u32>,
     /// 다음 스냅샷 ID
     pub(crate) next_snapshot_id: u32,
     pub(crate) text_edit_history: TextEditHistory,
@@ -725,7 +724,6 @@ impl DocumentCore {
             event_log: Vec::new(),
             overflow_links_cache: RefCell::new(HashMap::new()),
             snapshot_store: Vec::new(),
-            pending_snapshot_id: None,
             next_snapshot_id: 0,
             text_edit_history: TextEditHistory::new(),
             pending_command_inverse: None,

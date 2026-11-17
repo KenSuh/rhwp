@@ -4,6 +4,7 @@
 import { InsertTextCommand, InsertLineBreakCommand, InsertTabCommand, SplitParagraphCommand, SplitParagraphInCellCommand } from './command';
 import { matchShortcut, defaultShortcuts } from '@/command/shortcut-map';
 import * as _connector from './input-handler-connector';
+import { hasOpenPointerGesture } from './input-handler-table';
 import type { DocumentPosition, CellPathEntry } from '@/core/types';
 import type { WasmBridge } from '@/core/wasm-bridge';
 
@@ -147,6 +148,13 @@ const chordMapG: Record<string, string> = {
  */
 export function onKeyDown(this: any, e: KeyboardEvent): void {
   if (!this.active) return;
+
+  // 개체·표 포인터 제스처가 열려 있는 동안에는 키 입력을 받지 않는다. 제스처는 마우스업에서
+  // 히스토리 항목 하나로 닫히고, 그 뒤에야 키보드 이동·Undo 같은 다음 작업이 순서대로 기록된다.
+  if (hasOpenPointerGesture(this)) {
+    e.preventDefault();
+    return;
+  }
 
   // ─── 1. 코드 단축키 2번째 키 처리 (Ctrl+K → ? / Ctrl+N → ?) ───
   if (this._pendingChordK) {

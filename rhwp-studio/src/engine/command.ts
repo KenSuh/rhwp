@@ -1,5 +1,5 @@
 import type { WasmBridge } from '@/core/wasm-bridge';
-import { asInvalidEditHandleError, isInvalidEditHandleError, rawGateDoc, stateLabelOf, withHistorySuspended } from './history';
+import { asInvalidEditHandleError, isInvalidEditHandleError, journalInverseState, rawGateDoc, stateLabelOf, withHistorySuspended } from './history';
 import { InvalidEditHandleError } from '@/core/wasm-bridge';
 import type { DocumentPosition, CharProperties } from '@/core/types';
 
@@ -17,6 +17,12 @@ export interface EditCommand {
   discard?(wasm: WasmBridge): void;
   /** recordWithoutExecute 전용: 네이티브 핸들/스냅샷에 봉인된 (undoLabel, redoLabel) 조회 */
   recordedLabels?(wasm: WasmBridge): { undoLabel: string; redoLabel: string } | null;
+  /**
+   * 해당 방향 역실행에 필요한 네이티브 자원(스냅샷·편집 핸들)이 아직 있는가. 영구히
+   * 사라졌으면 false — 히스토리는 거부된 그 항목을 다시 시도할 수 없는 항목으로 정리한다.
+   * 일시적 롤백 뒤에는 자원이 남아 있으므로 true. 없으면 자원 없는 명령으로 본다.
+   */
+  inverseAvailable?(wasm: WasmBridge, direction: 'undo' | 'redo'): boolean;
 }
 
 // ─── 편집 작업 서술자 (라우팅 통합) ────────────────────
@@ -41,6 +47,7 @@ class TextEditInverse {
 
   run(wasm: WasmBridge, position: DocumentPosition, structural: boolean, operation: () => DocumentPosition): DocumentPosition {
     if (this.undone && this.token !== null && this.after !== null) {
+      this.journal(wasm);
       this.token = wasm.undoEdit(this.token);
       this.undone = false;
       return this.after;
@@ -61,8 +68,35 @@ class TextEditInverse {
 
   undo(wasm: WasmBridge): void {
     if (this.token === null) throw new InvalidEditHandleError('INVALID_EDIT_HANDLE: inverse is unavailable');
+    this.journal(wasm);
     this.token = wasm.undoEdit(this.token);
     this.undone = true;
+  }
+
+  /**
+   * undoEdit는 이 토큰을 상대 토큰으로 바꾸고, 바깥 명령 역실행 범위가 거부되면 네이티브
+   * 저널이 그 교환을 되돌린다. 같은 범위에 (token, undone) 복원을 등록해 Studio 쪽도
+   * 시도 전 값으로 함께 돌아가게 한다 — 그래야 다음 재시도가 원래 토큰으로 성공한다.
+   */
+  private journal(wasm: WasmBridge): void {
+    const token = this.token;
+    const undone = this.undone;
+    journalInverseState(wasm, () => {
+      this.token = token;
+      this.undone = undone;
+    });
+  }
+
+  /** 네이티브가 이 편집 핸들을 아직 아는가. 토큰이 없거나 핸들이 사라졌으면 영구히 쓸 수 없다. */
+  available(wasm: WasmBridge): boolean {
+    if (this.token === null) return false;
+    const doc = rawGateDoc(wasm);
+    if (!doc || typeof doc.editHandleLabels !== 'function') return true;
+    try {
+      return Boolean(doc.editHandleLabels(this.token));
+    } catch {
+      return true;
+    }
   }
 
   adopt(token: string, after: DocumentPosition): void {
@@ -287,6 +321,8 @@ export class InsertTextCommand implements EditCommand {
 
   discard(wasm: WasmBridge): void { this.inverse.discard(wasm); }
 
+  inverseAvailable(wasm: WasmBridge): boolean { return this.inverse.available(wasm); }
+
   recordedLabels(wasm: WasmBridge): { undoLabel: string; redoLabel: string } | null {
     return this.inverse.labels(wasm);
   }
@@ -359,6 +395,8 @@ export class DeleteTextCommand implements EditCommand {
 
   discard(wasm: WasmBridge): void { this.inverse.discard(wasm); }
 
+  inverseAvailable(wasm: WasmBridge): boolean { return this.inverse.available(wasm); }
+
   recordedLabels(wasm: WasmBridge): { undoLabel: string; redoLabel: string } | null {
     return this.inverse.labels(wasm);
   }
@@ -430,6 +468,8 @@ export class InsertLineBreakCommand implements EditCommand {
 
   discard(wasm: WasmBridge): void { this.inverse.discard(wasm); }
 
+  inverseAvailable(wasm: WasmBridge): boolean { return this.inverse.available(wasm); }
+
   mergeWith(): null { return null; }
 }
 
@@ -457,6 +497,8 @@ export class InsertTabCommand implements EditCommand {
   }
 
   discard(wasm: WasmBridge): void { this.inverse.discard(wasm); }
+
+  inverseAvailable(wasm: WasmBridge): boolean { return this.inverse.available(wasm); }
 
   mergeWith(): null { return null; }
 }
@@ -488,6 +530,8 @@ export class SplitParagraphCommand implements EditCommand {
   }
 
   discard(wasm: WasmBridge): void { this.inverse.discard(wasm); }
+
+  inverseAvailable(wasm: WasmBridge): boolean { return this.inverse.available(wasm); }
 
   mergeWith(): null { return null; }
 }
@@ -521,6 +565,8 @@ export class MergeParagraphCommand implements EditCommand {
   }
 
   discard(wasm: WasmBridge): void { this.inverse.discard(wasm); }
+
+  inverseAvailable(wasm: WasmBridge): boolean { return this.inverse.available(wasm); }
 
   mergeWith(): null { return null; }
 }
@@ -567,6 +613,8 @@ export class DeleteSelectionCommand implements EditCommand {
 
   discard(wasm: WasmBridge): void { this.inverse.discard(wasm); }
 
+  inverseAvailable(wasm: WasmBridge): boolean { return this.inverse.available(wasm); }
+
   mergeWith(): null { return null; }
 }
 
@@ -604,6 +652,10 @@ export class ApplyCharFormatCommand implements EditCommand {
   }
 
   discard(wasm: WasmBridge): void { this.capture.discard(wasm); }
+
+  inverseAvailable(wasm: WasmBridge, direction: 'undo' | 'redo'): boolean {
+    return this.capture.inverseAvailable(wasm, direction);
+  }
 
   mergeWith(): null { return null; }
 
@@ -668,6 +720,8 @@ export class MergeNextParagraphCommand implements EditCommand {
 
   discard(wasm: WasmBridge): void { this.inverse.discard(wasm); }
 
+  inverseAvailable(wasm: WasmBridge): boolean { return this.inverse.available(wasm); }
+
   mergeWith(): null { return null; }
 }
 
@@ -706,6 +760,8 @@ export class SplitParagraphInCellCommand implements EditCommand {
   }
 
   discard(wasm: WasmBridge): void { this.inverse.discard(wasm); }
+
+  inverseAvailable(wasm: WasmBridge): boolean { return this.inverse.available(wasm); }
 
   mergeWith(): null { return null; }
 }
@@ -746,6 +802,8 @@ export class MergeParagraphInCellCommand implements EditCommand {
 
   discard(wasm: WasmBridge): void { this.inverse.discard(wasm); }
 
+  inverseAvailable(wasm: WasmBridge): boolean { return this.inverse.available(wasm); }
+
   mergeWith(): null { return null; }
 }
 
@@ -782,6 +840,8 @@ export class MergeNextParagraphInCellCommand implements EditCommand {
   }
 
   discard(wasm: WasmBridge): void { this.inverse.discard(wasm); }
+
+  inverseAvailable(wasm: WasmBridge): boolean { return this.inverse.available(wasm); }
 
   mergeWith(): null { return null; }
 }
@@ -960,12 +1020,21 @@ export class SnapshotCommand implements EditCommand {
   private afterId: number | null = null;
   /** 스냅샷 ID를 발급한 문서 epoch — ID는 문서마다 0부터 다시 매겨진다 */
   private epoch: string | null = null;
+  /** recorded()가 받은 명시 라벨 쌍 — 두 스냅샷이 봉인한 캡처 라벨과 같아야 기록된다 */
+  private explicitLabels: { undoLabel: string; redoLabel: string } | null = null;
 
+  /**
+   * 이미 수행된 작업을 (beforeId, afterId) 스냅샷 쌍으로 기록한다. 짝은 호출부가 명시한
+   * ID와 라벨이며 네이티브의 암묵적 짝짓기에 기대지 않는다. 라벨을 주지 않으면 두
+   * 스냅샷 기록이 각자 봉인한 캡처 라벨로 쌍을 만든다.
+   */
   static recorded(operationType: string, beforeId: number, afterId: number,
-    before: DocumentPosition, after: DocumentPosition): SnapshotCommand {
+    before: DocumentPosition, after: DocumentPosition,
+    beforeLabel?: string | null, afterLabel?: string | null): SnapshotCommand {
     const command = new SnapshotCommand(operationType, before, after, null);
     command.beforeId = beforeId;
     command.afterId = afterId;
+    if (beforeLabel && afterLabel) command.explicitLabels = { undoLabel: afterLabel, redoLabel: beforeLabel };
     return command;
   }
 
@@ -1026,11 +1095,30 @@ export class SnapshotCommand implements EditCommand {
   }
 
   recordedLabels(wasm: WasmBridge): { undoLabel: string; redoLabel: string } | null {
-    if (this.beforeId === null) return null;
+    if (this.beforeId === null || this.afterId === null) return null;
     this.epoch ??= documentEpochOf(wasm);
-    const raw = rawGateDoc(wasm)?.snapshotLabels?.(this.beforeId);
-    if (!raw) return null;
-    return JSON.parse(raw) as { undoLabel: string; redoLabel: string };
+    const beforeCapture = snapshotCaptureLabel(wasm, this.beforeId);
+    const afterCapture = snapshotCaptureLabel(wasm, this.afterId);
+    const captured = beforeCapture && afterCapture ? { undoLabel: afterCapture, redoLabel: beforeCapture } : null;
+    const explicit = this.explicitLabels;
+    if (explicit && captured
+      && (explicit.undoLabel !== captured.undoLabel || explicit.redoLabel !== captured.redoLabel)) {
+      return null;
+    }
+    return explicit ? { ...explicit } : captured;
+  }
+
+  inverseAvailable(wasm: WasmBridge, direction: 'undo' | 'redo'): boolean {
+    const id = direction === 'undo' ? this.beforeId : this.afterId;
+    if (id === null) return false;
+    if (this.epoch !== null && documentEpochOf(wasm) !== this.epoch) return false;
+    const doc = rawGateDoc(wasm);
+    if (!doc || typeof doc.snapshotLabels !== 'function') return true;
+    try {
+      return Boolean(doc.snapshotLabels(id));
+    } catch {
+      return true;
+    }
   }
 
   mergeWith(): null { return null; }
@@ -1053,6 +1141,13 @@ function documentEpochOf(wasm: WasmBridge): string | null {
   return stateLabelOf(wasm)?.split(':')[0] ?? null;
 }
 
+/** 스냅샷 기록이 저장 시점에 봉인한 상태 라벨. 기록이 없으면 null. */
+function snapshotCaptureLabel(wasm: WasmBridge, id: number): string | null {
+  const raw = rawGateDoc(wasm)?.snapshotLabels?.(id);
+  if (!raw) return null;
+  return (JSON.parse(raw) as { redoLabel?: string }).redoLabel ?? null;
+}
+
 /**
  * 여러 개체와 연결선을 함께 바꾸는 한 제스처(다중 선택 드래그, 키보드 이동)를
  * 정확한 히스토리 항목 하나로 기록한다. 첫 실제 변이 직전의 begin()이 제스처
@@ -1060,26 +1155,35 @@ function documentEpochOf(wasm: WasmBridge): string | null {
  * 돌려준다 — 선택된 모든 대상과 연결선 갱신이 같은 (이전, 이후) 라벨 쌍에 담긴다.
  */
 export class ObjectGestureRecorder {
-  private beforeId: number | null = null;
+  /** begin()이 봉인한 제스처 이전 스냅샷 ID와 그 시점 상태 라벨 */
+  private before: { id: number; label: string | null } | null = null;
 
   constructor(
     private readonly operationType: string,
     private readonly cursor: DocumentPosition,
   ) {}
 
-  get started(): boolean { return this.beforeId !== null; }
+  get started(): boolean { return this.before !== null; }
 
   /** 첫 실제 변이 직전에 호출한다. 두 번째 호출부터는 아무 일도 하지 않는다. */
   begin(wasm: WasmBridge): void {
-    if (this.beforeId === null) this.beforeId = wasm.saveSnapshot();
+    if (this.before !== null) return;
+    const label = stateLabelOf(wasm);
+    this.before = { id: wasm.saveSnapshot(), label };
   }
 
-  /** 마지막 변이 뒤 호출한다. 변이가 없었으면 null. */
+  /**
+   * 마지막 변이 뒤 호출한다. 변이가 없었으면 null. 이 기록기가 직접 봉인한 (ID, 라벨)
+   * 두 쌍으로만 명령을 만든다 — 겹친 다른 기록기와 서로의 스냅샷·라벨을 짝짓지 않는다.
+   */
   finish(wasm: WasmBridge): EditCommand | null {
-    const beforeId = this.beforeId;
-    if (beforeId === null) return null;
-    this.beforeId = null;
+    const before = this.before;
+    if (before === null) return null;
+    this.before = null;
+    const afterLabel = stateLabelOf(wasm);
     const afterId = wasm.saveSnapshot();
-    return SnapshotCommand.recorded(this.operationType, beforeId, afterId, this.cursor, this.cursor);
+    return SnapshotCommand.recorded(
+      this.operationType, before.id, afterId, this.cursor, this.cursor, before.label, afterLabel,
+    );
   }
 }
