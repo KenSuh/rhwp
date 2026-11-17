@@ -3244,6 +3244,36 @@ test('C14 flipped tiny standard and unchanged-size rectangles keep their native 
   console.log(`C14_FLIPPED_PIVOT cases=${cases} fixed_native_pivot=${cases}/${cases}`);
 });
 
+test('C14 flipped multi-object floor promotion anchors the edge fixed after crossing zero', () => {
+  let cases = 0;
+  for (const dir of ['e', 'w', 'n', 's']) for (const terminal of ['mouseup', 'interrupt'] as const)
+    withPointerHarness(({ flush }) => {
+      const c = c12NativeResizeCase('multi', dir, [[1, 3], [3, 1]]), { wasm, history, host, clientX, clientY } = c;
+      try {
+        const horizontal = dir === 'e' || dir === 'w';
+        const before = fullSemanticState(wasm, false);
+        const initialAnchor = dir === 'e' || dir === 's'
+          ? Math.min(...c.items.map(item => horizontal ? item.origHorzOffset : item.origVertOffset))
+          : Math.max(...c.items.map(item => horizontal ? item.origHorzOffset + item.origWidth : item.origVertOffset + item.origHeight));
+        const dx = dir === 'e' ? -1.13 : dir === 'w' ? 1.13 : 0;
+        const dy = dir === 's' ? -1.37 : dir === 'n' ? 1.37 : 0;
+        Reflect.apply(onMouseMove, host, [{ clientX: clientX + dx, clientY: clientY + dy, buttons: 1 }]); flush();
+        if (terminal === 'mouseup') Reflect.apply(onMouseUp, host, [{ clientX: clientX + dx, clientY: clientY + dy, buttons: 0 }]);
+        else Reflect.apply(InputHandler.prototype.settleOpenPointerGesture, host, ['interrupt']);
+        const actual = c.items.map(item => getObjectProperties.call(host, item));
+        const finalAnchor = dir === 'e' || dir === 's'
+          ? Math.max(...actual.map(props => horizontal ? (props.horzOffset | 0) + props.width : (props.vertOffset | 0) + props.height))
+          : Math.min(...actual.map(props => horizontal ? props.horzOffset | 0 : props.vertOffset | 0));
+        assert.ok(Math.abs(finalAnchor - initialAnchor) <= 4, `${dir}/${terminal}: promoted size moved flipped anchor ${finalAnchor - initialAnchor}`);
+        const after = fullSemanticState(wasm, false);
+        assert.ok(history.undo(wasm)); assert.deepEqual(fullSemanticState(wasm, false), before);
+        assert.ok(history.redo(wasm)); assert.deepEqual(fullSemanticState(wasm, false), after);
+        cases++;
+      } finally { history.clear(wasm); wasm.dispose(); }
+    });
+  console.log(`C14_MULTI_FLIP cases=${cases} fixed_native_edge=${cases}/${cases}`);
+});
+
 test('C10 source guard enforces press-epoch checks, replacement hooks, and recorder settlement across all pointer gestures', () => {
   const engineDir = new URL('../src/engine', import.meta.url).pathname;
   const tableCode = readFileSync(join(engineDir, 'input-handler-table.ts'), 'utf8');

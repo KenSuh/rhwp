@@ -363,7 +363,7 @@ function multiResizeTargets(
   refs: readonly MultiResizeRef[],
   dir: string,
   bbox: { readonly x: number; readonly y: number; readonly w: number; readonly h: number },
-  resized: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
+  resized: { readonly x: number; readonly y: number; readonly width: number; readonly height: number; readonly flipX?: boolean; readonly flipY?: boolean },
 ) {
   const baseW = bbox.w || Math.max(1, ...refs.map(ref => ref.origWidth)) / PX_TO_HWP;
   const baseH = bbox.h || Math.max(1, ...refs.map(ref => ref.origHeight)) / PX_TO_HWP;
@@ -375,9 +375,9 @@ function multiResizeTargets(
     const width = ref.type === 'image' ? clampedW : resolveNativeDimension(ref.origWidth, clampedW);
     const height = ref.type === 'image' ? clampedH : resolveNativeDimension(ref.origHeight, clampedH);
     const deltaH = Math.round((resized.x + (ref.bboxX - bbox.x) * sx - ref.bboxX) * PX_TO_HWP)
-      - (dir.includes('w') ? width - clampedW : 0);
+      - ((dir.includes('w') && !resized.flipX) || (dir.includes('e') && resized.flipX) ? width - clampedW : 0);
     const deltaV = Math.round((resized.y + (ref.bboxY - bbox.y) * sy - ref.bboxY) * PX_TO_HWP)
-      - (dir.includes('n') ? height - clampedH : 0);
+      - ((dir.includes('n') && !resized.flipY) || (dir.includes('s') && resized.flipY) ? height - clampedH : 0);
     return {
       ref,
       changed: width !== ref.origWidth || height !== ref.origHeight || deltaH !== 0 || deltaV !== 0,
@@ -638,7 +638,7 @@ export function finishPictureResizeDrag(this: any, e?: MouseEvent): void {
   this.renderPictureObjectSelection?.();
 }
 
-export function calcResizedBbox(this: any, e: MouseEvent, zoom: number): { x: number; y: number; width: number; height: number } {
+export function calcResizedBbox(this: any, e: MouseEvent, zoom: number): { x: number; y: number; width: number; height: number; flipX?: boolean; flipY?: boolean } {
   const s = this.pictureResizeState!;
   if (!s.multiRefs) return calcResizedBboxRotated(s, e, zoom);
   const dx = (e.clientX - s.startClientX) / zoom; // page px
@@ -647,15 +647,18 @@ export function calcResizedBbox(this: any, e: MouseEvent, zoom: number): { x: nu
   const minH = Math.min(1, s.bbox.h);
 
   let { x, y, w, h } = s.bbox;
+  let flipX = false, flipY = false;
   const dir = s.dir;
 
   // 가로 크기 및 위치 계산 (Flip 허용)
   if (dir.includes('e')) {
     const valW = s.bbox.w + dx;
+    flipX = valW < 0;
     w = Math.max(Math.abs(valW), minW);
     if (valW < 0) x = s.bbox.x - w; // 반대편으로 넘어가면 시작점 이동
   } else if (dir.includes('w')) {
     const valW = s.bbox.w - dx;
+    flipX = valW < 0;
     w = Math.max(Math.abs(valW), minW);
     if (valW >= 0) x = s.bbox.x + (s.bbox.w - w);
     else x = s.bbox.x + s.bbox.w; // 반대편으로 넘어가면 오른쪽 끝이 시작점
@@ -664,16 +667,18 @@ export function calcResizedBbox(this: any, e: MouseEvent, zoom: number): { x: nu
   // 세로 크기 및 위치 계산 (Flip 허용)
   if (dir.includes('s')) {
     const valH = s.bbox.h + dy;
+    flipY = valH < 0;
     h = Math.max(Math.abs(valH), minH);
     if (valH < 0) y = s.bbox.y - h;
   } else if (dir.includes('n')) {
     const valH = s.bbox.h - dy;
+    flipY = valH < 0;
     h = Math.max(Math.abs(valH), minH);
     if (valH >= 0) y = s.bbox.y + (s.bbox.h - h);
     else y = s.bbox.y + s.bbox.h;
   }
 
-  return { x, y, width: w, height: h };
+  return { x, y, width: w, height: h, flipX, flipY };
 }
 
 export function cleanupPictureResizeDrag(this: any): void {
