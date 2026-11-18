@@ -57,7 +57,7 @@ impl LayoutEngine {
             };
 
             // 텍스트가 있는 문단 수
-            let has_text = tb.paragraphs.iter().any(|p| !p.text.is_empty());
+            let has_text = tb.paragraphs.iter().any(|p| !p.text().is_empty());
             if !has_text {
                 // 빈 텍스트박스: 첫 문단의 line_seg sw를 inner_sw로 사용하거나 계산
                 // 실제로는 오버플로우 문단이 렌더링될 때 sw를 사용

@@ -182,7 +182,7 @@ impl DocumentCore {
         if !self.show_control_codes {
             if let Some(section) = self.document.sections.get(section_idx) {
                 if let Some(para) = section.paragraphs.get(para_idx) {
-                    let text_len = para.text.chars().count();
+                    let text_len = para.text().chars().count();
                     let ctrl_positions = crate::document_core::find_control_text_positions(para);
 
                     // char_offset 위치에 인라인 컨트롤이 있는지 확인
@@ -985,7 +985,7 @@ impl DocumentCore {
         };
 
         // 이 문단의 ClickHere 필드 범위 검색
-        for fr in &para.field_ranges {
+        for fr in &para.field_ranges() {
             if let Some(Control::Field(field)) = para.controls.get(fr.control_idx) {
                 if field.field_type == FieldType::ClickHere {
                     // 필드 시작 위치로 커서를 보낸다

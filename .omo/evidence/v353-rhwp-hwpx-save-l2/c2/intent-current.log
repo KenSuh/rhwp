@@ -1,0 +1,1 @@
+INTENT_STATUS status=current task=v353-rhwp-hwpx-save-l2 repo=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity scope=repo id=RHWP-HWPX-SAVE-FIDELITY-L2-V353 revision=1 digest=sha256:d385ca9b6e37df48347dfc71d28bfbc161c1db249304100a064347645b479366 source=/Users/ken/ken wiki/outputs/v353-rhwp-table/RHWP_HWPX_SAVE_FIDELITY_L2_PACKET.md

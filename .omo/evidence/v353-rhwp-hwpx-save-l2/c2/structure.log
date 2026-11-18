@@ -1,0 +1,24 @@
+C2_SCOPE_OK 25 paths
+PRODUCT_INPUTS_UNCHANGED e37e82934c69b185df54c38abf1028a4872da80b2ca77c9d445b87f94072495a
+HISTORICAL_EVIDENCE_AND_V318_UNCHANGED
+SHA256 .omo/evidence/v353-rhwp-hwpx-save-l2/c1/clean-cargo.sh 2b0e9279535d7656d764db8a7c13619eea7bab200a61b40b06ab32a5811ce1c6
+SHA256 tests/hwpx_save_fidelity_l2.rs 31b58bbaf1a8d7a1426c192aa1113190d801c350124dc4ac89249aef517bd066
+SHA256 Cargo.lock a28b1372dcf6c2a945130ff6e1b6e5b43444f5b29f0d7b6b41847c003a351c93
+OPTIONAL_LOCK_ZIP_VERSION 9.0.3
+ALL_11_EXPECTS_UNCHANGED
+COMMAND G1 python3 -c 'import json;d=json.load(open(".omo/evidence/v353-rhwp-hwpx-save-l2/baseline.json"));assert d["head"]=="59c2285efe616211cd147dfa849d2f9f9df767dd";assert d["g8_failed"] is True and d["order_defects"]>0;print("BASELINE_OK",d["order_defects"])'
+BASELINE_OK 55
+PASS G1
+COMMAND G5 python3 -c 'import json,hashlib,pathlib,re;d=json.load(open(".omo/evidence/v353-rhwp-hwpx-save-l2/negative-control.json"));assert d["base"]=="59c2285efe616211cd147dfa849d2f9f9df767dd";assert d["run_order_failed"]>0 and d["two_save_failed"]>0 and d["residual_failed"]>0;assert d["test_file_sha256"]==hashlib.sha256(pathlib.Path("tests/hwpx_save_fidelity_l2.rs").read_bytes()).hexdigest();s=pathlib.Path(".omo/evidence/v353-rhwp-hwpx-save-l2/c1/red-8027a28-final.log").read_text();assert re.search(r"test result: FAILED\. 1 passed; 5 failed",s);print("NEG_OK")'
+NEG_OK
+PASS G5
+COMMAND G10 git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape|field|mod)\.rs|src/parser/hwpx/(header|section)\.rs|src/model/document\.rs|tests/hwpx_save_fidelity_l2\.rs|tests/hwpx_roundtrip_integration\.rs|tests/fixtures/save-fidelity-l2/.*|gates/V353_RHWP_HWPX_SAVE_L2_GATES\.md|\.omo/evidence/v353-rhwp-hwpx-save-l2/.*)$' | wc -l | tr -d ' ' | sed 's/^/OUT_OF_SCOPE=/'
+OUT_OF_SCOPE=0
+PASS G10
+COMMAND G11 ls .omo/evidence/v353-rhwp-hwpx-save-l2/hancom/*.hwpx | wc -l | tr -d ' ' | sed 's/^/HANCOM_FILES=/'
+HANCOM_FILES=6
+PASS G11
+G7_G8_G9_DEFERRED_NOT_EXECUTED
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 30.47s
+FINISHED_EXTRACTION_OK_WITH_TRAILING_METADATA
+STRUCTURE_OK

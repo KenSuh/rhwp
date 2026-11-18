@@ -1,4 +1,4 @@
-import { VirtualScroll } from '@/view/virtual-scroll';
+import type { VirtualScroll } from '@/view/virtual-scroll';
 import type { CellBbox } from '@/core/types';
 
 /** 경계선 종류 */
@@ -15,10 +15,23 @@ export interface BorderEdge {
 interface RowLine { y: number; xStart: number; xEnd: number; index: number }
 interface ColLine { x: number; yStart: number; yEnd: number; index: number }
 
+function mergeSegments(segments: readonly { readonly start: number; readonly end: number }[]) {
+  const merged: { start: number; end: number }[] = [];
+  for (const segment of [...segments].sort((a, b) => a.start - b.start)) {
+    const previous = merged[merged.length - 1];
+    if (previous && segment.start <= previous.end) {
+      previous.end = Math.max(previous.end, segment.end);
+    } else {
+      merged.push({ ...segment });
+    }
+  }
+  return merged;
+}
+
 /** 표 셀 경계선 위 hover 시 마커(하이라이트 라인)를 표시한다 */
 export class TableResizeRenderer {
   private layer: HTMLDivElement;
-  private marker: HTMLDivElement | null = null;
+  private markers: HTMLDivElement[] = [];
   private static readonly MARKER_COLOR = 'rgba(0, 120, 215, 0.5)';
   private static readonly MARKER_THICKNESS = 3;
 
@@ -39,44 +52,34 @@ export class TableResizeRenderer {
   computeBorderLines(bboxes: CellBbox[]): { rowLines: RowLine[]; colLines: ColLine[] } {
     if (bboxes.length === 0) return { rowLines: [], colLines: [] };
 
-    // 표 전체 범위
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (const b of bboxes) {
-      minX = Math.min(minX, b.x);
-      maxX = Math.max(maxX, b.x + b.w);
-      minY = Math.min(minY, b.y);
-      maxY = Math.max(maxY, b.y + b.h);
-    }
-
-    // 행 경계선 (수평): 셀 상단/하단 y 좌표 수집
-    const rowYSet = new Map<number, number>(); // y(rounded) → index
-    // 열 경계선 (수직): 셀 좌측/우측 x 좌표 수집
-    const colXSet = new Map<number, number>(); // x(rounded) → index
-
-    // 표 상단/하단, 좌측/우측 추가
     const ry = (v: number) => Math.round(v * 10) / 10; // 소수점 1자리 반올림
 
     // 모든 셀의 상/하단, 좌/우측 좌표 수집
-    const rowYs = new Set<number>();
-    const colXs = new Set<number>();
+    const rowSegments = new Map<number, { start: number; end: number }[]>();
+    const colSegments = new Map<number, { start: number; end: number }[]>();
     for (const b of bboxes) {
-      rowYs.add(ry(b.y));
-      rowYs.add(ry(b.y + b.h));
-      colXs.add(ry(b.x));
-      colXs.add(ry(b.x + b.w));
+      for (const y of [ry(b.y), ry(b.y + b.h)]) {
+        const segments = rowSegments.get(y) ?? [];
+        segments.push({ start: b.x, end: b.x + b.w });
+        rowSegments.set(y, segments);
+      }
+      for (const x of [ry(b.x), ry(b.x + b.w)]) {
+        const segments = colSegments.get(x) ?? [];
+        segments.push({ start: b.y, end: b.y + b.h });
+        colSegments.set(x, segments);
+      }
     }
 
     // 정렬하여 인덱스 부여
-    const sortedRowYs = [...rowYs].sort((a, b) => a - b);
-    const sortedColXs = [...colXs].sort((a, b) => a - b);
+    const rowLines: RowLine[] = [...rowSegments].sort(([a], [b]) => a - b).flatMap(([y, segments], index) =>
+      mergeSegments(segments)
+        .map(segment => ({ y, xStart: segment.start, xEnd: segment.end, index })),
+    );
 
-    const rowLines: RowLine[] = sortedRowYs.map((y, i) => ({
-      y, xStart: minX, xEnd: maxX, index: i,
-    }));
-
-    const colLines: ColLine[] = sortedColXs.map((x, i) => ({
-      x, yStart: minY, yEnd: maxY, index: i,
-    }));
+    const colLines: ColLine[] = [...colSegments].sort(([a], [b]) => a - b).flatMap(([x, segments], index) =>
+      mergeSegments(segments)
+        .map(segment => ({ x, yStart: segment.start, yEnd: segment.end, index })),
+    );
 
     return { rowLines, colLines };
   }
@@ -89,8 +92,8 @@ export class TableResizeRenderer {
   ): BorderEdge | null {
     if (bboxes.length === 0) return null;
 
-    const { rowLines, colLines } = this.computeBorderLines(bboxes);
     const pageIndex = bboxes[0].pageIndex;
+    const { rowLines, colLines } = this.computeBorderLines(bboxes.filter(b => b.pageIndex === pageIndex));
 
     // 행 경계선 검사 (수평선)
     for (const line of rowLines) {
@@ -119,9 +122,10 @@ export class TableResizeRenderer {
   ): void {
     this.clear();
     this.ensureAttached();
-    if (bboxes.length === 0) return;
+    const pageBboxes = bboxes.filter(b => b.pageIndex === edge.pageIndex);
+    if (pageBboxes.length === 0) return;
 
-    const { rowLines, colLines } = this.computeBorderLines(bboxes);
+    const { rowLines, colLines } = this.computeBorderLines(pageBboxes);
     const scrollContent = this.container.querySelector('#scroll-content');
     const contentWidth = scrollContent?.clientWidth ?? 0;
     const pageOffset = this.virtualScroll.getPageOffset(edge.pageIndex);
@@ -129,34 +133,31 @@ export class TableResizeRenderer {
     const pageLeft = (contentWidth - pageDisplayWidth) / 2;
 
     const t = TableResizeRenderer.MARKER_THICKNESS;
-    const el = document.createElement('div');
-
     if (edge.type === 'row') {
-      const line = rowLines.find(l => l.index === edge.index);
-      if (!line) return;
-      const left = pageLeft + line.xStart * zoom;
-      const top = pageOffset + line.y * zoom - t / 2;
-      const width = (line.xEnd - line.xStart) * zoom;
-      el.style.cssText =
-        `position:absolute;` +
-        `left:${left}px;top:${top}px;` +
-        `width:${width}px;height:${t}px;` +
-        `background:${TableResizeRenderer.MARKER_COLOR};pointer-events:none;`;
+      for (const line of rowLines.filter(l => l.index === edge.index)) {
+        const left = pageLeft + line.xStart * zoom;
+        const top = pageOffset + line.y * zoom - t / 2;
+        const width = (line.xEnd - line.xStart) * zoom;
+        this.addMarker(
+          `position:absolute;` +
+          `left:${left}px;top:${top}px;` +
+          `width:${width}px;height:${t}px;` +
+          `background:${TableResizeRenderer.MARKER_COLOR};pointer-events:none;`,
+        );
+      }
     } else {
-      const line = colLines.find(l => l.index === edge.index);
-      if (!line) return;
-      const left = pageLeft + line.x * zoom - t / 2;
-      const top = pageOffset + line.yStart * zoom;
-      const height = (line.yEnd - line.yStart) * zoom;
-      el.style.cssText =
-        `position:absolute;` +
-        `left:${left}px;top:${top}px;` +
-        `width:${t}px;height:${height}px;` +
-        `background:${TableResizeRenderer.MARKER_COLOR};pointer-events:none;`;
+      for (const line of colLines.filter(l => l.index === edge.index)) {
+        const left = pageLeft + line.x * zoom - t / 2;
+        const top = pageOffset + line.yStart * zoom;
+        const height = (line.yEnd - line.yStart) * zoom;
+        this.addMarker(
+          `position:absolute;` +
+          `left:${left}px;top:${top}px;` +
+          `width:${t}px;height:${height}px;` +
+          `background:${TableResizeRenderer.MARKER_COLOR};pointer-events:none;`,
+        );
+      }
     }
-
-    this.layer.appendChild(el);
-    this.marker = el;
   }
 
   /** 드래그 중 마커를 지정된 위치에 표시한다 (원래 경계선이 아닌 마우스 위치) */
@@ -169,7 +170,8 @@ export class TableResizeRenderer {
   ): void {
     this.clear();
     this.ensureAttached();
-    if (bboxes.length === 0) return;
+    const pageBboxes = bboxes.filter(b => b.pageIndex === pageIndex);
+    if (pageBboxes.length === 0) return;
 
     const scrollContent = this.container.querySelector('#scroll-content');
     const contentWidth = scrollContent?.clientWidth ?? 0;
@@ -178,40 +180,44 @@ export class TableResizeRenderer {
     const pageLeft = (contentWidth - pageDisplayWidth) / 2;
 
     const t = TableResizeRenderer.MARKER_THICKNESS;
-    const el = document.createElement('div');
-
     if (type === 'row') {
-      const minX = Math.min(...bboxes.map(b => b.x));
-      const maxX = Math.max(...bboxes.map(b => b.x + b.w));
+      const minX = Math.min(...pageBboxes.map(b => b.x));
+      const maxX = Math.max(...pageBboxes.map(b => b.x + b.w));
       const left = pageLeft + minX * zoom;
       const top = pageOffset + position * zoom - t / 2;
       const width = (maxX - minX) * zoom;
-      el.style.cssText =
+      this.addMarker(
         `position:absolute;left:${left}px;top:${top}px;` +
         `width:${width}px;height:${t}px;` +
-        `background:${TableResizeRenderer.MARKER_COLOR};pointer-events:none;`;
+        `background:${TableResizeRenderer.MARKER_COLOR};pointer-events:none;`,
+      );
     } else {
-      const minY = Math.min(...bboxes.map(b => b.y));
-      const maxY = Math.max(...bboxes.map(b => b.y + b.h));
+      const minY = Math.min(...pageBboxes.map(b => b.y));
+      const maxY = Math.max(...pageBboxes.map(b => b.y + b.h));
       const left = pageLeft + position * zoom - t / 2;
       const top = pageOffset + minY * zoom;
       const height = (maxY - minY) * zoom;
-      el.style.cssText =
+      this.addMarker(
         `position:absolute;left:${left}px;top:${top}px;` +
         `width:${t}px;height:${height}px;` +
-        `background:${TableResizeRenderer.MARKER_COLOR};pointer-events:none;`;
+        `background:${TableResizeRenderer.MARKER_COLOR};pointer-events:none;`,
+      );
     }
+  }
 
+  private addMarker(cssText: string): void {
+    const el = document.createElement('div');
+    el.style.cssText = cssText;
     this.layer.appendChild(el);
-    this.marker = el;
+    this.markers.push(el);
   }
 
   /** 마커를 제거한다 */
   clear(): void {
-    if (this.marker) {
-      this.marker.remove();
-      this.marker = null;
+    for (const marker of this.markers) {
+      marker.remove();
     }
+    this.markers = [];
   }
 
   /** 레이어가 DOM에 없으면 재부착한다 */

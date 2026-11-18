@@ -1,0 +1,13 @@
+{
+  "source_checkpoint": "9ac673ce16034fc03d819e5186485a920e5d2c16",
+  "source_files_verified": 353,
+  "source_tree": "c5f2f2d09b43088e91004afc06015f84a5417066",
+  "test_sha256": "0bc0cf833692199a509d985fbf720fca1e9bdfa03134beec52f2012a613ffac3",
+  "manifest_sha256": "885d0647d7fae87fbea9e608d5028d09ad934398555a115908a63f16a4902a2c",
+  "lock_sha256": "a28b1372dcf6c2a945130ff6e1b6e5b43444f5b29f0d7b6b41847c003a351c93",
+  "source_sha256": {
+    "src/document_core/commands/text_editing.rs": "fcefc18995fb8cd4cc698c32f4be56259b2bb18fae824ba2b894f882d8de7171"
+  },
+  "target_dir": "/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity/target",
+  "package_artifacts_cleared": "clean-package.log"
+}

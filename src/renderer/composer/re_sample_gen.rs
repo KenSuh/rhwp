@@ -26,7 +26,7 @@ mod tests {
         en_font: Option<&str>,
     ) {
         let en = en_font.unwrap_or(ko_font);
-        let doc = &mut core.document;
+        let doc = core.mutate_document();
 
         // 1. font_faces에 새 폰트 추가 (이미 있으면 인덱스 반환)
         let add_font = |fonts: &mut Vec<crate::model::style::Font>, name: &str| -> u16 {
@@ -135,13 +135,13 @@ mod tests {
 
         // 정렬 변경
         if let Some(align) = alignment {
-            let para = &core.document.sections[0].paragraphs[0];
+            let para = &core.document().sections[0].paragraphs[0];
             let ps_id = para.para_shape_id as usize;
-            if ps_id < core.document.doc_info.para_shapes.len() {
-                core.document.doc_info.para_shapes[ps_id].alignment = align;
-                core.document.doc_info.para_shapes[ps_id].raw_data = None;
-                core.document.doc_info.raw_stream = None;
-                core.document.doc_info.raw_stream_dirty = true;
+            if ps_id < core.document().doc_info.para_shapes.len() {
+                core.mutate_document().doc_info.para_shapes[ps_id].alignment = align;
+                core.mutate_document().doc_info.para_shapes[ps_id].raw_data = None;
+                core.mutate_document().doc_info.raw_stream = None;
+                core.mutate_document().doc_info.raw_stream_dirty = true;
             }
         }
 
@@ -153,29 +153,29 @@ mod tests {
         // 추가 문단: Enter로 문단 분할 후 텍스트 삽입
         for (i, text) in texts.iter().enumerate().skip(1) {
             // 이전 문단 끝에서 Enter
-            let prev_para = &core.document.sections[0].paragraphs[i - 1];
-            let end_pos = prev_para.text.chars().count();
+            let prev_para = &core.document().sections[0].paragraphs[i - 1];
+            let end_pos = prev_para.text().chars().count();
             let _ = core.split_paragraph_native(0, i - 1, end_pos);
             // 새 문단에 텍스트 삽입
             let _ = core.insert_text_native(0, i, 0, text);
         }
 
         // raw_stream 무효화
-        core.document.sections[0].raw_stream = None;
+        core.mutate_document().sections[0].raw_stream = None;
 
         // 1. LINE_SEG가 채워진 버전 저장 (rhwp 렌더링 확인용)
-        let bytes = crate::serializer::serialize_document(&core.document)
+        let bytes = crate::serializer::serialize_document(&core.document())
             .map_err(|e| format!("{:?}", e))?;
         fs::write(output_path, &bytes).map_err(|e| e.to_string())?;
         eprintln!("생성: {} ({}문단)", output_path, texts.len());
 
         // 2. LINE_SEG를 비운 버전 저장 (한컴 역공학용: *-empty.hwp)
         let empty_path = output_path.replace(".hwp", "-empty.hwp");
-        for para in &mut core.document.sections[0].paragraphs {
+        for para in &mut core.mutate_document().sections[0].paragraphs {
             para.line_segs = vec![crate::model::paragraph::LineSeg::default()];
         }
-        core.document.sections[0].raw_stream = None;
-        let empty_bytes = crate::serializer::serialize_document(&core.document)
+        core.mutate_document().sections[0].raw_stream = None;
+        let empty_bytes = crate::serializer::serialize_document(&core.document())
             .map_err(|e| format!("{:?}", e))?;
         fs::write(&empty_path, &empty_bytes).map_err(|e| e.to_string())?;
         eprintln!("생성: {} (LINE_SEG 비움)", empty_path);
@@ -538,29 +538,29 @@ mod tests {
             let mut core = crate::document_core::DocumentCore::from_bytes(&data).unwrap();
 
             // CharShape 추가: 큰 글자용
-            let mut big_cs = core.document.doc_info.char_shapes[0].clone();
+            let mut big_cs = core.document().doc_info.char_shapes[0].clone();
             big_cs.base_size = *big_size;
             big_cs.raw_data = None;
-            let big_cs_id = core.document.doc_info.char_shapes.len() as u32;
-            core.document.doc_info.char_shapes.push(big_cs);
-            core.document.doc_info.raw_stream = None;
-            core.document.doc_info.raw_stream_dirty = true;
+            let big_cs_id = core.document().doc_info.char_shapes.len() as u32;
+            core.mutate_document().doc_info.char_shapes.push(big_cs);
+            core.mutate_document().doc_info.raw_stream = None;
+            core.mutate_document().doc_info.raw_stream_dirty = true;
 
             // 기본 CharShape의 base_size 설정
-            core.document.doc_info.char_shapes[0].base_size = *base_size;
-            core.document.doc_info.char_shapes[0].raw_data = None;
+            core.mutate_document().doc_info.char_shapes[0].base_size = *base_size;
+            core.mutate_document().doc_info.char_shapes[0].raw_data = None;
 
             // 텍스트 삽입
             let text = "가나다라마바사아자차카타파하가나다라마바사아자차카타파하가나다라마바사아자차카타파하가나다라마바사아자차카타파하";
             let _ = core.insert_text_native(0, 0, 0, text);
 
             // CharShapeRef: 1/3 기본, 1/3 큰 글자, 1/3 기본
-            let para = &mut core.document.sections[0].paragraphs[0];
-            let text_len = para.text.chars().count();
+            let para = &mut core.mutate_document().sections[0].paragraphs[0];
+            let text_len = para.text().chars().count();
             let big_start = text_len / 3;
             let big_end = text_len * 2 / 3;
-            let big_start_utf16 = para.char_offsets.get(big_start).copied().unwrap_or(0);
-            let big_end_utf16 = para.char_offsets.get(big_end).copied().unwrap_or(0);
+            let big_start_utf16 = para.char_offsets().get(big_start).copied().unwrap_or(0);
+            let big_end_utf16 = para.char_offsets().get(big_end).copied().unwrap_or(0);
 
             para.char_shapes = vec![
                 crate::model::paragraph::CharShapeRef {
@@ -577,19 +577,19 @@ mod tests {
                 },
             ];
 
-            core.document.sections[0].raw_stream = None;
+            core.mutate_document().sections[0].raw_stream = None;
 
             // LINE_SEG 채워진 버전
-            let bytes = crate::serializer::serialize_document(&core.document).unwrap();
+            let bytes = crate::serializer::serialize_document(&core.document()).unwrap();
             fs::write(&output, &bytes).unwrap();
 
             // LINE_SEG 비운 버전
             let empty_path = output.replace(".hwp", "-empty.hwp");
-            for p in &mut core.document.sections[0].paragraphs {
+            for p in &mut core.mutate_document().sections[0].paragraphs {
                 p.line_segs = vec![crate::model::paragraph::LineSeg::default()];
             }
-            core.document.sections[0].raw_stream = None;
-            let empty_bytes = crate::serializer::serialize_document(&core.document).unwrap();
+            core.mutate_document().sections[0].raw_stream = None;
+            let empty_bytes = crate::serializer::serialize_document(&core.document()).unwrap();
             fs::write(&empty_path, &empty_bytes).unwrap();
 
             eprintln!(

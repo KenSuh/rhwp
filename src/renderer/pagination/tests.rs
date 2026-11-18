@@ -18,12 +18,14 @@ fn a4_page_def() -> PageDef {
 }
 
 fn make_paragraph_with_height(line_height: i32) -> Paragraph {
-    Paragraph {
-        line_segs: vec![LineSeg {
+    {
+        let mut paragraph_value = Paragraph::default();
+
+        paragraph_value.line_segs = vec![LineSeg {
             line_height,
             ..Default::default()
-        }],
-        ..Default::default()
+        }];
+        paragraph_value
     }
 }
 
@@ -475,9 +477,11 @@ fn make_multiline_paragraph(line_count: usize, line_height: i32) -> Paragraph {
             ..Default::default()
         })
         .collect();
-    Paragraph {
-        line_segs,
-        ..Default::default()
+    {
+        let mut paragraph_value = Paragraph::default();
+
+        paragraph_value.line_segs = line_segs;
+        paragraph_value
     }
 }
 
@@ -653,9 +657,11 @@ fn make_cellbreak_table(
                     ..Default::default()
                 })
                 .collect();
-            let para = Paragraph {
-                line_segs,
-                ..Default::default()
+            let para = {
+                let mut paragraph_value = Paragraph::default();
+
+                paragraph_value.line_segs = line_segs;
+                paragraph_value
             };
             cells.push(Cell {
                 row: r,
@@ -1059,12 +1065,14 @@ fn test_table_split_with_nested_table() {
             col_span: 1,
             height: 8000,
             width: 5000,
-            paragraphs: vec![Paragraph {
-                line_segs: vec![LineSeg {
+            paragraphs: vec![{
+                let mut paragraph_value = Paragraph::default();
+
+                paragraph_value.line_segs = vec![LineSeg {
                     line_height: 8000,
                     ..Default::default()
-                }],
-                ..Default::default()
+                }];
+                paragraph_value
             }],
             ..Default::default()
         });
@@ -1086,13 +1094,16 @@ fn test_table_split_with_nested_table() {
         col_span: 1,
         height: nested_h as u32,
         width: 10000,
-        paragraphs: vec![Paragraph {
-            line_segs: vec![LineSeg {
+        paragraphs: vec![{
+            let mut paragraph_value = Paragraph::default();
+
+            paragraph_value.line_segs = vec![LineSeg {
                 line_height: nested_h,
                 ..Default::default()
-            }],
-            controls: vec![Control::Table(Box::new(nested_table))],
-            ..Default::default()
+            }];
+
+            paragraph_value.controls = vec![Control::Table(Box::new(nested_table))];
+            paragraph_value
         }],
         ..Default::default()
     };
@@ -1103,12 +1114,14 @@ fn test_table_split_with_nested_table() {
         col_span: 1,
         height: 5000,
         width: 10000,
-        paragraphs: vec![Paragraph {
-            line_segs: vec![LineSeg {
+        paragraphs: vec![{
+            let mut paragraph_value = Paragraph::default();
+
+            paragraph_value.line_segs = vec![LineSeg {
                 line_height: 5000,
                 ..Default::default()
-            }],
-            ..Default::default()
+            }];
+            paragraph_value
         }],
         ..Default::default()
     };
@@ -1172,12 +1185,14 @@ fn test_nested_tac_table_moves_to_next_page_when_not_fit_remaining() {
         col_span: 1,
         height: 30000,
         width: 10000,
-        paragraphs: vec![Paragraph {
-            line_segs: vec![LineSeg {
+        paragraphs: vec![{
+            let mut paragraph_value = Paragraph::default();
+
+            paragraph_value.line_segs = vec![LineSeg {
                 line_height: 30000,
                 ..Default::default()
-            }],
-            ..Default::default()
+            }];
+            paragraph_value
         }],
         ..Default::default()
     };
@@ -1198,13 +1213,16 @@ fn test_nested_tac_table_moves_to_next_page_when_not_fit_remaining() {
         col_span: 1,
         height: 30000,
         width: 12000,
-        paragraphs: vec![Paragraph {
-            line_segs: vec![LineSeg {
+        paragraphs: vec![{
+            let mut paragraph_value = Paragraph::default();
+
+            paragraph_value.line_segs = vec![LineSeg {
                 line_height: 30000,
                 ..Default::default()
-            }],
-            controls: vec![Control::Table(Box::new(nested_table))],
-            ..Default::default()
+            }];
+
+            paragraph_value.controls = vec![Control::Table(Box::new(nested_table))];
+            paragraph_value
         }],
         ..Default::default()
     };

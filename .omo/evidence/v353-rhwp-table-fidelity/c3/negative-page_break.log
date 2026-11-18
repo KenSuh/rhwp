@@ -1,0 +1,35 @@
+   Compiling rhwp v0.7.3 (/private/var/folders/1j/_ggsky8n1bzfn0g2x5c8_wgm0000gn/T/rhwp-v353-c3-base-8sddr2vd)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.48s
+     Running tests/hwpx_table_fidelity.rs (target/debug/deps/hwpx_table_fidelity-8fba4dff0113d046)
+
+running 4 tests
+test page_break_writes_hancom_hwp5_bits ... FAILED
+test page_break_strings_survive_hwpx_hwp5_hwpx ... ok
+test page_break_row_alias_normalizes_to_cell_in_both_paths ... FAILED
+test page_break_strings_survive_hwpx_ir_hwpx ... ok
+
+failures:
+
+---- page_break_writes_hancom_hwp5_bits stdout ----
+
+thread 'page_break_writes_hancom_hwp5_bits' (714268607) panicked at tests/hwpx_table_fidelity.rs:362:5:
+assertion `left == right` failed: HWP5 TABLE 속성 bit 0-1
+  left: [1, 1, 0, 1, 1, 1, 1, 1, 1, 2]
+ right: [2, 2, 0, 2, 2, 2, 2, 2, 2, 1]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- page_break_row_alias_normalizes_to_cell_in_both_paths stdout ----
+
+thread 'page_break_row_alias_normalizes_to_cell_in_both_paths' (714268604) panicked at tests/hwpx_table_fidelity.rs:381:5:
+assertion `left == right` failed: HWPX→IR→HWPX
+  left: ["TABLE", "CELL", "NONE", "CELL", "CELL", "CELL", "CELL", "CELL", "CELL", "TABLE"]
+ right: ["CELL", "CELL", "NONE", "CELL", "CELL", "CELL", "CELL", "CELL", "CELL", "TABLE"]
+
+
+failures:
+    page_break_row_alias_normalizes_to_cell_in_both_paths
+    page_break_writes_hancom_hwp5_bits
+
+test result: FAILED. 2 passed; 2 failed; 0 ignored; 0 measured; 34 filtered out; finished in 0.95s
+
+error: test failed, to rerun pass `--test hwpx_table_fidelity`

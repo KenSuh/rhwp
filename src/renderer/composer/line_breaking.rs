@@ -905,6 +905,50 @@ pub(crate) fn reflow_line_segs(
     styles: &ResolvedStyleSet,
     dpi: f64,
 ) {
+    reflow_line_segs_with_indent(para, available_width_px, styles, dpi, false);
+}
+
+pub(crate) fn invalid_cell_hanging_indent(
+    para: &Paragraph,
+    available_width_px: f64,
+    styles: &ResolvedStyleSet,
+) -> bool {
+    use crate::model::{control::Control, style::HeadType};
+    let Some(style) = styles.para_styles.get(para.para_shape_id as usize) else {
+        return false;
+    };
+    available_width_px.is_finite() && available_width_px > 0.0
+        && style.indent.is_finite() && style.indent < 0.0
+        && available_width_px + style.indent <= 0.0
+        && style.head_type == HeadType::None
+        && !para.text().contains('\t')
+        && !para.controls.iter().any(|ctrl| match ctrl {
+            Control::Table(t) => t.common.treat_as_char,
+            Control::Picture(p) => p.common.treat_as_char,
+            Control::Shape(s) => s.common().treat_as_char,
+            Control::Equation(e) => e.common.treat_as_char,
+            Control::AutoNumber(_) => true,
+            _ => false,
+        })
+}
+
+pub(crate) fn reflow_horizontal_cell_line_segs(
+    para: &mut Paragraph,
+    available_width_px: f64,
+    styles: &ResolvedStyleSet,
+    dpi: f64,
+) {
+    let recover = invalid_cell_hanging_indent(para, available_width_px, styles);
+    reflow_line_segs_with_indent(para, available_width_px, styles, dpi, recover);
+}
+
+fn reflow_line_segs_with_indent(
+    para: &mut Paragraph,
+    available_width_px: f64,
+    styles: &ResolvedStyleSet,
+    dpi: f64,
+    recover_cell_indent: bool,
+) {
     // 기존 LineSeg에서 dimension 값 보존 (원본 HWP 호환성 유지)
     let seg_width_hwp = px_to_hwpunit(available_width_px, dpi);
     let orig = para.line_segs.first().cloned();
@@ -942,17 +986,19 @@ pub(crate) fn reflow_line_segs(
         }
     };
 
-    if para.text.is_empty() {
+    if para.text().is_empty() {
         para.line_segs = vec![make_line_seg(0, 0.0)];
         return;
     }
 
-    let text_chars: Vec<char> = para.text.chars().collect();
+    let text_chars: Vec<char> = para.text().chars().collect();
     let text_len = text_chars.len();
 
     // 문단 스타일에서 들여쓰기 및 줄 나눔 설정 조회
     let para_style = styles.para_styles.get(para.para_shape_id as usize);
-    let indent_px = para_style.map(|s| s.indent).unwrap_or(0.0);
+    let indent_px = if recover_cell_indent { 0.0 } else {
+        para_style.map(|s| s.indent).unwrap_or(0.0)
+    };
     let english_break_unit = para_style.map(|s| s.english_break_unit).unwrap_or(0);
     let korean_break_unit = para_style.map(|s| s.korean_break_unit).unwrap_or(0);
     let tab_width = para_style.map(|s| s.default_tab_width).unwrap_or(0.0);
@@ -960,7 +1006,7 @@ pub(crate) fn reflow_line_segs(
     // 토큰화 → 줄 채움 → LineSeg 생성
     let tokens = tokenize_paragraph(
         &text_chars,
-        &para.char_offsets,
+        &para.char_offsets(),
         &para.char_shapes,
         styles,
         english_break_unit,
@@ -979,18 +1025,18 @@ pub(crate) fn reflow_line_segs(
     for lb in &line_breaks {
         let utf16_start = if new_line_segs.is_empty() {
             0 // 첫 번째 줄의 text_start는 항상 0 (문단 시작)
-        } else if lb.start_idx < para.char_offsets.len() {
-            para.char_offsets[lb.start_idx]
-        } else if !para.char_offsets.is_empty() {
+        } else if lb.start_idx < para.char_offsets().len() {
+            para.char_offsets()[lb.start_idx]
+        } else if !para.char_offsets().is_empty() {
             // start_idx가 텍스트 끝을 넘을 때: 마지막 문자 다음 UTF-16 위치
-            let last_idx = para.char_offsets.len() - 1;
+            let last_idx = para.char_offsets().len() - 1;
             let last_char_utf16_len = para
-                .text
+                .text()
                 .chars()
                 .nth(last_idx)
                 .map(|c| c.len_utf16() as u32)
                 .unwrap_or(1);
-            para.char_offsets[last_idx] + last_char_utf16_len
+            para.char_offsets()[last_idx] + last_char_utf16_len
         } else {
             lb.start_idx as u32
         };
@@ -1014,11 +1060,9 @@ pub(crate) fn reflow_line_segs(
             .controls
             .iter()
             .filter_map(|ctrl| match ctrl {
-                Control::Table(t) if t.common.treat_as_char => Some(
-                    t.common
-                        .height
-                        .max(t.get_row_heights().iter().sum::<u32>()) as i32,
-                ),
+                Control::Table(t) if t.common.treat_as_char => {
+                    Some(t.common.height.max(t.get_row_heights().iter().sum::<u32>()) as i32)
+                }
                 Control::Picture(p) if p.common.treat_as_char => Some(p.common.height as i32),
                 Control::Shape(s) if s.common().treat_as_char => Some(s.common().height as i32),
                 Control::Equation(eq) if eq.common.treat_as_char => Some(eq.common.height as i32),

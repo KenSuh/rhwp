@@ -1,0 +1,16 @@
+   Compiling rhwp v0.7.3 (/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.30s
+     Running tests/hwpx_table_fidelity.rs (target/debug/deps/hwpx_table_fidelity-8fba4dff0113d046)
+
+running 8 tests
+test display_height_noop_insert_with_reflow ... ok
+test display_height_noop_delete_zero_with_reflow ... ok
+test display_height_noop_delete_zero_by_path ... ok
+test display_height_noop_delete_end_without_reflow ... ok
+test display_height_noop_delete_zero_without_reflow ... ok
+test display_height_noop_delete_end_by_path ... ok
+test display_height_noop_insert_without_reflow ... ok
+test display_height_noop_insert_by_path ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 30 filtered out; finished in 2.70s
+

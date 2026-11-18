@@ -1,7 +1,18 @@
 /** input-handler picture/shape methods — extracted from InputHandler class */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { MovePictureCommand, MoveShapeCommand } from './command';
+import { ObjectGestureRecorder, documentEpochOf } from './command';
+import type { EditCommand } from './command';
+import type { WasmBridge } from '../core/wasm-bridge';
+import { stateLabelOf } from './history';
+import { InputHandler } from './input-handler';
+import {
+  bindPointerHostToWasm,
+  ensureGestureMatchesLiveEpoch,
+  epochFromLabel,
+  hasRawOpenPointerGesture,
+  isActiveGestureEpochStale,
+} from './input-handler-table';
 
 /** 클릭 좌표에서 그림, 글상자, 수식 개체를 찾는다. */
 /** 점과 선분 사이 최소 거리 (px) */
@@ -36,6 +47,10 @@ function controlMatchesRef(ctrl: any, ref: { sec: number; ppi: number; ci: numbe
 export function findPictureAtClick(this: any,
   pageIdx: number, pageX: number, pageY: number,
 ): { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'equation' | 'group' | 'line'; cellIdx?: number; cellParaIdx?: number; cellPath?: any[]; x1?: number; y1?: number; x2?: number; y2?: number } | null {
+  bindPointerHostToWasm(this);
+  if (this?.wasm && !hasRawOpenPointerGesture(this)) {
+    this._gestureOwnerEpoch = documentEpochOf(this.wasm);
+  }
   try {
     const layout = this.wasm.getPageControlLayout(pageIdx);
     for (const ctrl of layout.controls) {
@@ -102,6 +117,10 @@ export function findPictureAtClick(this: any,
 export function findPictureBbox(this: any,
 	  ref: { sec: number; ppi: number; ci: number; type?: 'image' | 'shape' | 'equation' | 'group' | 'line'; cellIdx?: number; cellParaIdx?: number; cellPath?: any[] },
 ): { pageIndex: number; x: number; y: number; w: number; h: number; x1?: number; y1?: number; x2?: number; y2?: number } | null {
+  bindPointerHostToWasm(this);
+  if (this?.wasm && !hasRawOpenPointerGesture(this)) {
+    this._gestureOwnerEpoch = documentEpochOf(this.wasm);
+  }
   const matchType = ref.type ?? 'image';
   // line은 shape의 하위 타입 → layout에서 'line'으로 반환됨
   const layoutType = matchType === 'line' ? 'line' : matchType;
@@ -258,6 +277,10 @@ export function isShapeBorderClick(this: any,
 
 /** 개체 속성을 타입에 따라 조회한다. */
 export function getObjectProperties(this: any, ref: { sec: number; ppi: number; ci: number; type: string; cellPath?: any[] }): any {
+  bindPointerHostToWasm(this);
+  if (this && !hasRawOpenPointerGesture(this) && this.wasm) {
+    this._gestureOwnerEpoch = documentEpochOf(this.wasm);
+  }
   if (ref.type === 'shape' || ref.type === 'line' || ref.type === 'group') {
     return this.wasm.getShapeProperties(ref.sec, ref.ppi, ref.ci);
   }
@@ -294,18 +317,136 @@ export function deleteObjectControl(this: any, ref: { sec: number; ppi: number; 
 /** 1 page px = 7200/96 = 75 HWPUNIT */
 const PX_TO_HWP = 7200 / 96;
 const MIN_SIZE_HWP = 283; // ≈1mm
+const MIN_NATIVE_SIZE_HWP = 200;
+
+function resolveNativeDimension(orig: number, clamped: number): number {
+  return clamped === orig ? orig : Math.max(clamped, MIN_NATIVE_SIZE_HWP);
+}
+
+type SingleResizeState = {
+  readonly origWidth: number; readonly origHeight: number;
+  origHorzOffset?: number; origVertOffset?: number;
+  readonly dir: string; readonly rotationAngle?: number;
+  readonly startClientX: number; readonly startClientY: number;
+  readonly ref: { readonly type: string };
+  readonly bbox: { readonly x: number; readonly y: number; readonly w: number; readonly h: number };
+};
+
+type MultiResizeRef = Parameters<typeof setObjectProperties>[0] & {
+  readonly origWidth: number;
+  readonly origHeight: number;
+  readonly origHorzOffset: number;
+  readonly origVertOffset: number;
+  readonly bboxX: number;
+  readonly bboxY: number;
+};
+
+function singleResizeTarget(
+  state: SingleResizeState,
+  resized: ReturnType<typeof calcResizedBboxRotated>,
+  getOriginal: () => { readonly horzOffset: number; readonly vertOffset: number },
+) {
+  if (state.origHorzOffset === undefined || state.origVertOffset === undefined) {
+    const original = getOriginal();
+    state.origHorzOffset ??= original.horzOffset;
+    state.origVertOffset ??= original.vertOffset;
+  }
+  const { nativeWidth: width, nativeHeight: height } = resized;
+  const horzOffset = ((state.origHorzOffset | 0) + resized.deltaH) >>> 0;
+  const vertOffset = ((state.origVertOffset | 0) + resized.deltaV) >>> 0;
+  return { props: { width, height, horzOffset, vertOffset },
+    changed: width !== state.origWidth || height !== state.origHeight
+      || horzOffset !== state.origHorzOffset || vertOffset !== state.origVertOffset };
+}
+
+function multiResizeTargets(
+  refs: readonly MultiResizeRef[],
+  dir: string,
+  bbox: { readonly x: number; readonly y: number; readonly w: number; readonly h: number },
+  resized: { readonly x: number; readonly y: number; readonly width: number; readonly height: number; readonly flipX?: boolean; readonly flipY?: boolean },
+) {
+  const baseW = bbox.w || Math.max(1, ...refs.map(ref => ref.origWidth)) / PX_TO_HWP;
+  const baseH = bbox.h || Math.max(1, ...refs.map(ref => ref.origHeight)) / PX_TO_HWP;
+  const sx = dir.includes('e') || dir.includes('w') ? 1 + (resized.width - bbox.w) / baseW : 1;
+  const sy = dir.includes('n') || dir.includes('s') ? 1 + (resized.height - bbox.h) / baseH : 1;
+  const items = refs.map(ref => {
+    const rawW = ref.origWidth + Math.round(ref.origWidth * (sx - 1));
+    const rawH = ref.origHeight + Math.round(ref.origHeight * (sy - 1));
+    const clampedW = Math.max(rawW, Math.min(MIN_SIZE_HWP, ref.origWidth));
+    const clampedH = Math.max(rawH, Math.min(MIN_SIZE_HWP, ref.origHeight));
+    const width = ref.type === 'image' ? clampedW : resolveNativeDimension(ref.origWidth, clampedW);
+    const height = ref.type === 'image' ? clampedH : resolveNativeDimension(ref.origHeight, clampedH);
+    const deltaH0 = Math.round((resized.x + (ref.bboxX - bbox.x) * sx - ref.bboxX) * PX_TO_HWP);
+    const deltaV0 = Math.round((resized.y + (ref.bboxY - bbox.y) * sy - ref.bboxY) * PX_TO_HWP);
+    return { ref, rawW, rawH, width, height, deltaH0, deltaV0 };
+  });
+  // Floors and flips change the union extent; translate it uniformly back to the fixed edge.
+  let corrX = 0, corrY = 0;
+  if (/[ew]/.test(dir) && (resized.flipX || items.some(item => item.width !== item.rawW))) {
+    const priorAnchorX = dir.includes('w')
+      ? Math.max(...refs.map(ref => (ref.origHorzOffset | 0) + ref.origWidth))
+      : Math.min(...refs.map(ref => ref.origHorzOffset | 0));
+    const useRightEdgeX = dir.includes('w') !== Boolean(resized.flipX);
+    const currentAnchorX = useRightEdgeX
+      ? Math.max(...items.map(item => (item.ref.origHorzOffset | 0) + item.deltaH0 + item.width))
+      : Math.min(...items.map(item => (item.ref.origHorzOffset | 0) + item.deltaH0));
+    corrX = priorAnchorX - currentAnchorX;
+  }
+  if (/[ns]/.test(dir) && (resized.flipY || items.some(item => item.height !== item.rawH))) {
+    const priorAnchorY = dir.includes('n')
+      ? Math.max(...refs.map(ref => (ref.origVertOffset | 0) + ref.origHeight))
+      : Math.min(...refs.map(ref => ref.origVertOffset | 0));
+    const useBottomEdgeY = dir.includes('n') !== Boolean(resized.flipY);
+    const currentAnchorY = useBottomEdgeY
+      ? Math.max(...items.map(item => (item.ref.origVertOffset | 0) + item.deltaV0 + item.height))
+      : Math.min(...items.map(item => (item.ref.origVertOffset | 0) + item.deltaV0));
+    corrY = priorAnchorY - currentAnchorY;
+  }
+  return items.map(({ ref, width, height, deltaH0, deltaV0 }) => {
+    const deltaH = deltaH0 + corrX, deltaV = deltaV0 + corrY;
+    return {
+      ref,
+      changed: width !== ref.origWidth || height !== ref.origHeight || deltaH !== 0 || deltaV !== 0,
+      props: { width, height, horzOffset: ((ref.origHorzOffset | 0) + deltaH) >>> 0, vertOffset: ((ref.origVertOffset | 0) + deltaV) >>> 0 },
+    };
+  });
+}
+
+function restoreRecorderBefore(wasm: WasmBridge, recorder: ObjectGestureRecorder): boolean {
+  if (!recorder.started || typeof wasm.restoreSnapshot !== 'function') return false;
+  // The recorder owns the snapshot; restoring it avoids native dimension normalization.
+  const before: unknown = Reflect.get(recorder, 'before');
+  if (!before || typeof before !== 'object' || !('id' in before) || typeof before.id !== 'number'
+    || !('label' in before) || !('epoch' in before) || before.epoch !== documentEpochOf(wasm)
+    || stateLabelOf(wasm) === before.label) return false;
+  const tempId = typeof wasm.saveSnapshot === 'function' ? wasm.saveSnapshot() : null;
+  try {
+    wasm.restoreSnapshot(before.id);
+    return true;
+  } finally {
+    if (tempId !== null) wasm.discardSnapshot(tempId);
+  }
+}
+
+function resizeProperties(
+  original: { readonly origWidth: number; readonly origHeight: number },
+  target: ReturnType<typeof singleResizeTarget>['props'],
+  restored: boolean,
+): Record<string, number> {
+  // Each caller has begun recording; offset writes connect a return to the original label.
+  const props: Record<string, number> = { horzOffset: target.horzOffset, vertOffset: target.vertOffset };
+  if (!restored || target.width !== original.origWidth) props['width'] = target.width;
+  if (!restored || target.height !== original.origHeight) props['height'] = target.height;
+  return props;
+}
 
 /**
  * 회전각을 반영하여 리사이즈 후 새 bbox(비회전 기준)를 계산한다.
  * - 마우스 delta를 도형 로컬 좌표계로 역변환한다.
  * - 반대편 꼭짓점(pivot)이 page 좌표에서 고정되도록 중심을 재계산한다.
  */
-function calcResizedBboxRotated(
-  state: any,
-  e: MouseEvent,
-  zoom: number,
-): { x: number; y: number; width: number; height: number } {
-  const angleDeg = (state.rotationAngle ?? 0) as number;
+function calcResizedBboxRotated(state: SingleResizeState, e: MouseEvent, zoom: number) {
+  const angleDeg = state.rotationAngle ?? 0;
   const rad = angleDeg * Math.PI / 180;
   const cosA = Math.cos(rad);
   const sinA = Math.sin(rad);
@@ -319,8 +460,6 @@ function calcResizedBboxRotated(
 
   const w0 = state.bbox.w;
   const h0 = state.bbox.h;
-  const cx0 = state.bbox.x + w0 / 2;
-  const cy0 = state.bbox.y + h0 / 2;
   const dir: string = state.dir;
 
   // 크기 제한 없이 마우스 이동 반영 (반대편으로 넘어가면 음수 발생 가능)
@@ -331,208 +470,248 @@ function calcResizedBboxRotated(
   if (dir.includes('s')) valH = h0 + localDy;
   if (dir.includes('n')) valH = h0 - localDy;
 
-  // 최종 출력용 크기는 절대값 사용 (최소 크기는 아주 작게만 제한)
-  const MIN = 1; 
-  const newW = Math.max(Math.abs(valW), MIN);
-  const newH = Math.max(Math.abs(valH), MIN);
-
-  // pivot: 드래그하지 않는 반대쪽 로컬 좌표 (원본 크기 기준)
-  const pivotLocalX = dir.includes('e') ? -w0 / 2 : (dir.includes('w') ? w0 / 2 : 0);
-  const pivotLocalY = dir.includes('s') ? -h0 / 2 : (dir.includes('n') ? h0 / 2 : 0);
-
-  // pivot의 page 좌표 (고정)
-  const pivotPageX = cx0 + pivotLocalX * cosA - pivotLocalY * sinA;
-  const pivotPageY = cy0 + pivotLocalX * sinA + pivotLocalY * cosA;
-
-  // 새 크기에서 pivot의 로컬 좌표 (valW/valH가 음수면 pivot 방향이 반전됨)
-  const newPivotLocalX = dir.includes('e') ? -valW / 2 : (dir.includes('w') ? valW / 2 : 0);
-  const newPivotLocalY = dir.includes('s') ? -valH / 2 : (dir.includes('n') ? valH / 2 : 0);
-
-  // pivot 고정 조건으로 새 중심 계산
-  const newCx = pivotPageX - (newPivotLocalX * cosA - newPivotLocalY * sinA);
-  const newCy = pivotPageY - (newPivotLocalX * sinA + newPivotLocalY * cosA);
-
-  return { x: newCx - newW / 2, y: newCy - newH / 2, width: newW, height: newH };
+  // Resolve setter normalization before deriving the opposite native pivot.
+  const clampedW = Math.max(state.origWidth + Math.round((Math.abs(valW) - w0) * PX_TO_HWP), Math.min(MIN_SIZE_HWP, state.origWidth));
+  const clampedH = Math.max(state.origHeight + Math.round((Math.abs(valH) - h0) * PX_TO_HWP), Math.min(MIN_SIZE_HWP, state.origHeight));
+  // Picture setters store dimensions directly; only shape/group setters impose 200 HWP.
+  const nativeWidth = state.ref.type === 'image' ? clampedW : resolveNativeDimension(state.origWidth, clampedW);
+  const nativeHeight = state.ref.type === 'image' ? clampedH : resolveNativeDimension(state.origHeight, clampedH);
+  const flipX = valW < 0 && Math.round(localDx * PX_TO_HWP) !== 0;
+  const flipY = valH < 0 && Math.round(localDy * PX_TO_HWP) !== 0;
+  const x0 = dir.includes('e') ? -state.origWidth / 2 : (dir.includes('w') ? state.origWidth / 2 : 0);
+  const y0 = dir.includes('s') ? -state.origHeight / 2 : (dir.includes('n') ? state.origHeight / 2 : 0);
+  const x1 = (dir.includes('e') ? -nativeWidth / 2 : (dir.includes('w') ? nativeWidth / 2 : 0)) * (flipX ? -1 : 1);
+  const y1 = (dir.includes('s') ? -nativeHeight / 2 : (dir.includes('n') ? nativeHeight / 2 : 0)) * (flipY ? -1 : 1);
+  const deltaH = Math.round((state.origWidth - nativeWidth) / 2 + (x0 - x1) * cosA - (y0 - y1) * sinA);
+  const deltaV = Math.round((state.origHeight - nativeHeight) / 2 + (x0 - x1) * sinA + (y0 - y1) * cosA);
+  return { x: state.bbox.x + deltaH / PX_TO_HWP, y: state.bbox.y + deltaV / PX_TO_HWP,
+    width: nativeWidth / PX_TO_HWP, height: nativeHeight / PX_TO_HWP, nativeWidth, nativeHeight, deltaH, deltaV };
 }
 
 export function updatePictureResizeDrag(this: any, e: MouseEvent): void {
-  if (!this.pictureResizeState || !this.pictureObjectRenderer) return;
+  if (!ensureGestureMatchesLiveEpoch(this) || !this.pictureResizeState) return;
   const zoom = this.viewportManager.getZoom();
   const state = this.pictureResizeState;
+  state.epoch ??= this.wasm ? documentEpochOf(this.wasm) : null;
+  state.lastClientX = e.clientX;
+  state.lastClientY = e.clientY;
+  const expectedEpoch = state.epoch ?? epochFromLabel(state.beforeLabel) ?? this._gestureOwnerEpoch ?? null;
 
   // 핸들은 고정, 예비 테두리만 갱신
   const rotAngle = (state.rotationAngle ?? 0) as number;
   const newBbox = state.multiRefs
-    ? this.calcResizedBbox(e, zoom)
+    ? (this.calcResizedBbox ?? calcResizedBbox).call(this, e, zoom)
     : calcResizedBboxRotated(state, e, zoom);
+  const targets = state.multiRefs?.length ? multiResizeTargets(state.multiRefs, state.dir, state.bbox, newBbox) : null;
+  let { x, y, width, height } = newBbox;
+  if (targets) {
+    const boxes = targets.map(({ ref, props }) => ({
+      x: ref.bboxX + ((props.horzOffset | 0) - (ref.origHorzOffset | 0)) / PX_TO_HWP,
+      y: ref.bboxY + ((props.vertOffset | 0) - (ref.origVertOffset | 0)) / PX_TO_HWP,
+      w: props.width / PX_TO_HWP, h: props.height / PX_TO_HWP,
+    }));
+    x = Math.min(...boxes.map(box => box.x));
+    y = Math.min(...boxes.map(box => box.y));
+    width = Math.max(...boxes.map(box => box.x + box.w)) - x;
+    height = Math.max(...boxes.map(box => box.y + box.h)) - y;
+  }
 
   // 모든 경우에 점선 프리뷰만 갱신하여 앵커는 제자리에 머물게 함
-  this.pictureObjectRenderer.renderDragPreview(
-    { pageIndex: state.pageIndex, ...newBbox },
+  this.pictureObjectRenderer?.renderDragPreview(
+    { pageIndex: state.pageIndex, x, y, width, height },
     zoom,
     rotAngle,
   );
 
   // 다중 선택: 드래그 중 실시간으로 개체 크기/위치 반영
-  if (state.multiRefs && state.multiRefs.length > 0) {
-    const scaleX = newBbox.width / state.bbox.w;
-    const scaleY = newBbox.height / state.bbox.h;
-    const origX = state.bbox.x;
-    const origY = state.bbox.y;
-    const newOrigX = newBbox.x;
-    const newOrigY = newBbox.y;
-    const PX2HWP = PX_TO_HWP;
-    const isCorner = ['nw', 'ne', 'sw', 'se'].includes(state.dir);
+  if (targets) {
+    const anyChanged = Boolean(state.recorder?.started) || targets.some(target => target.changed);
+    if (!anyChanged) return;
     try {
-      for (const r of state.multiRefs) {
-        const relX = r.bboxX - origX;
-        const relY = r.bboxY - origY;
-        // 코너: 자유 리사이즈 (scaleX, scaleY 독립 반영), 측면: 해당 축만
-        const sx = (isCorner || state.dir === 'e' || state.dir === 'w') ? scaleX : 1;
-        const sy = (isCorner || state.dir === 'n' || state.dir === 's') ? scaleY : 1;
-        const newPx = newOrigX + relX * scaleX;
-        const newPy = newOrigY + relY * scaleY;
-        const deltaH = Math.round((newPx - r.bboxX) * PX2HWP);
-        const deltaV = Math.round((newPy - r.bboxY) * PX2HWP);
-        const newW = Math.max(Math.round(r.origWidth * sx), MIN_SIZE_HWP);
-        const newH = Math.max(Math.round(r.origHeight * sy), MIN_SIZE_HWP);
-        const updated: Record<string, unknown> = { width: newW, height: newH };
-        if (deltaH !== 0) updated['horzOffset'] = ((r.origHorzOffset + deltaH) >>> 0);
-        if (deltaV !== 0) updated['vertOffset'] = ((r.origVertOffset + deltaV) >>> 0);
-        setObjectProperties.call(this, r, updated);
+      const restored = !state.recorder?.started || restoreRecorderBefore(this.wasm, state.recorder);
+      state.recorder ??= new ObjectGestureRecorder(
+        'resizeObjects',
+        { sectionIndex: state.ref.sec, paragraphIndex: state.ref.ppi, charOffset: 0 },
+        expectedEpoch,
+      );
+      if (!state.recorder.begin(this.wasm)) {
+        InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
+        return;
       }
-      this.eventBus.emit('document-changed');
+      for (const { ref, props } of targets) setObjectProperties.call(this, ref, resizeProperties(ref, props, restored));
+      try { this.wasm.updateConnectorsInSection(state.ref.sec); } catch { /* ignore */ }
+      this.eventBus?.emit('document-changed');
     } catch { /* ignore */ }
   }
 
   // 그룹 단일 선택: 드래그 중 실시간 크기 반영
   if (!state.multiRefs && state.ref.type === 'group') {
-    const newW = Math.max(Math.round(newBbox.width * PX_TO_HWP), MIN_SIZE_HWP);
-    const newH = Math.max(Math.round(newBbox.height * PX_TO_HWP), MIN_SIZE_HWP);
-    const newHorzOffset = Math.round(newBbox.x * PX_TO_HWP);
-    const newVertOffset = Math.round(newBbox.y * PX_TO_HWP);
+    const target = singleResizeTarget(state, newBbox, () => (this.getObjectProperties ?? getObjectProperties).call(this, state.ref));
+    const groupChanged = Boolean(state.recorder?.started) || target.changed;
+    if (!groupChanged) return;
     try {
-      setObjectProperties.call(this, state.ref, {
-        width: newW,
-        height: newH,
-        horzOffset: (newHorzOffset >>> 0),
-        vertOffset: (newVertOffset >>> 0),
-      });
-      this.eventBus.emit('document-changed');
+      const restored = !state.recorder?.started || restoreRecorderBefore(this.wasm, state.recorder);
+      state.recorder ??= new ObjectGestureRecorder(
+        'resizeObjects',
+        { sectionIndex: state.ref.sec, paragraphIndex: state.ref.ppi, charOffset: 0 },
+        expectedEpoch,
+      );
+      if (!state.recorder.begin(this.wasm)) {
+        InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
+        return;
+      }
+      setObjectProperties.call(this, state.ref, resizeProperties(state, target.props, restored));
+      try { this.wasm.updateConnectorsInSection(state.ref.sec); } catch { /* ignore */ }
+      this.eventBus?.emit('document-changed');
     } catch { /* ignore */ }
   }
 }
 
-export function finishPictureResizeDrag(this: any, e: MouseEvent): void {
+export function finishPictureResizeDrag(this: any, e?: MouseEvent): void {
+  if (this.pictureResizeState && isActiveGestureEpochStale(this)) {
+    InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
+    return;
+  }
+  const clean = () => (this.cleanupPictureResizeDrag ?? cleanupPictureResizeDrag).call(this);
   const state = this.pictureResizeState;
-  if (!state) { this.cleanupPictureResizeDrag(); return; }
-
-  const zoom = this.viewportManager.getZoom();
-  const PX2HWP = PX_TO_HWP;
-
-  // 다중 선택 리사이즈: 드래그 중 실시간 반영 완료 → 최종 확정만
-  if (state.multiRefs && state.multiRefs.length > 0) {
-    const newBbox = this.calcResizedBbox(e, zoom);
-    const scaleX = newBbox.width / state.bbox.w;
-    const scaleY = newBbox.height / state.bbox.h;
-    const origX = state.bbox.x;
-    const origY = state.bbox.y;
-    const newOrigX = newBbox.x;
-    const newOrigY = newBbox.y;
-    const isCorner = ['nw', 'ne', 'sw', 'se'].includes(state.dir);
-
+  if (!state || !state.ref || !state.bbox || !this.viewportManager) {
     try {
-      for (const r of state.multiRefs) {
-        const relX = r.bboxX - origX;
-        const relY = r.bboxY - origY;
-        const sx = isCorner ? scaleX : (state.dir === 'n' || state.dir === 's' ? 1 : scaleX);
-        const sy = isCorner ? scaleX : (state.dir === 'e' || state.dir === 'w' ? 1 : scaleY);
-        const newPx = newOrigX + relX * sx;
-        const newPy = newOrigY + relY * sy;
-        const deltaH = Math.round((newPx - r.bboxX) * PX2HWP);
-        const deltaV = Math.round((newPy - r.bboxY) * PX2HWP);
-        const newW = Math.max(Math.round(r.origWidth * sx), MIN_SIZE_HWP);
-        const newH = Math.max(Math.round(r.origHeight * sy), MIN_SIZE_HWP);
-        const updated: Record<string, unknown> = { width: newW, height: newH };
-        if (deltaH !== 0) updated['horzOffset'] = ((r.origHorzOffset + deltaH) >>> 0);
-        if (deltaV !== 0) updated['vertOffset'] = ((r.origVertOffset + deltaV) >>> 0);
-        setObjectProperties.call(this, r, updated);
-      }
-      this.eventBus.emit('document-changed');
-    } catch (err) {
-      console.warn('[InputHandler] 다중 개체 리사이즈 실패:', err);
+      state?.recorder?.cancel(this.wasm);
+    } finally {
+      clean();
     }
-    this.cleanupPictureResizeDrag();
-    this.renderPictureObjectSelection();
     return;
   }
 
-  // 단일 선택 리사이즈 (회전 반영: pivot 고정, 위치도 갱신)
-  const newBbox = calcResizedBboxRotated(state, e, zoom);
-  const newW = Math.max(Math.round(newBbox.width * PX2HWP), MIN_SIZE_HWP);
-  const newH = Math.max(Math.round(newBbox.height * PX2HWP), MIN_SIZE_HWP);
-  const newHorzOffset = Math.round(newBbox.x * PX2HWP);
-  const newVertOffset = Math.round(newBbox.y * PX2HWP);
-  const origHorzOffset = Math.round(state.bbox.x * PX2HWP);
-  const origVertOffset = Math.round(state.bbox.y * PX2HWP);
-
+  let command: EditCommand | null = null;
   try {
-    const updated: Record<string, unknown> = {};
-    if (newW !== state.origWidth) updated['width'] = newW;
-    if (newH !== state.origHeight) updated['height'] = newH;
-    if (newHorzOffset !== origHorzOffset) updated['horzOffset'] = (newHorzOffset >>> 0);
-    if (newVertOffset !== origVertOffset) updated['vertOffset'] = (newVertOffset >>> 0);
-    if (Object.keys(updated).length > 0) {
-      setObjectProperties.call(this, state.ref, updated);
-      this.eventBus.emit('document-changed');
+    state.epoch ??= this.wasm ? documentEpochOf(this.wasm) : null;
+    const expectedEpoch = state.epoch ?? epochFromLabel(state.beforeLabel) ?? this._gestureOwnerEpoch ?? null;
+    const effectiveEvent = e ?? ({
+      clientX: state.lastClientX ?? state.startClientX,
+      clientY: state.lastClientY ?? state.startClientY,
+    } as MouseEvent);
+    const zoom = this.viewportManager.getZoom();
+
+    const pointerMoved = Boolean(
+      state.recorder?.started
+      || effectiveEvent.clientX !== state.startClientX
+      || effectiveEvent.clientY !== state.startClientY,
+    );
+
+    // 다중 선택 리사이즈: 드래그 중 실시간 반영 완료 → 최종 확정 + 히스토리 항목 하나로 봉인
+    if (pointerMoved && state.multiRefs && state.multiRefs.length > 0) {
+      const newBbox = (this.calcResizedBbox ?? calcResizedBbox).call(this, effectiveEvent, zoom);
+      const targets = multiResizeTargets(state.multiRefs, state.dir, state.bbox, newBbox);
+      const anyChanged = Boolean(state.recorder?.started) || targets.some(target => target.changed);
+
+      if (anyChanged) {
+        try {
+          const restored = !state.recorder?.started || restoreRecorderBefore(this.wasm, state.recorder);
+          state.recorder ??= new ObjectGestureRecorder(
+            'resizeObjects',
+            { sectionIndex: state.ref.sec, paragraphIndex: state.ref.ppi, charOffset: 0 },
+            expectedEpoch,
+          );
+          if (!state.recorder.begin(this.wasm)) {
+            InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
+            return;
+          }
+          for (const { ref, props } of targets) setObjectProperties.call(this, ref, resizeProperties(ref, props, restored));
+          try { this.wasm.updateConnectorsInSection(state.ref.sec); } catch { /* ignore */ }
+          this.eventBus?.emit('document-changed');
+        } catch (err) {
+          console.warn('[InputHandler] 다중 개체 리사이즈 실패:', err);
+        }
+      }
+    } else if (pointerMoved && (!state.multiRefs || state.multiRefs.length === 0)) {
+      // 단일 선택 리사이즈 (회전 반영: pivot 고정, 위치도 갱신)
+      const newBbox = calcResizedBboxRotated(state, effectiveEvent, zoom);
+      const { props, changed } = singleResizeTarget(state, newBbox, () => (this.getObjectProperties ?? getObjectProperties).call(this, state.ref));
+
+      try {
+        if (state.recorder?.started || changed) {
+          const restored = !state.recorder?.started || restoreRecorderBefore(this.wasm, state.recorder);
+          state.recorder ??= new ObjectGestureRecorder(
+            'resizeObjects',
+            { sectionIndex: state.ref.sec, paragraphIndex: state.ref.ppi, charOffset: 0 },
+            expectedEpoch,
+          );
+          if (!state.recorder.begin(this.wasm)) {
+            InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
+            return;
+          }
+          setObjectProperties.call(this, state.ref, resizeProperties(state, props, restored));
+          try { this.wasm.updateConnectorsInSection(state.ref.sec); } catch { /* ignore */ }
+          this.eventBus?.emit('document-changed');
+        }
+      } catch (err) {
+        console.warn('[InputHandler] 개체 리사이즈 실패:', err);
+      }
     }
-  } catch (err) {
-    console.warn('[InputHandler] 개체 리사이즈 실패:', err);
+
+    command = state.recorder?.finish(this.wasm) ?? null;
+    if (command) this.history?.recordWithoutExecute(command, this.wasm);
+    command = null;
+  } finally {
+    try {
+      command?.discard?.(this.wasm);
+      state.recorder?.cancel(this.wasm);
+    } finally {
+      clean();
+    }
   }
-  this.cleanupPictureResizeDrag();
-  this.renderPictureObjectSelection();
+  this.renderPictureObjectSelection?.();
 }
 
-export function calcResizedBbox(this: any, e: MouseEvent, zoom: number): { x: number; y: number; width: number; height: number } {
+export function calcResizedBbox(this: any, e: MouseEvent, zoom: number): { x: number; y: number; width: number; height: number; flipX?: boolean; flipY?: boolean } {
   const s = this.pictureResizeState!;
+  if (!s.multiRefs) return calcResizedBboxRotated(s, e, zoom);
   const dx = (e.clientX - s.startClientX) / zoom; // page px
   const dy = (e.clientY - s.startClientY) / zoom;
-  const MIN = 1;
+  const minW = Math.min(1, s.bbox.w);
+  const minH = Math.min(1, s.bbox.h);
 
   let { x, y, w, h } = s.bbox;
+  let flipX = false, flipY = false;
   const dir = s.dir;
 
   // 가로 크기 및 위치 계산 (Flip 허용)
   if (dir.includes('e')) {
     const valW = s.bbox.w + dx;
-    w = Math.max(Math.abs(valW), MIN);
-    if (valW < 0) x = s.bbox.x + valW; // 반대편으로 넘어가면 시작점 이동
+    flipX = valW < 0 && Math.round(dx * PX_TO_HWP) !== 0;
+    w = Math.max(Math.abs(valW), minW);
+    if (valW < 0) x = s.bbox.x - w; // 반대편으로 넘어가면 시작점 이동
   } else if (dir.includes('w')) {
     const valW = s.bbox.w - dx;
-    w = Math.max(Math.abs(valW), MIN);
-    if (valW >= 0) x = s.bbox.x + dx;
+    flipX = valW < 0 && Math.round(dx * PX_TO_HWP) !== 0;
+    w = Math.max(Math.abs(valW), minW);
+    if (valW >= 0) x = s.bbox.x + (s.bbox.w - w);
     else x = s.bbox.x + s.bbox.w; // 반대편으로 넘어가면 오른쪽 끝이 시작점
   }
 
   // 세로 크기 및 위치 계산 (Flip 허용)
   if (dir.includes('s')) {
     const valH = s.bbox.h + dy;
-    h = Math.max(Math.abs(valH), MIN);
-    if (valH < 0) y = s.bbox.y + valH;
+    flipY = valH < 0 && Math.round(dy * PX_TO_HWP) !== 0;
+    h = Math.max(Math.abs(valH), minH);
+    if (valH < 0) y = s.bbox.y - h;
   } else if (dir.includes('n')) {
     const valH = s.bbox.h - dy;
-    h = Math.max(Math.abs(valH), MIN);
-    if (valH >= 0) y = s.bbox.y + dy;
+    flipY = valH < 0 && Math.round(dy * PX_TO_HWP) !== 0;
+    h = Math.max(Math.abs(valH), minH);
+    if (valH >= 0) y = s.bbox.y + (s.bbox.h - h);
     else y = s.bbox.y + s.bbox.h;
   }
 
-  return { x, y, width: w, height: h };
+  return { x, y, width: w, height: h, flipX, flipY };
 }
 
 export function cleanupPictureResizeDrag(this: any): void {
+  this._gestureOwnerEpoch = null;
   this.isPictureResizeDragging = false;
   this.pictureResizeState = null;
-  this.container.style.cursor = '';
+  if (this.container?.style) this.container.style.cursor = '';
   if (this.dragRafId) {
     cancelAnimationFrame(this.dragRafId);
     this.dragRafId = 0;
@@ -541,7 +720,8 @@ export function cleanupPictureResizeDrag(this: any): void {
 }
 
 export function updatePictureMoveDrag(this: any, e: MouseEvent): void {
-  if (!this.pictureMoveState) return;
+  if (!ensureGestureMatchesLiveEpoch(this) || !this.pictureMoveState) return;
+  this.pictureMoveState.epoch ??= this.wasm ? documentEpochOf(this.wasm) : null;
   const zoom = this.viewportManager.getZoom();
   const sc = this.container.querySelector('#scroll-content');
   if (!sc) return;
@@ -569,6 +749,19 @@ export function updatePictureMoveDrag(this: any, e: MouseEvent): void {
   try {
     // 다중 선택: 모든 개체를 동일 delta로 이동
     const targets = this.pictureMoveState.multiRefs || [this.pictureMoveState.ref];
+    const expectedEpoch = this.pictureMoveState.epoch
+      ?? epochFromLabel(this.pictureMoveState.beforeLabel)
+      ?? this._gestureOwnerEpoch
+      ?? null;
+    // 제스처 이전 문서·라벨은 첫 실제 변이 직전에 한 번 봉인한다 —
+    // 선택된 모든 개체와 연결선 갱신이 하나의 히스토리 항목에 담긴다
+    this.pictureMoveState.recorder ??= new ObjectGestureRecorder('moveObjects', {
+      sectionIndex: targets[0].sec, paragraphIndex: targets[0].ppi, charOffset: 0,
+    }, expectedEpoch);
+    if (!this.pictureMoveState.recorder.begin(this.wasm)) {
+      InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
+      return;
+    }
     for (const ref of targets) {
       const props = getObjectProperties.call(this, ref);
       setObjectProperties.call(this, ref, {
@@ -582,36 +775,40 @@ export function updatePictureMoveDrag(this: any, e: MouseEvent): void {
     this.pictureMoveState.totalDeltaV += deltaV;
     // 연결선 자동 추적
     try { this.wasm.updateConnectorsInSection(targets[0].sec); } catch { /* ignore */ }
-    this.eventBus.emit('document-changed');
-    this.renderPictureObjectSelection();
+    this.eventBus?.emit('document-changed');
+    this.renderPictureObjectSelection?.();
   } catch (err) {
     console.warn('[InputHandler] 개체 이동 드래그 실패:', err);
   }
 }
 
 export function finishPictureMoveDrag(this: any): void {
-  if (this.pictureMoveState) {
-    const { totalDeltaH, totalDeltaV, multiRefs } = this.pictureMoveState;
-    if (totalDeltaH !== 0 || totalDeltaV !== 0) {
-      const targets = multiRefs || [{ ...this.pictureMoveState.ref, origHorzOffset: this.pictureMoveState.origHorzOffset, origVertOffset: this.pictureMoveState.origVertOffset }];
-      for (const r of targets) {
-        const CmdClass = (r.type === 'shape' || r.type === 'line' || r.type === 'group') ? MoveShapeCommand : MovePictureCommand;
-        this.history.recordWithoutExecute(
-          new CmdClass(
-            r.sec, r.ppi, r.ci,
-            totalDeltaH, totalDeltaV,
-            r.origHorzOffset, r.origVertOffset,
-          ),
-        );
+  if (this.pictureMoveState && isActiveGestureEpochStale(this)) {
+    InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
+    return;
+  }
+  let command: EditCommand | null = null;
+  try {
+    if (this.pictureMoveState) {
+      // 드래그 전체(모든 대상 + 연결선)를 실제 이전/이후 라벨 쌍을 가진 항목 하나로 기록
+      command = this.pictureMoveState.recorder?.finish(this.wasm) ?? null;
+      if (command) this.history?.recordWithoutExecute(command, this.wasm);
+      command = null;
+    }
+  } finally {
+    try {
+      command?.discard?.(this.wasm);
+      this.pictureMoveState?.recorder?.cancel(this.wasm);
+    } finally {
+      this._gestureOwnerEpoch = null;
+      this.isPictureMoveDragging = false;
+      this.pictureMoveState = null;
+      if (this.container?.style) this.container.style.cursor = '';
+      if (this.dragRafId) {
+        cancelAnimationFrame(this.dragRafId);
+        this.dragRafId = 0;
       }
     }
-  }
-  this.isPictureMoveDragging = false;
-  this.pictureMoveState = null;
-  this.container.style.cursor = '';
-  if (this.dragRafId) {
-    cancelAnimationFrame(this.dragRafId);
-    this.dragRafId = 0;
   }
 }
 
@@ -619,7 +816,7 @@ export function finishPictureMoveDrag(this: any): void {
 
 /** 회전 드래그 중: 마우스 각도에 따라 실시간 회전 적용 */
 export function updatePictureRotateDrag(this: any, e: MouseEvent): void {
-  if (!this.pictureRotateState) return;
+  if (!ensureGestureMatchesLiveEpoch(this) || !this.pictureRotateState) return;
   const sc = this.container.querySelector('#scroll-content');
   if (!sc) return;
   const cr = sc.getBoundingClientRect();
@@ -627,6 +824,7 @@ export function updatePictureRotateDrag(this: any, e: MouseEvent): void {
   const my = e.clientY - cr.top;
 
   const s = this.pictureRotateState;
+  s.epoch ??= this.wasm ? documentEpochOf(this.wasm) : null;
   const currentAngle = Math.atan2(my - s.centerY, mx - s.centerX);
   let deltaDeg = (currentAngle - s.startAngle) * (180 / Math.PI);
 
@@ -638,24 +836,58 @@ export function updatePictureRotateDrag(this: any, e: MouseEvent): void {
   // -360 ~ 360 범위로 정규화
   newAngle = ((newAngle % 360) + 360) % 360;
   if (newAngle > 180) newAngle -= 360;
+  const roundedAngle = Math.round(newAngle);
+  if (!s.recorder?.started && roundedAngle === s.origAngle) return;
 
   try {
-    setObjectProperties.call(this, s.ref, { rotationAngle: Math.round(newAngle) });
-    this.eventBus.emit('document-changed');
+    const expectedEpoch = s.epoch ?? epochFromLabel(s.beforeLabel) ?? this._gestureOwnerEpoch ?? null;
+    s.recorder ??= new ObjectGestureRecorder(
+      'rotateObject',
+      { sectionIndex: s.ref.sec, paragraphIndex: s.ref.ppi, charOffset: 0 },
+      expectedEpoch,
+    );
+    if (!s.recorder.begin(this.wasm)) {
+      InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
+      return;
+    }
+    setObjectProperties.call(this, s.ref, { rotationAngle: roundedAngle });
+    try { this.wasm.updateConnectorsInSection(s.ref.sec); } catch { /* ignore */ }
+    this.eventBus?.emit('document-changed');
     // 드래그 중에는 핸들 고정 — renderPictureObjectSelection 호출 안 함
   } catch (err) {
     console.warn('[InputHandler] 개체 회전 드래그 실패:', err);
   }
 }
 
-/** 회전 드래그 종료: 핸들을 최종 회전 위치로 스냅 */
-export function finishPictureRotateDrag(this: any, _e: MouseEvent): void {
-  this.isPictureRotateDragging = false;
-  this.pictureRotateState = null;
-  this.container.style.cursor = '';
-  if (this.dragRafId) {
-    cancelAnimationFrame(this.dragRafId);
-    this.dragRafId = 0;
+/** 회전 드래그 종료: 핸들을 최종 회전 위치로 스냅하고 히스토리 항목 하나로 봉인 */
+export function finishPictureRotateDrag(this: any, _e?: MouseEvent): void {
+  if (this.pictureRotateState && isActiveGestureEpochStale(this)) {
+    InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
+    return;
   }
-  this.renderPictureObjectSelection();
+  let command: EditCommand | null = null;
+  let hadState = false;
+  try {
+    if (this.pictureRotateState) {
+      hadState = Boolean(this.pictureRotateState.ref);
+      command = this.pictureRotateState.recorder?.finish(this.wasm) ?? null;
+      if (command) this.history?.recordWithoutExecute(command, this.wasm);
+      command = null;
+    }
+  } finally {
+    try {
+      command?.discard?.(this.wasm);
+      this.pictureRotateState?.recorder?.cancel(this.wasm);
+    } finally {
+      this._gestureOwnerEpoch = null;
+      this.isPictureRotateDragging = false;
+      this.pictureRotateState = null;
+      if (this.container?.style) this.container.style.cursor = '';
+      if (this.dragRafId) {
+        cancelAnimationFrame(this.dragRafId);
+        this.dragRafId = 0;
+      }
+    }
+  }
+  if (hadState) this.renderPictureObjectSelection?.();
 }

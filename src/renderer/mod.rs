@@ -9,6 +9,7 @@ pub mod canvas;
 pub mod composer;
 pub mod equation;
 pub mod font_metrics_data;
+pub(crate) mod form_caption;
 pub mod height_measurer;
 pub mod html;
 pub mod layout;
@@ -90,6 +91,8 @@ pub struct TextStyle {
     pub strikethrough: bool,
     /// 자간 (px)
     pub letter_spacing: f64,
+    /// HWP 글리프 advance 대비 자간 비율 (0.0 = 추가 자간 없음)
+    pub hwp_letter_spacing_ratio: f64,
     /// 장평 비율 (1.0 = 100%, 0.8 = 80%)
     pub ratio: f64,
     /// 기본 탭 간격 (px, 0이면 font_size 기반 fallback)
@@ -153,6 +156,7 @@ impl Default for TextStyle {
             underline: UnderlineType::None,
             strikethrough: false,
             letter_spacing: 0.0,
+            hwp_letter_spacing_ratio: 0.0,
             ratio: 1.0,
             default_tab_width: 0.0,
             tab_stops: Vec::new(),

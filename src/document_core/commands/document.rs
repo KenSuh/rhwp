@@ -8,7 +8,9 @@ use crate::error::HwpError;
 use crate::model::control::Control;
 use crate::model::document::Document;
 use crate::model::paragraph::Paragraph;
-use crate::renderer::composer::{compose_section, reflow_line_segs};
+use crate::renderer::composer::{
+    compose_section, reflow_horizontal_cell_line_segs, reflow_line_segs,
+};
 use crate::renderer::layout::LayoutEngine;
 use crate::renderer::page_layout::PageLayoutInfo;
 use crate::renderer::style_resolver::{resolve_styles, ResolvedStyleSet};
@@ -64,7 +66,7 @@ impl DocumentCore {
 
         let sec_count = document.sections.len();
         let mut doc = DocumentCore {
-            document,
+            document: crate::document_core::mutation::DocumentMutation::new(document),
             pagination: Vec::new(),
             styles,
             composed,
@@ -88,6 +90,9 @@ impl DocumentCore {
             overflow_links_cache: RefCell::new(HashMap::new()),
             snapshot_store: Vec::new(),
             next_snapshot_id: 0,
+            text_edit_history: crate::document_core::TextEditHistory::new(),
+            pending_command_inverse: None,
+            next_command_inverse_seq: 0,
             hidden_header_footer: std::collections::HashSet::new(),
             file_name: String::new(),
             active_field: None,
@@ -164,7 +169,7 @@ impl DocumentCore {
         report: &mut ValidationReport,
     ) {
         // 규칙 1: 텍스트가 있는데 lineseg 배열이 비어있음
-        if para.line_segs.is_empty() && !para.text.is_empty() {
+        if para.line_segs.is_empty() && !para.text().is_empty() {
             report.push(ValidationWarning {
                 section_idx,
                 paragraph_idx,
@@ -190,8 +195,8 @@ impl DocumentCore {
         // 휴리스틱 threshold = 40자 (한글 한 줄 ~30자 안팎을 기준으로 보수적).
         const LONG_TEXT_THRESHOLD: usize = 40;
         if para.line_segs.len() == 1
-            && !para.text.contains('\n')
-            && para.text.chars().count() > LONG_TEXT_THRESHOLD
+            && !para.text().contains('\n')
+            && para.text().chars().count() > LONG_TEXT_THRESHOLD
             && Self::single_lineseg_text_overflows(para, styles, dpi)
         {
             report.push(ValidationWarning {
@@ -221,9 +226,9 @@ impl DocumentCore {
         }
         let available_width_px = hwpunit_to_px(line_seg.segment_width, dpi);
         let mut measured_width_px = 0.0;
-        for (idx, ch) in para.text.chars().enumerate() {
-            let utf16_pos = if idx < para.char_offsets.len() {
-                para.char_offsets[idx]
+        for (idx, ch) in para.text().chars().enumerate() {
+            let utf16_pos = if idx < para.char_offsets().len() {
+                para.char_offsets()[idx]
             } else {
                 idx as u32
             };
@@ -255,9 +260,14 @@ impl DocumentCore {
                 .map(|a| a.width)
                 .unwrap_or(layout.body_area.width);
 
-            for para in &mut section.paragraphs {
+            let synthesized: Vec<bool> = section
+                .paragraphs
+                .iter()
+                .map(Self::needs_line_seg_reflow)
+                .collect();
+            for (para, &needs_synthesis) in section.paragraphs.iter_mut().zip(&synthesized) {
                 // 본문 문단 reflow
-                if Self::needs_line_seg_reflow(para) {
+                if needs_synthesis {
                     let para_style = styles.para_styles.get(para.para_shape_id as usize);
                     let margin_left = para_style.map(|s| s.margin_left).unwrap_or(0.0);
                     let margin_right = para_style.map(|s| s.margin_right).unwrap_or(0.0);
@@ -268,7 +278,7 @@ impl DocumentCore {
                 // HWPX: TAC 표가 있는 문단의 LINE_SEG lh 보정
                 // HWPX에서 linesegarray가 없으면 기본 lh=100이 생성되지만,
                 // HWP에서는 TAC 표 높이가 lh에 포함됨 → HWPX에서도 동일하게 확대
-                {
+                if needs_synthesis {
                     let mut max_tac_h: i32 = 0;
                     for ctrl in para.controls.iter() {
                         if let Control::Table(t) = ctrl {
@@ -304,63 +314,18 @@ impl DocumentCore {
                 }
             }
 
-            // HWPX: TAC 표 LINE_SEG 보정 후 문단 간 vpos 재계산
-            // 보정된 문단의 끝 vpos가 변하면 후속 문단들의 vpos도 연쇄 갱신
-            let mut need_vpos_recalc = false;
-            for para in section.paragraphs.iter() {
-                for ctrl in &para.controls {
-                    match ctrl {
-                        Control::Table(t)
-                            if t.common.treat_as_char
-                                && t.raw_ctrl_data.is_empty()
-                                && t.common.height > 0 =>
-                        {
-                            need_vpos_recalc = true;
-                            break;
-                        }
-                        // 비-TAC TopAndBottom Picture/Table: LINE_SEG에 개체 높이 미포함
-                        Control::Picture(p)
-                            if !p.common.treat_as_char
-                                && matches!(
-                                    p.common.text_wrap,
-                                    crate::model::shape::TextWrap::TopAndBottom
-                                )
-                                && p.common.height > 0 =>
-                        {
-                            need_vpos_recalc = true;
-                            break;
-                        }
-                        Control::Table(t)
-                            if !t.common.treat_as_char
-                                && matches!(
-                                    t.common.text_wrap,
-                                    crate::model::shape::TextWrap::TopAndBottom
-                                )
-                                && t.common.height > 0
-                                && t.raw_ctrl_data.is_empty() =>
-                        {
-                            need_vpos_recalc = true;
-                            break;
-                        }
-                        _ => {}
-                    }
-                }
-                if need_vpos_recalc {
-                    break;
-                }
-            }
-            if need_vpos_recalc {
+            if synthesized.iter().any(|&needed| needed) {
                 let mut running_vpos: i32 = 0;
-                for para in section.paragraphs.iter_mut() {
-                    // 문단의 첫 LINE_SEG vpos를 running_vpos로 갱신
-                    if let Some(first_seg) = para.line_segs.first_mut() {
-                        first_seg.vertical_pos = running_vpos;
-                    }
+                for (para, &needs_synthesis) in section.paragraphs.iter_mut().zip(&synthesized) {
                     // 문단 내 LINE_SEG vpos 재계산 (문단 내 누적)
                     // TAC 표가 lh에 포함된 경우: 다음 줄 vpos = th + ls (HWP 동작)
                     let mut inner_vpos = running_vpos;
                     for seg in para.line_segs.iter_mut() {
-                        seg.vertical_pos = inner_vpos;
+                        if needs_synthesis {
+                            seg.vertical_pos = inner_vpos;
+                        } else {
+                            inner_vpos = seg.vertical_pos;
+                        }
                         let advance = if seg.line_height > seg.text_height && seg.text_height > 0 {
                             // lh가 th보다 큼 = TAC 컨트롤 높이 포함 → th 기준 누적
                             seg.text_height + seg.line_spacing
@@ -437,7 +402,7 @@ impl DocumentCore {
     ///
     /// 이 함수는 `reflow_linesegs_on_demand` 에서만 사용되며, 자동 파싱 경로에는 영향 없음.
     fn needs_reflow_broadly(para: &crate::model::paragraph::Paragraph) -> bool {
-        if !para.text.is_empty() && para.line_segs.is_empty() {
+        if !para.text().is_empty() && para.line_segs.is_empty() {
             return true;
         }
         if Self::needs_line_seg_reflow(para) {
@@ -446,8 +411,8 @@ impl DocumentCore {
         // 한컴 textRun reflow 패턴 — 규칙 R3 과 동일 조건
         const LONG_TEXT_THRESHOLD: usize = 40;
         if para.line_segs.len() == 1
-            && !para.text.contains('\n')
-            && para.text.chars().count() > LONG_TEXT_THRESHOLD
+            && !para.text().contains('\n')
+            && para.text().chars().count() > LONG_TEXT_THRESHOLD
         {
             return true;
         }
@@ -455,6 +420,26 @@ impl DocumentCore {
     }
 
     fn cell_reflow_width_px(
+        cell_width: i32,
+        pad_left: i16,
+        pad_right: i16,
+        para_shape_id: u16,
+        styles: &ResolvedStyleSet,
+        dpi: f64,
+    ) -> Option<f64> {
+        use crate::renderer::hwpunit_to_px;
+
+        let width_px = hwpunit_to_px(cell_width, dpi);
+        let content_width =
+            width_px - hwpunit_to_px(pad_left as i32, dpi) - hwpunit_to_px(pad_right as i32, dpi);
+        let para_style = styles.para_styles.get(para_shape_id as usize);
+        let margin_left = para_style.map(|s| s.margin_left).unwrap_or(0.0);
+        let margin_right = para_style.map(|s| s.margin_right).unwrap_or(0.0);
+        let width = content_width - margin_left - margin_right;
+        (width > 0.0).then_some(width)
+    }
+
+    fn vertical_cell_reflow_width_legacy(
         table_padding: crate::model::Padding,
         cell_width: u32,
         cell_padding: crate::model::Padding,
@@ -499,20 +484,37 @@ impl DocumentCore {
         let table_padding = table.padding;
 
         for cell in &mut table.cells {
-            let cell_width = cell.width;
-            let cell_padding = cell.padding;
+            let geometry = super::super::helpers::cell_reflow_geometry(cell, table_padding);
             for cell_para in &mut cell.paragraphs {
-                let cell_width_px = Self::cell_reflow_width_px(
+                let descendant_width_px = Self::vertical_cell_reflow_width_legacy(
                     table_padding,
-                    cell_width,
-                    cell_padding,
+                    cell.width,
+                    cell.padding,
                     cell_para.para_shape_id,
                     styles,
                     dpi,
                     fallback_width_px,
                 );
-                if should_reflow(cell_para) {
-                    reflow_line_segs(cell_para, cell_width_px, styles, dpi);
+                let cell_width_px = if cell.text_direction != 0 {
+                    Some(descendant_width_px)
+                } else {
+                    geometry.and_then(|(cell_width, pad_left, pad_right)| {
+                        Self::cell_reflow_width_px(
+                            cell_width,
+                            pad_left,
+                            pad_right,
+                            cell_para.para_shape_id,
+                            styles,
+                            dpi,
+                        )
+                    })
+                };
+                if let Some(cell_width_px) = cell_width_px.filter(|_| should_reflow(cell_para)) {
+                    if cell.text_direction == 0 {
+                        reflow_horizontal_cell_line_segs(cell_para, cell_width_px, styles, dpi);
+                    } else {
+                        reflow_line_segs(cell_para, cell_width_px, styles, dpi);
+                    }
                     reflowed += 1;
                 }
                 for ctrl in &mut cell_para.controls {
@@ -521,7 +523,7 @@ impl DocumentCore {
                             nested_table,
                             styles,
                             dpi,
-                            cell_width_px,
+                            descendant_width_px,
                             should_reflow,
                         );
                     }
@@ -619,7 +621,7 @@ impl DocumentCore {
             .collect();
         let sec_count = document.sections.len();
 
-        self.document = document;
+        self.document = crate::document_core::mutation::DocumentMutation::new(document);
         self.styles = styles;
         self.composed = composed;
         self.clipboard = None;
@@ -630,6 +632,9 @@ impl DocumentCore {
         self.para_column_map = Vec::new();
         self.page_tree_cache.borrow_mut().clear();
         self.snapshot_store.clear();
+        self.text_edit_history = crate::document_core::TextEditHistory::new();
+        self.pending_command_inverse = None;
+        self.next_command_inverse_seq = 0;
         self.next_snapshot_id = 0;
 
         self.convert_to_editable_native()?;
@@ -707,7 +712,12 @@ impl DocumentCore {
 
     /// 문서 IR을 직접 설정한다 (테스트/네이티브 전용).
     pub fn set_document(&mut self, doc: Document) {
-        self.document = doc;
+        self.document = crate::document_core::mutation::DocumentMutation::new(doc);
+        self.snapshot_store.clear();
+        self.next_snapshot_id = 0;
+        self.text_edit_history = crate::document_core::TextEditHistory::new();
+        self.pending_command_inverse = None;
+        self.next_command_inverse_seq = 0;
         self.styles = resolve_styles(&self.document.doc_info, self.dpi);
         self.composed = self
             .document
@@ -738,30 +748,81 @@ impl DocumentCore {
 
     // ─── Undo/Redo 스냅샷 API ──────────────────────────
 
-    /// 현재 Document를 클론하여 스냅샷 저장소에 보관한다.
+    /// 문서 구조를 복제하고 큰 불변 바이너리는 Arc 풀로 공유해 보관한다.
     /// 반환값: 스냅샷 ID (u32)
+    ///
+    /// 스냅샷은 저장 시점의 상태 라벨 하나만 봉인한다. before/after 짝을 전역 대기 슬롯으로
+    /// 암묵적으로 맺지 않으므로 겹치거나 교차한 제스처가 서로의 스냅샷을 짝지을 수 없다 —
+    /// 짝은 호출부(히스토리 항목)가 명시한 라벨 쌍이고, 복원 시 게이트가 그 쌍을 검증한다.
     pub fn save_snapshot_native(&mut self) -> u32 {
+        self.invalidate_edit_redo();
         let id = self.next_snapshot_id;
         self.next_snapshot_id += 1;
-        self.snapshot_store.push((id, self.document.clone()));
-        // 최대 100개 제한 — 초과 시 가장 오래된 스냅샷 제거
-        const MAX_SNAPSHOTS: usize = 100;
+        self.snapshot_store
+            .push(crate::document_core::SnapshotRecord {
+                id,
+                document: self.document.snapshot(),
+                label: self.document.state_label().unwrap_or_default(),
+            });
+
+        // 스냅샷 수명은 Studio CommandHistory가 항목 제거·밀어내기·redo 정리 때
+        // discard()로 관리한다(MAX_HISTORY_SIZE = 1000 항목 × 항목당 스냅샷 2개 + IME 등
+        // 일시 캡처). 이 상한은 누수 안전판일 뿐이라 정상 세션의 살아 있는 쌍을 내보내지
+        // 않도록 그 합보다 넉넉히 크다. 안전판이 오래된 스냅샷을 내보내면 Studio는 그
+        // 항목을 영구 자원 부재로 보고 닿을 수 없는 이전 항목과 함께 정리한다.
+        const MAX_SNAPSHOTS: usize = 4096;
         while self.snapshot_store.len() > MAX_SNAPSHOTS {
             self.snapshot_store.remove(0);
         }
         id
     }
 
+    /// `id` 스냅샷을 지금 상태에서 복원할 때 게이트에 제시할 (기대, 산출) 라벨 —
+    /// 즉 (live 라벨, 스냅샷이 저장 시점에 봉인한 라벨). 스냅샷이 없으면 None.
+    pub fn snapshot_labels_native(&self, id: u32) -> Option<(String, String)> {
+        let record = self.snapshot_store.iter().find(|record| record.id == id)?;
+        if record.label.is_empty() {
+            return None;
+        }
+        let live_label = self.document.state_label().ok()?;
+        Some((live_label, record.label.clone()))
+    }
+
     /// 지정 ID의 스냅샷으로 Document를 복원한다.
-    /// 스타일 재해소 + 문단 구성 + 페이지네이션까지 수행.
+    ///
+    /// 단일 역실행 게이트에 (live 라벨, 스냅샷 라벨)을 제시한다. 명령 역실행 범위 안이면
+    /// 게이트가 이 쌍을 범위가 명시한 (undo, redo) 라벨과 대조해 다른 항목의 스냅샷을
+    /// 거부한다. 범위 밖이면 live 내용이 어느 스냅샷에도 담겨 있지 않을 때(기록되지 않은
+    /// 편집을 잃게 될 때) 바이트를 바꾸지 않고 InvalidEditHandle을 반환한다.
     pub fn restore_snapshot_native(&mut self, id: u32) -> Result<String, HwpError> {
         let idx = self
             .snapshot_store
             .iter()
-            .position(|(sid, _)| *sid == id)
-            .ok_or_else(|| HwpError::RenderError(format!("스냅샷 {} 없음", id)))?;
-        let (_, doc) = self.snapshot_store[idx].clone();
-        self.document = doc;
+            .position(|record| record.id == id)
+            .ok_or_else(|| HwpError::InvalidEditHandle(format!("snapshot {id} not found")))?;
+        let produced_label = self.snapshot_store[idx].label.clone();
+        if produced_label.is_empty() {
+            return Err(HwpError::InvalidEditHandle(
+                "snapshot has no state label".into(),
+            ));
+        }
+        let live_label = self
+            .document
+            .state_label()
+            .map_err(|error| HwpError::InvalidEditHandle(error.to_string()))?;
+        if self.pending_command_inverse.is_none()
+            && !self
+                .snapshot_store
+                .iter()
+                .any(|record| record.label == live_label)
+        {
+            return Err(HwpError::InvalidEditHandle(
+                "live content is not captured by any snapshot".into(),
+            ));
+        }
+        let doc = self.snapshot_store[idx].document.restore();
+        let ticket = self.document.begin_inverse(&live_label, &produced_label)?;
+        *self.document = doc;
         // 캐시 전체 재구성
         self.styles = resolve_styles(&self.document.doc_info, self.dpi);
         self.composed = self
@@ -778,12 +839,14 @@ impl DocumentCore {
         self.page_tree_cache.borrow_mut().clear();
         self.overflow_links_cache.borrow_mut().clear();
         self.paginate();
+        self.document.finish_inverse(ticket)?;
         Ok(super::super::helpers::json_ok())
     }
 
     /// 지정 ID의 스냅샷을 저장소에서 제거하여 메모리를 해제한다.
     pub fn discard_snapshot_native(&mut self, id: u32) {
-        self.snapshot_store.retain(|(sid, _)| *sid != id);
+        self.snapshot_store.retain(|record| record.id != id);
+        self.document.prune_snapshot_payloads();
     }
 
     pub fn measure_width_diagnostic_native(
@@ -808,7 +871,7 @@ impl DocumentCore {
             .and_then(|s| s.get(para_idx))
             .ok_or_else(|| HwpError::InvalidFile("composed paragraph not found".into()))?;
 
-        let text_preview: String = para.text.chars().take(30).collect();
+        let text_preview: String = para.text().chars().take(30).collect();
 
         let mut lines_json = Vec::new();
 
@@ -875,7 +938,7 @@ impl DocumentCore {
         fn process_para(para: &mut Paragraph) {
             // 삭제 대상 field_range 인덱스와 삭제할 문자 범위 수집
             let mut removals: Vec<(usize, usize, usize)> = Vec::new(); // (fr_idx, start, end)
-            for (fri, fr) in para.field_ranges.iter().enumerate() {
+            for (fri, fr) in para.field_ranges().iter().enumerate() {
                 if fr.start_char_idx >= fr.end_char_idx {
                     continue;
                 }
@@ -888,7 +951,7 @@ impl DocumentCore {
                     } // 이미 수정된 상태
                       // 필드 값이 안내문과 동일한지 확인
                     if let Some(guide) = f.guide_text() {
-                        let chars: Vec<char> = para.text.chars().collect();
+                        let chars: Vec<char> = para.text().chars().collect();
                         if fr.end_char_idx <= chars.len() {
                             let field_val: String =
                                 chars[fr.start_char_idx..fr.end_char_idx].iter().collect();
@@ -901,25 +964,8 @@ impl DocumentCore {
                 }
             }
             // 뒤에서부터 삭제 (인덱스 안정성 유지)
-            for &(fri, start, end) in removals.iter().rev() {
-                let removed_len = end - start;
-                let chars: Vec<char> = para.text.chars().collect();
-                let new_text: String = chars[..start].iter().chain(chars[end..].iter()).collect();
-                para.text = new_text;
-                para.field_ranges[fri].end_char_idx = start;
-                // 이후 field_ranges의 char_idx 조정
-                for i in 0..para.field_ranges.len() {
-                    if i == fri {
-                        continue;
-                    }
-                    let other = &mut para.field_ranges[i];
-                    if other.start_char_idx >= end {
-                        other.start_char_idx -= removed_len;
-                    }
-                    if other.end_char_idx >= end {
-                        other.end_char_idx -= removed_len;
-                    }
-                }
+            for &(_, start, end) in removals.iter().rev() {
+                para.delete_text_at(start, end - start);
             }
         }
 
@@ -962,7 +1008,7 @@ mod validate_linesegs_tests {
         let mut doc = Document::default();
         let mut section = Section::default();
         let mut para = Paragraph::default();
-        para.text = "hello".to_string();
+        para.replace_text("hello".to_string());
         // line_segs 비워둠
         section.paragraphs.push(para);
         doc.sections.push(section);
@@ -981,7 +1027,7 @@ mod validate_linesegs_tests {
         let mut doc = Document::default();
         let mut section = Section::default();
         let mut para = Paragraph::default();
-        para.text = "hello".to_string();
+        para.replace_text("hello".to_string());
         para.line_segs.push(LineSeg::default()); // line_height=0 상태
         section.paragraphs.push(para);
         doc.sections.push(section);
@@ -997,7 +1043,7 @@ mod validate_linesegs_tests {
         let mut doc = Document::default();
         let mut section = Section::default();
         let mut para = Paragraph::default();
-        para.text = "hello".to_string();
+        para.replace_text("hello".to_string());
         let mut seg = LineSeg::default();
         seg.line_height = 1000;
         para.line_segs.push(seg);
@@ -1035,7 +1081,7 @@ mod validate_linesegs_tests {
 
         // 셀 내부에 문제가 있는 문단
         let mut cell_para = Paragraph::default();
-        cell_para.text = "in-cell".to_string();
+        cell_para.replace_text("in-cell".to_string());
         // line_segs 비워둠 → LinesegArrayEmpty 감지 대상
 
         let mut cell = Cell::default();
@@ -1071,11 +1117,11 @@ mod validate_linesegs_tests {
         let mut section = Section::default();
 
         let mut p1 = Paragraph::default();
-        p1.text = "a".to_string();
+        p1.replace_text("a".to_string());
         // line_segs 비움
 
         let mut p2 = Paragraph::default();
-        p2.text = "b".to_string();
+        p2.replace_text("b".to_string());
         p2.line_segs.push(LineSeg::default()); // line_height=0
 
         section.paragraphs.push(p1);
@@ -1098,7 +1144,7 @@ mod validate_linesegs_tests {
     #[test]
     fn needs_reflow_broadly_covers_empty_linesegs() {
         let mut para = Paragraph::default();
-        para.text = "hello".to_string();
+        para.replace_text("hello".to_string());
         // line_segs 비움
         assert!(DocumentCore::needs_reflow_broadly(&para));
     }
@@ -1107,7 +1153,7 @@ mod validate_linesegs_tests {
     #[test]
     fn needs_reflow_broadly_covers_uncomputed_lineseg() {
         let mut para = Paragraph::default();
-        para.text = "hello".to_string();
+        para.replace_text("hello".to_string());
         para.line_segs.push(LineSeg::default());
         assert!(DocumentCore::needs_reflow_broadly(&para));
     }
@@ -1116,7 +1162,7 @@ mod validate_linesegs_tests {
     #[test]
     fn needs_reflow_broadly_skips_healthy_paragraph() {
         let mut para = Paragraph::default();
-        para.text = "hello".to_string();
+        para.replace_text("hello".to_string());
         let mut seg = LineSeg::default();
         seg.line_height = 1000;
         para.line_segs.push(seg);
@@ -1138,7 +1184,7 @@ mod validate_linesegs_tests {
         let mut doc = Document::default();
         let mut section = Section::default();
         let mut para = Paragraph::default();
-        para.text = "이것은 충분히 길어서 한 줄로 표시하기 어려운 한국어 문장입니다. 한컴은 textRun으로 reflow하지만 rhwp는 그대로 그립니다.".to_string();
+        para.replace_text("이것은 충분히 길어서 한 줄로 표시하기 어려운 한국어 문장입니다. 한컴은 textRun으로 reflow하지만 rhwp는 그대로 그립니다.".to_string());
         let mut seg = LineSeg::default();
         seg.line_height = 1000; // line_height 는 0 아님 → R2 는 해당 안 됨
         para.line_segs.push(seg);
@@ -1156,7 +1202,7 @@ mod validate_linesegs_tests {
         let mut doc = Document::default();
         let mut section = Section::default();
         let mut para = Paragraph::default();
-        para.text = "짧은 문장입니다.".to_string();
+        para.replace_text("짧은 문장입니다.".to_string());
         let mut seg = LineSeg::default();
         seg.line_height = 1000;
         para.line_segs.push(seg);
@@ -1173,9 +1219,10 @@ mod validate_linesegs_tests {
         let mut doc = Document::default();
         let mut section = Section::default();
         let mut para = Paragraph::default();
-        para.text =
+        para.replace_text(
             "충분히 긴 텍스트이지만 줄바꿈이 있습니다.\n그래서 R3은 해당하지 않아야 합니다."
-                .to_string();
+                .to_string(),
+        );
         let mut seg = LineSeg::default();
         seg.line_height = 1000;
         para.line_segs.push(seg);
@@ -1189,7 +1236,7 @@ mod validate_linesegs_tests {
     #[test]
     fn needs_reflow_broadly_covers_textrun_reflow() {
         let mut para = Paragraph::default();
-        para.text = "이것은 충분히 길어서 한 줄로 표시하기 어려운 한국어 문장입니다. 한컴은 textRun으로 reflow하지만 rhwp는 그대로 그립니다.".to_string();
+        para.replace_text("이것은 충분히 길어서 한 줄로 표시하기 어려운 한국어 문장입니다. 한컴은 textRun으로 reflow하지만 rhwp는 그대로 그립니다.".to_string());
         let mut seg = LineSeg::default();
         seg.line_height = 1000;
         para.line_segs.push(seg);
@@ -1244,5 +1291,116 @@ mod validate_linesegs_tests {
             "셀 lineseg 폭은 본문 컬럼 폭이 아니라 셀 폭 이하여야 함: {:?}",
             lines
         );
+    }
+
+    #[test]
+    fn document_reflow_preserves_unavailable_horizontal_cell_geometry() {
+        use crate::model::table::{Cell, Table};
+
+        let styles = resolve_styles(&Document::default().doc_info, DEFAULT_DPI);
+        for direction in [0] {
+            for extent in [0, u32::MAX, 200] {
+                for line_height in [0, 900] {
+                    let mut cell = Cell::new_empty(0, 0, 5291, 32000, 0);
+                    cell.text_direction = direction;
+                    if direction == 0 {
+                        cell.width = extent;
+                        cell.padding.left = 300;
+                    } else {
+                        cell.height = extent;
+                        cell.padding.top = 300;
+                    }
+                    let para = &mut cell.paragraphs[0];
+                    para.insert_text_at(
+                        0,
+                        "가나다라마바사아자차카타파하가나다라마바사아자차카타파하",
+                    );
+                    para.line_segs = vec![LineSeg {
+                        line_height,
+                        segment_width: 28500,
+                        ..Default::default()
+                    }];
+                    let before = format!("{:?}", para.line_segs);
+                    let mut table = Table {
+                        row_count: 1,
+                        col_count: 1,
+                        cells: vec![cell],
+                        ..Default::default()
+                    };
+                    for predicate in [
+                        DocumentCore::needs_line_seg_reflow,
+                        DocumentCore::needs_reflow_broadly,
+                    ] {
+                        assert_eq!(
+                            DocumentCore::reflow_table_cell_paragraphs(
+                                &mut table,
+                                &styles,
+                                DEFAULT_DPI,
+                                600.0,
+                                predicate
+                            ),
+                            0
+                        );
+                        assert_eq!(
+                            format!("{:?}", table.cells[0].paragraphs[0].line_segs),
+                            before
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn document_reflow_keeps_pre_l1_vertical_cell_width_in_nested_and_merged_cells() {
+        use crate::model::table::{Cell, Table};
+
+        for direction in [1, 2] {
+            let mut para = Paragraph::new_empty();
+            para.insert_text_at(
+                0,
+                "가나다라마바사아자차카타파하가나다라마바사아자차카타파하",
+            );
+            para.line_segs.clear();
+            let mut cell = Cell::new_empty(0, 0, 5291, 32000, 0);
+            cell.text_direction = direction;
+            cell.col_span = 2;
+            cell.row_span = 2;
+            cell.padding.top = 1200;
+            cell.padding.bottom = 2300;
+            cell.paragraphs = vec![para];
+            let mut nested = Table::default();
+            nested.row_count = 2;
+            nested.col_count = 2;
+            nested.cells.push(cell);
+            let mut outer = Table::default();
+            let mut host = Cell::new_empty(0, 0, 0, 0, 0);
+            host.paragraphs[0]
+                .controls
+                .push(Control::Table(Box::new(nested)));
+            outer.cells.push(host);
+            let styles = resolve_styles(&Document::default().doc_info, DEFAULT_DPI);
+
+            let reflowed = DocumentCore::reflow_table_cell_paragraphs(
+                &mut outer,
+                &styles,
+                DEFAULT_DPI,
+                600.0,
+                DocumentCore::needs_reflow_broadly,
+            );
+
+            assert_eq!(reflowed, 1);
+            let Control::Table(nested) = &outer.cells[0].paragraphs[0].controls[0] else {
+                panic!("nested table");
+            };
+            let lines = &nested.cells[0].paragraphs[0].line_segs;
+            assert!(!lines.is_empty());
+            assert!(
+                lines
+                    .iter()
+                    .all(|line| (5290..=5291).contains(&line.segment_width)),
+                "vertical document capacity: {lines:?}"
+            );
+        }
     }
 }

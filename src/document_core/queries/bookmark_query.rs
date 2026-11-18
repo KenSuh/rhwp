@@ -89,9 +89,13 @@ impl DocumentCore {
         }
 
         // char_offsets에 컨트롤 위치 정보 추가
-        if !paragraph.char_offsets.is_empty() {
+        if !paragraph.char_offsets().is_empty() {
             let raw_offset = char_offset_to_raw(paragraph, char_offset, insert_idx);
-            paragraph.char_offsets.insert(insert_idx, raw_offset);
+            {
+                let mut paragraph_offsets = paragraph.char_offsets().to_vec();
+                paragraph_offsets.insert(insert_idx, raw_offset);
+                paragraph.set_char_offsets(paragraph_offsets);
+            };
         }
 
         self.recompose_section(sec);
@@ -129,8 +133,12 @@ impl DocumentCore {
         if ctrl_idx < paragraph.ctrl_data_records.len() {
             paragraph.ctrl_data_records.remove(ctrl_idx);
         }
-        if ctrl_idx < paragraph.char_offsets.len() {
-            paragraph.char_offsets.remove(ctrl_idx);
+        if ctrl_idx < paragraph.char_offsets().len() {
+            {
+                let mut paragraph_offsets = paragraph.char_offsets().to_vec();
+                paragraph_offsets.remove(ctrl_idx);
+                paragraph.set_char_offsets(paragraph_offsets);
+            };
         }
 
         self.recompose_section(sec);
@@ -305,12 +313,12 @@ fn char_offset_to_raw(
     insert_idx: usize,
 ) -> u32 {
     // 기존 char_offsets에서 삽입 위치 주변의 raw offset을 참조
-    if insert_idx > 0 && insert_idx <= para.char_offsets.len() {
+    if insert_idx > 0 && insert_idx <= para.char_offsets().len() {
         // 이전 컨트롤의 raw offset + 8 (컨트롤 문자 크기)
-        para.char_offsets[insert_idx - 1] + 8
-    } else if !para.char_offsets.is_empty() {
+        para.char_offsets()[insert_idx - 1] + 8
+    } else if !para.char_offsets().is_empty() {
         // 첫 위치에 삽입: 기존 첫 번째보다 작은 값
-        let first = para.char_offsets[0];
+        let first = para.char_offsets()[0];
         if first >= 8 {
             first - 8
         } else {

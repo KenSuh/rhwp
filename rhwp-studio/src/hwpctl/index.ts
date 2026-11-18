@@ -29,6 +29,8 @@ export class HwpCtrl {
   private cursorPos = 0;
   /** 이벤트 리스너 */
   private listeners: Map<number, Function[]> = new Map();
+  /** 비기록 변이로 상태 라벨이 바뀌었을 때 외부 히스토리를 무효화하는 콜백 */
+  private invalidationCallbacks: Array<() => void> = [];
 
   constructor(wasmDoc: any) {
     this.wasmDoc = wasmDoc;
@@ -37,6 +39,30 @@ export class HwpCtrl {
   /** 내부: WASM 문서 객체 접근 */
   getWasmDoc(): any {
     return this.wasmDoc;
+  }
+
+  /** 현재 문서의 콘텐츠 상태 라벨 반환 */
+  getStateLabel(): string | null {
+    if (!this.wasmDoc || typeof this.wasmDoc.stateLabel !== 'function') return null;
+    try {
+      return this.wasmDoc.stateLabel() ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** 비기록 변이 발생 시 호출할 히스토리 무효화 리스너 등록 */
+  onHistoryInvalidated(callback: () => void): void {
+    this.invalidationCallbacks.push(callback);
+  }
+
+  private notifyIfLabelChanged(beforeLabel: string | null): void {
+    const afterLabel = this.getStateLabel();
+    if (beforeLabel !== afterLabel) {
+      for (const callback of this.invalidationCallbacks) {
+        callback();
+      }
+    }
   }
 
   /** 내부: 현재 커서 위치 */
@@ -48,9 +74,11 @@ export class HwpCtrl {
 
   /** 문서 열기 (Blob/ArrayBuffer) */
   Open(data: ArrayBuffer | Uint8Array, callback?: (success: boolean) => void): boolean {
+    const beforeLabel = this.getStateLabel();
     try {
       const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : data;
       this.wasmDoc = new (this.wasmDoc.constructor)(bytes);
+      this.notifyIfLabelChanged(beforeLabel);
       callback?.(true);
       return true;
     } catch (e) {
@@ -62,10 +90,12 @@ export class HwpCtrl {
 
   /** 빈 문서 생성 */
   Clear(): void {
+    const beforeLabel = this.getStateLabel();
     this.wasmDoc.createBlankDocument();
     this.cursorSection = 0;
     this.cursorPara = 0;
     this.cursorPos = 0;
+    this.notifyIfLabelChanged(beforeLabel);
   }
 
   /** 원본 파일 형식에 맞게 HWP 또는 HWPX로 내보내기 */
@@ -142,11 +172,13 @@ export class HwpCtrl {
 
   /** 텍스트 삽입 */
   InsertText(text: string): boolean {
+    const beforeLabel = this.getStateLabel();
     try {
       this.wasmDoc.insertText(
         this.cursorSection, this.cursorPara, this.cursorPos, text,
       );
       this.cursorPos += text.length;
+      this.notifyIfLabelChanged(beforeLabel);
       return true;
     } catch (e) {
       console.error('[hwpctl] InsertText 실패:', e);
@@ -156,8 +188,11 @@ export class HwpCtrl {
 
   /** Action 단순 실행 */
   Run(actionId: string): boolean {
+    const beforeLabel = this.getStateLabel();
     const action = this.CreateAction(actionId);
-    return action.Run();
+    const ok = action.Run();
+    this.notifyIfLabelChanged(beforeLabel);
+    return ok;
   }
 
   /** 커서 위치 설정 */
@@ -189,13 +224,18 @@ export class HwpCtrl {
    * @param controlIdx 표 컨트롤 인덱스 (기본 0)
    */
   SetCellText(tableParaIdx: number, row: number, col: number, text: string, colCount: number, controlIdx = 0): boolean {
+    const beforeLabel = this.getStateLabel();
     try {
       const cellIdx = row * colCount + col;
       const result = this.wasmDoc.insertTextInCell(
         this.cursorSection, tableParaIdx, controlIdx, cellIdx, 0, 0, text,
       );
       const parsed = JSON.parse(result);
-      return parsed.ok === true;
+      if (parsed.ok === true) {
+        this.notifyIfLabelChanged(beforeLabel);
+        return true;
+      }
+      return false;
     } catch (e) {
       console.error(`[hwpctl] SetCellText(pi=${tableParaIdx}, r=${row}, c=${col}) 실패:`, e);
       return false;
@@ -217,11 +257,14 @@ export class HwpCtrl {
 
   /** 표 셀에서 계산식 실행 */
   EvaluateFormula(tableParaIdx: number, row: number, col: number, formula: string, writeResult = true, controlIdx = 0): any {
+    const beforeLabel = this.getStateLabel();
     try {
       const result = this.wasmDoc.evaluateTableFormula(
         this.cursorSection, tableParaIdx, controlIdx, row, col, formula, writeResult,
       );
-      return JSON.parse(result);
+      const parsed = JSON.parse(result);
+      if (parsed.ok) this.notifyIfLabelChanged(beforeLabel);
+      return parsed;
     } catch (e) {
       console.error(`[hwpctl] EvaluateFormula 실패:`, e);
       return { ok: false, error: String(e) };
@@ -271,10 +314,15 @@ export class HwpCtrl {
 
   /** 필드 텍스트 설정 (한컴 호환: PutFieldText) */
   PutFieldText(field: string, text: string): boolean {
+    const beforeLabel = this.getStateLabel();
     try {
       const result = this.wasmDoc.setFieldValueByName(field, text);
       const parsed = JSON.parse(result);
-      return parsed.ok === true;
+      if (parsed.ok === true) {
+        this.notifyIfLabelChanged(beforeLabel);
+        return true;
+      }
+      return false;
     } catch (e) {
       console.error(`[hwpctl] PutFieldText("${field}") 실패:`, e);
       return false;

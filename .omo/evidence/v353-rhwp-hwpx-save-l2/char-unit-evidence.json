@@ -1,0 +1,200 @@
+{
+ "generated_at": "2026-10-26T06:16:01Z",
+ "question": "한컴 저장 원본에서 홀수 여백이 HwpUnitChar case 에 unit=CHAR · (default-1)/2 로 쓰이는가 (Parent 처분 2)",
+ "scanned_root": "/Users/ken/ken wiki/knowledge/raw",
+ "scanned_hwpx_files": 661,
+ "files_with_char_or_odd": 5,
+ "case_char_values_total": 43,
+ "violations_total": 0,
+ "tab_items_in_switch_note": "같은 코퍼스 tabItem switch 9114개는 모두 짝수 default · case=default/2 · unit=HWPUNIT (홀수 0)",
+ "files": [
+  {
+   "file": "/Users/ken/ken wiki/knowledge/raw/business_plans_samples/사업계획서_주식회사 건국메탈_0QyZ22A_2025-12-16_HWP.hwpx",
+   "sha256": "49c2e687ff37bd3c637346b111b6cb02611d485bf1a0ac087b254f935b82de57",
+   "app": "12.30.0.6382 MAC64LEDarwin_25.3.0 10",
+   "case_char_values": 19,
+   "odd_defaults": 19,
+   "default_eq_case_x2_plus1": 19,
+   "violations": [],
+   "examples(paraPr id, field, case value, case unit, default value)": [
+    [
+     "10",
+     "intent",
+     0,
+     "CHAR",
+     1
+    ],
+    [
+     "10",
+     "left",
+     0,
+     "CHAR",
+     1
+    ],
+    [
+     "10",
+     "right",
+     0,
+     "CHAR",
+     1
+    ],
+    [
+     "10",
+     "prev",
+     53,
+     "CHAR",
+     107
+    ],
+    [
+     "10",
+     "next",
+     80,
+     "CHAR",
+     161
+    ]
+   ]
+  },
+  {
+   "file": "/Users/ken/ken wiki/knowledge/raw/onedrive_samples/AUTO/스마트공장 기초구축 지원사업 경남 2026/1. 2026년 경남형 기초구축 스마트공장 사업계획서 양식.hwpx",
+   "sha256": "b663d2a922a3a826b84fab7b54c25b0b9477ca7996b8e93111724419e8aa58e6",
+   "app": "12.30.0.6382 MAC64LEDarwin_25.3.0 10",
+   "case_char_values": 15,
+   "odd_defaults": 15,
+   "default_eq_case_x2_plus1": 15,
+   "violations": [],
+   "examples(paraPr id, field, case value, case unit, default value)": [
+    [
+     "138",
+     "intent",
+     0,
+     "CHAR",
+     1
+    ],
+    [
+     "138",
+     "left",
+     0,
+     "CHAR",
+     1
+    ],
+    [
+     "138",
+     "right",
+     0,
+     "CHAR",
+     1
+    ],
+    [
+     "138",
+     "prev",
+     53,
+     "CHAR",
+     107
+    ],
+    [
+     "138",
+     "next",
+     80,
+     "CHAR",
+     161
+    ]
+   ]
+  },
+  {
+   "file": "/Users/ken/ken wiki/knowledge/raw/onedrive_samples/ENV/탄소중립 제조혁신 고도화 2단계 전남 2026/붙임  2. 사업신청서 및 제출서류 양식.hwpx",
+   "sha256": "b6efdd394b1adf4ecf2bf5ded82fdadf52d559f0ecfa64c87b718acc6ee69607",
+   "app": "12.30.0.6382 MAC64LEDarwin_25.3.0 10",
+   "case_char_values": 5,
+   "odd_defaults": 5,
+   "default_eq_case_x2_plus1": 5,
+   "violations": [],
+   "examples(paraPr id, field, case value, case unit, default value)": [
+    [
+     "70",
+     "next",
+     80,
+     "CHAR",
+     161
+    ],
+    [
+     "71",
+     "next",
+     80,
+     "CHAR",
+     161
+    ],
+    [
+     "72",
+     "next",
+     80,
+     "CHAR",
+     161
+    ],
+    [
+     "73",
+     "next",
+     80,
+     "CHAR",
+     161
+    ],
+    [
+     "74",
+     "next",
+     80,
+     "CHAR",
+     161
+    ]
+   ]
+  },
+  {
+   "file": "/Users/ken/ken wiki/knowledge/raw/onedrive_samples/mixed_pending/로봇활용 제조혁신 지원사업 2026/1-1. 양식. '26년 로봇활용 제조혁신 지원사업 사업계획서_일반 및 노후로봇 교체.hwpx",
+   "sha256": "219df779686c8f17057d84e9230f366dc5781a5c5db2b3817e62bb87824ea271",
+   "app": "12.30.0.6382 MAC64LEDarwin_25.3.0 10",
+   "case_char_values": 2,
+   "odd_defaults": 2,
+   "default_eq_case_x2_plus1": 2,
+   "violations": [],
+   "examples(paraPr id, field, case value, case unit, default value)": [
+    [
+     "114",
+     "next",
+     80,
+     "CHAR",
+     161
+    ],
+    [
+     "137",
+     "next",
+     80,
+     "CHAR",
+     161
+    ]
+   ]
+  },
+  {
+   "file": "/Users/ken/ken wiki/knowledge/raw/onedrive_samples/mixed_pending/로봇활용 제조혁신 지원사업 2026/1-2. 양식. '26년  로봇활용 제조혁신 지원사업 사업계획서_AI 기술 활용.hwpx",
+   "sha256": "3c264bd5c217ba36674674f00c420ce0d19e73538f21f9b6dd638b9a1b5129cf",
+   "app": "12.30.0.6382 MAC64LEDarwin_25.3.0 10",
+   "case_char_values": 2,
+   "odd_defaults": 2,
+   "default_eq_case_x2_plus1": 2,
+   "violations": [],
+   "examples(paraPr id, field, case value, case unit, default value)": [
+    [
+     "117",
+     "next",
+     80,
+     "CHAR",
+     161
+    ],
+    [
+     "140",
+     "next",
+     80,
+     "CHAR",
+     161
+    ]
+   ]
+  }
+ ]
+}

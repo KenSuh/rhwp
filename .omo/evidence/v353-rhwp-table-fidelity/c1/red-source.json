@@ -1,0 +1,30 @@
+{
+  "head": "1e87b0e5507ff3204f9729e9de800e8163ae267c",
+  "method": "three corrected source files temporarily replaced with exact git-show entry blobs and restored in finally; all other source still matches entry HEAD",
+  "source_sha256": {
+    "src/model/table.rs": "a119a4cf095c0905e8f79937942cfdd9188578765956e9da39a464d8bb255dbc",
+    "src/document_core/commands/table_ops.rs": "4b343bc5a566273f8c69ed160e80d26de0c1096f6df2bbfb19c063ba21a7ccc6",
+    "src/document_core/commands/text_editing.rs": "01041a91eafaa05bf28e37690e07212876b93a6e32a27dd03a116779efe8fa9d"
+  },
+  "tests_sha256": "c67a13b797813604e21fba636d66093f2847862807fe793c65f1f43b3a46e840",
+  "command": "CARGO_NET_OFFLINE=true cargo test --offline --locked --test hwpx_table_fidelity",
+  "exit": 101,
+  "passed": 21,
+  "failed": 8,
+  "ignored": 1,
+  "failed_names": [
+    "width_formula_includes_new_spacing_after_column_split",
+    "display_height_grows_by_path_when_fitting_text_exceeds_declared_height",
+    "display_height_grows_after_reflow_when_fitting_text_exceeds_declaration",
+    "display_height_grows_when_fitting_text_exceeds_declared_height",
+    "width_formula_preserves_declaration_when_absolute_widths_are_unchanged",
+    "width_formula_preserves_declaration_when_resize_keeps_columns",
+    "width_formula_preserves_declaration_when_path_resize_keeps_columns",
+    "width_formula_updates_when_row_delete_changes_columns"
+  ],
+  "log": "red-1e87b0e.log",
+  "excluded_attempts": [
+    "red-precondition.log: pixel-ceiling precondition failure",
+    "green-attempt-reflow-bypass.log: incomplete correction; not final GREEN"
+  ]
+}

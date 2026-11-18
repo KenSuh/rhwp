@@ -132,6 +132,8 @@ fn parse_field_control(ctrl_id: u32, ctrl_data: &[u8]) -> Control {
         ctrl_id,
         ctrl_data_name: None,
         memo_index,
+        endpoint_id: None,
+        hwpx: None,
     })
 }
 
@@ -254,6 +256,7 @@ fn parse_table_record(data: &[u8], table: &mut Table) {
         _ => TablePageBreak::None,
     };
     table.repeat_header = attr & 0x04 != 0;
+    table.no_adjust = attr & crate::model::table::TABLE_RECORD_NO_ADJUST != 0;
     // 원본 attr 전체 보존 (라운드트립용)
     table.raw_table_record_attr = attr;
 

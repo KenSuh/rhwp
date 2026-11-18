@@ -223,6 +223,64 @@ pub struct Field {
     pub ctrl_data_name: Option<String>,
     /// 메모 인덱스 (hwplib: memoIndex)
     pub memo_index: u32,
+    /// Stable endpoint identity, independent of optional HWPX export metadata.
+    pub endpoint_id: Option<String>,
+    /// HWPX의 시작/끝 ID와 매개변수. 바이너리 HWP 필드는 기존 기본값을 사용한다.
+    pub hwpx: Option<HwpxField>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct HwpxField {
+    pub begin_attributes: Vec<(String, String)>,
+    pub end_attributes: Option<Vec<(String, String)>>,
+    pub parameters: Option<FieldParameters>,
+    pub begin_char_shape_id: u32,
+    pub end_char_shape_id: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HwpxFieldListKind {
+    Body,
+    Cell,
+    DrawText,
+    Caption,
+    Omitted,
+}
+
+pub const HWPX_SERIALIZED_FIELD_LISTS: &[HwpxFieldListKind] = &[
+    HwpxFieldListKind::Body,
+    HwpxFieldListKind::Cell,
+    HwpxFieldListKind::DrawText,
+    HwpxFieldListKind::Caption,
+];
+
+impl HwpxFieldListKind {
+    pub fn is_serialized(self) -> bool {
+        HWPX_SERIALIZED_FIELD_LISTS.contains(&self)
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct FieldParameters {
+    pub name: String,
+    pub items: Vec<FieldParameter>,
+}
+
+#[derive(Debug, Clone)]
+pub struct FieldParameter {
+    pub kind: FieldParameterKind,
+    pub name: String,
+    pub value: String,
+    pub items: Vec<FieldParameter>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum FieldParameterKind {
+    Boolean,
+    Integer,
+    Float,
+    String,
+    List,
 }
 
 impl Field {

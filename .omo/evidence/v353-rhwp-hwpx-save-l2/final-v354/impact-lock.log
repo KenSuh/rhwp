@@ -1,0 +1,87 @@
+IMPACT at=code:17f85ce02d48a7da5d12a6e0997939949a60f613@17f85ce02d48 query="Cargo.lock" mode=path jev=used(cache) jev_threshold=0.45 files=32 rows=111 det_ms=245 total_ms=247 jev_requests=0 jev_http_attempts=0 jev_input_tokens=0
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c2/structure.log  channel=other binding=mention jev=0.59★ rows=1
+    :6 [path/mention] SHA256 Cargo.lock a28b1372dcf6c2a945130ff6e1b6e5b43444f5b29f0d7b6b41847c003a351c93
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/clean-cargo.sh  channel=other binding=link jev=0.55★ rows=6
+    :10 [path/link] if [[ -f "$v353_repo/Cargo.lock" ]]; then
+    :11 [path/mention] cp "$v353_repo/Cargo.lock" "$v353_snapshot/Cargo.lock"
+    :12 [path/mention] printf 'DEPENDENCY_INPUT=existing-Cargo.lock\nDEPENDENCY_INPUT_SHA256='
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c2/probe.sh  channel=other binding=pin jev=0.51★ rows=8
+    :26 [path/exec] test -z "$(git -C "$1" ls-files Cargo.lock)"
+    :27 [path/mention] test ! -e "$1/Cargo.lock"
+    :48 [path/pin] grep -q 'Cargo.lock: No such file or directory' "$v353_evidence/red-no-lock.log"
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c2/structure.sh  channel=other binding=mention jev=0.50★ rows=2
+    :37 [path/mention] for name in (HELPER, "tests/hwpx_save_fidelity_l2.rs", "Cargo.lock"):
+    :39 [path/mention] lock = pathlib.Path("Cargo.lock").read_text()
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/negative_control.py  channel=other binding=mention jev=0.50★ rows=4
+    :3 [path/mention] #   작업 폴더에 `git archive 59c2285` 사본을 풀고, 저장소의 새 시험 파일·표본·Cargo.lock 을 복사해 돌린다.
+    :17 [path/mention] # Cargo.lock 은 git 에 없다 — 같은 의존성 버전을 쓰도록 작업 트리 것을 복사한다.
+    :18 [path/mention] shutil.copy(os.path.join(repo, "Cargo.lock"), os.path.join(base, "Cargo.lock"))
+- [code] .gitignore  channel=other binding=mention jev=0.49★ rows=1
+    :4 [path/mention] Cargo.lock
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c2/impact-lock.log  channel=other binding=pin jev=0.47★ rows=36
+    :1 [path/mention] IMPACT at=code:HEAD@7370ec9fdcf8 query="Cargo.lock" mode=path jev=used jev_threshold=0.45 files=24 rows=53 det_ms=214 total_ms=442 jev_requests=1 jev_
+    :4 [path/mention] :133 [path/mention] - NOTE C4 R4 F1: removed `--locked` only from G3/G4/G5/G6/G9/G10; `Cargo.lock` is ignored and absent from the committed tree. `--o
+    :6 [path/mention] :4 [path/mention] "Cargo.lock_tracked": false,
+- [code] gates/V353_RHWP_HWPX_SAVE_L2_GATES.md  channel=gate_ledger binding=mention jev=0.47★ rows=2
+    :85 [path/mention] - NOTE G7/G8/G9: clean-cargo.sh executes the declared cargo command from git archive HEAD plus a byte-identical copy of the untracked Cargo.lock, usin
+    :107 [path/mention] - NOTE C2 actual CHECK input delta: clean-cargo.sh now accepts an absent Cargo.lock, optionally copies an existing lock, and records dependency input
+- [code] gates/V353_RHWP_TABLE_FIDELITY_GATES.md  channel=gate_ledger binding=mention jev=0.46★ rows=1
+    :133 [path/mention] - NOTE C4 R4 F1: removed `--locked` only from G3/G4/G5/G6/G9/G10; `Cargo.lock` is ignored and absent from the committed tree. `--offline` stays becaus
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/impact-lock.log  channel=other binding=mention jev=0.45★ rows=9
+    :1 [path/mention] IMPACT at=code:e6e5850ee07c952f2908df8e5845124c224c2f90@e6e5850ee07c query="Cargo.lock" mode=path jev=used(cache) jev_threshold=0.45 files=6 rows=8 de
+    :3 [path/mention] :4 [path/mention] Cargo.lock
+    :5 [path/mention] :269 [path/mention] if (repo / "Cargo.lock").is_file():
+- [code] tools/roundtrip_diff.py  channel=other binding=mention jev=0.45★ rows=2
+    :269 [path/mention] if (repo / "Cargo.lock").is_file():
+    :270 [path/mention] shutil.copyfile(repo / "Cargo.lock", probe / "Cargo.lock")
+- [code] .github/workflows/ci.yml  channel=workflow binding=mention jev=0.43 rows=2
+    :64 [path/mention] key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    :102 [path/mention] key: ${{ runner.os }}-wasm-${{ hashFiles('**/Cargo.lock') }}
+- [code] gates/V318_ENGINE_CLIPPY_CORRECTION_GATES.md  channel=gate_ledger binding=exec jev=0.42 rows=1
+    :36 [path/exec] manifest, tracked lockfile, workflow, renderer/pagination, API, publication, PageDef 모델/파서/테스트 입력 변경 0. 처음에는 Cargo.lock이 없고 gitignored였으며 cargo가 재현 빌드
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/REPORT.md  channel=doc binding=mention jev=0.42 rows=2
+    :16 [path/mention] | `red-8027a28-final.log`: isolated archive of 8027a28 with the latest test file and identical Cargo.lock | 1 passed / 5 failed; the absent-element co
+    :18 [path/mention] | `g7-full.log`: clean archive of a6d024f plus identical untracked Cargo.lock | 1252 passed / 0 failed / 7 ignored, 17 result groups including doctest
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c2/REPORT.md  channel=doc binding=mention jev=0.38 rows=3
+    :3 [path/mention] R2-1/P2의 무시된 `Cargo.lock` 필수 복사 문제를 고쳤다. 잠금 파일이 없으면 Cargo가 의존성을 해석하고, 있으면 기존 파일을 사본에 복사한다. 입력 종류·입력 SHA256·실행 뒤 잠금 파일 SHA256·Cargo 종료 코드를 기록한다. 제품 소스는
+    :32 [path/mention] | RED: pristine exact-base clone의 옛 helper `--version` | `cp: .../Cargo.lock: No such file or directory`, Cargo 전 exit=1; target 생성 없음 | `red-clone.lo
+    :40 [path/mention] 각 helper 호출 뒤 지정한 `snapshots` 디렉터리가 비었음을 확인했다. 두 clone의 Source HEAD는 모두 정확히 base이며 `git status --porcelain -uall`은 빈 값, `git ls-files Cargo.lock`도 빈 값
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c4/dependency-resolution.json  channel=other binding=pin jev=0.36 rows=3
+    :4 [path/mention] "Cargo.lock_tracked": false,
+    :5 [path/pin] "Cargo.lock_sha256": "e3bc5a141eb24b2ed63b11a6ddcb7979c855615e926cc8a575423f0e0c5ab8d1",
+    :6 [path/mention] "Cargo.lock_bytes": 36465,
+- [code] .github/workflows/npm-publish.yml  channel=workflow binding=mention jev=0.36 rows=1
+    :33 [path/mention] key: ${{ runner.os }}-wasm-${{ hashFiles('**/Cargo.lock') }}
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c4/C4_REPORT.md  channel=doc binding=exec jev=0.35 rows=2
+    :5 [path/mention] Removed only --locked from G3/G4/G5/G6/G9/G10. --offline resolves from this machine's cache in a clean isolated checkout. All EXPECTs and G8's CHECK,
+    :17 [path/exec] Current-session findings-first review: no substantive C4 finding remains. Checked exact six CHECK deltas, all twelve EXPECTs, G8 ABANDON, native evide
+- [code] .github/workflows/deploy-pages.yml  channel=workflow binding=mention jev=0.31 rows=1
+    :55 [path/mention] key: ${{ runner.os }}-wasm-${{ hashFiles('**/Cargo.lock') }}
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c2/red-no-lock.log  channel=other binding=mention jev=0.28 rows=1
+    :3 [path/mention] cp: /private/tmp/v353-c2.wjOeCn/red/Cargo.lock: No such file or directory
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c3/measure_base.py  channel=other binding=mention jev=0.28 rows=1
+    :73 [path/mention] shutil.copyfile(REPO / "Cargo.lock", SNAPSHOT / "Cargo.lock")
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/g9-wasm.log  channel=other binding=mention jev=0.27 rows=1
+    :2 [path/mention] CLEAN_SOURCE_METHOD=git-archive+identical-Cargo.lock
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/g7-full-initial-5315315.log  channel=other binding=mention jev=0.23 rows=1
+    :2 [path/mention] CLEAN_SOURCE_METHOD=git-archive+identical-Cargo.lock
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/negative-control.json  channel=other binding=mention jev=0.23 rows=1
+    :4 [path/mention] "base_copy_method": "git archive 59c2285 | tar -x (src/ byte-identical to the base commit) + work-tree Cargo.lock",
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c3/impact-cargo-lock.log  channel=other binding=mention jev=0.23 rows=12
+    :1 [path/mention] IMPACT at=code:e7c138ea1ccc0de19f57efe27cdcc464014403e4@e7c138ea1ccc query="Cargo.lock" mode=path jev=used jev_threshold=0.45 files=7 rows=17 det_ms=2
+    :4 [path/mention] :4 [path/mention] Cargo.lock
+    :6 [path/mention] :269 [path/mention] if (repo / "Cargo.lock").is_file():
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/g9-wasm-initial-5315315.log  channel=other binding=mention jev=0.22 rows=1
+    :2 [path/mention] CLEAN_SOURCE_METHOD=git-archive+identical-Cargo.lock
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/g7-full.log  channel=other binding=mention jev=0.21 rows=1
+    :2 [path/mention] CLEAN_SOURCE_METHOD=git-archive+identical-Cargo.lock
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/g8-clippy.log  channel=other binding=mention jev=0.20 rows=1
+    :2 [path/mention] CLEAN_SOURCE_METHOD=git-archive+identical-Cargo.lock
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/g8-clippy-initial-5315315.log  channel=other binding=mention jev=0.19 rows=1
+    :2 [path/mention] CLEAN_SOURCE_METHOD=git-archive+identical-Cargo.lock
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c2/green-optional-lock.log  channel=other binding=mention jev=0.14 rows=1
+    :5 [path/mention] DEPENDENCY_INPUT=existing-Cargo.lock
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c2/impact-evidence.log  channel=other binding=mention jev=0.12 rows=1
+    :118 [path/mention] :3 [basename/mention] #   작업 폴더에 `git archive 59c2285` 사본을 풀고, 저장소의 새 시험 파일·표본·Cargo.lock 을 복사해 돌린다.
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c3/REBASE.md  channel=doc binding=mention jev=0.12 rows=1
+    :111 [path/mention] Cargo.lock allow offline/locked execution. `base-source-binding.json`, `measure_base.py`, and

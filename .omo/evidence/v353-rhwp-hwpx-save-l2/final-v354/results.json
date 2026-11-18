@@ -1,0 +1,228 @@
+{
+  "tested_candidate": "17f85ce02d48a7da5d12a6e0997939949a60f613",
+  "tree": "a1b872ba61d3e7e135754d188f253e840f31e030",
+  "private_checkout": "/tmp/v353-final-v354.WRpWpU/checkout",
+  "private_cargo_home": "/tmp/v353-final-v354.WRpWpU/cargo-home",
+  "offline": true,
+  "target": "/private/tmp/v353-final-v354.WRpWpU/checkout/target",
+  "target_reuse": {
+    "G7": "initially absent",
+    "G8": "same private target reused",
+    "G9": "same private target reused; wasm target selected"
+  },
+  "gates": [
+    {
+      "gate": "G7",
+      "command": "cargo test --no-fail-fast",
+      "cargo_exit": 0,
+      "check_exit": 0,
+      "utc_start": "2026-10-26T13:18:05Z",
+      "utc_end": "2026-10-26T13:20:33Z",
+      "elapsed_seconds": 148,
+      "log": "g7-full.log",
+      "log_bytes": 97255,
+      "log_sha256": "669f683ea8374247ee2e599e95027c2d009cd83b996b9885221e587cf8a9e610",
+      "dependency_input": "absent",
+      "resolved_lock_sha256": "e3bc5a141eb24b2ed63b11a6ddcb7979c855615e926cc8a575423f0e0c5ab8d1",
+      "finished": [
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 35.90s"
+      ],
+      "warning_lines": [
+        "warning: function `footnote_emits_autoNum` should have a snake case name",
+        "warning: function `test_merge_then_control_layout_has_colSpan` should have a snake case name",
+        "warning: unused `Result` that must be used",
+        "warning: unused `Result` that must be used",
+        "warning: `rhwp` (lib test) generated 4 warnings"
+      ]
+    },
+    {
+      "gate": "G8",
+      "command": "cargo clippy -- -D warnings",
+      "cargo_exit": 0,
+      "check_exit": 0,
+      "utc_start": "2026-10-26T13:20:33Z",
+      "utc_end": "2026-10-26T13:20:51Z",
+      "elapsed_seconds": 18,
+      "log": "g8-clippy.log",
+      "log_bytes": 4204,
+      "log_sha256": "0c2774ee52570da27def7d1aa2823d40a2db1d712642292ba4517a4d6e610b8a",
+      "dependency_input": "absent",
+      "resolved_lock_sha256": "e3bc5a141eb24b2ed63b11a6ddcb7979c855615e926cc8a575423f0e0c5ab8d1",
+      "finished": [
+        "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 16.60s"
+      ],
+      "warning_lines": []
+    },
+    {
+      "gate": "G9",
+      "command": "cargo build --lib --target wasm32-unknown-unknown --release",
+      "cargo_exit": 0,
+      "check_exit": 0,
+      "utc_start": "2026-10-26T13:20:52Z",
+      "utc_end": "2026-10-26T13:21:21Z",
+      "elapsed_seconds": 29,
+      "log": "g9-wasm.log",
+      "log_bytes": 2449,
+      "log_sha256": "37caed94e96c25e0af73fe136bea4c431ed4e5cfd3dc11dacf8b64bc3b152172",
+      "dependency_input": "absent",
+      "resolved_lock_sha256": "e3bc5a141eb24b2ed63b11a6ddcb7979c855615e926cc8a575423f0e0c5ab8d1",
+      "finished": [
+        "    Finished `release` profile [optimized] target(s) in 28.24s"
+      ],
+      "warning_lines": []
+    }
+  ],
+  "test_groups": [
+    {
+      "target": "unittests src/lib.rs",
+      "status": "ok",
+      "passed": 1001,
+      "failed": 0,
+      "ignored": 1,
+      "line": 1200
+    },
+    {
+      "target": "unittests src/tools/font_metric_gen.rs",
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "line": 1206
+    },
+    {
+      "target": "unittests src/main.rs",
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "line": 1212
+    },
+    {
+      "target": "tests/cell_format_reflow.rs",
+      "status": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "line": 1235
+    },
+    {
+      "target": "tests/cell_reflow_geometry.rs",
+      "status": "ok",
+      "passed": 68,
+      "failed": 0,
+      "ignored": 0,
+      "line": 1309
+    },
+    {
+      "target": "tests/cell_vertical_baseline.rs",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "line": 1317
+    },
+    {
+      "target": "tests/cell_vertical_geometry_matrix.rs",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "line": 1324
+    },
+    {
+      "target": "tests/form_caption_display.rs",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "line": 1331
+    },
+    {
+      "target": "tests/hwpx_header_resave_stability.rs",
+      "status": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "line": 1344
+    },
+    {
+      "target": "tests/hwpx_page_def_roundtrip.rs",
+      "status": "ok",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "line": 1363
+    },
+    {
+      "target": "tests/hwpx_phase1_corpus.rs",
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "line": 1370
+    },
+    {
+      "target": "tests/hwpx_roundtrip_integration.rs",
+      "status": "ok",
+      "passed": 57,
+      "failed": 0,
+      "ignored": 2,
+      "line": 1435
+    },
+    {
+      "target": "tests/hwpx_save_fidelity_l2.rs",
+      "status": "ok",
+      "passed": 18,
+      "failed": 0,
+      "ignored": 2,
+      "line": 1461
+    },
+    {
+      "target": "tests/hwpx_table_fidelity.rs",
+      "status": "ok",
+      "passed": 39,
+      "failed": 0,
+      "ignored": 1,
+      "line": 1507
+    },
+    {
+      "target": "tests/hwpx_to_hwp_adapter.rs",
+      "status": "ok",
+      "passed": 25,
+      "failed": 0,
+      "ignored": 0,
+      "line": 1538
+    },
+    {
+      "target": "tests/pagination_square_wrap.rs",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "line": 1547
+    },
+    {
+      "target": "rhwp",
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "line": 1553
+    }
+  ],
+  "suite_starts": 17,
+  "result_groups": 17,
+  "test_totals": {
+    "passed": 1252,
+    "failed": 0,
+    "ignored": 7
+  },
+  "failed_groups": [],
+  "required_named_tests_passed": [
+    "form_attribute_entities_survive_two_hwpx_saves",
+    "run_order_c6_open_save_matches_hancom_original",
+    "run_order_facf_open_save_restores_hancom_original",
+    "two_save_first_paragraph_keeps_hancom_section_runs",
+    "two_save_section_def_prefix_keeps_column_in_section_run"
+  ]
+}

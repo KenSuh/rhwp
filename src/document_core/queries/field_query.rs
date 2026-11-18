@@ -153,7 +153,7 @@ impl DocumentCore {
         let location = fi.location.clone();
         let fri = fi.field_range_index;
         let old_value = fi.value.clone();
-        let is_cell_field = fi.field.ctrl_id == 0; // 가상 셀 필드
+        let is_cell_field = fi.field.ctrl_id == 0 && fi.field.hwpx.is_none(); // 가상 셀 필드
 
         let section_index = location.section_index;
 
@@ -166,7 +166,7 @@ impl DocumentCore {
         }
 
         // raw_stream 무효화
-        if let Some(sec) = self.document.sections.get_mut(section_index) {
+        if let Some(sec) = self.mutate_document().sections.get_mut(section_index) {
             sec.raw_stream = None;
         }
         self.recompose_section(section_index);
@@ -198,7 +198,7 @@ impl DocumentCore {
                 ..
             } => {
                 let sec = self
-                    .document
+                    .mutate_document()
                     .sections
                     .get_mut(location.section_index)
                     .ok_or_else(|| HwpError::InvalidField("구역 초과".into()))?;
@@ -216,10 +216,10 @@ impl DocumentCore {
                     .ok_or_else(|| HwpError::InvalidField("셀 인덱스 초과".into()))?;
                 // 첫 문단의 텍스트를 교체
                 if let Some(cell_para) = cell.paragraphs.first_mut() {
-                    cell_para.text = value.to_string();
+                    cell_para.replace_text(value.to_string());
                     // char_offsets 재생성
                     let new_len = value.chars().count();
-                    cell_para.char_offsets = (0..new_len).map(|i| i as u32).collect();
+                    cell_para.set_char_offsets((0..new_len).map(|i| i as u32).collect());
                 }
                 Ok(())
             }
@@ -235,41 +235,23 @@ impl DocumentCore {
         value: &str,
     ) -> Result<(), HwpError> {
         // raw_stream 무효화: 직렬화 시 수정된 모델을 사용하도록 강제
-        if let Some(sec) = self.document.sections.get_mut(location.section_index) {
+        if let Some(sec) = self
+            .mutate_document()
+            .sections
+            .get_mut(location.section_index)
+        {
             sec.raw_stream = None;
         }
         let para = self.get_para_mut_at_location(location)?;
         let fr = para
-            .field_ranges
+            .field_ranges()
             .get(field_range_index)
             .ok_or_else(|| HwpError::InvalidField("field_range 인덱스 초과".into()))?
             .clone();
 
         // 필드 범위 내 텍스트 교체
-        let text_chars: Vec<char> = para.text.chars().collect();
-        let before: String = text_chars[..fr.start_char_idx].iter().collect();
-        let after: String = text_chars[fr.end_char_idx..].iter().collect();
-        para.text = format!("{}{}{}", before, value, after);
-
-        // field_range 업데이트
-        let new_end = fr.start_char_idx + value.chars().count();
-        let delta = new_end as isize - fr.end_char_idx as isize;
-
-        // 현재 필드 범위 업데이트
-        if let Some(current_fr) = para.field_ranges.get_mut(field_range_index) {
-            current_fr.end_char_idx = new_end;
-        }
-
-        // 이후 필드 범위들의 위치 조정
-        for (i, other_fr) in para.field_ranges.iter_mut().enumerate() {
-            if i == field_range_index {
-                continue;
-            }
-            if other_fr.start_char_idx >= fr.end_char_idx {
-                other_fr.start_char_idx = (other_fr.start_char_idx as isize + delta) as usize;
-                other_fr.end_char_idx = (other_fr.end_char_idx as isize + delta) as usize;
-            }
-        }
+        para.replace_field_content(fr.control_idx, value)
+            .ok_or_else(|| HwpError::InvalidField("field endpoints missing".into()))?;
 
         // char_offsets 재생성: 컨트롤 문자(8 code unit)와 일반 문자(1~2 code unit) 반영
         rebuild_char_offsets(para);
@@ -285,7 +267,7 @@ impl DocumentCore {
         location: &FieldLocation,
     ) -> Result<&mut Paragraph, HwpError> {
         let sec = self
-            .document
+            .mutate_document()
             .sections
             .get_mut(location.section_index)
             .ok_or_else(|| HwpError::InvalidField("구역 인덱스 초과".into()))?;
@@ -358,7 +340,7 @@ impl DocumentCore {
         char_offset: usize,
     ) -> Result<String, HwpError> {
         let para = self
-            .document
+            .mutate_document()
             .sections
             .get_mut(section_idx)
             .and_then(|s| s.paragraphs.get_mut(para_idx))
@@ -381,7 +363,7 @@ impl DocumentCore {
     ) -> Result<String, HwpError> {
         let para = {
             let host = self
-                .document
+                .mutate_document()
                 .sections
                 .get_mut(section_idx)
                 .and_then(|s| s.paragraphs.get_mut(parent_para_idx))
@@ -610,7 +592,7 @@ impl DocumentCore {
 
 /// 문단 내 커서 위치의 필드 범위 정보를 JSON으로 반환한다.
 fn field_info_at_in_para(para: &Paragraph, char_offset: usize) -> String {
-    for fr in &para.field_ranges {
+    for fr in &para.field_ranges() {
         if let Some(Control::Field(field)) = para.controls.get(fr.control_idx) {
             if field.field_type != FieldType::ClickHere {
                 continue;
@@ -642,10 +624,10 @@ fn collect_fields_from_paragraph(
     result: &mut Vec<FieldInfo>,
 ) {
     // 현재 문단의 field_ranges에서 필드 수집
-    for (fri, fr) in para.field_ranges.iter().enumerate() {
+    for (fri, fr) in para.field_ranges().iter().enumerate() {
         if let Some(Control::Field(field)) = para.controls.get(fr.control_idx) {
             let value = if fr.start_char_idx < fr.end_char_idx {
-                let chars: Vec<char> = para.text.chars().collect();
+                let chars: Vec<char> = para.text().chars().collect();
                 if fr.end_char_idx <= chars.len() {
                     chars[fr.start_char_idx..fr.end_char_idx].iter().collect()
                 } else {
@@ -681,7 +663,7 @@ fn collect_fields_from_paragraph(
                         let value = cell
                             .paragraphs
                             .first()
-                            .map(|p| p.text.clone())
+                            .map(|p| p.text().to_owned())
                             .unwrap_or_default();
                         result.push(FieldInfo {
                             field: Field {
@@ -693,6 +675,8 @@ fn collect_fields_from_paragraph(
                                 extra_properties: 0,
                                 ctrl_data_name: Some(fname.clone()),
                                 memo_index: 0,
+                                endpoint_id: None,
+                                hwpx: None,
                             },
                             location: loc,
                             value,
@@ -812,7 +796,7 @@ impl DocumentCore {
 
 /// 문단에서 커서 위치의 ClickHere 필드 컨트롤 인덱스를 반환한다.
 fn find_field_ctrl_idx_in_para(para: &Paragraph, char_offset: usize) -> Option<usize> {
-    for fr in &para.field_ranges {
+    for fr in &para.field_ranges() {
         if let Some(Control::Field(field)) = para.controls.get(fr.control_idx) {
             if field.field_type != FieldType::ClickHere {
                 continue;
@@ -827,7 +811,7 @@ fn find_field_ctrl_idx_in_para(para: &Paragraph, char_offset: usize) -> Option<u
 
 /// 문단 내 커서 위치의 누름틀 필드를 제거한다 (FieldRange만 삭제, 텍스트 유지).
 fn remove_field_in_para(para: &mut Paragraph, char_offset: usize) -> Result<(), HwpError> {
-    let idx = para.field_ranges.iter().position(|fr| {
+    let idx = para.field_ranges().iter().position(|fr| {
         if let Some(Control::Field(field)) = para.controls.get(fr.control_idx) {
             if field.field_type != FieldType::ClickHere {
                 return false;
@@ -839,7 +823,7 @@ fn remove_field_in_para(para: &mut Paragraph, char_offset: usize) -> Result<(), 
     });
     match idx {
         Some(i) => {
-            para.field_ranges.remove(i);
+            para.remove_field_range(i);
             Ok(())
         }
         None => Err(HwpError::InvalidField(
@@ -854,25 +838,33 @@ fn remove_field_in_para(para: &mut Paragraph, char_offset: usize) -> Result<(), 
 /// 원본 char_offsets에서 컨트롤 배치 패턴을 보존하면서,
 /// 텍스트 길이 변경(필드 값 삽입)에 맞게 오프셋을 재계산한다.
 fn rebuild_char_offsets(para: &mut Paragraph) {
-    let text_chars: Vec<char> = para.text.chars().collect();
+    let text_chars: Vec<char> = para.text().chars().collect();
     let text_len = text_chars.len();
 
+    if para
+        .field_markers()
+        .iter()
+        .any(|m| matches!(m.id, crate::model::paragraph::FieldId::Hwpx(_)))
+    {
+        return;
+    }
+
     if text_len == 0 {
-        para.char_offsets = Vec::new();
+        para.set_char_offsets(Vec::new());
         return;
     }
 
     // 원본 char_offsets에서 첫 문자 이전 컨트롤 수 추정
     // (원본 gap / 8 = 컨트롤 수)
-    let ctrls_before_text = if !para.char_offsets.is_empty() {
-        para.char_offsets[0] as usize / 8
+    let ctrls_before_text = if !para.char_offsets().is_empty() {
+        para.char_offsets()[0] as usize / 8
     } else {
         para.controls.len() // fallback: 모든 컨트롤이 텍스트 앞
     };
 
     // FIELD_END 수: field_ranges에서 end가 텍스트 범위 내인 것
     let mut field_end_at: Vec<usize> = vec![0; text_len + 1];
-    for fr in &para.field_ranges {
+    for fr in &para.field_ranges() {
         let idx = fr.end_char_idx.min(text_len);
         field_end_at[idx] += 1;
     }
@@ -898,7 +890,7 @@ fn rebuild_char_offsets(para: &mut Paragraph) {
         offset += char_size;
     }
 
-    para.char_offsets = new_offsets;
+    para.set_char_offsets(new_offsets);
 }
 
 fn json_escape(s: &str) -> String {

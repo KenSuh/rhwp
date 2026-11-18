@@ -26,20 +26,23 @@ fn test_roundtrip_section_def() {
         ..Default::default()
     };
 
-    let para = Paragraph {
-        char_count: 3,
-        text: "A".to_string(),
-        char_offsets: vec![8], // 0~7 = secd 컨트롤
-        char_shapes: vec![CharShapeRef {
+    let para = {
+        let mut paragraph_value = Paragraph::with_text("A".to_string(), vec![8], Vec::new());
+
+        paragraph_value.char_count = 3;
+        // 0~7 = secd 컨트롤
+        paragraph_value.char_shapes = vec![CharShapeRef {
             start_pos: 0,
             char_shape_id: 0,
-        }],
-        line_segs: vec![LineSeg {
+        }];
+
+        paragraph_value.line_segs = vec![LineSeg {
             text_start: 0,
             ..Default::default()
-        }],
-        controls: vec![Control::SectionDef(Box::new(sd))],
-        ..Default::default()
+        }];
+
+        paragraph_value.controls = vec![Control::SectionDef(Box::new(sd))];
+        paragraph_value
     };
 
     let section = Section {
@@ -68,12 +71,13 @@ fn test_roundtrip_column_def() {
         ..Default::default()
     };
 
-    let para = Paragraph {
-        char_count: 2,
-        text: "".to_string(),
-        char_offsets: vec![],
-        controls: vec![Control::ColumnDef(cd)],
-        ..Default::default()
+    let para = {
+        let mut paragraph_value = Paragraph::with_text("".to_string(), vec![], Vec::new());
+
+        paragraph_value.char_count = 2;
+
+        paragraph_value.controls = vec![Control::ColumnDef(cd)];
+        paragraph_value
     };
 
     let section = Section {
@@ -113,19 +117,21 @@ fn test_roundtrip_table() {
         width: 10000,
         height: 5000,
         border_fill_id: 1,
-        paragraphs: vec![Paragraph {
-            char_count: 5,
-            text: "test".to_string(),
-            char_offsets: vec![0, 1, 2, 3],
-            char_shapes: vec![CharShapeRef {
+        paragraphs: vec![{
+            let mut paragraph_value = Paragraph::with_text("test".to_string(), vec![0, 1, 2, 3], Vec::new());
+
+            paragraph_value.char_count = 5;
+
+            paragraph_value.char_shapes = vec![CharShapeRef {
                 start_pos: 0,
                 char_shape_id: 0,
-            }],
-            line_segs: vec![LineSeg {
+            }];
+
+            paragraph_value.line_segs = vec![LineSeg {
                 text_start: 0,
                 ..Default::default()
-            }],
-            ..Default::default()
+            }];
+            paragraph_value
         }],
         ..Default::default()
     };
@@ -140,12 +146,13 @@ fn test_roundtrip_table() {
         ..Default::default()
     };
 
-    let para = Paragraph {
-        char_count: 2,
-        text: "".to_string(),
-        char_offsets: vec![],
-        controls: vec![Control::Table(Box::new(table))],
-        ..Default::default()
+    let para = {
+        let mut paragraph_value = Paragraph::with_text("".to_string(), vec![], Vec::new());
+
+        paragraph_value.char_count = 2;
+
+        paragraph_value.controls = vec![Control::Table(Box::new(table))];
+        paragraph_value
     };
 
     let section = Section {
@@ -172,7 +179,7 @@ fn test_roundtrip_table() {
         assert_eq!(t.col_count, 1);
         assert_eq!(t.cells.len(), 1);
         assert_eq!(t.cells[0].width, 10000);
-        assert_eq!(t.cells[0].paragraphs[0].text, "test");
+        assert_eq!(t.cells[0].paragraphs[0].text(), "test");
     }
 }
 
@@ -186,12 +193,13 @@ fn test_roundtrip_auto_number() {
         ..Default::default()
     };
 
-    let para = Paragraph {
-        char_count: 2,
-        text: "".to_string(),
-        char_offsets: vec![],
-        controls: vec![Control::AutoNumber(an)],
-        ..Default::default()
+    let para = {
+        let mut paragraph_value = Paragraph::with_text("".to_string(), vec![], Vec::new());
+
+        paragraph_value.char_count = 2;
+
+        paragraph_value.controls = vec![Control::AutoNumber(an)];
+        paragraph_value
     };
 
     let section = Section {
@@ -221,12 +229,13 @@ fn test_roundtrip_bookmark() {
         name: "테스트".to_string(),
     };
 
-    let para = Paragraph {
-        char_count: 2,
-        text: "".to_string(),
-        char_offsets: vec![],
-        controls: vec![Control::Bookmark(bm)],
-        ..Default::default()
+    let para = {
+        let mut paragraph_value = Paragraph::with_text("".to_string(), vec![], Vec::new());
+
+        paragraph_value.char_count = 2;
+
+        paragraph_value.controls = vec![Control::Bookmark(bm)];
+        paragraph_value
     };
 
     let section = Section {
@@ -261,12 +270,13 @@ fn test_roundtrip_page_hide() {
         hide_page_num: true,
     };
 
-    let para = Paragraph {
-        char_count: 2,
-        text: "".to_string(),
-        char_offsets: vec![],
-        controls: vec![Control::PageHide(ph)],
-        ..Default::default()
+    let para = {
+        let mut paragraph_value = Paragraph::with_text("".to_string(), vec![], Vec::new());
+
+        paragraph_value.char_count = 2;
+
+        paragraph_value.controls = vec![Control::PageHide(ph)];
+        paragraph_value
     };
 
     let section = Section {
@@ -299,28 +309,31 @@ fn test_roundtrip_footnote() {
 
     let fn_ = Footnote {
         number: 3,
-        paragraphs: vec![Paragraph {
-            char_count: 3,
-            text: "각주".to_string(),
-            char_offsets: vec![0, 1],
-            char_shapes: vec![CharShapeRef {
+        paragraphs: vec![{
+            let mut paragraph_value = Paragraph::with_text("각주".to_string(), vec![0, 1], Vec::new());
+
+            paragraph_value.char_count = 3;
+
+            paragraph_value.char_shapes = vec![CharShapeRef {
                 start_pos: 0,
                 char_shape_id: 0,
-            }],
-            line_segs: vec![LineSeg {
+            }];
+
+            paragraph_value.line_segs = vec![LineSeg {
                 text_start: 0,
                 ..Default::default()
-            }],
-            ..Default::default()
+            }];
+            paragraph_value
         }],
     };
 
-    let para = Paragraph {
-        char_count: 2,
-        text: "".to_string(),
-        char_offsets: vec![],
-        controls: vec![Control::Footnote(Box::new(fn_))],
-        ..Default::default()
+    let para = {
+        let mut paragraph_value = Paragraph::with_text("".to_string(), vec![], Vec::new());
+
+        paragraph_value.char_count = 2;
+
+        paragraph_value.controls = vec![Control::Footnote(Box::new(fn_))];
+        paragraph_value
     };
 
     let section = Section {
@@ -339,7 +352,7 @@ fn test_roundtrip_footnote() {
     {
         assert_eq!(fn_.number, 3);
         assert_eq!(fn_.paragraphs.len(), 1);
-        assert_eq!(fn_.paragraphs[0].text, "각주");
+        assert_eq!(fn_.paragraphs[0].text(), "각주");
     } else {
         panic!("Expected Footnote control");
     }
@@ -352,29 +365,32 @@ fn test_roundtrip_header() {
 
     let header = Header {
         apply_to: HeaderFooterApply::Both,
-        paragraphs: vec![Paragraph {
-            char_count: 4,
-            text: "머리말".to_string(),
-            char_offsets: vec![0, 1, 2],
-            char_shapes: vec![CharShapeRef {
+        paragraphs: vec![{
+            let mut paragraph_value = Paragraph::with_text("머리말".to_string(), vec![0, 1, 2], Vec::new());
+
+            paragraph_value.char_count = 4;
+
+            paragraph_value.char_shapes = vec![CharShapeRef {
                 start_pos: 0,
                 char_shape_id: 0,
-            }],
-            line_segs: vec![LineSeg {
+            }];
+
+            paragraph_value.line_segs = vec![LineSeg {
                 text_start: 0,
                 ..Default::default()
-            }],
-            ..Default::default()
+            }];
+            paragraph_value
         }],
         ..Default::default()
     };
 
-    let para = Paragraph {
-        char_count: 2,
-        text: "".to_string(),
-        char_offsets: vec![],
-        controls: vec![Control::Header(Box::new(header))],
-        ..Default::default()
+    let para = {
+        let mut paragraph_value = Paragraph::with_text("".to_string(), vec![], Vec::new());
+
+        paragraph_value.char_count = 2;
+
+        paragraph_value.controls = vec![Control::Header(Box::new(header))];
+        paragraph_value
     };
 
     let section = Section {
@@ -393,7 +409,7 @@ fn test_roundtrip_header() {
     {
         assert_eq!(h.apply_to, HeaderFooterApply::Both);
         assert_eq!(h.paragraphs.len(), 1);
-        assert_eq!(h.paragraphs[0].text, "머리말");
+        assert_eq!(h.paragraphs[0].text(), "머리말");
     } else {
         panic!("Expected Header control");
     }

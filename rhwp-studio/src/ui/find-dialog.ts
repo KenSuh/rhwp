@@ -288,6 +288,7 @@ export class FindDialog {
     );
 
     if (result.ok) {
+      this.services.getInputHandler()?.clearHistory();
       this.services.eventBus.emit('document-changed');
       // 바꾼 뒤 다음 검색
       this.currentHit = null;
@@ -305,6 +306,9 @@ export class FindDialog {
     );
 
     if (result.ok) {
+      if ((result.count ?? 0) > 0) {
+        this.services.getInputHandler()?.clearHistory();
+      }
       this.services.eventBus.emit('document-changed');
       this.statusLabel.textContent = `${result.count}개 바꿈`;
       this.currentHit = null;

@@ -3,7 +3,22 @@
 
 import type { ContextMenuItem } from '@/ui/context-menu';
 import * as _connector from './input-handler-connector';
+import * as _picture from './input-handler-picture';
+import * as _table from './input-handler-table';
+import { ObjectGestureRecorder, documentEpochOf } from './command';
+import type { EditCommand } from './command';
 import { computeCellDragRange } from './table-selection-utils';
+import {
+  bindPointerHostToWasm,
+  ensureGestureMatchesLiveEpoch,
+  epochFromLabel,
+  hasOpenPointerGesture,
+  hasRawOpenPointerGesture,
+  isActiveGestureEpochStale,
+  resolveActiveGestureEpoch,
+  stampGestureStart,
+} from './input-handler-table';
+import { InputHandler } from './input-handler';
 
 function sameCellPath(a?: unknown[], b?: unknown[]): boolean {
   if (!a?.length && !b?.length) return true;
@@ -141,11 +156,16 @@ function setCellDragFocusRange(this: any, cellRC: { row: number; col: number; ro
 }
 
 export function onClick(this: any, e: MouseEvent): void {
+  bindPointerHostToWasm(this);
   // 연결선 드로잉 모드: 연결점 클릭으로 시작/끝
   if (this.connectorDrawingMode && e.button === 0) {
     const target = e.target as HTMLElement;
     if (target.closest('#menu-bar') || target.closest('#icon-toolbar') || target.closest('#style-bar')) return;
     e.preventDefault();
+    if (this.connectorStartRef?.epoch && this.connectorStartRef.epoch !== documentEpochOf(this.wasm)) {
+      _connector.exitConnectorDrawingMode.call(this);
+      return;
+    }
 
     const sc = this.container.querySelector('#scroll-content');
     if (!sc) return;
@@ -169,16 +189,32 @@ export function onClick(this: any, e: MouseEvent): void {
     if (!this.connectorStartRef) {
       // 시작점 클릭
       if (cp) {
-        this.connectorStartRef = { sec: cp.sec, ppi: cp.ppi, ci: cp.ci, index: cp.index, x: cp.x, y: cp.y, pageIdx: pi };
+        const { epoch } = stampGestureStart(this);
+        this.connectorStartRef = { sec: cp.sec, ppi: cp.ppi, ci: cp.ci, index: cp.index, x: cp.x, y: cp.y, pageIdx: pi, epoch };
       }
     } else {
-      // 끝점 클릭 → 연결선 생성
+      // 끝점 클릭 → 연결선 생성 (epoch 구속 스냅샷 기록)
       if (cp) {
-        _connector.finishConnectorDrawing.call(this,
-          { ...this.connectorStartRef, instanceId: 0 } as any,
-          { ...cp, instanceId: 0 } as any,
-          this.connectorType);
+        const expectedEpoch = this.connectorStartRef.epoch ?? documentEpochOf(this.wasm);
+        const cursorPos = this.cursor?.getPosition?.() ?? { sectionIndex: 0, paragraphIndex: 0, charOffset: 0 };
+        const recorder = new ObjectGestureRecorder('insertConnector', cursorPos, expectedEpoch);
+        let command: EditCommand | null = null;
+        try {
+          if (recorder.begin(this.wasm)) {
+            _connector.finishConnectorDrawing.call(this,
+              { ...this.connectorStartRef, instanceId: 0 } as any,
+              { ...cp, instanceId: 0 } as any,
+              this.connectorType);
+            command = recorder.finish(this.wasm);
+            if (command) this.history?.recordWithoutExecute(command, this.wasm);
+            command = null;
+          }
+        } finally {
+          command?.discard?.(this.wasm);
+          recorder.cancel(this.wasm);
+        }
       }
+      this._gestureOwnerEpoch = null;
       _connector.exitConnectorDrawingMode.call(this);
     }
     return;
@@ -189,6 +225,13 @@ export function onClick(this: any, e: MouseEvent): void {
     const target = e.target as HTMLElement;
     if (target.closest('#menu-bar') || target.closest('#icon-toolbar') || target.closest('#style-bar')) return;
     e.preventDefault();
+    if (this._polygonEpoch && this._polygonEpoch !== documentEpochOf(this.wasm)) {
+      this.cancelPolygonDrawing?.();
+      return;
+    }
+    if (this.polygonPoints.length === 0) {
+      this._polygonEpoch = this.wasm ? documentEpochOf(this.wasm) : null;
+    }
     // 시작점 근접 체크 (2mm ≈ 7.6px at 96dpi)
     if (this.polygonPoints.length >= 3) {
       const first = this.polygonPoints[0];
@@ -210,10 +253,13 @@ export function onClick(this: any, e: MouseEvent): void {
     const target = e.target as HTMLElement;
     if (target.closest('#menu-bar') || target.closest('#icon-toolbar') || target.closest('#style-bar')) return;
     e.preventDefault();
+    const { epoch, beforeLabel } = stampGestureStart(this);
     this.imagePlacementDrag = {
       startClientX: e.clientX, startClientY: e.clientY,
       currentClientX: e.clientX, currentClientY: e.clientY,
       isDragging: false,
+      epoch,
+      beforeLabel,
     };
     this.showImagePlacementOverlay(e.clientX, e.clientY, e.clientX, e.clientY);
     document.addEventListener('mouseup', this.onMouseUpBound, { once: true });
@@ -225,10 +271,13 @@ export function onClick(this: any, e: MouseEvent): void {
     const target = e.target as HTMLElement;
     if (target.closest('#menu-bar') || target.closest('#icon-toolbar') || target.closest('#style-bar')) return;
     e.preventDefault();
+    const { epoch, beforeLabel } = stampGestureStart(this);
     this.textboxPlacementDrag = {
       startClientX: e.clientX, startClientY: e.clientY,
       currentClientX: e.clientX, currentClientY: e.clientY,
       isDragging: false,
+      epoch,
+      beforeLabel,
     };
     this.showTextboxPlacementOverlay(e.clientX, e.clientY, e.clientX, e.clientY);
     document.addEventListener('mouseup', this.onMouseUpBound, { once: true });
@@ -309,6 +358,7 @@ export function onClick(this: any, e: MouseEvent): void {
               this.textarea.focus();
               return;
             }
+            const { epoch, beforeLabel } = stampGestureStart(this);
             this.isMoveDragging = true;
             this.moveDragState = {
               tableRef: { sec: ref.sec, ppi: ref.ppi, ci: ref.ci },
@@ -317,6 +367,8 @@ export function onClick(this: any, e: MouseEvent): void {
               lastPageX: px, lastPageY: py,
               totalDeltaH: 0, totalDeltaV: 0,
               pageIndex: pi,
+              epoch,
+              beforeLabel,
             };
             this.container.style.cursor = 'move';
             document.addEventListener('mouseup', this.onMouseUpBound, { once: true });
@@ -380,6 +432,7 @@ export function onClick(this: any, e: MouseEvent): void {
                 } catch { /* skip */ }
               }
               if (multiResizeRefs.length > 0) {
+                const { epoch, beforeLabel } = stampGestureStart(this);
                 this.isPictureResizeDragging = true;
                 this.pictureResizeState = {
                   dir,
@@ -388,9 +441,13 @@ export function onClick(this: any, e: MouseEvent): void {
                   origHeight: Math.round(combinedH * 75),
                   startClientX: e.clientX,
                   startClientY: e.clientY,
+                  lastClientX: e.clientX,
+                  lastClientY: e.clientY,
                   pageIndex: bboxPage,
                   bbox: { x: minX, y: minY, w: combinedW, h: combinedH },
                   multiRefs: multiResizeRefs,
+                  epoch,
+                  beforeLabel,
                 };
                 document.addEventListener('mouseup', this.onMouseUpBound, { once: true });
                 return;
@@ -410,6 +467,7 @@ export function onClick(this: any, e: MouseEvent): void {
             }
             if (multiMoveRefs.length > 0) {
               e.preventDefault();
+              const { epoch, beforeLabel } = stampGestureStart(this);
               this.isPictureMoveDragging = true;
               this.pictureMoveState = {
                 ref: multiMoveRefs[0] as any,
@@ -419,6 +477,8 @@ export function onClick(this: any, e: MouseEvent): void {
                 lastPageX: px, lastPageY: py,
                 totalDeltaH: 0, totalDeltaV: 0,
                 pageIndex: pi,
+                epoch,
+                beforeLabel,
                 multiRefs: multiMoveRefs,
               };
               this.container.style.cursor = 'move';
@@ -457,12 +517,15 @@ export function onClick(this: any, e: MouseEvent): void {
                 const pl = this.virtualScroll.getPageLeft(picBbox.pageIndex) >= 0
                   ? this.virtualScroll.getPageLeft(picBbox.pageIndex)
                   : (sc.clientWidth - pw) / 2;
+                const { epoch, beforeLabel } = stampGestureStart(this);
                 this.isLineEndpointDragging = true;
                 this.lineEndpointState = {
 	                  ref: { sec: ref.sec, ppi: ref.ppi, ci: ref.ci, type: ref.type, cellPath: ref.cellPath },
                   endpoint: dir === 'sw' ? 'start' : 'end',
                   pageIndex: picBbox.pageIndex,
                   pageLeft: pl, pageOffset: po, zoom,
+                  epoch,
+                  beforeLabel,
                 };
                 this.container.style.cursor = 'crosshair';
                 document.addEventListener('mouseup', this.onMouseUpBound, { once: true });
@@ -484,6 +547,7 @@ export function onClick(this: any, e: MouseEvent): void {
                 const origAngle = props.rotationAngle ?? 0;
                 // 마우스→중심 각도
                 const startAngle = Math.atan2(cy - objCy, cx - objCx);
+                const { epoch, beforeLabel } = stampGestureStart(this);
                 this.isPictureRotateDragging = true;
                 this.pictureRotateState = {
 	                ref: { sec: ref.sec, ppi: ref.ppi, ci: ref.ci, type: ref.type, cellPath: ref.cellPath },
@@ -492,6 +556,8 @@ export function onClick(this: any, e: MouseEvent): void {
                   centerY: objCy,
                   startAngle,
                   pageIndex: picBbox.pageIndex,
+                  epoch,
+                  beforeLabel,
                 };
                 this.container.style.cursor = 'grabbing';
                 document.addEventListener('mouseup', this.onMouseUpBound, { once: true });
@@ -499,17 +565,24 @@ export function onClick(this: any, e: MouseEvent): void {
               }
               // 리사이즈 드래그 시작
               const props = this.getObjectProperties(ref);
+              const { epoch, beforeLabel } = stampGestureStart(this);
               this.isPictureResizeDragging = true;
               this.pictureResizeState = {
                 dir,
 	                    ref: { sec: ref.sec, ppi: ref.ppi, ci: ref.ci, type: ref.type, cellPath: ref.cellPath },
                 origWidth: props.width,
                 origHeight: props.height,
+                origHorzOffset: props.horzOffset,
+                origVertOffset: props.vertOffset,
                 rotationAngle: (props.rotationAngle ?? 0) as number,
                 startClientX: e.clientX,
                 startClientY: e.clientY,
+                lastClientX: e.clientX,
+                lastClientY: e.clientY,
                 pageIndex: picBbox.pageIndex,
                 bbox: { x: picBbox.x, y: picBbox.y, w: picBbox.w, h: picBbox.h },
+                epoch,
+                beforeLabel,
               };
               document.addEventListener('mouseup', this.onMouseUpBound, { once: true });
               return;
@@ -546,6 +619,7 @@ export function onClick(this: any, e: MouseEvent): void {
                 const props = this.getObjectProperties(ref);
                 if (!props.treatAsChar) {
                   e.preventDefault();
+                  const { epoch, beforeLabel } = stampGestureStart(this);
                   this.isPictureMoveDragging = true;
                   this.pictureMoveState = {
                     ref: { sec: ref.sec, ppi: ref.ppi, ci: ref.ci, type: ref.type },
@@ -555,6 +629,8 @@ export function onClick(this: any, e: MouseEvent): void {
                     lastPageX: px, lastPageY: py,
                     totalDeltaH: 0, totalDeltaV: 0,
                     pageIndex: pi,
+                    epoch,
+                    beforeLabel,
                   };
                   this.container.style.cursor = 'move';
                   document.addEventListener('mouseup', this.onMouseUpBound, { once: true });
@@ -824,6 +900,7 @@ export function onClick(this: any, e: MouseEvent): void {
       this.cursor.moveTo(hit);
       this.cursor.resetPreferredX();
       this.cursor.setAnchor();
+      stampGestureStart(this);
       this.active = true;
       this.isDragging = true;
       this.updateCaret();
@@ -871,6 +948,7 @@ export function onClick(this: any, e: MouseEvent): void {
               this.cursor.moveTo(hit);
               this.cursor.resetPreferredX();
               this.cursor.setAnchor();
+              stampGestureStart(this);
               this.active = true;
               this.isDragging = true;
               this.updateCaret();
@@ -930,6 +1008,7 @@ export function onClick(this: any, e: MouseEvent): void {
     this.cursor.moveTo(hit);
     this.cursor.resetPreferredX();
     this.cursor.setAnchor(); // 드래그 시작점(anchor) 설정
+    stampGestureStart(this);
     this.active = true;
     this.isDragging = true;
 
@@ -1235,7 +1314,110 @@ function updateTextDragSelection(this: any, e: MouseEvent): void {
   this.checkTransparentBordersTransition();
 }
 
+export function updateLineEndpointDrag(this: any, e: MouseEvent): void {
+  if (!ensureGestureMatchesLiveEpoch(this) || !this.lineEndpointState) return;
+  const st = this.lineEndpointState;
+  st.epoch ??= this.wasm ? documentEpochOf(this.wasm) : null;
+  const sc = this.container.querySelector('#scroll-content');
+  if (!sc) return;
+  const cr = sc.getBoundingClientRect();
+  const cx = e.clientX - cr.left;
+  const cy = e.clientY - cr.top;
+  const px = (cx - st.pageLeft) / st.zoom;
+  const py = (cy - st.pageOffset) / st.zoom;
+  // page px → HWPUNIT
+  const PX2HWP = 75;
+  let newX = Math.round(px * PX2HWP);
+  let newY = Math.round(py * PX2HWP);
+
+  const findBbox = this.findPictureBbox ?? _picture.findPictureBbox;
+
+  // Shift: 수평/수직/45도 스냅
+  if (e.shiftKey) {
+    const bbox = findBbox.call(this, st.ref);
+    if (bbox) {
+      const gx1 = Math.round(bbox.x1 * PX2HWP);
+      const gy1 = Math.round(bbox.y1 * PX2HWP);
+      const gx2 = Math.round(bbox.x2 * PX2HWP);
+      const gy2 = Math.round(bbox.y2 * PX2HWP);
+      const [fx, fy] = st.endpoint === 'start' ? [gx2, gy2] : [gx1, gy1];
+      const ddx = newX - fx, ddy = newY - fy;
+      const angle = Math.atan2(ddy, ddx);
+      const snapAngle = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
+      const dist = Math.sqrt(ddx * ddx + ddy * ddy);
+      newX = fx + Math.round(dist * Math.cos(snapAngle));
+      newY = fy + Math.round(dist * Math.sin(snapAngle));
+    }
+  }
+  // 고정점: 현재 속성에서 가져옴
+  try {
+    const bbox = findBbox.call(this, st.ref);
+    if (!bbox) return;
+    // 현재 시작/끝 글로벌 좌표
+    const gx1 = Math.round(bbox.x1 * PX2HWP);
+    const gy1 = Math.round(bbox.y1 * PX2HWP);
+    const gx2 = Math.round(bbox.x2 * PX2HWP);
+    const gy2 = Math.round(bbox.y2 * PX2HWP);
+    const [sx, sy, ex, ey] = st.endpoint === 'start'
+      ? [newX, newY, gx2, gy2]
+      : [gx1, gy1, newX, newY];
+    if (sx === gx1 && sy === gy1 && ex === gx2 && ey === gy2) return;
+    const expectedEpoch = st.epoch ?? epochFromLabel(st.beforeLabel) ?? this._gestureOwnerEpoch ?? null;
+    st.recorder ??= new ObjectGestureRecorder(
+      'moveLineEndpoint',
+      { sectionIndex: st.ref.sec, paragraphIndex: st.ref.ppi, charOffset: 0 },
+      expectedEpoch,
+    );
+    if (!st.recorder.begin(this.wasm)) {
+      InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
+      return;
+    }
+    this.wasm.moveLineEndpoint(st.ref.sec, st.ref.ppi, st.ref.ci, sx, sy, ex, ey);
+    this.eventBus?.emit('document-changed');
+    this.renderPictureObjectSelection?.();
+  } catch { /* ignore */ }
+}
+
+export function finishLineEndpointDrag(this: any): void {
+  if (this.lineEndpointState && isActiveGestureEpochStale(this)) {
+    InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
+    return;
+  }
+  let command: EditCommand | null = null;
+  try {
+    if (this.lineEndpointState) {
+      command = this.lineEndpointState.recorder?.finish(this.wasm) ?? null;
+      if (command) this.history?.recordWithoutExecute(command, this.wasm);
+      command = null;
+    }
+  } finally {
+    try {
+      command?.discard?.(this.wasm);
+      this.lineEndpointState?.recorder?.cancel(this.wasm);
+    } finally {
+      this._gestureOwnerEpoch = null;
+      this.isLineEndpointDragging = false;
+      this.lineEndpointState = null;
+      if (this.container?.style) this.container.style.cursor = '';
+      if (this.dragRafId) {
+        cancelAnimationFrame(this.dragRafId);
+        this.dragRafId = 0;
+      }
+    }
+  }
+}
+
 export function onMouseMove(this: any, e: MouseEvent): void {
+  bindPointerHostToWasm(this);
+  if ((hasRawOpenPointerGesture(this) || this.imagePlacementDrag || this.textboxPlacementDrag || this.connectorStartRef || this.polygonDrawingMode)
+    && isActiveGestureEpochStale(this)) {
+    InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
+    return;
+  }
+  if ((e.buttons & 1) === 0 && (hasOpenPointerGesture(this) || this.isDragging || this.isCellDragSelecting)) {
+    InputHandler.prototype.settleOpenPointerGesture.call(this, 'interrupt');
+    return;
+  }
   // 연결선 드로잉 모드: 연결점 오버레이 + 프리뷰
   if (this.connectorDrawingMode) {
     const sc = this.container.querySelector('#scroll-content');
@@ -1303,55 +1485,14 @@ export function onMouseMove(this: any, e: MouseEvent): void {
   // 직선 끝점 드래그 중
   if (this.isLineEndpointDragging && this.lineEndpointState) {
     if (this.dragRafId) return;
+    const scheduledState = this.lineEndpointState;
+    const scheduledEpoch = resolveActiveGestureEpoch(this) ?? (this.wasm ? documentEpochOf(this.wasm) : null);
     this.dragRafId = requestAnimationFrame(() => {
       this.dragRafId = 0;
-      if (!this.isLineEndpointDragging || !this.lineEndpointState) return;
-      const st = this.lineEndpointState;
-      const sc = this.container.querySelector('#scroll-content');
-      if (!sc) return;
-      const cr = sc.getBoundingClientRect();
-      const cx = e.clientX - cr.left;
-      const cy = e.clientY - cr.top;
-      const px = (cx - st.pageLeft) / st.zoom;
-      const py = (cy - st.pageOffset) / st.zoom;
-      // page px → HWPUNIT
-      const PX2HWP = 75;
-      let newX = Math.round(px * PX2HWP);
-      let newY = Math.round(py * PX2HWP);
-
-      // Shift: 수평/수직/45도 스냅
-      if (e.shiftKey) {
-        const bbox = this.findPictureBbox(st.ref);
-        if (bbox) {
-          const gx1 = Math.round(bbox.x1 * PX2HWP);
-          const gy1 = Math.round(bbox.y1 * PX2HWP);
-          const gx2 = Math.round(bbox.x2 * PX2HWP);
-          const gy2 = Math.round(bbox.y2 * PX2HWP);
-          const [fx, fy] = st.endpoint === 'start' ? [gx2, gy2] : [gx1, gy1];
-          const ddx = newX - fx, ddy = newY - fy;
-          const angle = Math.atan2(ddy, ddx);
-          const snapAngle = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
-          const dist = Math.sqrt(ddx * ddx + ddy * ddy);
-          newX = fx + Math.round(dist * Math.cos(snapAngle));
-          newY = fy + Math.round(dist * Math.sin(snapAngle));
-        }
-      }
-      // 고정점: 현재 속성에서 가져옴
-      try {
-        const bbox = this.findPictureBbox(st.ref);
-        if (!bbox) return;
-        // 현재 시작/끝 글로벌 좌표
-        const gx1 = Math.round(bbox.x1 * PX2HWP);
-        const gy1 = Math.round(bbox.y1 * PX2HWP);
-        const gx2 = Math.round(bbox.x2 * PX2HWP);
-        const gy2 = Math.round(bbox.y2 * PX2HWP);
-        const [sx, sy, ex, ey] = st.endpoint === 'start'
-          ? [newX, newY, gx2, gy2]
-          : [gx1, gy1, newX, newY];
-        this.wasm.moveLineEndpoint(st.ref.sec, st.ref.ppi, st.ref.ci, sx, sy, ex, ey);
-        this.eventBus.emit('document-changed');
-        this.renderPictureObjectSelection();
-      } catch { /* ignore */ }
+      if (this.lineEndpointState !== scheduledState) return;
+      if (scheduledEpoch !== null && this.wasm && documentEpochOf(this.wasm) !== scheduledEpoch) return;
+      if (!ensureGestureMatchesLiveEpoch(this) || !this.isLineEndpointDragging || !this.lineEndpointState) return;
+      (this.updateLineEndpointDrag ?? updateLineEndpointDrag).call(this, e);
     });
     return;
   }
@@ -1359,10 +1500,14 @@ export function onMouseMove(this: any, e: MouseEvent): void {
   // 표 이동 드래그 중
   if (this.isMoveDragging && this.moveDragState) {
     if (this.dragRafId) return;
+    const scheduledState = this.moveDragState;
+    const scheduledEpoch = resolveActiveGestureEpoch(this) ?? (this.wasm ? documentEpochOf(this.wasm) : null);
     this.dragRafId = requestAnimationFrame(() => {
       this.dragRafId = 0;
-      if (!this.isMoveDragging || !this.moveDragState) return;
-      this.updateMoveDrag(e);
+      if (this.moveDragState !== scheduledState) return;
+      if (scheduledEpoch !== null && this.wasm && documentEpochOf(this.wasm) !== scheduledEpoch) return;
+      if (!ensureGestureMatchesLiveEpoch(this) || !this.isMoveDragging || !this.moveDragState) return;
+      (this.updateMoveDrag ?? _table.updateMoveDrag).call(this, e);
     });
     return;
   }
@@ -1370,10 +1515,14 @@ export function onMouseMove(this: any, e: MouseEvent): void {
   // 그림 이동 드래그 중
   if (this.isPictureMoveDragging && this.pictureMoveState) {
     if (this.dragRafId) return;
+    const scheduledState = this.pictureMoveState;
+    const scheduledEpoch = resolveActiveGestureEpoch(this) ?? (this.wasm ? documentEpochOf(this.wasm) : null);
     this.dragRafId = requestAnimationFrame(() => {
       this.dragRafId = 0;
-      if (!this.isPictureMoveDragging || !this.pictureMoveState) return;
-      this.updatePictureMoveDrag(e);
+      if (this.pictureMoveState !== scheduledState) return;
+      if (scheduledEpoch !== null && this.wasm && documentEpochOf(this.wasm) !== scheduledEpoch) return;
+      if (!ensureGestureMatchesLiveEpoch(this) || !this.isPictureMoveDragging || !this.pictureMoveState) return;
+      (this.updatePictureMoveDrag ?? _picture.updatePictureMoveDrag).call(this, e);
     });
     return;
   }
@@ -1381,10 +1530,14 @@ export function onMouseMove(this: any, e: MouseEvent): void {
   // 그림 회전 드래그 중: 실시간 각도 계산
   if (this.isPictureRotateDragging && this.pictureRotateState) {
     if (this.dragRafId) return;
+    const scheduledState = this.pictureRotateState;
+    const scheduledEpoch = resolveActiveGestureEpoch(this) ?? (this.wasm ? documentEpochOf(this.wasm) : null);
     this.dragRafId = requestAnimationFrame(() => {
       this.dragRafId = 0;
-      if (!this.isPictureRotateDragging || !this.pictureRotateState) return;
-      this.updatePictureRotateDrag(e);
+      if (this.pictureRotateState !== scheduledState) return;
+      if (scheduledEpoch !== null && this.wasm && documentEpochOf(this.wasm) !== scheduledEpoch) return;
+      if (!ensureGestureMatchesLiveEpoch(this) || !this.isPictureRotateDragging || !this.pictureRotateState) return;
+      (this.updatePictureRotateDrag ?? _picture.updatePictureRotateDrag).call(this, e);
     });
     return;
   }
@@ -1392,15 +1545,20 @@ export function onMouseMove(this: any, e: MouseEvent): void {
   // 그림 리사이즈 드래그 중: 실시간 피드백
   if (this.isPictureResizeDragging && this.pictureResizeState) {
     if (this.dragRafId) return;
+    const scheduledState = this.pictureResizeState;
+    const scheduledEpoch = resolveActiveGestureEpoch(this) ?? (this.wasm ? documentEpochOf(this.wasm) : null);
     this.dragRafId = requestAnimationFrame(() => {
       this.dragRafId = 0;
-      if (!this.isPictureResizeDragging || !this.pictureResizeState) return;
-      this.updatePictureResizeDrag(e);
+      if (this.pictureResizeState !== scheduledState) return;
+      if (scheduledEpoch !== null && this.wasm && documentEpochOf(this.wasm) !== scheduledEpoch) return;
+      if (!ensureGestureMatchesLiveEpoch(this) || !this.isPictureResizeDragging || !this.pictureResizeState) return;
+      (this.updatePictureResizeDrag ?? _picture.updatePictureResizeDrag).call(this, e);
 
       // 드래그 중에도 커서 방향 업데이트 (Flipping 대응)
       const state = this.pictureResizeState;
+      if (!state) return;
       const angleDeg = (state.rotationAngle ?? 0) as number;
-      this.container.style.cursor = getRotatedCursor(state.dir, angleDeg);
+      if (this.container?.style) this.container.style.cursor = getRotatedCursor(state.dir, angleDeg);
     });
     return;
   }
@@ -1408,10 +1566,14 @@ export function onMouseMove(this: any, e: MouseEvent): void {
   // 리사이즈 드래그 중: 마커 위치 갱신
   if (this.isResizeDragging && this.resizeDragState) {
     if (this.dragRafId) return;
+    const scheduledState = this.resizeDragState;
+    const scheduledEpoch = resolveActiveGestureEpoch(this) ?? (this.wasm ? documentEpochOf(this.wasm) : null);
     this.dragRafId = requestAnimationFrame(() => {
       this.dragRafId = 0;
-      if (!this.isResizeDragging || !this.resizeDragState) return;
-      this.updateResizeDrag(e);
+      if (this.resizeDragState !== scheduledState) return;
+      if (scheduledEpoch !== null && this.wasm && documentEpochOf(this.wasm) !== scheduledEpoch) return;
+      if (!ensureGestureMatchesLiveEpoch(this) || !this.isResizeDragging || !this.resizeDragState) return;
+      (this.updateResizeDrag ?? _table.updateResizeDrag).call(this, e);
     });
     return;
   }
@@ -1419,9 +1581,11 @@ export function onMouseMove(this: any, e: MouseEvent): void {
   // 표 셀 블록 드래그 선택 중: 마우스가 올라간 셀까지 범위 확장
   if (this.isCellDragSelecting) {
     if (this.dragRafId) return;
+    const scheduledEpoch = resolveActiveGestureEpoch(this) ?? (this.wasm ? documentEpochOf(this.wasm) : null);
     this.dragRafId = requestAnimationFrame(() => {
       this.dragRafId = 0;
-      if (!this.isCellDragSelecting) return;
+      if (scheduledEpoch !== null && this.wasm && documentEpochOf(this.wasm) !== scheduledEpoch) return;
+      if (!ensureGestureMatchesLiveEpoch(this) || !this.isCellDragSelecting) return;
       const cellRC = this.hitTestCellRowCol(e);
       if (cellRC) {
         setCellDragFocusRange.call(this, cellRC);
@@ -1434,16 +1598,18 @@ export function onMouseMove(this: any, e: MouseEvent): void {
   // 드래그 중: requestAnimationFrame으로 throttle하여 성능 확보
   if (this.isDragging) {
     if (this.dragRafId) return; // 이미 예약된 프레임이 있으면 건너뜀
+    const scheduledEpoch = resolveActiveGestureEpoch(this) ?? (this.wasm ? documentEpochOf(this.wasm) : null);
     this.dragRafId = requestAnimationFrame(() => {
       this.dragRafId = 0;
-      if (!this.isDragging) return;
+      if (scheduledEpoch !== null && this.wasm && documentEpochOf(this.wasm) !== scheduledEpoch) return;
+      if (!ensureGestureMatchesLiveEpoch(this) || !this.isDragging) return;
       updateTextDragSelection.call(this, e);
     });
     return;
   }
 
   // 그림 객체 선택 중 → 핸들 커서 변경
-  if (this.cursor.isInPictureObjectSelection() && this.pictureObjectRenderer) {
+  if (this.pictureObjectRenderer && this.cursor?.isInPictureObjectSelection?.()) {
     const scrollContent = this.container.querySelector('#scroll-content');
     if (!scrollContent) return;
     const contentRect = scrollContent.getBoundingClientRect();
@@ -1503,7 +1669,7 @@ export function onMouseMove(this: any, e: MouseEvent): void {
   }
 
   // 표 객체 선택 중 → 핸들 커서 변경
-  if (this.cursor.isInTableObjectSelection() && this.tableObjectRenderer) {
+  if (this.tableObjectRenderer && this.cursor?.isInTableObjectSelection?.()) {
     const scrollContent = this.container.querySelector('#scroll-content');
     if (!scrollContent) return;
     const contentRect = scrollContent.getBoundingClientRect();
@@ -1553,12 +1719,14 @@ export function onMouseMove(this: any, e: MouseEvent): void {
   // 표 경계선 hover 감지 (RAF throttle)
   if (this.tableResizeRenderer) {
     if (this.resizeHoverRafId) return;
+    const hoverEpoch = this.wasm ? documentEpochOf(this.wasm) : null;
     this.resizeHoverRafId = requestAnimationFrame(() => {
       this.resizeHoverRafId = 0;
-      this.handleResizeHover(e);
+      if (hoverEpoch !== null && this.wasm && documentEpochOf(this.wasm) !== hoverEpoch) return;
+      (this.handleResizeHover ?? handleResizeHover).call(this, e);
     });
   } else {
-    if (this.container.style.cursor) {
+    if (this.container?.style?.cursor) {
       this.container.style.cursor = '';
     }
   }
@@ -1599,21 +1767,21 @@ export function handleResizeHover(this: any, e: MouseEvent): void {
 
   if (!tableRef && this.cachedTableRef && this.cachedCellBboxes?.length) {
     const pageBboxes = this.cachedCellBboxes.filter((b: any) => b.pageIndex === pageIdx);
-    const edge = this.tableResizeRenderer.hitTestBorder(pageX, pageY, pageBboxes);
+    const edge = this.tableResizeRenderer.hitTestBorder?.(pageX, pageY, pageBboxes) ?? null;
     if (edge) {
-      this.container.style.cursor = edge.type === 'row' ? 'row-resize' : 'col-resize';
-      this.tableResizeRenderer.showMarker(edge, pageBboxes, zoom);
+      if (this.container?.style) this.container.style.cursor = edge.type === 'row' ? 'row-resize' : 'col-resize';
+      this.tableResizeRenderer.showMarker?.(edge, pageBboxes, zoom);
       return;
     }
   }
 
   if (!tableRef) {
-    this.tableResizeRenderer.clear();
+    this.tableResizeRenderer.clear?.();
     this.cachedTableRef = null;
     this.cachedCellBboxes = null;
     // 개체(도형/연결선) hover 감지: 커서 변경
-    const picHit = this.findPictureAtClick(pageIdx, pageX, pageY);
-    this.container.style.cursor = picHit ? 'pointer' : '';
+    const picHit = (this.findPictureAtClick ?? _picture.findPictureAtClick).call(this, pageIdx, pageX, pageY);
+    if (this.container?.style) this.container.style.cursor = picHit ? 'pointer' : '';
     return;
   }
 
@@ -1633,8 +1801,8 @@ export function handleResizeHover(this: any, e: MouseEvent): void {
   }
 
   if (!this.cachedCellBboxes || this.cachedCellBboxes.length === 0) {
-    this.tableResizeRenderer.clear();
-    if (this.container.style.cursor) {
+    this.tableResizeRenderer.clear?.();
+    if (this.container?.style?.cursor) {
       this.container.style.cursor = '';
     }
     return;
@@ -1643,30 +1811,40 @@ export function handleResizeHover(this: any, e: MouseEvent): void {
   // 해당 페이지의 셀만 필터
   const pageBboxes = this.cachedCellBboxes.filter((b: any) => b.pageIndex === pageIdx);
   if (pageBboxes.length === 0) {
-    this.tableResizeRenderer.clear();
-    if (this.container.style.cursor) {
+    this.tableResizeRenderer.clear?.();
+    if (this.container?.style?.cursor) {
       this.container.style.cursor = '';
     }
     return;
   }
 
   // 경계선 감지
-  const edge = this.tableResizeRenderer.hitTestBorder(pageX, pageY, pageBboxes);
+  const edge = this.tableResizeRenderer.hitTestBorder?.(pageX, pageY, pageBboxes) ?? null;
   if (edge) {
-    this.container.style.cursor = edge.type === 'row' ? 'row-resize' : 'col-resize';
-    this.tableResizeRenderer.showMarker(edge, pageBboxes, zoom);
+    if (this.container?.style) this.container.style.cursor = edge.type === 'row' ? 'row-resize' : 'col-resize';
+    this.tableResizeRenderer.showMarker?.(edge, pageBboxes, zoom);
   } else {
-    this.tableResizeRenderer.clear();
-    if (this.container.style.cursor) {
+    this.tableResizeRenderer.clear?.();
+    if (this.container?.style?.cursor) {
       this.container.style.cursor = '';
     }
   }
 }
 
 export function onMouseUp(this: any, e: MouseEvent): void {
+  bindPointerHostToWasm(this);
+  if ((hasRawOpenPointerGesture(this) || this.imagePlacementDrag || this.textboxPlacementDrag)
+    && isActiveGestureEpochStale(this)) {
+    InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
+    return;
+  }
+  InputHandler.prototype.settleOpenPointerGesture.call(this, 'release', () => finishMouseUp.call(this, e));
+}
+
+function finishMouseUp(this: any, e: MouseEvent): void {
   // 그림 배치 모드 마우스업 → 삽입 실행
   if (this.imagePlacementMode && this.imagePlacementDrag && this.imagePlacementData) {
-    this.finishImagePlacement(e);
+    (this.finishImagePlacement ?? _table.finishImagePlacement).call(this, e);
     return;
   }
 
@@ -1678,40 +1856,37 @@ export function onMouseUp(this: any, e: MouseEvent): void {
 
   // 표 이동 드래그 종료
   if (this.isMoveDragging) {
-    this.finishMoveDrag();
+    (this.finishMoveDrag ?? _table.finishMoveDrag).call(this);
     return;
   }
 
   // 그림 이동 드래그 종료
   if (this.isPictureMoveDragging) {
-    this.finishPictureMoveDrag();
+    (this.finishPictureMoveDrag ?? _picture.finishPictureMoveDrag).call(this);
     return;
   }
 
   // 그림 회전 드래그 종료
   if (this.isPictureRotateDragging) {
-    this.finishPictureRotateDrag(e);
+    (this.finishPictureRotateDrag ?? _picture.finishPictureRotateDrag).call(this, e);
     return;
   }
 
   // 직선 끝점 드래그 종료
   if (this.isLineEndpointDragging) {
-    this.isLineEndpointDragging = false;
-    this.lineEndpointState = null;
-    this.container.style.cursor = '';
-    if (this.dragRafId) { cancelAnimationFrame(this.dragRafId); this.dragRafId = 0; }
+    (this.finishLineEndpointDrag ?? finishLineEndpointDrag).call(this);
     return;
   }
 
   // 그림 리사이즈 드래그 종료
   if (this.isPictureResizeDragging) {
-    this.finishPictureResizeDrag(e);
+    (this.finishPictureResizeDrag ?? _picture.finishPictureResizeDrag).call(this, e);
     return;
   }
 
   // 리사이즈 드래그 종료
   if (this.isResizeDragging) {
-    this.finishResizeDrag(e);
+    (this.finishResizeDrag ?? _table.finishResizeDrag).call(this, e);
     return;
   }
 

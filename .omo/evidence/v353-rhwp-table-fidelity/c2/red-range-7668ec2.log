@@ -1,0 +1,24 @@
+   Compiling rhwp v0.7.3 (/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.77s
+     Running tests/hwpx_table_fidelity.rs (target/debug/deps/hwpx_table_fidelity-8fba4dff0113d046)
+
+running 1 test
+test display_height_noop_cell_range_delete ... FAILED
+
+failures:
+
+---- display_height_noop_cell_range_delete stdout ----
+
+thread 'display_height_noop_cell_range_delete' (675356270) panicked at tests/hwpx_table_fidelity.rs:1144:13:
+assertion `left == right` failed
+  left: 200100
+ right: 1000
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    display_height_noop_cell_range_delete
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 38 filtered out; finished in 2.25s
+
+error: test failed, to rerun pass `--test hwpx_table_fidelity`

@@ -150,7 +150,7 @@ impl LayoutEngine {
         if table.row_count == 1 && table.col_count == 1 && table.cells.len() == 1 {
             let cell = &table.cells[0];
             let has_visible_text = cell.paragraphs.iter().any(|p| {
-                p.text
+                p.text()
                     .chars()
                     .any(|ch| !ch.is_whitespace() && ch != '\r' && ch != '\n')
             });
@@ -610,6 +610,20 @@ impl LayoutEngine {
         table: &crate::model::table::Table,
         col_count: usize,
     ) -> Vec<f64> {
+        let mut col_widths = self.resolve_cell_column_widths(table, col_count);
+        for width in &mut col_widths {
+            if *width <= 0.0 {
+                *width = hwpunit_to_px(1800, self.dpi);
+            }
+        }
+        col_widths
+    }
+
+    pub(crate) fn resolve_cell_column_widths(
+        &self,
+        table: &crate::model::table::Table,
+        col_count: usize,
+    ) -> Vec<f64> {
         // 1단계: col_span==1인 셀에서 개별 열 폭 추출
         let mut col_widths = vec![0.0f64; col_count];
         for cell in &table.cells {
@@ -673,12 +687,6 @@ impl LayoutEngine {
             }
         }
 
-        // 3단계: 여전히 폭이 0인 열에 기본값 할당
-        for c in 0..col_count {
-            if col_widths[c] <= 0.0 {
-                col_widths[c] = hwpunit_to_px(1800, self.dpi);
-            }
-        }
         col_widths
     }
 
@@ -1146,20 +1154,16 @@ impl LayoutEngine {
                 raw_y
             }
         } else if depth == 0 {
-            let v_offset = if table_treat_as_char {
-                hwpunit_to_px(table.common.vertical_offset as i32, self.dpi)
-            } else {
-                0.0
-            };
+            // TAC 표는 예약된 텍스트 흐름 위치를 사용하므로 floating offset을 더하지 않는다.
             if let Some(ref caption) = table.caption {
                 use crate::model::shape::CaptionDirection;
                 if matches!(caption.direction, CaptionDirection::Top) {
-                    y_start + caption_height + caption_spacing + v_offset
+                    y_start + caption_height + caption_spacing
                 } else {
-                    y_start + v_offset
+                    y_start
                 }
             } else {
-                y_start + v_offset
+                y_start
             }
         } else {
             // 중첩 표: outer_margin_top 적용
@@ -1886,8 +1890,10 @@ impl LayoutEngine {
 
                                 // 수식이 텍스트 run 사이에 인라인으로 배치되는 경우
                                 // layout_composed_paragraph에서 이미 렌더링됨 → 건너뛰기
-                                let has_text_in_para =
-                                    para.text.chars().any(|c| c > '\u{001F}' && c != '\u{FFFC}');
+                                let has_text_in_para = para
+                                    .text()
+                                    .chars()
+                                    .any(|c| c > '\u{001F}' && c != '\u{FFFC}');
                                 if has_text_in_para {
                                     // 텍스트가 있는 문단: paragraph_layout에서 처리됨
                                     inline_x += eq_w;

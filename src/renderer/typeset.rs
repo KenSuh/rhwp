@@ -1055,7 +1055,7 @@ impl TypesetEngine {
     ) {
         let vertical_offset = Self::get_table_vertical_offset(table);
         let total_lines = fmt.line_heights.len();
-        let pre_table_end_line = if vertical_offset > 0 && !para.text.is_empty() {
+        let pre_table_end_line = if vertical_offset > 0 && !para.text().is_empty() {
             total_lines
         } else {
             0
@@ -1104,7 +1104,7 @@ impl TypesetEngine {
         };
         let should_add_post_text = is_last_table
             && tac_table_count <= 1
-            && !para.text.is_empty()
+            && !para.text().is_empty()
             && total_lines > post_table_start;
         if should_add_post_text {
             let post_height: f64 = fmt.line_advances_sum(post_table_start..total_lines);
@@ -1119,7 +1119,7 @@ impl TypesetEngine {
         // TAC 표: trailing line_spacing 복원 (Paginator place_table_fits:777-783 동일)
         // has_post_text는 tac_table_count와 무관하게 텍스트 줄 존재 여부만 확인
         let is_tac = table.attr & 0x01 != 0;
-        let has_post_text = !para.text.is_empty() && total_lines > post_table_start;
+        let has_post_text = !para.text().is_empty() && total_lines > post_table_start;
         if is_tac && fmt.total_height > fmt.height_for_fit && !has_post_text {
             st.current_height += fmt.total_height - fmt.height_for_fit;
         }
@@ -1735,7 +1735,7 @@ impl TypesetEngine {
         let seg_width = para.line_segs.first().map(|s| s.segment_width).unwrap_or(0);
         para.controls.iter().any(|c| {
             matches!(c, Control::Table(t) if t.attr & 0x01 == 0
-                || (t.attr & 0x01 != 0 && !is_tac_table_inline(t, seg_width, &para.text, &para.controls)))
+                || (t.attr & 0x01 != 0 && !is_tac_table_inline(t, seg_width, &para.text(), &para.controls)))
         })
     }
 
@@ -1775,12 +1775,14 @@ mod tests {
     }
 
     fn make_paragraph_with_height(line_height: i32) -> Paragraph {
-        Paragraph {
-            line_segs: vec![LineSeg {
+        {
+            let mut paragraph_value = Paragraph::default();
+
+            paragraph_value.line_segs = vec![LineSeg {
                 line_height,
                 ..Default::default()
-            }],
-            ..Default::default()
+            }];
+            paragraph_value
         }
     }
 
@@ -1906,15 +1908,17 @@ mod tests {
         let styles = ResolvedStyleSet::default();
 
         // 여러 줄이 있는 큰 문단 (페이지 경계에서 줄 단위 분할)
-        let paras = vec![Paragraph {
-            line_segs: (0..50)
+        let paras = vec![{
+            let mut paragraph_value = Paragraph::default();
+
+            paragraph_value.line_segs = (0..50)
                 .map(|_| LineSeg {
                     line_height: 1800,
                     line_spacing: 200,
                     ..Default::default()
                 })
-                .collect(),
-            ..Default::default()
+                .collect();
+            paragraph_value
         }];
         let composed: Vec<ComposedParagraph> = Vec::new();
         let page_def = a4_page_def();
@@ -2028,7 +2032,7 @@ mod tests {
 
         let engine = TypesetEngine::with_default_dpi();
 
-        for (sec_idx, section) in doc.document.sections.iter().enumerate() {
+        for (sec_idx, section) in doc.document().sections.iter().enumerate() {
             let composed = &doc.composed[sec_idx];
             let measured_tables = &doc.measured_tables[sec_idx];
             let column_def =

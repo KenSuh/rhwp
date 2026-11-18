@@ -190,6 +190,7 @@ mod tests {
             height_criterion: SizeCriterion::Absolute,
             description: String::new(),
             raw_extra: Vec::new(),
+            ..Default::default()
         }
     }
 

@@ -1,0 +1,31 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+   Compiling rhwp v0.7.3 (/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.79s
+     Running tests/hwpx_save_fidelity_l2.rs (target/debug/deps/hwpx_save_fidelity_l2-d7bdbef07c1a9a80)
+
+running 20 tests
+test dump_open_save ... ignored
+test residual_c1_tab_halving_path_survives_two_saves ... ok
+test residual_c1_signed_halving_paths_survive_two_saves ... ok
+test run_order_c6_open_save_matches_hancom_original ... ok
+test write_hancom_review_files ... ignored
+test run_order_facf_open_save_restores_hancom_original ... ok
+test run_order_paragraph_without_offsets_keeps_text_first ... ok
+test run_order_offsets_gap_places_table_between_text ... ok
+test run_order_c1_binary_field_begin_precedes_table_at_same_position ... ok
+test residual_header_tab_items_use_hancom_switch ... ok
+test residual_group_children_match_hancom_structure ... ok
+test residual_negative_shape_offset_survives_second_save ... ok
+test two_save_section_def_prefix_keeps_column_in_section_run ... ok
+test residual_header_odd_even_negative_margins_survive_two_saves ... ok
+test residual_header_para_margins_use_hancom_switch ... ok
+test residual_line_writes_start_and_end_points ... ok
+test residual_c1_missing_track_change_config_keeps_existing_zero_output ... ok
+test run_order_c1_empty_fields_and_controls_keep_relative_order_two_saves ... ok
+test two_save_first_paragraph_keeps_hancom_section_runs ... ok
+test residual_c1_track_change_flags_survive_two_native_saves ... ok
+
+test result: ok. 18 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 10.29s
+

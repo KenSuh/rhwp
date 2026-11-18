@@ -53,7 +53,7 @@ mod tests {
             let para = &section.paragraphs[para_idx];
 
             // 빈 문단이나 LINE_SEG가 없는 문단은 건너뜀
-            if para.line_segs.is_empty() || para.text.is_empty() {
+            if para.line_segs.is_empty() || para.text().is_empty() {
                 continue;
             }
 
@@ -203,7 +203,7 @@ mod tests {
         let col_area = &layout.column_areas[0];
 
         for (pi, para) in section.paragraphs.iter().enumerate() {
-            if para.line_segs.is_empty() || para.text.is_empty() {
+            if para.line_segs.is_empty() || para.text().is_empty() {
                 continue;
             }
             if para.line_segs[0].line_height == 0 {
@@ -216,7 +216,7 @@ mod tests {
             let available_width = col_area.width - margin_left - margin_right;
             let available_hwp = crate::renderer::px_to_hwpunit(available_width, dpi);
 
-            let text_chars: Vec<char> = para.text.chars().collect();
+            let text_chars: Vec<char> = para.text().chars().collect();
 
             eprintln!(
                 "\n=== 문단 {} (줄 {}개, 가용폭 {:.1}px = {} HU) ===",
@@ -231,7 +231,7 @@ mod tests {
                 let utf16_end = if li + 1 < para.line_segs.len() {
                     para.line_segs[li + 1].text_start as usize
                 } else {
-                    para.char_offsets
+                    para.char_offsets()
                         .last()
                         .map(|&o| o as usize + 1)
                         .unwrap_or(text_chars.len())
@@ -239,12 +239,12 @@ mod tests {
 
                 // UTF-16 offset → char index 변환
                 let char_start = para
-                    .char_offsets
+                    .char_offsets()
                     .iter()
                     .position(|&o| o as usize >= utf16_start)
                     .unwrap_or(0);
                 let char_end = para
-                    .char_offsets
+                    .char_offsets()
                     .iter()
                     .position(|&o| o as usize >= utf16_end)
                     .unwrap_or(text_chars.len());
@@ -352,7 +352,7 @@ mod tests {
                 if pi > 0 {
                     break;
                 } // 첫 문단만
-                if para.line_segs.is_empty() || para.text.is_empty() {
+                if para.line_segs.is_empty() || para.text().is_empty() {
                     continue;
                 }
                 if para.line_segs[0].line_height == 0 {
@@ -365,7 +365,7 @@ mod tests {
                 let available_width = col_area.width - margin_left - margin_right;
                 let available_hwp = crate::renderer::px_to_hwpunit(available_width, dpi);
 
-                let text_chars: Vec<char> = para.text.chars().collect();
+                let text_chars: Vec<char> = para.text().chars().collect();
 
                 // reflow 결과
                 let mut para_clone = para.clone();
@@ -392,12 +392,12 @@ mod tests {
                     {
                         // 이 줄의 글자 범위 (char index)
                         let char_start = para
-                            .char_offsets
+                            .char_offsets()
                             .iter()
                             .position(|&o| o >= ots)
                             .unwrap_or(0);
                         let char_end = para
-                            .char_offsets
+                            .char_offsets()
                             .iter()
                             .position(|&o| o >= next_ots)
                             .unwrap_or(text_chars.len());
@@ -407,8 +407,8 @@ mod tests {
                         let mut last_char = ' ';
                         for ci in char_start..char_end.min(text_chars.len()) {
                             let ch = text_chars[ci];
-                            let utf16_pos = if ci < para.char_offsets.len() {
-                                para.char_offsets[ci]
+                            let utf16_pos = if ci < para.char_offsets().len() {
+                                para.char_offsets()[ci]
                             } else {
                                 ci as u32
                             };
@@ -423,8 +423,8 @@ mod tests {
 
                         // 다음 글자(줄 넘침 원인)
                         let next_char = text_chars.get(char_end).copied().unwrap_or('?');
-                        let next_utf16 = if char_end < para.char_offsets.len() {
-                            para.char_offsets[char_end]
+                        let next_utf16 = if char_end < para.char_offsets().len() {
+                            para.char_offsets()[char_end]
                         } else {
                             0
                         };
@@ -469,7 +469,7 @@ mod tests {
         let col_area = &layout.column_areas[0];
 
         for (pi, para) in section.paragraphs.iter().enumerate() {
-            if para.line_segs.is_empty() || para.text.is_empty() {
+            if para.line_segs.is_empty() || para.text().is_empty() {
                 continue;
             }
             if para.line_segs[0].line_height == 0 {
@@ -482,7 +482,7 @@ mod tests {
             let available_width = col_area.width - margin_left - margin_right;
             let indent = para_style.map(|s| s.indent).unwrap_or(0.0);
 
-            let text_chars: Vec<char> = para.text.chars().collect();
+            let text_chars: Vec<char> = para.text().chars().collect();
 
             let english_break_unit = para_style.map(|s| s.english_break_unit).unwrap_or(0);
             let korean_break_unit = para_style.map(|s| s.korean_break_unit).unwrap_or(0);
@@ -496,19 +496,19 @@ mod tests {
                     para.line_segs[li + 1].text_start as usize
                 } else {
                     // 마지막 줄: 문단 끝까지
-                    para.char_offsets
+                    para.char_offsets()
                         .last()
                         .map(|&o| o as usize + 1)
                         .unwrap_or(text_chars.len())
                 };
 
                 let char_start = para
-                    .char_offsets
+                    .char_offsets()
                     .iter()
                     .position(|&o| o as usize >= utf16_start)
                     .unwrap_or(0);
                 let char_end = para
-                    .char_offsets
+                    .char_offsets()
                     .iter()
                     .position(|&o| o as usize >= utf16_end)
                     .unwrap_or(text_chars.len());
@@ -529,8 +529,8 @@ mod tests {
 
                 for (ci, ch) in trimmed.chars().enumerate() {
                     let pos = char_start + ci;
-                    let utf16_pos = if pos < para.char_offsets.len() {
-                        para.char_offsets[pos]
+                    let utf16_pos = if pos < para.char_offsets().len() {
+                        para.char_offsets()[pos]
                     } else {
                         pos as u32
                     };
@@ -573,7 +573,7 @@ mod tests {
             let korean_break_unit = para_style.map(|s| s.korean_break_unit).unwrap_or(0);
             let tokens = tokenize_paragraph(
                 &text_chars,
-                &para.char_offsets,
+                &para.char_offsets(),
                 &para.char_shapes,
                 &styles,
                 english_break_unit,

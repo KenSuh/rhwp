@@ -1,0 +1,35 @@
+IMPACT at=code:17f85ce02d48a7da5d12a6e0997939949a60f613@17f85ce02d48 query="gates/V318_ENGINE_CLIPPY_CORRECTION_GATES.md" mode=path jev=used(cache) jev_threshold=0.45 files=17 rows=17 det_ms=331 total_ms=333 jev_requests=0 jev_http_attempts=0 jev_input_tokens=0
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c2/structure.sh  channel=other binding=mention jev=0.49★ rows=1
+    :33 [path/mention] assert not git("diff", "--name-only", BASE, "--", "gates/V318_ENGINE_CLIPPY_CORRECTION_GATES.md")
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c2/impact-lock.log  channel=other binding=mention jev=0.27 rows=1
+    :18 [path/mention] - [code] gates/V318_ENGINE_CLIPPY_CORRECTION_GATES.md  channel=gate_ledger binding=exec jev=0.45★ rows=1
+- [code] .omo/evidence/v318-engine-clippy-correction/final-gate-status.json  channel=other binding=mention jev=0.26 rows=1
+    :7 [path/mention] "gates/V318_ENGINE_CLIPPY_CORRECTION_GATES.md"
+- [code] .omo/evidence/v318-engine-clippy-correction/final-gate-status.log  channel=other binding=mention jev=0.23 rows=1
+    :1 [path/mention] gates/V318_ENGINE_CLIPPY_CORRECTION_GATES.md: 9 gates
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-final-2.log  channel=other binding=mention jev=0.22 rows=1
+    :277 [path/mention] - [code] gates/V318_ENGINE_CLIPPY_CORRECTION_GATES.md  channel=gate_ledger binding=mention jev=0.22 rows=2
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c3/base-source-binding.json  channel=other binding=mention jev=0.22 rows=1
+    :634 [path/mention] "path": "gates/V318_ENGINE_CLIPPY_CORRECTION_GATES.md",
+- [code] .omo/evidence/v318-engine-clippy-correction/gate-status.json  channel=other binding=mention jev=0.21 rows=1
+    :7 [path/mention] "gates/V318_ENGINE_CLIPPY_CORRECTION_GATES.md"
+- [code] .omo/evidence/v318-engine-clippy-correction/gate-status.log  channel=other binding=mention jev=0.18 rows=1
+    :2 [path/mention] gates/V318_ENGINE_CLIPPY_CORRECTION_GATES.md: 9 gates
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-gate.json  channel=other binding=mention jev=0.18 rows=1
+    :13 [path/mention] "gates/V318_ENGINE_CLIPPY_CORRECTION_GATES.md",
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/impact-lock.log  channel=other binding=mention jev=0.17 rows=1
+    :7 [path/mention] - [code] gates/V318_ENGINE_CLIPPY_CORRECTION_GATES.md  channel=gate_ledger binding=exec jev=0.31 rows=1
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-main-head.log  channel=other binding=mention jev=0.16 rows=1
+    :3 [path/mention] - [code] gates/V318_ENGINE_CLIPPY_CORRECTION_GATES.md  channel=gate_ledger binding=mention jev=0.60★ rows=2
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-gate.log  channel=other binding=mention jev=0.13 rows=1
+    :1 [path/mention] 결정적 결과만 · Jev 미사용(후보 0) · IMPACT at=code:HEAD@3033ae22c903 query="gates/V318_ENGINE_CLIPPY_CORRECTION_GATES.md" mode=path jev=unused(후보 0) jev_thresho
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c3/impact-cargo-lock.log  channel=other binding=mention jev=0.13 rows=1
+    :8 [path/mention] - [code] gates/V318_ENGINE_CLIPPY_CORRECTION_GATES.md  channel=gate_ledger binding=exec jev=0.29 rows=1
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-4.log  channel=other binding=mention jev=0.12 rows=1
+    :307 [path/mention] - [code] gates/V318_ENGINE_CLIPPY_CORRECTION_GATES.md  channel=gate_ledger binding=mention jev=0.16 rows=5
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-final-0.log  channel=other binding=mention jev=0.12 rows=1
+    :305 [path/mention] - [code] gates/V318_ENGINE_CLIPPY_CORRECTION_GATES.md  channel=gate_ledger binding=mention jev=0.16 rows=5
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c3/impact-parser-control.log  channel=other binding=mention jev=0.12 rows=1
+    :102 [path/mention] - [code] gates/V318_ENGINE_CLIPPY_CORRECTION_GATES.md  channel=gate_ledger binding=mention jev=0.33 rows=1
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-3.log  channel=other binding=mention jev=0.11 rows=1
+    :330 [path/mention] - [code] gates/V318_ENGINE_CLIPPY_CORRECTION_GATES.md  channel=gate_ledger binding=mention jev=0.18 rows=2

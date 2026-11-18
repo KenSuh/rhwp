@@ -342,7 +342,7 @@ impl DocumentCore {
                 if parsed.is_empty()
                     || parsed
                         .iter()
-                        .all(|p| p.text.trim().is_empty() && p.controls.is_empty())
+                        .all(|p| p.text().trim().is_empty() && p.controls.is_empty())
                 {
                     vec![Paragraph::new_empty()]
                 } else {
@@ -359,7 +359,7 @@ impl DocumentCore {
             for cp_para in &mut cell_paragraphs {
                 cp_para.char_count_msb = true; // 셀 문단은 항상 MSB 설정
                                                // char_count에 문단끝 마커(+1) 포함
-                let text_chars = cp_para.text.chars().count() as u32;
+                let text_chars = cp_para.text().chars().count() as u32;
                 cp_para.char_count = text_chars + 1;
 
                 // para_shape_id: 기본 "본문" ParaShape 사용 (DIFF-3)
@@ -595,6 +595,8 @@ impl DocumentCore {
             cell_grid: Vec::new(),
             page_break: TablePageBreak::None,
             repeat_header: has_header_row,
+            no_adjust: false,
+            hwpx_owner_char_shape_id: None,
             caption: None,
             common: Default::default(),
             outer_margin_left: outer_margin,
@@ -650,16 +652,19 @@ impl DocumentCore {
         // [6..10] instance_id=0x80000000
         table_raw_header_extra[6..10].copy_from_slice(&0x80000000u32.to_le_bytes());
 
-        let table_para = Paragraph {
-            text: String::new(),
-            char_count: 9, // 확장 제어문자(8 code units) + 문단끝(1 code unit)
-            control_mask: 0x00000800, // DrawTableObject (bit 11)
-            char_offsets: vec![],
-            char_shapes: vec![crate::model::paragraph::CharShapeRef {
+        let table_para = {
+            let mut paragraph_value = Paragraph::with_text(String::new(), vec![], Vec::new());
+
+            paragraph_value.char_count = 9;
+            // 확장 제어문자(8 code units) + 문단끝(1 code unit)
+            paragraph_value.control_mask = 0x00000800;
+
+            paragraph_value.char_shapes = vec![crate::model::paragraph::CharShapeRef {
                 start_pos: 0,
                 char_shape_id: default_char_shape_id,
-            }],
-            line_segs: vec![crate::model::paragraph::LineSeg {
+            }];
+
+            paragraph_value.line_segs = vec![crate::model::paragraph::LineSeg {
                 text_start: 0,
                 line_height: total_height.min(i32::MAX as u32) as i32,
                 text_height: total_height.min(i32::MAX as u32) as i32,
@@ -668,18 +673,24 @@ impl DocumentCore {
                 segment_width: total_width.min(i32::MAX as u32) as i32,
                 tag: 0x00060000, // 정상 HWP 패턴 (bit 17,18)
                 ..Default::default()
-            }],
-            para_shape_id: table_para_shape_id,
-            style_id: 0,
-            controls: vec![Control::Table(Box::new(table))],
-            ctrl_data_records: vec![None],
-            has_para_text: true,
-            raw_header_extra: table_raw_header_extra,
+            }];
+
+            paragraph_value.para_shape_id = table_para_shape_id;
+
+            paragraph_value.style_id = 0;
+
+            paragraph_value.controls = vec![Control::Table(Box::new(table))];
+
+            paragraph_value.ctrl_data_records = vec![None];
+
+            paragraph_value.has_para_text = true;
+
+            paragraph_value.raw_header_extra = table_raw_header_extra;
             // 표 문단 자체의 MSB는 false (기존 HWP 문서 패턴)
             // FIX-1은 빈 문서 케이스에만 해당, 내용이 있는 문서에서는 false
             // 셀 내부 문단의 MSB는 true (셀 보정 코드에서 설정)
-            char_count_msb: false,
-            ..Default::default()
+            paragraph_value.char_count_msb = false;
+            paragraph_value
         };
 
         paragraphs.push(table_para);
@@ -847,17 +858,18 @@ impl DocumentCore {
         if !src.starts_with("data:") {
             // 외부 URL 이미지는 처리하지 않음 — 텍스트로 대체
             let mut para = Paragraph::default();
-            para.text = "[이미지]".to_string();
-            para.char_count = para.text.encode_utf16().count() as u32;
-            para.char_offsets = para
-                .text
-                .chars()
-                .scan(0u32, |acc, c| {
-                    let off = *acc;
-                    *acc += c.len_utf16() as u32;
-                    Some(off)
-                })
-                .collect();
+            para.replace_text("[이미지]".to_string());
+            para.char_count = para.text().encode_utf16().count() as u32;
+            para.set_char_offsets(
+                para.text()
+                    .chars()
+                    .scan(0u32, |acc, c| {
+                        let off = *acc;
+                        *acc += c.len_utf16() as u32;
+                        Some(off)
+                    })
+                    .collect(),
+            );
             paragraphs.push(para);
             return;
         }
@@ -905,17 +917,18 @@ impl DocumentCore {
 
         // Picture Control 생성 (placeholder로 텍스트 표현)
         let mut para = Paragraph::default();
-        para.text = "[이미지]".to_string();
-        para.char_count = para.text.encode_utf16().count() as u32;
-        para.char_offsets = para
-            .text
-            .chars()
-            .scan(0u32, |acc, c| {
-                let off = *acc;
-                *acc += c.len_utf16() as u32;
-                Some(off)
-            })
-            .collect();
+        para.replace_text("[이미지]".to_string());
+        para.char_count = para.text().encode_utf16().count() as u32;
+        para.set_char_offsets(
+            para.text()
+                .chars()
+                .scan(0u32, |acc, c| {
+                    let off = *acc;
+                    *acc += c.len_utf16() as u32;
+                    Some(off)
+                })
+                .collect(),
+        );
 
         // Picture 컨트롤 생성
         let mut pic = crate::model::image::Picture::default();

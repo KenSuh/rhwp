@@ -126,6 +126,8 @@ pub struct DocProperties {
 /// 문서 정보 (DocInfo 스트림의 ID 매핑 데이터)
 #[derive(Debug, Clone, Default)]
 pub struct DocInfo {
+    /// HWPX trackchageConfig 원시 flags (요소가 없으면 기존 출력값 0).
+    pub hwpx_track_change_flags: u32,
     /// 바이너리 데이터 목록
     pub bin_data_list: Vec<BinData>,
     /// 글꼴 목록 (언어별: 한글, 영어, 한자, 일어, 기타, 기호, 사용자)

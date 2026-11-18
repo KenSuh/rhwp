@@ -1,0 +1,15 @@
+IMPACT at=code:e6e5850ee07c952f2908df8e5845124c224c2f90@e6e5850ee07c query="Cargo.lock" mode=path jev=used(cache) jev_threshold=0.45 files=6 rows=8 det_ms=210 total_ms=212 jev_requests=0 jev_http_attempts=0 jev_input_tokens=0
+- [code] .gitignore  channel=other binding=mention jev=0.53★ rows=1
+    :4 [path/mention] Cargo.lock
+- [code] tools/roundtrip_diff.py  channel=other binding=mention jev=0.34 rows=2
+    :269 [path/mention] if (repo / "Cargo.lock").is_file():
+    :270 [path/mention] shutil.copyfile(repo / "Cargo.lock", probe / "Cargo.lock")
+- [code] gates/V318_ENGINE_CLIPPY_CORRECTION_GATES.md  channel=gate_ledger binding=exec jev=0.31 rows=1
+    :36 [path/exec] manifest, tracked lockfile, workflow, renderer/pagination, API, publication, PageDef 모델/파서/테스트 입력 변경 0. 처음에는 Cargo.lock이 없고 gitignored였으며 cargo가 재현 빌드
+- [code] .github/workflows/ci.yml  channel=workflow binding=mention jev=0.25 rows=2
+    :64 [path/mention] key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    :102 [path/mention] key: ${{ runner.os }}-wasm-${{ hashFiles('**/Cargo.lock') }}
+- [code] .github/workflows/deploy-pages.yml  channel=workflow binding=mention jev=0.22 rows=1
+    :55 [path/mention] key: ${{ runner.os }}-wasm-${{ hashFiles('**/Cargo.lock') }}
+- [code] .github/workflows/npm-publish.yml  channel=workflow binding=mention jev=0.19 rows=1
+    :33 [path/mention] key: ${{ runner.os }}-wasm-${{ hashFiles('**/Cargo.lock') }}

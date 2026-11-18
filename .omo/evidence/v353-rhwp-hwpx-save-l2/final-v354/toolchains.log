@@ -1,0 +1,38 @@
+UTC_START=2026-10-26T13:18:05Z
+CWD=/tmp/v353-final-v354.WRpWpU/checkout
+ARGV= bash -euo pipefail -c $'\n    command -v cargo rustc rustup node\n    cargo -Vv\n    rustc -Vv\n    rustup show active-toolchain\n    rustup target list --installed\n    rustup target list --installed | grep -Fx wasm32-unknown-unknown\n    printf "CARGO_HOME=%s\\nCARGO_NET_OFFLINE=%s\\nTMPDIR=%s\\n" "$CARGO_HOME" "$CARGO_NET_OFFLINE" "$TMPDIR"\n    printf "RUSTFLAGS=unset\\nCARGO_ENCODED_RUSTFLAGS=unset\\nRUSTC_WRAPPER=unset\\nRUSTC_WORKSPACE_WRAPPER=unset\\n"\n'
+/Users/ken/.cargo/bin/cargo
+/Users/ken/.cargo/bin/rustc
+/Users/ken/.cargo/bin/rustup
+/opt/homebrew/bin/node
+cargo 1.95.0 (f2d3ce0bd 2026-03-21)
+release: 1.95.0
+commit-hash: f2d3ce0bd7f24a49f8f72d9000448f8838c4e850
+commit-date: 2026-03-21
+host: aarch64-apple-darwin
+libgit2: 1.9.2 (sys:0.20.4 vendored)
+libcurl: 8.7.1 (sys:0.4.83+curl-8.15.0 system ssl:(SecureTransport) LibreSSL/3.3.6)
+ssl: OpenSSL 3.5.4 30 Sep 2025
+os: Mac OS 26.5.2 [64-bit]
+rustc 1.95.0 (59807616e 2026-04-14)
+binary: rustc
+commit-hash: 59807616e1fa2540724bfbac14d7976d7e4a3860
+commit-date: 2026-04-14
+host: aarch64-apple-darwin
+release: 1.95.0
+LLVM version: 22.1.2
+stable-aarch64-apple-darwin (default)
+aarch64-apple-darwin
+wasm32-unknown-unknown
+wasm32-unknown-unknown
+CARGO_HOME=/tmp/v353-final-v354.WRpWpU/cargo-home
+CARGO_NET_OFFLINE=true
+TMPDIR=/tmp/v353-final-v354.WRpWpU/snapshots
+RUSTFLAGS=unset
+CARGO_ENCODED_RUSTFLAGS=unset
+RUSTC_WRAPPER=unset
+RUSTC_WORKSPACE_WRAPPER=unset
+
+UTC_END=2026-10-26T13:18:05Z
+ELAPSED_SECONDS=0
+EXIT_STATUS=0

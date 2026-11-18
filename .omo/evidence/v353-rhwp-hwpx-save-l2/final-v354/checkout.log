@@ -1,0 +1,8 @@
+UTC_START=2026-10-26T13:17:58Z
+CWD=/tmp/v353-final-v354.WRpWpU/checkout
+ARGV= /usr/bin/git checkout --detach 17f85ce02d48a7da5d12a6e0997939949a60f613
+HEAD is now at 17f85ce fix(rhwp): verify clean checkouts without an ignored Cargo lock
+
+UTC_END=2026-10-26T13:17:59Z
+ELAPSED_SECONDS=1
+EXIT_STATUS=0

@@ -1,0 +1,18 @@
+CWD=/tmp/v353-c2.wjOeCn/green
+COMMAND= env TMPDIR=/tmp/v353-c2.wjOeCn/snapshots bash /Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity/.omo/evidence/v353-rhwp-hwpx-save-l2/c1/clean-cargo.sh --c2-invalid-option
+CLEAN_SOURCE_HEAD=7370ec9fdcf89eb4a372143bcb555ddd9bfe0b46
+CLEAN_SOURCE_METHOD=git-archive
+DEPENDENCY_INPUT=absent
+DEPENDENCY_INPUT_SHA256=absent
+COMMAND=cargo --c2-invalid-option
+CARGO_TARGET_DIR=/private/tmp/v353-c2.wjOeCn/green/target
+error: unexpected argument '--c2-invalid-option' found
+
+Usage: cargo [+toolchain] [OPTIONS] [COMMAND]
+       cargo [+toolchain] [OPTIONS] -Zscript <MANIFEST_RS> [ARGS]...
+
+For more information, try '--help'.
+RESOLVED_CARGO_LOCK_SHA256=absent
+CARGO_EXIT_STATUS=1
+
+EXIT=1

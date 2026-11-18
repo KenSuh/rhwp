@@ -1,0 +1,96 @@
+{
+  "tool": "tools/roundtrip_diff.py",
+  "pipeline": "rhwp::DocumentCore::from_bytes -> export_hwpx_native",
+  "repo": "/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity",
+  "head": "a34d88ff3bae317ad08d8f0b99504e4395278e6a",
+  "src_dirty": false,
+  "generated_at": "2026-10-25T10:05:11Z",
+  "fixtures": "tests/fixtures/table-fidelity",
+  "cases": [
+    "T5"
+  ],
+  "counted_keys": {
+    "tbl": [
+      "textWrap",
+      "textFlow",
+      "lock",
+      "pageBreak",
+      "repeatHeader",
+      "noAdjust",
+      "cellSpacing",
+      "rowCnt",
+      "colCnt"
+    ],
+    "sz": [
+      "width",
+      "widthRelTo",
+      "height",
+      "heightRelTo",
+      "protect"
+    ],
+    "pos": [
+      "treatAsChar",
+      "affectLSpacing",
+      "flowWithText",
+      "allowOverlap",
+      "holdAnchorAndSO",
+      "vertRelTo",
+      "horzRelTo",
+      "vertAlign",
+      "horzAlign",
+      "vertOffset",
+      "horzOffset"
+    ],
+    "caption": [
+      "side",
+      "fullSz",
+      "width",
+      "gap",
+      "lastWidth",
+      "@paragraphs"
+    ],
+    "cellzone": [
+      "startRowAddr",
+      "startColAddr",
+      "endRowAddr",
+      "endColAddr",
+      "borderFillIDRef"
+    ],
+    "tc": [
+      "protect",
+      "editable",
+      "dirty"
+    ],
+    "subList": [
+      "lineWrap",
+      "vertAlign"
+    ]
+  },
+  "info_keys": {
+    "tbl": [
+      "id",
+      "zOrder",
+      "numberingType",
+      "dropcapstyle",
+      "borderFillIDRef"
+    ],
+    "tc": [
+      "name",
+      "header",
+      "hasMargin",
+      "borderFillIDRef"
+    ],
+    "subList": [
+      "textDirection"
+    ]
+  },
+  "T5": {
+    "file": "T5_36395325_gyeoljae_consulting.hwpx",
+    "sha256": "a0bd691420456e4b6c0b0127d526b6a38d7c1afc3f07e9b84cddb01495e48b0d",
+    "probe": "ERR 렌더링 오류: XML 쓰기 실패: <hp:pic> binaryItemIDRef 미등록 bin_data_id=0 (BinDataContent 누락)"
+  },
+  "unmeasured": [
+    "T5"
+  ],
+  "ATTR_LOSS_TOTAL": null
+}

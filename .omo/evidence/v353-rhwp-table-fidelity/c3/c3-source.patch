@@ -1,0 +1,91 @@
+commit dbf294757690e723c614c22e467022522ea3b44e
+Author:     KenSuh <neverdie65@naver.com>
+AuthorDate: Mon Oct 26 13:47:08 2026 +0900
+Commit:     KenSuh <neverdie65@naver.com>
+CommitDate: Mon Oct 26 13:47:08 2026 +0900
+
+    fix(rhwp): reconcile table fidelity with G0 flag and page-break contracts
+
+diff --git a/src/model/table.rs b/src/model/table.rs
+index 3543f83..a12a1f1 100644
+--- a/src/model/table.rs
++++ b/src/model/table.rs
+@@ -480,7 +480,7 @@ impl Table {
+ 
+     /// HWPX `noAdjust` (HWPTAG_TABLE 속성 bit 3).
+     pub fn no_adjust(&self) -> bool {
+-        self.raw_table_record_attr & TABLE_RECORD_NO_ADJUST != 0
++        self.no_adjust
+     }
+ 
+     /// 열별 폭을 추출한다 (col_span==1인 셀 기준).
+diff --git a/src/parser/control.rs b/src/parser/control.rs
+index 43278ad..fc2d8f4 100644
+--- a/src/parser/control.rs
++++ b/src/parser/control.rs
+@@ -255,6 +255,7 @@ fn parse_table_record(data: &[u8], table: &mut Table) {
+         _ => TablePageBreak::None,
+     };
+     table.repeat_header = attr & 0x04 != 0;
++    table.no_adjust = attr & crate::model::table::TABLE_RECORD_NO_ADJUST != 0;
+     // 원본 attr 전체 보존 (라운드트립용)
+     table.raw_table_record_attr = attr;
+ 
+diff --git a/tests/hwpx_roundtrip_integration.rs b/tests/hwpx_roundtrip_integration.rs
+index 18f5587..5e1c4f8 100644
+--- a/tests/hwpx_roundtrip_integration.rs
++++ b/tests/hwpx_roundtrip_integration.rs
+@@ -1297,12 +1297,12 @@ fn c9_table_page_break_modes_and_legacy_aliases_survive() {
+         serializer::serialize_hwpx,
+     };
+     for (input_mode, expected, output_mode) in [
+-        ("TABLE", TablePageBreak::RowBreak, "TABLE"),
+-        ("CELL", TablePageBreak::CellBreak, "CELL"),
++        ("TABLE", TablePageBreak::CellBreak, "TABLE"),
++        ("CELL", TablePageBreak::RowBreak, "CELL"),
+         ("NONE", TablePageBreak::None, "NONE"),
+-        ("ROW", TablePageBreak::RowBreak, "TABLE"),
+-        ("ROW_BREAK", TablePageBreak::RowBreak, "TABLE"),
+-        ("CELL_BREAK", TablePageBreak::CellBreak, "CELL"),
++        ("ROW", TablePageBreak::RowBreak, "CELL"),
++        ("ROW_BREAK", TablePageBreak::RowBreak, "CELL"),
++        ("CELL_BREAK", TablePageBreak::RowBreak, "CELL"),
+     ] {
+         let input = c8_fixture(
+             &c8_table(&c9_paragraph("<hp:t>셀</hp:t>", C9_LINE))
+diff --git a/tests/hwpx_table_fidelity.rs b/tests/hwpx_table_fidelity.rs
+index 9e9a2e9..bbda5d6 100644
+--- a/tests/hwpx_table_fidelity.rs
++++ b/tests/hwpx_table_fidelity.rs
+@@ -263,6 +263,31 @@ fn hwpx_hwp5_hwpx(hwpx: &[u8]) -> Vec<u8> {
+         .expect("HWPX 저장")
+ }
+ 
++#[test]
++fn no_adjust_survives_hwpx_and_hwp5_with_g0_table_flag() {
++    let xml = section_xmls(T2)[0].replace("noAdjust=\"1\"", "noAdjust=\"0\"");
++    assert!(xml.contains("noAdjust=\"0\""));
++    for enabled in [false, true] {
++        let xml = xml.replace(
++            "noAdjust=\"0\"",
++            if enabled { "noAdjust=\"1\"" } else { "noAdjust=\"0\"" },
++        );
++        let input = rezip_with_section(T2, "Contents/section0.xml", &xml);
++        let expected: Vec<_> = tables_xml(&input)
++            .iter()
++            .map(|table| table.tbl["noAdjust"].clone())
++            .collect();
++        assert!(!expected.is_empty());
++        for output in [hwpx_ir_hwpx(&input), hwpx_hwp5_hwpx(&input)] {
++            let actual: Vec<_> = tables_xml(&output)
++                .iter()
++                .map(|table| table.tbl["noAdjust"].clone())
++                .collect();
++            assert_eq!(actual, expected);
++        }
++    }
++}
++
+ // ---------- pageBreak (게이트 G4) ----------
+ //
+ // 한컴은 HWPX TABLE·CELL·NONE 을 HWP5 값 1·2·0 으로 저장한다(같은 이름 HWP/HWPX 표본 쌍 대조).

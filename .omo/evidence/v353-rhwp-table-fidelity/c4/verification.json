@@ -1,0 +1,19 @@
+{
+  "source_head": "c3be62605694758dd516d70802f958b32487ee91",
+  "only_changed_CHECKs": [
+    "G10",
+    "G3",
+    "G4",
+    "G5",
+    "G6",
+    "G9"
+  ],
+  "all_EXPECTs_unchanged": true,
+  "G8_CHECK_and_ABANDON_unchanged": true,
+  "native_status_exit": 1,
+  "native_met": 11,
+  "native_abandoned": 1,
+  "canonical_rerun_exit": 0,
+  "product_changes": 0,
+  "ledger_sha256": "f6f07da78035e5c09e9f40e2cde3df24aeeee06a8698ef4eaa75672b130c1636"
+}

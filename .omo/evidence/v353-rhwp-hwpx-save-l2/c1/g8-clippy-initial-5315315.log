@@ -1,0 +1,15 @@
+CLEAN_SOURCE_HEAD=5315315566c6fe75826fe05a9d59880aae62948a
+CLEAN_SOURCE_METHOD=git-archive+identical-Cargo.lock
+COMMAND=cargo clippy -- -D warnings
+    Checking rhwp v0.7.3 (/private/var/folders/1j/_ggsky8n1bzfn0g2x5c8_wgm0000gn/T/v353-c1-clean.Jtd8Pi)
+error: manual implementation of `.is_multiple_of()`
+   --> src/serializer/hwpx/header.rs:631:20
+    |
+631 |                 if tab.position % 2 == 0 { "HWPUNIT" } else { "CHAR" },
+    |                    ^^^^^^^^^^^^^^^^^^^^^ help: replace with: `tab.position.is_multiple_of(2)`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.95.0/index.html#manual_is_multiple_of
+    = note: `-D clippy::manual-is-multiple-of` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::manual_is_multiple_of)]`
+
+error: could not compile `rhwp` (lib) due to 1 previous error

@@ -27,6 +27,7 @@ pub struct Picture {
     pub padding: Padding,
     /// 그림 속성
     pub image_attr: ImageAttr,
+    pub hwpx_image_reference: Option<HwpxImageReference>,
     /// 테두리 투명도
     pub border_opacity: u8,
     /// 인스턴스 ID
@@ -35,6 +36,13 @@ pub struct Picture {
     pub raw_picture_extra: Vec<u8>,
     /// 캡션
     pub caption: Option<super::shape::Caption>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HwpxImageReference {
+    Absent,
+    Empty,
+    Numbered,
 }
 
 /// 자르기 정보

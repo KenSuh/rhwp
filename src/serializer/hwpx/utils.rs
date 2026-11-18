@@ -32,9 +32,7 @@ pub fn start_tag_attrs<W: Write>(
     attrs: &[(&str, &str)],
 ) -> Result<(), SerializeError> {
     let mut el = BytesStart::new(name);
-    for (k, v) in attrs {
-        el.push_attribute((*k, *v));
-    }
+    append_attributes(&mut el, attrs);
     w.write_event(Event::Start(el))
         .map_err(|e| SerializeError::XmlError(e.to_string()))?;
     Ok(())
@@ -54,12 +52,24 @@ pub fn empty_tag<W: Write>(
     attrs: &[(&str, &str)],
 ) -> Result<(), SerializeError> {
     let mut el = BytesStart::new(name);
-    for (k, v) in attrs {
-        el.push_attribute((*k, *v));
-    }
+    append_attributes(&mut el, attrs);
     w.write_event(Event::Empty(el))
         .map_err(|e| SerializeError::XmlError(e.to_string()))?;
     Ok(())
+}
+
+fn append_attributes(el: &mut BytesStart<'_>, attrs: &[(&str, &str)]) {
+    for (key, value) in attrs {
+        let mut escaped_value = quick_xml::escape::escape(*value);
+        if escaped_value.contains(['\t', '\n', '\r']) {
+            escaped_value = escaped_value
+                .replace('\t', "&#9;")
+                .replace('\n', "&#10;")
+                .replace('\r', "&#13;")
+                .into();
+        }
+        el.push_attribute((key.as_bytes(), escaped_value.as_bytes()));
+    }
 }
 
 /// 텍스트 노드 (자동 이스케이프)

@@ -1,0 +1,5 @@
+CWD=/tmp/v353-c2.wjOeCn/red
+COMMAND= env TMPDIR=/tmp/v353-c2.wjOeCn/snapshots bash .omo/evidence/v353-rhwp-hwpx-save-l2/c1/clean-cargo.sh --version
+cp: /private/tmp/v353-c2.wjOeCn/red/Cargo.lock: No such file or directory
+
+EXIT=1

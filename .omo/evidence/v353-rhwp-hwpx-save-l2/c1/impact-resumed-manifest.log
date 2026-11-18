@@ -1,0 +1,16 @@
+IMPACT at=code:HEAD@a6d024f4f0bd query=".omo/evidence/v353-rhwp-hwpx-save-l2/hancom/MANIFEST.txt" mode=path jev=used jev_threshold=0.45 files=5 rows=13 det_ms=425 total_ms=638 jev_requests=1 jev_http_attempts=1 jev_input_tokens=1564
+  ! cache stale (base code:HEAD@5315315566c6 → code:HEAD@a6d024f4f0bd) · 재도출
+- [code] src/serializer/hwpx/static_assets.rs  channel=other binding=mention jev=0.70★ rows=1
+    :45 [stem/stem_weak] pub const META_INF_MANIFEST_XML: &str = concat!(
+- [code] src/serializer/hwpx/mod.rs  channel=other binding=mention jev=0.61★ rows=1
+    :114 [stem/stem_weak] z.write_deflated("META-INF/manifest.xml", META_INF_MANIFEST_XML.as_bytes())?;
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-final-7.log  channel=other binding=mention jev=0.29 rows=7
+    :1 [path/mention] IMPACT at=code:HEAD@5315315566c6 query=".omo/evidence/v353-rhwp-hwpx-save-l2/hancom/MANIFEST.txt" mode=path jev=used jev_threshold=0.45 files=4 rows=6
+    :3 [basename/mention] :70 [basename/mention] `.omo/evidence/v353-rhwp-hwpx-save-l2/hancom/` — `L2_{C6,FACF}_{open_save,insert_row,cell_text}.hwpx`(해시 `MANIFEST.txt`). 편집 대상
+    :5 [stem/stem_weak] :45 [stem/stem_weak] pub const META_INF_MANIFEST_XML: &str = concat!(
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/REPORT.md  channel=doc binding=mention jev=0.26 rows=1
+    :70 [basename/mention] `.omo/evidence/v353-rhwp-hwpx-save-l2/hancom/` — `L2_{C6,FACF}_{open_save,insert_row,cell_text}.hwpx`(해시 `MANIFEST.txt`). 편집 대상은 Parent `gearup_gen.rs
+- [code] tests/hwpx_phase1_corpus.rs  channel=other binding=mention jev=0.11 rows=3
+    :479 [stem/stem_weak] let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("samples/hwpx");
+    :539 [stem/stem_weak] .strip_prefix(Path::new(env!("CARGO_MANIFEST_DIR")))
+    :592 [stem/stem_weak] .strip_prefix(Path::new(env!("CARGO_MANIFEST_DIR")))

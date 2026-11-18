@@ -24,6 +24,188 @@ fn a4_page_def() -> PageDef {
     }
 }
 
+fn c20_indent_paragraph(indent: f64, alignment: Alignment) -> (Paragraph, ResolvedStyleSet) {
+    let text = "contact www.hometax.go.kr 문의 안내 ".repeat(4);
+    let mut paragraph = Paragraph::new_empty();
+    paragraph.insert_text_at(0, &text);
+    paragraph.char_shapes = vec![CharShapeRef::default()];
+    paragraph.line_segs = [0, 8].into_iter().map(|text_start| LineSeg {
+        text_start, line_height: 1000, text_height: 1000, baseline_distance: 850,
+        column_start: 750, segment_width: 6750, ..Default::default()
+    }).collect();
+    let styles = ResolvedStyleSet {
+        para_styles: vec![super::super::style_resolver::ResolvedParaStyle {
+            indent, alignment, ..Default::default()
+        }],
+        char_styles: vec![super::super::style_resolver::ResolvedCharStyle::default()],
+        ..Default::default()
+    };
+    (paragraph, styles)
+}
+
+#[test]
+fn c20_cell_reflow_recovers_only_impossible_unoccupied_hanging_width() {
+    use crate::renderer::composer::{reflow_horizontal_cell_line_segs, reflow_line_segs};
+    for alignment in [
+        Alignment::Left,
+        Alignment::Right,
+        Alignment::Center,
+        Alignment::Justify,
+    ] {
+        for indent in [-200.0, -20.0, 20.0] {
+            let (paragraph, styles) = c20_indent_paragraph(indent, alignment);
+            let mut cell = paragraph.clone();
+            let mut reference = paragraph.clone();
+            let expected_styles = c20_indent_paragraph(if indent == -200.0 { 0.0 } else { indent }, alignment).1;
+            reflow_line_segs(&mut reference, 100.0, &expected_styles, DEFAULT_DPI);
+            reflow_horizontal_cell_line_segs(&mut cell, 100.0, &styles, DEFAULT_DPI);
+            assert_eq!(
+                format!("{:?}", cell.line_segs),
+                format!("{:?}", reference.line_segs),
+                "{alignment:?}/{indent}"
+            );
+            assert_eq!(cell.text(), paragraph.text());
+            assert_eq!(styles.para_styles[0].indent, indent);
+        }
+    }
+    let (paragraph, styles) = c20_indent_paragraph(-200.0, Alignment::Center);
+    let mut body = paragraph.clone();
+    reflow_line_segs(&mut body, 100.0, &styles, DEFAULT_DPI);
+    let mut zero_indent = paragraph.clone();
+    let zero_styles = c20_indent_paragraph(0.0, Alignment::Center).1;
+    reflow_line_segs(&mut zero_indent, 100.0, &zero_styles, DEFAULT_DPI);
+    assert_ne!(body.line_segs.len(), zero_indent.line_segs.len(), "the global/body entry must retain its existing indentation behavior");
+    for excluded in ["tab", "number", "tac"] {
+        let mut subject = paragraph.clone();
+        let mut excluded_styles = c20_indent_paragraph(-200.0, Alignment::Center).1;
+        match excluded {
+            "tab" => { subject.insert_text_at(0, "\t"); }
+            "number" => {
+                excluded_styles.para_styles[0].head_type = crate::model::style::HeadType::Number
+            }
+            "tac" => subject
+                .controls
+                .push(Control::Table(Box::new(crate::model::table::Table {
+                    common: CommonObjAttr {
+                        treat_as_char: true,
+                        width: 1500,
+                        height: 1500,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }))),
+            _ => unreachable!(),
+        }
+        let mut reference = subject.clone();
+        reflow_line_segs(&mut reference, 100.0, &excluded_styles, DEFAULT_DPI);
+        reflow_horizontal_cell_line_segs(&mut subject, 100.0, &excluded_styles, DEFAULT_DPI);
+        assert_eq!(format!("{:?}", subject.line_segs), format!("{:?}", reference.line_segs), "{excluded}");
+    }
+    let mut no_cache = paragraph.clone();
+    no_cache.line_segs.clear();
+    let mut reference = no_cache.clone();
+    let zero = c20_indent_paragraph(0.0, Alignment::Center).1;
+    reflow_line_segs(&mut reference, 100.0, &zero, DEFAULT_DPI);
+    reflow_horizontal_cell_line_segs(&mut no_cache, 100.0, &styles, DEFAULT_DPI);
+    assert_eq!(format!("{:?}", no_cache.line_segs), format!("{:?}", reference.line_segs));
+    assert!(no_cache.line_segs.iter().all(|line| line.segment_width == 7500));
+}
+
+fn c20_painted_lines(paragraph: &Paragraph, styles: &ResolvedStyleSet, kind: &str) -> RenderNode {
+    let mut composed = compose_paragraph(paragraph);
+    if kind == "marker" { composed.numbering_text = Some("1.".into()); }
+    let mut tree = PageRenderTree::new(0, 400.0, 400.0);
+    let mut node = RenderNode::new(
+        1000,
+        if kind == "body" {
+            RenderNodeType::Body { clip_rect: None }
+        } else {
+            RenderNodeType::TableCell(TableCellNode {
+                col: 0,
+                row: 0,
+                col_span: 1,
+                row_span: 1,
+                border_fill_id: 0,
+                text_direction: 0,
+                clip: true,
+                model_cell_index: Some(0),
+            })
+        },
+        BoundingBox::new(30.0, 20.0, 100.0, 300.0),
+    );
+    let context = (kind != "body").then_some(CellContext {
+        parent_para_index: 0,
+        path: vec![CellPathEntry {
+            control_index: 0, cell_index: if kind == "caption" { 65534 } else { 0 },
+            cell_para_index: 0, text_direction: if kind == "vertical" { 1 } else { 0 },
+        }],
+    });
+    LayoutEngine::with_default_dpi().layout_composed_paragraph(
+        &mut tree,
+        &mut node,
+        &composed,
+        styles,
+        &LayoutRect {
+            x: 30.0,
+            y: 20.0,
+            width: 100.0,
+            height: 300.0,
+        },
+        20.0,
+        0,
+        composed.lines.len(),
+        0,
+        0,
+        context,
+        true,
+        0.0,
+        None,
+        Some(paragraph),
+        None,
+    );
+    node
+}
+
+#[test]
+fn c20_cell_paint_recovers_matching_origin_and_width_together() {
+    for alignment in [
+        Alignment::Left,
+        Alignment::Right,
+        Alignment::Center,
+        Alignment::Justify,
+    ] {
+        let (mut paragraph, styles) = c20_indent_paragraph(-200.0, alignment);
+        paragraph.replace_text("first\nlast".into());
+        paragraph.set_char_offsets((0..10).collect());
+        paragraph.line_segs[1].text_start = 6;
+        let node = c20_painted_lines(&paragraph, &styles, "cell");
+        let lines: Vec<_> = node.children.iter().filter(|node| matches!(node.node_type, RenderNodeType::TextLine(_))).collect();
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0].bbox.x, 30.0, "first-line origin must not use the continuation cache");
+        assert_eq!(lines[1].bbox.x, 40.0);
+        assert_eq!(lines[1].bbox.width, 90.0);
+        for run in &lines[1].children {
+            if let RenderNodeType::TextRun(text) = &run.node_type {
+                assert!(run.bbox.width >= 0.0 && run.bbox.x >= 40.0);
+                let positions = super::text_measurement::compute_char_positions(&text.text, &text.style);
+                assert!(positions.windows(2).all(|pair| pair[1] >= pair[0]));
+                assert!(run.bbox.x + positions.last().unwrap() <= 130.01);
+            }
+        }
+        for kind in ["body", "caption", "vertical", "marker"] {
+            let excluded = c20_painted_lines(&paragraph, &styles, kind);
+            let second = excluded.children.iter().filter(|node| matches!(node.node_type, RenderNodeType::TextLine(_))).nth(1).unwrap();
+            assert_eq!(second.bbox.x, 230.0, "{kind} must keep its existing indentation");
+        }
+        for width in [0, 6600] {
+            paragraph.line_segs[1].segment_width = width;
+            let excluded = c20_painted_lines(&paragraph, &styles, "cell");
+            let second = excluded.children.iter().filter(|node| matches!(node.node_type, RenderNodeType::TextLine(_))).nth(1).unwrap();
+            assert_eq!(second.bbox.x, 230.0, "nonpositive or stale cache must not recover");
+        }
+    }
+}
+
 #[test]
 fn test_build_empty_page() {
     let engine = LayoutEngine::with_default_dpi();
@@ -67,14 +249,15 @@ fn test_build_page_with_paragraph() {
     let engine = LayoutEngine::with_default_dpi();
     let layout = PageLayoutInfo::from_page_def_default(&a4_page_def(), &ColumnDef::default());
 
-    let paragraphs = vec![Paragraph {
-        text: "안녕하세요".to_string(),
-        line_segs: vec![LineSeg {
+    let paragraphs = vec![{
+        let mut paragraph_value = Paragraph::with_text("안녕하세요".to_string(), Vec::new(), Vec::new());
+
+        paragraph_value.line_segs = vec![LineSeg {
             line_height: 400,
             baseline_distance: 320,
             ..Default::default()
-        }],
-        ..Default::default()
+        }];
+        paragraph_value
     }];
 
     let composed: Vec<_> = paragraphs.iter().map(|p| compose_paragraph(p)).collect();
@@ -137,11 +320,13 @@ fn test_layout_with_composed_styles() {
     let engine = LayoutEngine::with_default_dpi();
     let layout = PageLayoutInfo::from_page_def_default(&a4_page_def(), &ColumnDef::default());
 
-    let paragraphs = vec![Paragraph {
-        text: "AAABBB".to_string(),
-        char_offsets: vec![0, 1, 2, 3, 4, 5],
-        char_count: 7,
-        char_shapes: vec![
+    let paragraphs = vec![{
+        let mut paragraph_value =
+            Paragraph::with_text("AAABBB".to_string(), vec![0, 1, 2, 3, 4, 5], Vec::new());
+
+        paragraph_value.char_count = 7;
+
+        paragraph_value.char_shapes = vec![
             CharShapeRef {
                 start_pos: 0,
                 char_shape_id: 0,
@@ -150,13 +335,14 @@ fn test_layout_with_composed_styles() {
                 start_pos: 3,
                 char_shape_id: 1,
             },
-        ],
-        line_segs: vec![LineSeg {
+        ];
+
+        paragraph_value.line_segs = vec![LineSeg {
             line_height: 800,
             baseline_distance: 640,
             ..Default::default()
-        }],
-        ..Default::default()
+        }];
+        paragraph_value
     }];
 
     let composed: Vec<_> = paragraphs.iter().map(|p| compose_paragraph(p)).collect();
@@ -265,11 +451,12 @@ fn test_layout_multi_run_x_position() {
     let engine = LayoutEngine::with_default_dpi();
     let layout = PageLayoutInfo::from_page_def_default(&a4_page_def(), &ColumnDef::default());
 
-    let paragraphs = vec![Paragraph {
-        text: "AB가나".to_string(),
-        char_offsets: vec![0, 1, 2, 3],
-        char_count: 5,
-        char_shapes: vec![
+    let paragraphs = vec![{
+        let mut paragraph_value = Paragraph::with_text("AB가나".to_string(), vec![0, 1, 2, 3], Vec::new());
+
+        paragraph_value.char_count = 5;
+
+        paragraph_value.char_shapes = vec![
             CharShapeRef {
                 start_pos: 0,
                 char_shape_id: 0,
@@ -278,13 +465,14 @@ fn test_layout_multi_run_x_position() {
                 start_pos: 2,
                 char_shape_id: 1,
             },
-        ],
-        line_segs: vec![LineSeg {
+        ];
+
+        paragraph_value.line_segs = vec![LineSeg {
             line_height: 400,
             baseline_distance: 320,
             ..Default::default()
-        }],
-        ..Default::default()
+        }];
+        paragraph_value
     }];
 
     let composed: Vec<_> = paragraphs.iter().map(|p| compose_paragraph(p)).collect();
@@ -602,10 +790,7 @@ fn test_layout_table_basic() {
                 width: 3000,
                 height: 1200,
                 border_fill_id: 1,
-                paragraphs: vec![Paragraph {
-                    text: "A".to_string(),
-                    ..Default::default()
-                }],
+                paragraphs: vec![Paragraph::with_text("A".to_string(), Vec::new(), Vec::new())],
                 ..Default::default()
             },
             Cell {
@@ -616,10 +801,7 @@ fn test_layout_table_basic() {
                 width: 3000,
                 height: 1200,
                 border_fill_id: 1,
-                paragraphs: vec![Paragraph {
-                    text: "B".to_string(),
-                    ..Default::default()
-                }],
+                paragraphs: vec![Paragraph::with_text("B".to_string(), Vec::new(), Vec::new())],
                 ..Default::default()
             },
             Cell {
@@ -630,10 +812,7 @@ fn test_layout_table_basic() {
                 width: 3000,
                 height: 1200,
                 border_fill_id: 1,
-                paragraphs: vec![Paragraph {
-                    text: "C".to_string(),
-                    ..Default::default()
-                }],
+                paragraphs: vec![Paragraph::with_text("C".to_string(), Vec::new(), Vec::new())],
                 ..Default::default()
             },
             Cell {
@@ -644,24 +823,23 @@ fn test_layout_table_basic() {
                 width: 3000,
                 height: 1200,
                 border_fill_id: 1,
-                paragraphs: vec![Paragraph {
-                    text: "D".to_string(),
-                    ..Default::default()
-                }],
+                paragraphs: vec![Paragraph::with_text("D".to_string(), Vec::new(), Vec::new())],
                 ..Default::default()
             },
         ],
         ..Default::default()
     };
 
-    let paragraphs = vec![Paragraph {
-        text: String::new(),
-        controls: vec![Control::Table(Box::new(table))],
-        line_segs: vec![LineSeg {
+    let paragraphs = vec![{
+        let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new(), Vec::new());
+
+        paragraph_value.controls = vec![Control::Table(Box::new(table))];
+
+        paragraph_value.line_segs = vec![LineSeg {
             line_height: 400,
             ..Default::default()
-        }],
-        ..Default::default()
+        }];
+        paragraph_value
     }];
 
     let composed: Vec<_> = paragraphs.iter().map(|p| compose_paragraph(p)).collect();
@@ -752,6 +930,392 @@ fn test_layout_table_basic() {
     );
 }
 
+fn c15_inline_tree(
+    alignment: crate::model::style::Alignment,
+    covered: bool,
+    text: &str,
+) -> PageRenderTree {
+    use crate::model::{
+        control::Control,
+        table::{Cell, Table},
+    };
+    use crate::renderer::style_resolver::{ResolvedCharStyle, ResolvedParaStyle};
+    let cells = if covered { vec![(0, 1, 4000), (1, 1, 6000), (2, 1, 6000)] }
+        else { vec![(0, 1, 4000), (1, 2, 12000)] };
+    let table = Table {
+        row_count: 1,
+        col_count: 3,
+        row_sizes: vec![cells.len() as i16],
+        cells: cells
+            .into_iter()
+            .map(|(col, col_span, width)| Cell {
+                col,
+                col_span,
+                row_span: 1,
+                width,
+                height: 2000,
+                ..Default::default()
+            })
+            .collect(),
+        common: CommonObjAttr {
+            treat_as_char: true,
+            width: 16000,
+            height: 2000,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let paragraphs = vec![{
+        let mut paragraph_value =
+            Paragraph::with_text(text.into(), (8..8 + text.chars().count() as u32).collect(), Vec::new());
+
+        paragraph_value.char_shapes = vec![CharShapeRef {
+            start_pos: 0,
+            char_shape_id: 0,
+        }];
+
+        paragraph_value.controls = vec![Control::Table(Box::new(table))];
+
+        paragraph_value.line_segs = vec![LineSeg {
+            line_height: 2000,
+            text_height: 1000,
+            baseline_distance: 850,
+            segment_width: 48188,
+            ..Default::default()
+        }];
+        paragraph_value
+    }];
+    let mut page_def = a4_page_def();
+    page_def.margin_left = 5669;
+    page_def.margin_right = 5669;
+    let page = PageContent {
+        page_index: 0, page_number: 0, section_index: 0,
+        layout: PageLayoutInfo::from_page_def_default(&page_def, &ColumnDef::default()),
+        column_contents: vec![ColumnContent {
+            column_index: 0, items: vec![PageItem::FullParagraph { para_index: 0 }],
+            zone_layout: None, zone_y_offset: 0.0, wrap_around_paras: vec![],
+        }],
+        active_header: None, active_footer: None, page_number_pos: None, page_hide: None,
+        footnotes: vec![], active_master_page: None, extra_master_pages: vec![],
+    };
+    let composed: Vec<_> = paragraphs.iter().map(compose_paragraph).collect();
+    let styles = ResolvedStyleSet {
+        para_styles: vec![ResolvedParaStyle { alignment, ..Default::default() }],
+        char_styles: vec![ResolvedCharStyle { font_size: 12.0, ..Default::default() }],
+        ..Default::default()
+    };
+    let tree = LayoutEngine::with_default_dpi().build_render_tree(
+        &page, &paragraphs, &paragraphs, &paragraphs, &composed, &styles,
+        &FootnoteShape::default(), &[], None, &[], None, 0, &[],
+    );
+    if let Some(dir) = std::env::var_os("RHWP_C15_ARTIFACT_DIR") {
+        std::fs::write(
+            std::path::Path::new(&dir).join(format!("unit-{alignment:?}-{covered}.json")),
+            tree.root.to_json(),
+        )
+        .unwrap();
+    }
+    tree
+}
+
+fn c15_inline_bounds(tree: &PageRenderTree) -> (BoundingBox, BoundingBox, BoundingBox) {
+    let nodes = c13_nodes(&tree.root);
+    let body = nodes.iter().find(|n| matches!(n.node_type, RenderNodeType::Body { .. })).unwrap();
+    let tables: Vec<_> = nodes.iter().filter(|n| matches!(n.node_type, RenderNodeType::Table(_))).collect();
+    assert_eq!(tables.len(), 1, "the inline table must actually render");
+    let table = tables[0];
+    let text = nodes.iter().find(|n| matches!(&n.node_type, RenderNodeType::TextRun(t) if t.para_index == Some(0))).unwrap();
+    assert!((table.bbox.width - hwpunit_to_px(16000, DEFAULT_DPI)).abs() < 0.1);
+    for cell in table.children.iter().filter(|n| matches!(n.node_type, RenderNodeType::TableCell(_))) {
+        assert!(cell.bbox.x >= table.bbox.x - 0.1);
+        assert!(cell.bbox.x + cell.bbox.width <= table.bbox.x + table.bbox.width + 0.1);
+    }
+    eprintln!("C15 body={:?}, table={:?}, text={:?}", body.bbox, table.bbox, text.bbox);
+    (body.bbox, table.bbox, text.bbox)
+}
+
+#[test]
+fn c15_right_merged_inline_table_stays_inside_body() {
+    let (body, table, _) = c15_inline_bounds(&c15_inline_tree(
+        crate::model::style::Alignment::Right,
+        false,
+        " ",
+    ));
+    assert!(
+        table.x + table.width <= body.x + body.width + 0.1,
+        "actual table clips past body: {table:?}, {body:?}"
+    );
+}
+
+#[test]
+fn c15_center_merged_inline_table_uses_rendered_width() {
+    let (body, table, text) = c15_inline_bounds(&c15_inline_tree(
+        crate::model::style::Alignment::Center,
+        false,
+        " ",
+    ));
+    let content_center = table.x + (table.width + text.width) / 2.0;
+    assert!((content_center - (body.x + body.width / 2.0)).abs() < 0.1, "actual content is not centered: {table:?}, {text:?}");
+}
+
+#[test]
+fn c15_mixed_text_advances_past_merged_inline_table() {
+    let (_, table, text) = c15_inline_bounds(&c15_inline_tree(
+        crate::model::style::Alignment::Left,
+        false,
+        "X",
+    ));
+    assert!(
+        (text.x - (table.x + table.width)).abs() < 0.1,
+        "text overlaps or leaves a false gap after table: {table:?}, {text:?}"
+    );
+}
+
+#[test]
+fn c15_left_inline_table_keeps_its_origin() {
+    let (body, table, _) = c15_inline_bounds(&c15_inline_tree(
+        crate::model::style::Alignment::Left,
+        false,
+        " ",
+    ));
+    assert!((table.x - body.x).abs() < 0.1);
+}
+
+#[test]
+fn c15_fully_covered_inline_columns_keep_right_alignment() {
+    let (body, table, text) = c15_inline_bounds(&c15_inline_tree(
+        crate::model::style::Alignment::Right,
+        true,
+        "X",
+    ));
+    assert!((table.x + table.width + text.width - (body.x + body.width)).abs() < 0.1);
+    assert!((text.x - (table.x + table.width)).abs() < 0.1);
+}
+
+fn c13_table(offset: u32) -> crate::model::table::Table {
+    use crate::model::{
+        shape::TextWrap,
+        table::{Cell, Table},
+    };
+    Table {
+        common: CommonObjAttr {
+            treat_as_char: true,
+            vertical_offset: offset,
+            width: 47409,
+            height: 26801,
+            vert_rel_to: VertRelTo::Para,
+            text_wrap: TextWrap::TopAndBottom,
+            ..Default::default()
+        },
+        row_count: 2,
+        col_count: 1,
+        row_sizes: vec![1, 1],
+        cells: (0..2)
+            .map(|row| Cell {
+                row,
+                col: 0,
+                row_span: 1,
+                col_span: 1,
+                width: 47409,
+                height: if row == 0 { 13400 } else { 13401 },
+                paragraphs: vec![{
+                    let mut paragraph_value =
+                        Paragraph::with_text(format!("C13 row {row}"), Vec::new(), Vec::new());
+
+                    paragraph_value.line_segs = vec![LineSeg {
+                        line_height: 1000,
+                        text_height: 1000,
+                        baseline_distance: 850,
+                        segment_width: 47409,
+                        ..Default::default()
+                    }];
+                    paragraph_value
+                }],
+                ..Default::default()
+            })
+            .collect(),
+        ..Default::default()
+    }
+}
+
+fn c13_tree(name: &str, table: crate::model::table::Table) -> PageRenderTree {
+    let mut page_def = a4_page_def();
+    page_def.height = 50000;
+    page_def.margin_left = 5669;
+    page_def.margin_right = 5669;
+    let layout = PageLayoutInfo::from_page_def_default(&page_def, &ColumnDef::default());
+    let paragraphs = vec![
+        {
+            let mut paragraph_value = Paragraph::default();
+
+            paragraph_value.controls = vec![crate::model::control::Control::Table(Box::new(table))];
+
+            paragraph_value.line_segs = vec![LineSeg {
+                line_height: 26801,
+                ..Default::default()
+            }];
+            paragraph_value
+        },
+        {
+            let mut paragraph_value =
+                Paragraph::with_text("C13 following instructions".into(), Vec::new(), Vec::new());
+
+            paragraph_value.line_segs = vec![LineSeg {
+                line_height: 1000,
+                text_height: 1000,
+                baseline_distance: 850,
+                segment_width: 47409,
+                ..Default::default()
+            }];
+            paragraph_value
+        },
+    ];
+    let composed: Vec<_> = paragraphs.iter().map(compose_paragraph).collect();
+    let page = PageContent {
+        page_index: 0,
+        page_number: 0,
+        section_index: 0,
+        layout,
+        column_contents: vec![ColumnContent {
+            column_index: 0,
+            items: vec![
+                PageItem::Table {
+                    para_index: 0,
+                    control_index: 0,
+                },
+                PageItem::FullParagraph { para_index: 1 },
+            ],
+            zone_layout: None,
+            zone_y_offset: 0.0,
+            wrap_around_paras: vec![],
+        }],
+        active_header: None,
+        active_footer: None,
+        page_number_pos: None,
+        page_hide: None,
+        footnotes: vec![],
+        active_master_page: None,
+        extra_master_pages: vec![],
+    };
+    let tree = LayoutEngine::with_default_dpi().build_render_tree(
+        &page, &paragraphs, &paragraphs, &paragraphs, &composed,
+        &ResolvedStyleSet::default(), &FootnoteShape::default(), &[], None, &[], None, 0, &[],
+    );
+    if let Some(dir) = std::env::var_os("RHWP_C13_ARTIFACT_DIR") {
+        std::fs::write(
+            std::path::Path::new(&dir).join(format!("{name}.json")),
+            tree.root.to_json(),
+        )
+        .unwrap();
+    }
+    tree
+}
+
+fn c13_nodes(node: &RenderNode) -> Vec<&RenderNode> {
+    let mut nodes = vec![node];
+    for child in &node.children {
+        nodes.extend(c13_nodes(child));
+    }
+    nodes
+}
+
+#[test]
+fn c13_inline_table_rows_clear_following_text_and_body_with_raw_offset() {
+    for (name, offset) in [
+        ("zero", 0),
+        ("positive", 19986),
+        ("negative", (-56_i32) as u32),
+    ] {
+        let tree = c13_tree(name, c13_table(offset));
+        let nodes = c13_nodes(&tree.root);
+        let table = nodes.iter().find(|n| matches!(n.node_type, RenderNodeType::Table(_))).unwrap();
+        let body = nodes.iter().find(|n| matches!(n.node_type, RenderNodeType::Body { .. })).unwrap();
+        let following = nodes.iter().find(|n| matches!(&n.node_type, RenderNodeType::TextRun(t) if t.text == "C13 following instructions")).unwrap();
+        let cells: Vec<_> = table.children.iter().filter(|n| matches!(n.node_type, RenderNodeType::TableCell(_))).collect();
+        assert_eq!(cells.len(), 2);
+        let bottom = cells.last().unwrap().bbox.y + cells.last().unwrap().bbox.height;
+        assert!(bottom <= following.bbox.y + 0.1, "{name}: last row bottom {bottom} overlaps following text {:?}, table {:?}", following.bbox, table.bbox);
+        assert!(bottom <= body.bbox.y + body.bbox.height + 0.1, "{name}: last row {bottom} clips outside body {:?}", body.bbox);
+        assert!(following.bbox.y + following.bbox.height <= body.bbox.y + body.bbox.height + 0.1);
+    }
+}
+
+#[test]
+fn c13_floating_table_keeps_its_real_vertical_offset() {
+    let mut positions = Vec::new();
+    for offset in [0, 1500] {
+        let mut table = c13_table(offset);
+        table.common.treat_as_char = false;
+        table.common.vert_rel_to = VertRelTo::Paper;
+        let tree = c13_tree(&format!("floating-{offset}"), table);
+        positions.push(
+            c13_nodes(&tree.root)
+                .iter()
+                .find(|n| matches!(n.node_type, RenderNodeType::Table(_)))
+                .unwrap()
+                .bbox
+                .y,
+        );
+    }
+    assert!((positions[1] - positions[0] - hwpunit_to_px(1500, DEFAULT_DPI)).abs() < 0.1, "floating offset was flattened: {positions:?}");
+}
+
+#[test]
+fn c13_inline_top_and_bottom_captions_stay_in_reserved_flow() {
+    for direction in [CaptionDirection::Top, CaptionDirection::Bottom] {
+        let mut boxes = Vec::new();
+        for offset in [0, 19986] {
+            let mut table = c13_table(offset);
+            table.caption = Some(Caption {
+                direction,
+                spacing: 300,
+                paragraphs: vec![{
+                    let mut paragraph_value =
+                        Paragraph::with_text("C13 caption".into(), Vec::new(), Vec::new());
+
+                    paragraph_value.line_segs = vec![LineSeg {
+                        line_height: 1000,
+                        text_height: 1000,
+                        baseline_distance: 850,
+                        ..Default::default()
+                    }];
+                    paragraph_value
+                }],
+                ..Default::default()
+            });
+            let tree = c13_tree(&format!("caption-{direction:?}-{offset}"), table);
+            let nodes = c13_nodes(&tree.root);
+            let table = nodes.iter().find(|n| matches!(n.node_type, RenderNodeType::Table(_))).unwrap();
+            let caption = nodes.iter().find(|n| matches!(&n.node_type, RenderNodeType::TextRun(t) if t.text == "C13 caption")).unwrap();
+            let following = nodes.iter().find(|n| matches!(&n.node_type, RenderNodeType::TextRun(t) if t.text == "C13 following instructions")).unwrap();
+            let occupied_bottom = (table.bbox.y + table.bbox.height).max(caption.bbox.y + caption.bbox.height);
+            assert!(occupied_bottom <= following.bbox.y + 0.1, "{direction:?}/{offset}: caption/table bottom {occupied_bottom} overlaps following {:?}", following.bbox);
+            boxes.push((table.bbox.y, caption.bbox.y));
+        }
+        assert_eq!(boxes[0], boxes[1], "{direction:?}: raw TAC offset moved the caption/table");
+    }
+}
+
+#[test]
+fn c13_nested_tables_keep_cell_margin_positioning() {
+    let mut positions = Vec::new();
+    for offset in [0, 19986] {
+        let mut outer = c13_table(0);
+        let mut nested = c13_table(offset);
+        nested.common.treat_as_char = false;
+        nested.cells.iter_mut().for_each(|cell| cell.height = 1500);
+        nested.outer_margin_top = 300;
+        outer.cells[0].paragraphs[0].controls.push(crate::model::control::Control::Table(Box::new(nested)));
+        let tree = c13_tree(&format!("nested-{offset}"), outer);
+        let nodes = c13_nodes(&tree.root);
+        let tables: Vec<_> = nodes.iter().filter(|n| matches!(n.node_type, RenderNodeType::Table(_))).collect();
+        assert_eq!(tables.len(), 2);
+        positions.push((tables[1].bbox.x, tables[1].bbox.y, tables[1].bbox.height));
+        assert!(tables[1].bbox.y >= tables[0].bbox.y + hwpunit_to_px(300, DEFAULT_DPI));
+    }
+    assert_eq!(positions[0], positions[1], "nested raw offset must not replace cell-flow positioning");
+}
+
 #[test]
 fn test_layout_table_cell_positions() {
     use crate::model::control::Control;
@@ -805,14 +1369,16 @@ fn test_layout_table_cell_positions() {
         ..Default::default()
     };
 
-    let paragraphs = vec![Paragraph {
-        text: String::new(),
-        controls: vec![Control::Table(Box::new(table))],
-        line_segs: vec![LineSeg {
+    let paragraphs = vec![{
+        let mut paragraph_value = Paragraph::with_text(String::new(), Vec::new(), Vec::new());
+
+        paragraph_value.controls = vec![Control::Table(Box::new(table))];
+
+        paragraph_value.line_segs = vec![LineSeg {
             line_height: 400,
             ..Default::default()
-        }],
-        ..Default::default()
+        }];
+        paragraph_value
     }];
 
     let composed: Vec<_> = paragraphs.iter().map(|p| compose_paragraph(p)).collect();

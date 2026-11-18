@@ -1,0 +1,68 @@
+    Blocking waiting for file lock on artifact directory
+   Compiling rhwp v0.7.3 (/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.36s
+     Running tests/hwpx_roundtrip_integration.rs (target/debug/deps/hwpx_roundtrip_integration-27fc5637cf77d96c)
+
+running 59 tests
+test c11_real_c6_table_flags_and_layout_survive_two_native_saves ... ignored, requires immutable C6 fixture in RHWP_C11_C6_INPUT
+test c20_supplied_actual_contact_edit_and_two_native_saves_stay_visible ... ignored, requires the explicitly supplied immutable C16 input
+test c15_supplied_c14_inline_target_and_covered_control_two_native_saves ... ok
+test c13_private_c6_target_actual_render_save_reopen_observation ... ok
+test c23_public_field_end_insert_keeps_utf16_styles_and_count_two_saves ... ok
+test c15_document_merged_inline_width_survives_two_native_saves ... ok
+test c12_native_shape_label_shades_survive_text_edit_between_saves ... ok
+test c12_native_shape_label_shades_survive_two_no_edit_saves ... ok
+test c10_native_initial_column_moves_only_adjacent_page_number_prefix ... ok
+test c10_native_self_closing_run_transition_matches_explicit_empty_run ... ok
+test c11_native_true_table_flags_keep_nested_owners_two_saves ... ok
+test c10_native_empty_run_styles_keep_body_cell_ownership_two_saves ... ok
+test c11_native_false_and_missing_table_flags_default_false_two_saves ... ok
+test c13_document_inline_table_geometry_survives_two_native_saves ... ok
+test c8_native_field_ranges_follow_unicode_edits_in_body_and_cell ... ok
+test c10_native_initial_column_page_number_prefix_precedes_text_once ... ok
+test c8_native_picture_preserves_original_displayed_geometry_identity_and_png ... ok
+test c10_native_nonleading_vector_columns_and_inline_order_are_retained ... ok
+test c8_native_group_line_and_table_caption_keep_text_and_child_order ... ok
+test c8_native_fields_preserve_metadata_positions_and_styled_text ... ok
+test c9_paragraph_current_modifications_win_across_two_saves ... ok
+test c23_public_insert_delete_preserves_retained_field_gaps_two_saves ... ok
+test c8_native_supported_shape_preserves_geometry_styles_and_textbox ... ok
+test c9_columns_keep_body_cell_paragraph_ownership_and_control_order ... ok
+test c9_paragraph_margin_2011_expanded_namespace_and_signed_values_survive ... ok
+test c9_paragraph_supported_break_modes_use_canonical_bits ... ok
+test c9_table_cell_margin_flags_preserve_effective_padding ... ok
+test c20_document_cached_contact_edit_and_two_native_saves_stay_visible ... ok
+test c9_document_missing_follower_clears_computed_floating_object_extent ... ok
+test c8_native_empty_nested_fields_and_current_property_edits_survive ... ok
+test p47_table_owner_unknown_reference_is_rejected ... ok
+test phase1_body_text_edit_export_hwpx_reparse_smoke ... ok
+test stage0_blank_hwpx_roundtrip ... ok
+test c9_document_computed_object_geometry_and_page_resets_survive_two_saves ... ok
+test c23_public_tab_delete_removes_eight_units_and_keeps_field_gaps_two_saves ... ok
+test stage1_ref_empty_roundtrip ... ok
+test c9_document_missing_geometry_synthesizes_without_rebasing_valid_paragraphs ... ok
+test stage1_ref_mixed_header_level_regression_probe ... ok
+test phase1_table_cell_edit_export_hwpx_reparse_smoke ... ok
+test c8_native_field_binary_defaults_and_invalid_references_are_explicit ... ok
+test stage1_ref_text_roundtrip ... ok
+test task177_lineseg_preserved_on_roundtrip_ref_mixed ... ok
+test stage5_ref_table_smoke ... ok
+test task177_lineseg_preserved_on_roundtrip_ref_text ... ok
+test c9_table_signed_and_unsigned_offsets_preserve_same_bits ... ok
+test task177_hwpx_02_lineseg_histogram ... ok
+test v330_form_attribute_whitespace_survives_two_native_saves ... ok
+test c23_public_tab_insert_delete_uses_consistent_local_units_two_saves ... ok
+test c9_table_page_break_modes_and_legacy_aliases_survive ... ok
+test task177_hwpx_02_regression ... ok
+test phase1_form_002_export_hwpx_reparse_preserves_validation_cleanliness ... ok
+test stage5_form_002_smoke ... ok
+test p47_table_owner_styles_follow_control_lifecycle_two_saves ... ok
+test c23_public_field_boundary_matrix_matches_raw_utf16_two_saves ... ok
+test p47_table_owner_styles_survive_mixed_run_order_two_saves ... ok
+test stage5_large_real_doc_2025_q2_smoke ... ok
+test task177_false_positive_measurement ... ok
+test stage5_large_real_doc_2025_q1_smoke ... ok
+test v330_form_002_caption_entities_stable_across_two_native_saves ... ok
+
+test result: ok. 57 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.59s
+

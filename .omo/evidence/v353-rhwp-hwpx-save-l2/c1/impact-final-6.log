@@ -1,0 +1,10 @@
+IMPACT at=code:HEAD@5315315566c6 query="gates/V353_RHWP_HWPX_SAVE_L2_GATES.md" mode=path jev=used jev_threshold=0.45 files=3 rows=37 det_ms=942 total_ms=1157 jev_requests=1 jev_http_attempts=1 jev_input_tokens=1075
+  ! cache stale (base code:8027a28e4d1429f11cec0860d11484d1d9e6e3fe@8027a28e4d14 → code:HEAD@5315315566c6) · 재도출
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/gate-check-output.txt  channel=other binding=pin jev=0.61★ rows=35
+    :112 [basename/mention] V353_RHWP_HWPX_SAVE_L2_GATES.md: 11 gates
+    :2 [stem/stem_weak] APPROVAL REQUIRED V353_RHWP_HWPX_SAVE_L2_GATES:G1
+    :9 [stem/stem_weak] APPROVAL REQUIRED V353_RHWP_HWPX_SAVE_L2_GATES:G2
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/REPORT.md  channel=doc binding=exec jev=0.53★ rows=1
+    :12 [path/exec] `gates/V353_RHWP_HWPX_SAVE_L2_GATES.md` 를 unlazy `gate-check.mjs --approve --cwd <worktree> --timeout 3600` 로 source HEAD `c3059ef` 에서 돌렸다 → `ALL MET 
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/gate-raw-output.txt  channel=other binding=mention jev=0.22 rows=1
+    :40 [stem/stem_weak] $ git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape|field|mod)\.rs|src/

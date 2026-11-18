@@ -1,0 +1,116 @@
+{
+  "entry_head": "e6e5850ee07c952f2908df8e5845124c224c2f90",
+  "source_checkpoint": "9ac673ce16034fc03d819e5186485a920e5d2c16",
+  "red": {
+    "status": "FAILED",
+    "passed": 0,
+    "failed": 9,
+    "ignored": 0
+  },
+  "red_cases_now_green": [
+    "display_height_noop_cell_range_delete",
+    "display_height_noop_delete_end_by_path",
+    "display_height_noop_delete_end_without_reflow",
+    "display_height_noop_delete_zero_by_path",
+    "display_height_noop_delete_zero_with_reflow",
+    "display_height_noop_delete_zero_without_reflow",
+    "display_height_noop_insert_by_path",
+    "display_height_noop_insert_with_reflow",
+    "display_height_noop_insert_without_reflow"
+  ],
+  "final_test_sha256": "0bc0cf833692199a509d985fbf720fca1e9bdfa03134beec52f2012a613ffac3",
+  "full_cargo_test": {
+    "passed": 1171,
+    "failed": 0,
+    "ignored": 3,
+    "result_groups": 16
+  },
+  "focused_from_full_suite": {
+    "status": "ok",
+    "passed": 38,
+    "failed": 0,
+    "ignored": 1
+  },
+  "g4": {
+    "status": "ok",
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  "g5": {
+    "status": "ok",
+    "passed": 18,
+    "failed": 0,
+    "ignored": 0
+  },
+  "g6": {
+    "status": "ok",
+    "passed": 14,
+    "failed": 0,
+    "ignored": 0
+  },
+  "c1_regressions_green": [
+    "width_formula_includes_new_spacing_after_column_split",
+    "display_height_grows_by_path_when_fitting_text_exceeds_declared_height",
+    "display_height_grows_after_reflow_when_fitting_text_exceeds_declaration",
+    "display_height_grows_when_fitting_text_exceeds_declared_height",
+    "width_formula_preserves_declaration_when_absolute_widths_are_unchanged",
+    "width_formula_preserves_declaration_when_resize_keeps_columns",
+    "width_formula_preserves_declaration_when_path_resize_keeps_columns",
+    "width_formula_updates_when_row_delete_changes_columns"
+  ],
+  "serializer_tests_in_full_suite": 29,
+  "raw_gate_output_bindings": {
+    "4": {
+      "sha256": "19701d0976d1b86e587d85cedbf40273702a2aab0ec9c1ffb47ad522e9e9ff8c",
+      "bytes": 505
+    },
+    "5": {
+      "sha256": "9e790b6cf83391468c15915455a4dc4b90917a622bbcc6e5cef6fe4f3c0916d9",
+      "bytes": 1385
+    },
+    "6": {
+      "sha256": "42b4c4897b30084af7efe5703570cc488c66cb9d1be60d48c61725c1f69fe54c",
+      "bytes": 1272
+    },
+    "8": {
+      "sha256": "5d84e2e2374766ba4e8f15cda57aab03c1b6ef47715e695ffc9b63faf9b324ee",
+      "bytes": 84586
+    },
+    "9": {
+      "sha256": "12d9441aa745d62c8711cb7c4875c413177195af8a9bfdcd866287855957b7c5",
+      "bytes": 156
+    },
+    "10": {
+      "sha256": "56f725dca251299a4ca88f54446741334dc129762d415ee6606cb50440a79cd1",
+      "bytes": 147
+    },
+    "11": {
+      "sha256": "13a10730bd1c382bb5fe6ac3f0e5a982453970f00ca15e1b5fda9516047c9824",
+      "bytes": 15
+    },
+    "12": {
+      "sha256": "b137407ae26fe9a944d552420da78510f0121687d7c98e1a4e096c20350b70cd",
+      "bytes": 15
+    }
+  },
+  "gates_rerun": [
+    4,
+    5,
+    6,
+    8,
+    9,
+    10,
+    11,
+    12
+  ],
+  "gates_carried": [
+    1,
+    2,
+    3,
+    7
+  ],
+  "gate_result": "ALL MET (12 met)",
+  "out_of_scope": [],
+  "source_files_dirty": false
+}

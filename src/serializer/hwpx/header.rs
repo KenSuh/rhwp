@@ -17,8 +17,8 @@ use quick_xml::Writer;
 
 use crate::model::document::{DocInfo, DocProperties, Document};
 use crate::model::style::{
-    Alignment, BorderFill, BorderLine, BorderLineType, CharShape, DiagonalLine, FillType, Font,
-    HeadType, LineSpacingType, Numbering, ParaShape, Style, TabDef,
+    Alignment, BorderFill, BorderLine, BorderLineType, CharShape, DiagonalLine, Fill, FillType,
+    Font, HeadType, LineSpacingType, Numbering, ParaShape, Style, TabDef,
 };
 use crate::model::ColorRef;
 
@@ -26,6 +26,9 @@ use super::canonical_defaults::FONTFACE_LANG_NAMES;
 use super::context::SerializeContext;
 use super::utils::{empty_tag, end_tag, start_tag_attrs, write_xml_decl};
 use super::SerializeError;
+
+/// 한컴이 `hp:switch` 의 case 로 쓰는 HwpUnitChar 이름공간. 그 case 값은 IR(HWP5 척도)의 절반이다.
+const HWP_UNIT_CHAR_NS: &str = "http://www.hancom.co.kr/hwpml/2016/HwpUnitChar";
 
 /// `header.xml` 바이트 생성. Stage 1 진입점.
 pub fn write_header(doc: &Document, ctx: &SerializeContext) -> Result<Vec<u8>, SerializeError> {
@@ -53,6 +56,7 @@ pub fn write_header(doc: &Document, ctx: &SerializeContext) -> Result<Vec<u8>, S
                 "xmlns:ooxmlchart",
                 "http://www.hancom.co.kr/hwpml/2016/ooxmlchart",
             ),
+            ("xmlns:hwpunitchar", HWP_UNIT_CHAR_NS),
             ("xmlns:hpf", "http://www.hancom.co.kr/schema/2011/hpf"),
             (
                 "xmlns:config",
@@ -78,7 +82,7 @@ pub fn write_header(doc: &Document, ctx: &SerializeContext) -> Result<Vec<u8>, S
 
     write_compatible_document(&mut w)?;
     write_doc_option(&mut w)?;
-    write_track_change_config(&mut w)?;
+    write_track_change_config(&mut w, &doc.doc_info)?;
 
     end_tag(&mut w, "hh:head")?;
     Ok(w.into_inner())
@@ -220,16 +224,49 @@ fn write_border_fill<W: Write>(
     write_border_line(w, "hh:bottomBorder", &bf.borders[3])?;
     write_diagonal(w, &bf.diagonal)?;
 
-    // fillBrush: Fill이 존재할 때만
-    if !matches!(bf.fill.fill_type, FillType::None) {
-        start_tag(w, "hc:fillBrush")?;
-        // Stage 1에서는 Fill 내부를 완전 직렬화하지 않고 빈 래퍼만 출력.
-        // (한컴 관찰: ref_empty의 borderFill id=2 에 빈 fillBrush 존재)
-        end_tag(w, "hc:fillBrush")?;
-    }
+    // fillBrush: Fill이 존재할 때만. 단색(winBrush)은 내용까지 쓴다 (업스트림 9ffc9f3 의 위임 자리).
+    write_fill_brush(w, &bf.fill)?;
 
     end_tag(w, "hh:borderFill")?;
     Ok(())
+}
+
+/// `<hc:fillBrush>` — 단색은 `<hc:winBrush faceColor hatchColor alpha/>` 로 쓴다.
+/// 그러데이션·이미지 채우기는 아직 내용을 쓰지 않고 빈 래퍼만 둔다.
+/// (한컴 관찰: ref_empty의 borderFill id=2 에 빈 fillBrush 존재)
+fn write_fill_brush<W: Write>(w: &mut Writer<W>, fill: &Fill) -> Result<(), SerializeError> {
+    if matches!(fill.fill_type, FillType::None) {
+        return Ok(());
+    }
+    start_tag(w, "hc:fillBrush")?;
+    if let (FillType::Solid, Some(solid)) = (fill.fill_type, fill.solid) {
+        empty_tag(
+            w,
+            "hc:winBrush",
+            &[
+                ("faceColor", &fill_color(solid.background_color)),
+                ("hatchColor", &fill_color(solid.pattern_color)),
+                ("alpha", &fill_alpha(fill.alpha)),
+            ],
+        )?;
+    }
+    end_tag(w, "hc:fillBrush")?;
+    Ok(())
+}
+
+/// 채우기 색. 파서는 `none` 을 0xFFFFFFFF 로 읽으므로 그 값은 `none` 으로 되쓴다
+/// (`#FFFFFF` 로 쓰면 투명이 흰색이 된다).
+fn fill_color(c: ColorRef) -> String {
+    if c == 0xFFFF_FFFF {
+        "none".to_string()
+    } else {
+        color_hex(c)
+    }
+}
+
+/// 채우기 alpha(0~255) → HWPX 실수 문자열. 파서의 `(f * 255) as u8` 가 같은 값을 돌려주며 0 은 "0" 이다.
+fn fill_alpha(alpha: u8) -> String {
+    (f64::from(alpha) / 255.0).to_string()
 }
 
 fn write_diag_line<W: Write>(w: &mut Writer<W>, name: &str) -> Result<(), SerializeError> {
@@ -358,7 +395,7 @@ fn write_char_pr<W: Write>(
     let shade = if cs.shade_color == 0 {
         "none".to_string()
     } else {
-        color_hex(cs.shade_color)
+        fill_color(cs.shade_color)
     };
     start_tag_attrs(
         w,
@@ -567,19 +604,47 @@ fn write_tab_pr<W: Write>(w: &mut Writer<W>, id: u16, td: &TabDef) -> Result<(),
     } else {
         start_tag_attrs(w, "hh:tabPr", &attrs_ref)?;
         for tab in &td.tabs {
-            empty_tag(
-                w,
-                "hh:tabItem",
-                &[
-                    ("pos", &tab.position.to_string()),
-                    ("type", tab_type_str(tab.tab_type)),
-                    ("leader", tab_leader_str(tab.fill_type)),
-                ],
-            )?;
+            write_tab_item_switch(w, tab)?;
         }
         end_tag(w, "hh:tabPr")?;
     }
     Ok(())
+}
+
+/// tabItem 하나를 한컴 원본처럼 `<hp:switch>` 로 쓴다 — HwpUnitChar case 는 위치의 절반(홀수는 CHAR),
+/// default 는 IR 위치. 한컴은 switch 없는 평문 위치를 case 척도로 읽어 탭이 두 배 자리로 간다.
+fn write_tab_item_switch<W: Write>(
+    w: &mut Writer<W>,
+    tab: &crate::model::style::TabItem,
+) -> Result<(), SerializeError> {
+    super::utils::start_tag(w, "hp:switch")?;
+    start_tag_attrs(w, "hp:case", &[("hp:required-namespace", HWP_UNIT_CHAR_NS)])?;
+    empty_tag(
+        w,
+        "hh:tabItem",
+        &[
+            ("pos", &(tab.position / 2).to_string()),
+            ("type", tab_type_str(tab.tab_type)),
+            ("leader", tab_leader_str(tab.fill_type)),
+            (
+                "unit",
+                if tab.position.is_multiple_of(2) { "HWPUNIT" } else { "CHAR" },
+            ),
+        ],
+    )?;
+    end_tag(w, "hp:case")?;
+    super::utils::start_tag(w, "hp:default")?;
+    empty_tag(
+        w,
+        "hh:tabItem",
+        &[
+            ("pos", &tab.position.to_string()),
+            ("type", tab_type_str(tab.tab_type)),
+            ("leader", tab_leader_str(tab.fill_type)),
+        ],
+    )?;
+    end_tag(w, "hp:default")?;
+    end_tag(w, "hp:switch")
 }
 
 fn tab_type_str(t: u8) -> &'static str {
@@ -707,21 +772,29 @@ fn write_para_pr<W: Write>(
             ("id", &id.to_string()),
             ("tabPrIDRef", &ps.tab_def_id.to_string()),
             ("condense", "0"),
-            ("fontLineHeight", "0"),
+            ("fontLineHeight", bool01(ps.attr1 & (1 << 22) != 0)),
             ("snapToGrid", "1"),
             ("suppressLineNumbers", "0"),
             ("checked", "0"),
         ],
     )?;
 
-    // 자식 순서 (ParaShapeType.cpp:50-56):
-    // align, heading, breakSetting, margin, lineSpacing, border, autoSpacing
+    // 자식 순서 (한컴 원본 관찰):
+    // align, heading, breakSetting, autoSpacing, switch(margin, lineSpacing), border
     empty_tag(
         w,
         "hh:align",
         &[
             ("horizontal", alignment_str(ps.alignment)),
-            ("vertical", "BASELINE"),
+            (
+                "vertical",
+                match (ps.attr1 >> 20) & 3 {
+                    1 => "TOP",
+                    2 => "CENTER",
+                    3 => "BOTTOM",
+                    _ => "BASELINE",
+                },
+            ),
         ],
     )?;
     empty_tag(
@@ -737,34 +810,47 @@ fn write_para_pr<W: Write>(
         w,
         "hh:breakSetting",
         &[
-            ("breakLatinWord", "KEEP_WORD"),
-            ("breakNonLatinWord", "KEEP_WORD"),
-            ("widowOrphan", "0"),
-            ("keepWithNext", "0"),
-            ("keepLines", "0"),
-            ("pageBreakBefore", "0"),
-            ("lineWrap", "BREAK"),
+            (
+                "breakLatinWord",
+                match (ps.attr1 >> 5) & 3 {
+                    1 => "HYPHENATION",
+                    2 => "BREAK_WORD",
+                    _ => "KEEP_WORD",
+                },
+            ),
+            (
+                "breakNonLatinWord",
+                if ps.attr1 & (1 << 7) != 0 {
+                    "BREAK_WORD"
+                } else {
+                    "KEEP_WORD"
+                },
+            ),
+            ("widowOrphan", bool01(ps.attr1 & (1 << 16) != 0)),
+            ("keepWithNext", bool01(ps.attr1 & (1 << 17) != 0)),
+            ("keepLines", bool01(ps.attr1 & (1 << 18) != 0)),
+            ("pageBreakBefore", bool01(ps.attr1 & (1 << 19) != 0)),
+            (
+                "lineWrap",
+                if ps.attr2 & 3 == 1 {
+                    "SQUEEZE"
+                } else {
+                    "BREAK"
+                },
+            ),
         ],
     )?;
-
-    // <hh:margin>: 자식 4개 (intent, left, right, prev, next) — 단위/값 지정
-    super::utils::start_tag(w, "hh:margin")?;
-    write_margin_child(w, "hh:intent", ps.indent)?;
-    write_margin_child(w, "hh:left", ps.margin_left)?;
-    write_margin_child(w, "hh:right", ps.margin_right)?;
-    write_margin_child(w, "hh:prev", ps.spacing_before)?;
-    write_margin_child(w, "hh:next", ps.spacing_after)?;
-    end_tag(w, "hh:margin")?;
 
     empty_tag(
         w,
-        "hh:lineSpacing",
+        "hh:autoSpacing",
         &[
-            ("type", line_spacing_type_str(ps.line_spacing_type)),
-            ("value", &ps.line_spacing.to_string()),
-            ("unit", "HWPUNIT"),
+            ("eAsianEng", bool01(ps.attr2 & (1 << 4) != 0)),
+            ("eAsianNum", bool01(ps.attr2 & (1 << 5) != 0)),
         ],
     )?;
+
+    write_para_margin_switch(w, ps)?;
 
     empty_tag(
         w,
@@ -780,26 +866,83 @@ fn write_para_pr<W: Write>(
         ],
     )?;
 
-    empty_tag(
-        w,
-        "hh:autoSpacing",
-        &[("eAsianEng", "0"), ("eAsianNum", "0")],
-    )?;
-
     end_tag(w, "hh:paraPr")?;
     Ok(())
 }
 
+/// margin·lineSpacing 을 한컴 원본처럼 `<hp:switch>` 로 쓴다 — HwpUnitChar case 는 IR 값의 절반,
+/// default 는 IR 값. 한컴은 switch 없는 평문 값을 case 척도로 읽어 들여쓰기·여백이 두 배가 된다.
+/// 홀수는 CHAR 단위로 나머지 1을 보존한다.
+fn write_para_margin_switch<W: Write>(
+    w: &mut Writer<W>,
+    ps: &ParaShape,
+) -> Result<(), SerializeError> {
+    super::utils::start_tag(w, "hp:switch")?;
+    start_tag_attrs(w, "hp:case", &[("hp:required-namespace", HWP_UNIT_CHAR_NS)])?;
+    write_para_margin(w, ps, true)?;
+    write_para_line_spacing(w, ps, true)?;
+    end_tag(w, "hp:case")?;
+    super::utils::start_tag(w, "hp:default")?;
+    write_para_margin(w, ps, false)?;
+    write_para_line_spacing(w, ps, false)?;
+    end_tag(w, "hp:default")?;
+    end_tag(w, "hp:switch")
+}
+
+/// `<hh:margin>` 자식 다섯(intent, left, right, prev, next). `case` 면 HwpUnitChar 값을 쓴다.
+fn write_para_margin<W: Write>(
+    w: &mut Writer<W>,
+    ps: &ParaShape,
+    case: bool,
+) -> Result<(), SerializeError> {
+    super::utils::start_tag(w, "hh:margin")?;
+    write_margin_child(w, "hc:intent", ps.indent, case)?;
+    write_margin_child(w, "hc:left", ps.margin_left, case)?;
+    write_margin_child(w, "hc:right", ps.margin_right, case)?;
+    write_margin_child(w, "hc:prev", ps.spacing_before, case)?;
+    write_margin_child(w, "hc:next", ps.spacing_after, case)?;
+    end_tag(w, "hh:margin")
+}
+
+/// `<hh:lineSpacing>`. case 에서 PERCENT 는 그대로, 다른 종류는 HWPUNIT 이라 절반이다(파서가 두 배로 읽는다).
+fn write_para_line_spacing<W: Write>(
+    w: &mut Writer<W>,
+    ps: &ParaShape,
+    case: bool,
+) -> Result<(), SerializeError> {
+    let (value, unit) = hwpunitchar_value_unit(
+        ps.line_spacing,
+        case && !matches!(ps.line_spacing_type, LineSpacingType::Percent),
+    );
+    empty_tag(
+        w,
+        "hh:lineSpacing",
+        &[
+            ("type", line_spacing_type_str(ps.line_spacing_type)),
+            ("value", &value.to_string()),
+            ("unit", unit),
+        ],
+    )
+}
+
+/// margin 자식 하나(`<hc:intent value="…" unit="…"/>`, 한컴 속성 순서). case 에서 홀수 IR 값은 절반이
+/// 정수로 떨어지지 않으므로 한컴 HWP→HWPX 변환본처럼 `(값 - 1) / 2` 와 `unit="CHAR"` 로 쓴다.
 fn write_margin_child<W: Write>(
     w: &mut Writer<W>,
     name: &str,
-    value: i32,
+    stored: i32,
+    case: bool,
 ) -> Result<(), SerializeError> {
-    empty_tag(
-        w,
-        name,
-        &[("unit", "HWPUNIT"), ("value", &value.to_string())],
-    )
+    let (value, unit) = hwpunitchar_value_unit(stored, case);
+    empty_tag(w, name, &[("value", &value.to_string()), ("unit", unit)])
+}
+
+fn hwpunitchar_value_unit(stored: i32, case: bool) -> (i32, &'static str) {
+    match (case, stored % 2 != 0) {
+        (false, _) => (stored, "HWPUNIT"),
+        (true, false) => (stored / 2, "HWPUNIT"),
+        (true, true) => ((stored - 1) / 2, "CHAR"),
+    }
 }
 
 fn alignment_str(a: Alignment) -> &'static str {
@@ -904,8 +1047,15 @@ fn write_doc_option<W: Write>(w: &mut Writer<W>) -> Result<(), SerializeError> {
     Ok(())
 }
 
-fn write_track_change_config<W: Write>(w: &mut Writer<W>) -> Result<(), SerializeError> {
-    empty_tag(w, "hh:trackchageConfig", &[("flags", "0")])
+fn write_track_change_config<W: Write>(
+    w: &mut Writer<W>,
+    doc_info: &DocInfo,
+) -> Result<(), SerializeError> {
+    empty_tag(
+        w,
+        "hh:trackchageConfig",
+        &[("flags", &doc_info.hwpx_track_change_flags.to_string())],
+    )
 }
 
 // 내부에서 쓰는 start_tag 별명
@@ -971,5 +1121,87 @@ mod tests {
         let sm = snippet.find("symMark=").unwrap();
         let bf = snippet.find("borderFillIDRef=").unwrap();
         assert!(ip < hp && hp < tc && tc < sc && sc < uf && uf < uk && uk < sm && sm < bf);
+    }
+
+    #[test]
+    fn c12_shade_preserves_real_colors_legacy_zero_and_no_shade_sentinel() {
+        for (shade_color, expected) in [
+            (0, "none"),
+            (0x00FF_FFFF, "#FFFFFF"),
+            (0x0056_3412, "#123456"),
+            (0xFFFF_FFFF, "none"),
+        ] {
+            let mut doc = Document::default();
+            doc.doc_info.char_shapes = vec![CharShape {
+                text_color: 0x00FF_FFFF,
+                shade_color,
+                ..CharShape::default()
+            }];
+            let ctx = SerializeContext::collect_from_document(&doc);
+            let xml = String::from_utf8(write_header(&doc, &ctx).unwrap()).unwrap();
+            assert!(xml.contains(r##"textColor="#FFFFFF""##));
+            assert!(
+                xml.contains(&format!(r#"shadeColor="{expected}""#)),
+                "shade {shade_color:#010x} must emit {expected}: {xml}"
+            );
+        }
+    }
+
+    #[test]
+    fn winbrush_alpha_and_none_roundtrip_through_parser() {
+        use crate::model::style::SolidFill;
+        use crate::parser::hwpx::header::parse_hwpx_header;
+
+        let solid = |face: ColorRef, alpha: u8| {
+            let mut bf = BorderFill::default();
+            bf.fill.fill_type = FillType::Solid;
+            bf.fill.solid = Some(SolidFill {
+                background_color: face,
+                pattern_color: 0x0099_9999,
+                pattern_type: 0,
+            });
+            bf.fill.alpha = alpha;
+            bf
+        };
+        let mut doc = Document::default();
+        // id 1..=256: alpha 0..=255 · id 257: faceColor none · id 258: 그러데이션(빈 래퍼 유지)
+        doc.doc_info.border_fills = (0..=255u8).map(|a| solid(0x00D8_E7FF, a)).collect();
+        doc.doc_info.border_fills.push(solid(0xFFFF_FFFF, 0));
+        let mut gradient = BorderFill::default();
+        gradient.fill.fill_type = FillType::Gradient;
+        doc.doc_info.border_fills.push(gradient);
+
+        let ctx = SerializeContext::collect_from_document(&doc);
+        let xml = String::from_utf8(write_header(&doc, &ctx).unwrap()).unwrap();
+        let (info, _) = parse_hwpx_header(&xml).expect("reparse header.xml");
+        assert_eq!(info.border_fills.len(), 258);
+
+        let alpha_roundtrip = (0..=255u8)
+            .filter(|&a| {
+                let fill = &info.border_fills[usize::from(a)].fill;
+                fill.fill_type == FillType::Solid && fill.alpha == a
+            })
+            .count();
+        let none_bf = &info.border_fills[256].fill;
+        let none_roundtrip = xml
+            .contains(r##"<hc:winBrush faceColor="none" hatchColor="#999999" alpha="0"/>"##)
+            && none_bf.fill_type == FillType::Solid
+            && none_bf.solid.map(|s| s.background_color) == Some(0xFFFF_FFFF);
+        println!(
+            "WINBRUSH_UNIT alpha_roundtrip={}/256 none_roundtrip={} ",
+            alpha_roundtrip, none_roundtrip
+        );
+
+        assert_eq!(alpha_roundtrip, 256, "alpha 0..=255 reparse");
+        assert!(none_roundtrip, "faceColor none is written and read back");
+        assert!(
+            xml.contains(r##"<hc:winBrush faceColor="#FFE7D8" hatchColor="#999999" alpha="0"/>"##),
+            "colored winBrush keeps #RRGGBB"
+        );
+        assert_eq!(
+            xml.matches("<hc:fillBrush></hc:fillBrush>").count(),
+            1,
+            "gradient keeps the empty wrapper"
+        );
     }
 }

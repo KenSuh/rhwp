@@ -1,0 +1,154 @@
+IMPACT at=code:HEAD@7370ec9fdcf8 query=".omo/evidence/v353-rhwp-hwpx-save-l2/c2" mode=path jev=used jev_threshold=0.45 files=208 rows=6129 det_ms=199 total_ms=1427 jev_requests=5 jev_http_attempts=5 jev_input_tokens=46511
+  ! Jev 에 보내지 않은 파일 88 (상한 --max-files=120 또는 비밀 성격 경로)
+  ! cache stale (base code:7370ec9fdcf89eb4a372143bcb555ddd9bfe0b46@7370ec9fdcf8 → code:HEAD@7370ec9fdcf8) · 재도출
+- [code] gates/V353_RHWP_HWPX_SAVE_L2_GATES.md  channel=ledger_check binding=pin jev=0.59★ rows=20
+    :3 [basename/mention] - [x] G1: 변경 전 baseline — 59c2285 에서 G8 시험 실패, 표 앞 run 순서 결함(인라인 표 앞에 공백 run) 을 기록
+    :4 [basename/pin] CHECK: python3 -c 'import json;d=json.load(open(".omo/evidence/v353-rhwp-hwpx-save-l2/baseline.json"));assert d["head"]=="59c2285efe616211cd147dfa849d
+    :16 [basename/pin] EVIDENCE: automatic-evidence=v1; definition-sha256=f4b9052439b84f4a4bceaf9768a1c8660ee84880fd71edf0d7e5d45eb3f3073e; exit=0; EXPECT=matched; output-sh
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/gate-check-output.txt  channel=other binding=pin jev=0.55★ rows=14
+    :3 [basename/pin] CHECK: python3 -c 'import json;d=json.load(open(".omo/evidence/v353-rhwp-hwpx-save-l2/baseline.json"));assert d["head"]=="59c2285efe616211cd147dfa849d
+    :22 [basename/mention] APPROVED: /Users/ken/.unlazy/approved/8f7d86771ddd9761c9a258841a262aeab03c2d13a24cb6246f6fbc4fece65ea4.json
+    :31 [basename/pin] CHECK: python3 -c 'import json;d=json.load(open(".omo/evidence/v353-rhwp-hwpx-save-l2/negative-control.json"));assert d["base"]=="59c2285efe616211cd14
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/gate-run-final.log  channel=other binding=pin jev=0.51★ rows=3
+    :8 [basename/pin] exit=0; EXPECT=matched; output=sha256=3be03fada0dca6f71739ca70d8daf3a612478c7bc549b6dc231da056e1a5ad0c; bytes=98
+    :14 [basename/pin] exit=0; EXPECT=matched; output=sha256=bae030b4c981566277bf7548af7ca04ece2dfd008fb71bad0cb8678fe25dccc2; bytes=63
+    :15 [basename/mention] PASS V353_RHWP_HWPX_SAVE_L2_GATES:G10: 범위 — 59c2285 대비 변경 파일이 §3.1 안
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/gate-run.log  channel=other binding=pin jev=0.51★ rows=8
+    :21 [basename/mention] APPROVED: /Users/ken/.unlazy/approved/3ab78f7bc23e81846dd6ff8b23d0e1729aed8169ade197363d532d169616ff44.json
+    :23 [basename/pin] CHECK: python3 -c 'import json,hashlib,pathlib,re;d=json.load(open(".omo/evidence/v353-rhwp-hwpx-save-l2/negative-control.json"));assert d["base"]=="5
+    :58 [basename/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape|field|mod)\.rs
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/gate-raw-output.txt  channel=other binding=exec jev=0.51★ rows=3
+    :4 [basename/exec] $ python3 -c 'import json;d=json.load(open(".omo/evidence/v353-rhwp-hwpx-save-l2/baseline.json"));assert d["head"]=="59c2285efe616211cd147dfa849d2f9f9
+    :20 [basename/exec] $ python3 -c 'import json;d=json.load(open(".omo/evidence/v353-rhwp-hwpx-save-l2/negative-control.json"));assert d["base"]=="59c2285efe616211cd147dfa8
+    :40 [basename/mention] $ git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape|field|mod)\.rs|src/
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/baseline.py  channel=other binding=exec jev=0.48★ rows=3
+    :1 [basename/mention] # 수정 전(59c2285) 트리에서 G8 시험 실패와 문단 run 순서·잔여 결함을 재 baseline.json 에 남긴다.
+    :2 [basename/exec] # 사용: python3 -I baseline.py <저장소> <출력 json>  (저장소 src/ 가 59c2285 와 같아야 한다)
+    :10 [basename/mention] BASE = "59c2285efe616211cd147dfa849d2f9f9df767dd"
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c3/g0-chain.patch  channel=other binding=exec jev=0.48★ rows=135
+    :635 [basename/mention] @@ -2407,6 +2407,700 @@ fn c23_public_field_boundary_matrix_matches_raw_utf16_two_saves() {
+    :1596 [basename/mention] +fn c23_border_widths(xml: &str) -> Vec<(String, String, String)> {
+    :1625 [basename/mention] +fn c23_all_canonical_border_widths_survive_two_public_saves() {
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/char-unit-evidence.json  channel=other binding=pin jev=0.47★ rows=3
+    :13 [basename/pin] "sha256": "49c2e687ff37bd3c637346b111b6cb02611d485bf1a0ac087b254f935b82de57",
+    :59 [basename/pin] "sha256": "b663d2a922a3a826b84fab7b54c25b0b9477ca7996b8e93111724419e8aa58e6",
+    :176 [basename/pin] "sha256": "3c264bd5c217ba36674674f00c420ce0d19e73538f21f9b6dd638b9a1b5129cf",
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c3/negative-control.json  channel=other binding=pin jev=0.47★ rows=1
+    :5 [basename/pin] "test_file_sha256": "afa36ee1e122b9c735b383fd39cf06a3ef3fb4d21249c0c67d19374fc2dca9d8",
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/gate-run-initial-5315315.log  channel=other binding=pin jev=0.44 rows=8
+    :21 [basename/mention] APPROVED: /Users/ken/.unlazy/approved/3ab78f7bc23e81846dd6ff8b23d0e1729aed8169ade197363d532d169616ff44.json
+    :23 [basename/pin] CHECK: python3 -c 'import json,hashlib,pathlib,re;d=json.load(open(".omo/evidence/v353-rhwp-hwpx-save-l2/negative-control.json"));assert d["base"]=="5
+    :58 [basename/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape|field|mod)\.rs
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/verification.json  channel=other binding=pin jev=0.44 rows=2
+    :2 [basename/mention] "entry_head": "e6e5850ee07c952f2908df8e5845124c224c2f90",
+    :93 [basename/pin] "sha256": "b137407ae26fe9a944d552420da78510f0121687d7c98e1a4e096c20350b70cd",
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-final-5.log  channel=other binding=pin jev=0.41 rows=3
+    :6 [basename/pin] :49 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape
+    :10 [basename/pin] :66 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape
+    :17 [basename/mention] :40 [stem/stem_weak] $ git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shap
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-resumed-header.log  channel=other binding=pin jev=0.38 rows=14
+    :29 [basename/pin] :6 [stem/pin] :49 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|tabl
+    :30 [basename/pin] :10 [stem/pin] :66 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|tab
+    :31 [basename/mention] :17 [stem/stem_weak] :40 [stem/stem_weak] $ git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(sect
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c3/REBASE.md  channel=doc binding=exec jev=0.38 rows=3
+    :12 [basename/exec] Tested source head: `dbf294757690e723c614c22e467022522ea3b44e`.
+    :53 [basename/mention] | 7668ec2 | 64d18ca |
+    :73 [basename/mention] - **Paragraph margins/init order (4c279a1/c765a21):** header parser/serializer and section writer
+- [code] src/renderer/layout/tests.rs  channel=other binding=exec jev=0.38 rows=26
+    :27 [basename/mention] fn c20_indent_paragraph(indent: f64, alignment: Alignment) -> (Paragraph, ResolvedStyleSet) {
+    :47 [basename/mention] fn c20_cell_reflow_recovers_only_impossible_unoccupied_hanging_width() {
+    :51 [basename/mention] let (paragraph, styles) = c20_indent_paragraph(indent, alignment);
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-final-1.log  channel=other binding=pin jev=0.37 rows=6
+    :23 [basename/pin] :49 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape
+    :37 [basename/pin] :66 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape
+    :341 [basename/mention] - [code] .omo/evidence/v353-rhwp-table-fidelity/c2/g8.log  channel=other binding=mention jev=0.20 rows=55
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/intermediate-7668ec2/gate-run.log  channel=other binding=pin jev=0.37 rows=9
+    :2 [basename/pin] CHECK: bash -o pipefail -c 'cargo test --offline --locked --test hwpx_table_fidelity page_break 2>&1 | tee .omo/evidence/v353-rhwp-table-fidelity/c2/g
+    :9 [basename/pin] CHECK: bash -o pipefail -c 'cargo test --offline --locked --test hwpx_table_fidelity display_height 2>&1 | tee .omo/evidence/v353-rhwp-table-fidelity/
+    :16 [basename/pin] CHECK: bash -o pipefail -c 'cargo test --offline --locked --test hwpx_table_fidelity width_formula 2>&1 | tee .omo/evidence/v353-rhwp-table-fidelity/c
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-final-3.log  channel=other binding=pin jev=0.36 rows=6
+    :23 [basename/pin] :49 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape
+    :53 [basename/pin] :66 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape
+    :313 [basename/mention] - [code] .omo/evidence/v353-rhwp-table-fidelity/c2/g8.log  channel=other binding=mention jev=0.19 rows=55
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/red-source-binding.json  channel=other binding=pin jev=0.35 rows=4
+    :2 [basename/mention] "red_source": "e6e5850ee07c952f2908df8e5845124c224c2f90",
+    :3 [basename/mention] "snapshot": "/tmp/rhwp-c2-red.cj8w45",
+    :8 [basename/pin] "lock_sha256": "a28b1372dcf6c2a945130ff6e1b6e5b43444f5b29f0d7b6b41847c003a351c93",
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-1.log  channel=other binding=pin jev=0.34 rows=6
+    :35 [basename/pin] :49 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape
+    :37 [basename/pin] :66 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape
+    :291 [basename/mention] - [code] .omo/evidence/v353-rhwp-table-fidelity/c2/g8.log  channel=other binding=mention jev=0.20 rows=55
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/gate-run.log  channel=other binding=pin jev=0.34 rows=1
+    :24 [basename/pin] exit=0; EXPECT=matched; output=sha256=b137407ae26fe9a944d552420da78510f0121687d7c98e1a4e096c20350b70cd; bytes=15
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c4/isolated-rerun.log  channel=other binding=pin jev=0.34 rows=14
+    :31 [basename/mention] |     APPROVED: /private/var/folders/1j/_ggsky8n1bzfn0g2x5c8_wgm0000gn/T/mah-unlazy-approval-wkx9oqgk/bd547770e4a0361a96b80cb85ceb9c2d32ed6f836978e412
+    :38 [basename/mention] |     APPROVED: /private/var/folders/1j/_ggsky8n1bzfn0g2x5c8_wgm0000gn/T/mah-unlazy-approval-wkx9oqgk/ecbb463374b2366bb6d4165ef52a0f1670caa5cc2dd2c8f1
+    :45 [basename/mention] |     APPROVED: /private/var/folders/1j/_ggsky8n1bzfn0g2x5c8_wgm0000gn/T/mah-unlazy-approval-wkx9oqgk/b9f9b77168a620de6fbb8ff4fd909513c296a77babb5141a
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/REPORT.md  channel=doc binding=mention jev=0.34 rows=9
+    :4 [basename/mention] - worktree `/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity` · 브랜치 `v353-rhwp-table-fidelity-g0` · base `59c2285efe616211cd147dfa849d2f9f9df7
+    :16 [basename/mention] | G1 baseline | `BASELINE_OK 55` (59c2285, src 깨끗, G8 시험 실패) |
+    :20 [basename/mention] | G5 음성 대조 | `NEG_OK` (59c2285 사본: run_order 3 실패 · two_save 3 실패 · residual 6 실패, 합성 문단 가드 1개만 통과) |
+- [code] src/renderer/pagination.rs  channel=other binding=mention jev=0.34 rows=6
+    :278 [basename/mention] control_index: c2,
+    :280 [basename/mention] ) => *a == adj(*b) && c1 == c2,
+    :291 [basename/mention] control_index: c2,
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-2.log  channel=other binding=pin jev=0.33 rows=6
+    :19 [basename/pin] :49 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape
+    :25 [basename/pin] :66 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape
+    :361 [basename/mention] - [code] .omo/evidence/v353-rhwp-table-fidelity/c2/g8.log  channel=other binding=mention jev=0.18 rows=55
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-5.log  channel=other binding=pin jev=0.33 rows=3
+    :5 [basename/pin] :49 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape
+    :9 [basename/pin] :66 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape
+    :13 [basename/mention] :40 [stem/stem_weak] $ git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shap
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/impact-summary.json  channel=other binding=pin jev=0.33 rows=2
+    :30 [basename/pin] "full_stdout_sha256": "0b1fae960521fa282d1a8445336bcd8176c208b54d7cb12983b064fd32156b80",
+    :53 [basename/pin] "full_stdout_sha256": "49456f78d6ece5c2013ef45d8344ad73b8456925e2e1f17e751cfbf0fe345d80",
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/green-source-binding.json  channel=other binding=pin jev=0.32 rows=1
+    :7 [basename/pin] "lock_sha256": "a28b1372dcf6c2a945130ff6e1b6e5b43444f5b29f0d7b6b41847c003a351c93",
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c2/intermediate-7668ec2/carry-inputs.json  channel=other binding=pin jev=0.31 rows=4
+    :2 [basename/mention] "entry_head": "e6e5850ee07c952f2908df8e5845124c224c2f90",
+    :3 [basename/mention] "source_checkpoint": "7668ec27182792350b7aa8d43b52c0e14320919e",
+    :15 [basename/mention] "src/model/shape.rs": "3f25d7e902961ec0a5889f933a2c2a042e3276c0583553eb6726d02317f21001",
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/green-g0.log  channel=other binding=mention jev=0.31 rows=7
+    :8 [basename/mention] test c20_supplied_actual_contact_edit_and_two_native_saves_stay_visible ... ignored, requires the explicitly supplied immutable C16 input
+    :11 [basename/mention] test c23_public_field_end_insert_keeps_utf16_styles_and_count_two_saves ... ok
+    :28 [basename/mention] test c23_public_insert_delete_preserves_retained_field_gaps_two_saves ... ok
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/negative_control.py  channel=other binding=mention jev=0.31 rows=6
+    :1 [basename/mention] # 수정 전 59c2285 사본에 레인 2 시험(파일·표본 그대로)을 돌려 run_order·two_save·residual 실패 수를 남긴다.
+    :3 [basename/mention] #   작업 폴더에 `git archive 59c2285` 사본을 풀고, 저장소의 새 시험 파일·표본·Cargo.lock 을 복사해 돌린다.
+    :7 [basename/mention] BASE = "59c2285efe616211cd147dfa849d2f9f9df767dd"
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c4/impact-ledger.log  channel=other binding=mention jev=0.31 rows=21
+    :14 [basename/mention] - [code] .omo/evidence/v353-rhwp-table-fidelity/c2/intermediate-7668ec2/gate-run.log  channel=other binding=pin jev=0.46★ rows=26
+    :24 [basename/mention] - [code] .omo/evidence/v353-rhwp-table-fidelity/c2/impact-ledger.log  channel=other binding=pin jev=0.44 rows=10
+    :25 [basename/mention] :1 [path/mention] IMPACT at=code:e6e5850ee07c952f2908df8e5845124c224c2f90@e6e5850ee07c query="gates/V353_RHWP_TABLE_FIDELITY_GATES.md" mode=path jev=u
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-final-2.log  channel=other binding=pin jev=0.30 rows=15
+    :30 [basename/pin] :49 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape
+    :54 [basename/pin] :66 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape
+    :195 [basename/mention] - [code] .omo/evidence/v353-rhwp-table-fidelity/c2/intermediate-7668ec2/gate-run.log  channel=other binding=pin jev=0.26 rows=1
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c3/gate-run.log  channel=other binding=pin jev=0.30 rows=4
+    :35 [basename/mention] APPROVED: /Users/ken/.unlazy/approved/4c2e41e0ede1ce3b4e9e4ada91166c2c98244f69d2075c26b1351c496b7695cf.json
+    :63 [basename/mention] APPROVED: /Users/ken/.unlazy/approved/8c61e4489a30b87bfab093f7a412a8c845fdbcc2fd5e73074368235809a5172f.json
+    :110 [basename/pin] exit=0; EXPECT=matched; output=sha256=b5568d8ad4ed8d6a9fab8348e510711f8358c218705c2d8f502ebf2bbb470a0f; bytes=7
+- [code] gates/V353_RHWP_TABLE_FIDELITY_GATES.md  channel=gate_ledger binding=pin jev=0.30 rows=11
+    :16 [basename/pin] EVIDENCE: automatic-evidence=v1; definition-sha256=5b830573173329a2cd0bd014755505d2a6a0f67f5fb3f1ceb23e908eaa46e636; exit=0; EXPECT=matched; output-sh
+    :21 [basename/pin] EVIDENCE: automatic-evidence=v1; definition-sha256=82da78534dd08b2b2434c2a1bf6c63a0e44848588d0833f2ae5fdb228fcc62e4; exit=0; EXPECT=matched; output-sh
+    :26 [basename/pin] EVIDENCE: automatic-evidence=v1; definition-sha256=64d55dac5f6660bc21702566707fa6903fd042c5644707d4f35434c7e87a511a; exit=0; EXPECT=matched; output-sh
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/REPORT.md  channel=doc binding=mention jev=0.30 rows=3
+    :3 [basename/mention] Correction complete: ledger **11/11**, no deferrals. Validation and artifact producer head: `a6d024f4f0bda4dcbe01bc247dceef003ea865d4`, with src/tests
+    :12 [basename/mention] Test file SHA256: `31b58bbaf1a8d7a1426c192aa1113190d801c350124dc4ac89249aef517bd066`. It uses only APIs present at 59c2285 so both negative controls c
+    :17 [basename/mention] | `negative-59c2285.log` and `../negative-control.json` | L2 2 passed / 16 failed / 2 ignored; run-order failures 5, two-save failures 3 including G3,
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c4/initial-rerun-logger-warning.log  channel=other binding=pin jev=0.28 rows=18
+    :47 [basename/mention] |     APPROVED: /private/var/folders/1j/_ggsky8n1bzfn0g2x5c8_wgm0000gn/T/mah-unlazy-approval-p46ej74n/fa122265bff4d1e44f82fe3a2d7b572dd73a4ac28af8ec56
+    :68 [basename/mention] |     APPROVED: /private/var/folders/1j/_ggsky8n1bzfn0g2x5c8_wgm0000gn/T/mah-unlazy-approval-p46ej74n/59468fbfe8e0c9a2713c4129c556b8d056b43d58b6823056
+    :82 [basename/mention] |     APPROVED: /private/var/folders/1j/_ggsky8n1bzfn0g2x5c8_wgm0000gn/T/mah-unlazy-approval-p46ej74n/936d60e019f6cb71a81fc17c7b76039a569a65a494db576f
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c3/impact-ledger.log  channel=other binding=mention jev=0.28 rows=20
+    :3 [basename/mention] - [code] .omo/evidence/v353-rhwp-table-fidelity/c2/intermediate-7668ec2/gate-run.log  channel=other binding=pin jev=0.54★ rows=26
+    :12 [basename/mention] - [code] .omo/evidence/v353-rhwp-table-fidelity/c2/C2_REPORT.md  channel=doc binding=mention jev=0.50★ rows=1
+    :18 [basename/mention] - [code] .omo/evidence/v353-rhwp-table-fidelity/c2/gate-run.log  channel=other binding=mention jev=0.44 rows=17
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-3.log  channel=other binding=pin jev=0.27 rows=15
+    :13 [basename/pin] :49 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape
+    :63 [basename/pin] :66 [stem/pin] CHECK: git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape
+    :282 [basename/mention] - [code] .omo/evidence/v353-rhwp-table-fidelity/c2/intermediate-7668ec2/gate-run.log  channel=other binding=pin jev=0.22 rows=1
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c3/hancom-manifest.json  channel=other binding=pin jev=0.27 rows=1
+    :39 [basename/pin] "sha256": "0b8265dcc2ada3891f9492a57fb0a8bbfd8791cda8135f2b7071ca73d2a96bad",
+  … 168 more files (--top 0 으로 전부)

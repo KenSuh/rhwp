@@ -234,7 +234,7 @@ fn test_parse_section_simple() {
 
     let section = parse_body_text_section(&section_bytes).unwrap();
     assert_eq!(section.paragraphs.len(), 1);
-    assert_eq!(section.paragraphs[0].text, "Hello");
+    assert_eq!(section.paragraphs[0].text(), "Hello");
 }
 
 #[test]
@@ -255,8 +255,8 @@ fn test_parse_section_multiple_paragraphs() {
 
     let section = parse_body_text_section(&section_bytes).unwrap();
     assert_eq!(section.paragraphs.len(), 2);
-    assert_eq!(section.paragraphs[0].text, "ABC");
-    assert_eq!(section.paragraphs[1].text, "DEF");
+    assert_eq!(section.paragraphs[0].text(), "ABC");
+    assert_eq!(section.paragraphs[1].text(), "DEF");
     assert_eq!(section.paragraphs[1].para_shape_id, 1);
 }
 
@@ -432,7 +432,7 @@ fn test_lineseg_field_semantics() {
     // 1. 모든 문단의 LineSeg 출력 (첫 20개 + lh > 2000인 문단)
     for (sec_idx, section) in doc.sections.iter().enumerate() {
         for (para_idx, para) in section.paragraphs.iter().enumerate() {
-            let text_preview: String = para.text.chars().take(30).collect();
+            let text_preview: String = para.text().chars().take(30).collect();
             let has_large_font = para.line_segs.iter().any(|s| s.line_height > 2000);
             if para_idx < 20 || has_large_font {
                 eprintln!(
@@ -603,7 +603,7 @@ fn test_table_paragraph_diagnostics() {
             }
 
             // 텍스트 미리보기 (첫 20자)
-            let text_preview: String = para.text.chars().take(20).collect();
+            let text_preview: String = para.text().chars().take(20).collect();
 
             eprintln!("--- Section {} / Para {} ---", sec_idx, para_idx);
             eprintln!("  para_shape_id: {}", para.para_shape_id);

@@ -1,0 +1,11 @@
+{
+  "red_source": "e6e5850ee07c952f2908df8e5845124c224c2f90",
+  "snapshot": "/tmp/rhwp-c2-red.cj8w45",
+  "source_files_verified": 353,
+  "source_tree": "06636ac0c0c6c6d7ca31d995e0ff111938d5f5fb",
+  "test_sha256": "0bc0cf833692199a509d985fbf720fca1e9bdfa03134beec52f2012a613ffac3",
+  "manifest_sha256": "885d0647d7fae87fbea9e608d5028d09ad934398555a115908a63f16a4902a2c",
+  "lock_sha256": "a28b1372dcf6c2a945130ff6e1b6e5b43444f5b29f0d7b6b41847c003a351c93",
+  "target_dir": "/tmp/rhwp-c2-red.cj8w45/target",
+  "rejected_run": "red-final-shared-target-discarded.log: live target reused; unexpected GREEN is excluded from evidence"
+}

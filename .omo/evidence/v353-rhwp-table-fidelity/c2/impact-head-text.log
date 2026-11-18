@@ -1,0 +1,247 @@
+IMPACT at=code:7668ec27182792350b7aa8d43b52c0e14320919e@7668ec271827 query="src/document_core/commands/text_editing.rs" mode=path jev=used jev_threshold=0.45 files=107 rows=162 det_ms=324 total_ms=1421 jev_requests=5 jev_http_attempts=5 jev_input_tokens=27240
+  ! cache stale (base code:e6e5850ee07c952f2908df8e5845124c224c2f90@e6e5850ee07c → code:7668ec27182792350b7aa8d43b52c0e14320919e@7668ec271827) · 재도출
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/verification.json  channel=other binding=mention jev=0.62★ rows=1
+    :29 [path/mention] "src/document_core/commands/text_editing.rs": "9e1bc87d6e1d1b244f2de6b0bf077c7923e5dad0361cbaeb5c980733915fe43e",
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/red-source.json  channel=other binding=mention jev=0.55★ rows=1
+    :7 [path/mention] "src/document_core/commands/text_editing.rs": "01041a91eafaa05bf28e37690e07212876b93a6e32a27dd03a116779efe8fa9d"
+- [code] mydocs/eng/tech/incremental_relayout_design.md  channel=doc binding=mention jev=0.52★ rows=7
+    :42 [basename/mention] | `para_column_map` comparison | text_editing.rs:57-70 | Detect multi-column rearrangement and iterate |
+    :43 [basename/mention] | Maximum 3 iterations | text_editing.rs:57 | Cascade stabilization |
+    :58 [basename/mention] **Location**: `text_editing.rs:57-70` (insert), `144-157` (delete)
+- [code] mydocs/tech/incremental_relayout_design.md  channel=doc binding=mention jev=0.50★ rows=7
+    :42 [basename/mention] | `para_column_map` 비교 | text_editing.rs:57-70 | 다단 컬럼 재배치 감지 및 반복 처리 |
+    :43 [basename/mention] | 최대 3회 반복 | text_editing.rs:57 | cascade 안정화 |
+    :58 [basename/mention] **위치**: `text_editing.rs:57-70` (insert), `144-157` (delete)
+- [code] .omo/evidence/v318-engine-clippy-correction/baseline-clippy.json  channel=other binding=mention jev=0.48★ rows=1
+    :27 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/candidate-clippy.json  channel=other binding=mention jev=0.48★ rows=1
+    :27 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] mydocs/eng/report/issue2_context.md  channel=doc binding=mention jev=0.44 rows=5
+    :94 [basename/mention] - **Location**: `text_editing.rs:57-70`
+    :99 [basename/mention] - **Location**: `text_editing.rs:715-727`
+    :104 [basename/mention] - **Location**: `text_editing.rs:946-956`
+- [code] gates/V353_RHWP_TABLE_FIDELITY_GATES.md  channel=ledger_check binding=pin jev=0.41 rows=1
+    :54 [stem/pin] CHECK: git diff --name-only a34d88ff3bae317ad08d8f0b99504e4395278e6a HEAD | grep -vE '^(src/model/table\.rs|src/model/table/tests\.rs|src/model/shape\
+- [code] .omo/evidence/v318-engine-clippy-correction/cli-after.json  channel=other binding=mention jev=0.40 rows=1
+    :24 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/cli-before.json  channel=other binding=mention jev=0.40 rows=1
+    :24 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/diff-check.json  channel=other binding=mention jev=0.40 rows=1
+    :22 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/source-diff.json  channel=other binding=mention jev=0.40 rows=1
+    :24 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/cli-output-parity.json  channel=other binding=mention jev=0.38 rows=1
+    :22 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/cli-rustfmt.json  channel=other binding=mention jev=0.38 rows=1
+    :27 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/final-source-diff.json  channel=other binding=mention jev=0.38 rows=1
+    :26 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-7.json  channel=other binding=mention jev=0.38 rows=1
+    :31 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/source-doc-diff-check.json  channel=other binding=mention jev=0.37 rows=1
+    :30 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/staged-diff-check.json  channel=other binding=mention jev=0.37 rows=1
+    :23 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/cli-build.json  channel=other binding=mention jev=0.36 rows=1
+    :26 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/source-input-check.json  channel=other binding=mention jev=0.36 rows=1
+    :22 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] mydocs/report/issue2_context.md  channel=doc binding=mention jev=0.36 rows=5
+    :96 [basename/mention] - **위치**: `text_editing.rs:57-70`
+    :101 [basename/mention] - **위치**: `text_editing.rs:715-727`
+    :106 [basename/mention] - **위치**: `text_editing.rs:946-956`
+- [code] .omo/evidence/v318-engine-clippy-correction/command-batch.json  channel=other binding=mention jev=0.35 rows=1
+    :28 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-6.json  channel=other binding=mention jev=0.35 rows=1
+    :31 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/strict-clippy-final.json  channel=other binding=mention jev=0.35 rows=1
+    :27 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/pagedef13.json  channel=other binding=mention jev=0.33 rows=1
+    :26 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/record-integrity.json  channel=other binding=mention jev=0.33 rows=1
+    :22 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/C1_REPORT.md  channel=doc binding=mention jev=0.33 rows=2
+    :11 [path/mention] | F1 표시 높이 | `src/document_core/commands/text_editing.rs:984,1185` — 셀 높이 증가 여부와 무관하게 치수를 동기화하고 common 크기 변경을 changed/dirty에 반영; `:505,520` — 줄 진행 용량 
+    :50 [path/mention] 제품 소스 변경은 `src/model/table.rs`, `src/document_core/commands/table_ops.rs`, `src/document_core/commands/text_editing.rs` 세 파일뿐이고 시험·원장·이 C1 증거는 §3.1 안이
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-1.json  channel=other binding=mention jev=0.32 rows=1
+    :31 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/cursor-line-break.json  channel=other binding=mention jev=0.31 rows=1
+    :28 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-11.json  channel=other binding=mention jev=0.31 rows=1
+    :31 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/semantics.json  channel=other binding=mention jev=0.31 rows=1
+    :23 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v353-rhwp-table-fidelity/REPORT.md  channel=doc binding=mention jev=0.31 rows=1
+    :69 [basename/mention] - 텍스트 편집(`text_editing.rs` 두 곳)·셀 크기 조절(`table_ops.rs` 두 곳)·셀 나누기: `refresh_ctrl_dimensions_after_content_edit` — 열 폭이 바뀐 경우에만 폭 재계산, 표시 높이는 셀 합이 넘을 때
+- [code] .omo/evidence/v318-engine-clippy-correction/final-integrity.json  channel=other binding=mention jev=0.30 rows=1
+    :22 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/rustfmt-final.json  channel=other binding=mention jev=0.30 rows=1
+    :37 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/metadata.json  channel=other binding=mention jev=0.29 rows=1
+    :25 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/final-gate-status.json  channel=other binding=mention jev=0.28 rows=1
+    :23 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/final-input-check.json  channel=other binding=mention jev=0.28 rows=1
+    :22 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-4.json  channel=other binding=mention jev=0.28 rows=1
+    :31 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/gate-status.json  channel=other binding=mention jev=0.27 rows=1
+    :23 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-5.json  channel=other binding=mention jev=0.27 rows=1
+    :31 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-gate.json  channel=other binding=mention jev=0.27 rows=1
+    :31 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-main-head.json  channel=other binding=mention jev=0.27 rows=1
+    :31 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/nested-table.json  channel=other binding=mention jev=0.27 rows=1
+    :28 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/rustfmt.json  channel=other binding=mention jev=0.27 rows=1
+    :37 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/scoped-clippy.json  channel=other binding=mention jev=0.27 rows=1
+    :28 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/toolchain.json  channel=other binding=mention jev=0.27 rows=1
+    :24 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/g8.log  channel=other binding=mention jev=0.27 rows=10
+    :92 [stem/stem_weak] test document_core::commands::text_editing::tests::test_paragraph_y_positions_after_split ... ok
+    :108 [stem/stem_weak] test document_core::commands::text_editing::tests::test_page_overflow_with_enter ... ok
+    :178 [stem/stem_weak] test document_core::commands::text_editing::tests::caption_sentinel_keeps_caption_reflow_with_a_vertical_physical_slot ... ok
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/gate-run.log  channel=other binding=pin jev=0.26 rows=1
+    :51 [stem/pin] CHECK: git diff --name-only a34d88ff3bae317ad08d8f0b99504e4395278e6a HEAD | grep -vE '^(src/model/table\.rs|src/model/table/tests\.rs|src/model/shape\
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-2.json  channel=other binding=mention jev=0.26 rows=1
+    :31 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-3.json  channel=other binding=mention jev=0.26 rows=1
+    :31 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-8.json  channel=other binding=mention jev=0.26 rows=1
+    :31 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] mydocs/eng/feedback/post-refactoring-remaining-tasks.md  channel=doc binding=mention jev=0.26 rows=4
+    :35 [basename/mention] | `text_editing.rs` | 14 | 9 |
+    :63 [basename/mention] | `text_editing.rs` | -- | 10 |
+    :116 [basename/mention] +-- text_editing.rs             +-- commands/
+- [code] .omo/evidence/v318-engine-clippy-correction/executor-lock.json  channel=other binding=mention jev=0.25 rows=1
+    :23 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/metadata-online.json  channel=other binding=mention jev=0.25 rows=1
+    :24 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/model-style.json  channel=other binding=mention jev=0.25 rows=1
+    :26 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/dispatch-identity.json  channel=other binding=mention jev=0.24 rows=1
+    :25 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/focused-hwpx.json  channel=other binding=mention jev=0.24 rows=1
+    :26 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/focused-parser.json  channel=other binding=mention jev=0.24 rows=1
+    :26 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-9.json  channel=other binding=mention jev=0.24 rows=1
+    :31 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/inline-table.json  channel=other binding=mention jev=0.24 rows=1
+    :28 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/library-carry-check.json  channel=other binding=mention jev=0.24 rows=1
+    :33 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-10.json  channel=other binding=mention jev=0.23 rows=1
+    :31 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] mydocs/feedback/post-refactoring-remaining-tasks.md  channel=doc binding=mention jev=0.23 rows=4
+    :35 [basename/mention] | `text_editing.rs` | 14 | 9 |
+    :63 [basename/mention] | `text_editing.rs` | — | 10 |
+    :116 [basename/mention] ├── text_editing.rs             ├── commands/
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-main.json  channel=other binding=mention jev=0.22 rows=1
+    :31 [path/mention] "src/document_core/commands/text_editing.rs": "73447d70ac69da4e35b3ec457bc6aca0db04003f1ae71b0d5f5519267d5620af",
+- [code] mydocs/working/archives/task_197_final.md  channel=doc binding=mention jev=0.22 rows=1
+    :42 [path/mention] | `src/document_core/commands/text_editing.rs` | 줄간격 페이지 넘김 단위 테스트 7개 추가 |
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-10.log  channel=other binding=mention jev=0.21 rows=1
+    :91 [path/mention] - [code] src/document_core/commands/text_editing.rs  channel=other binding=mention jev=0.32 rows=403
+- [code] mydocs/eng/working/task_240_stage1.md  channel=doc binding=mention jev=0.19 rows=1
+    :15 [basename/mention] ### text_editing.rs
+- [code] mydocs/plans/archives/task_234.md  channel=doc binding=mention jev=0.19 rows=1
+    :18 [path/mention] **파일**: `src/document_core/commands/text_editing.rs`, `src/wasm_api.rs`
+- [code] mydocs/eng/plans/task_261.md  channel=doc binding=mention jev=0.18 rows=1
+    :44 [path/mention] | `src/document_core/commands/text_editing.rs` | insert_page_break_native |
+- [code] mydocs/plans/archives/task_240_impl.md  channel=doc binding=mention jev=0.18 rows=1
+    :17 [path/mention] - `src/document_core/commands/text_editing.rs` — `classify_control()`에 `Control::Bookmark` 추가
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-9.log  channel=other binding=mention jev=0.17 rows=3
+    :83 [path/mention] - [code] src/document_core/commands/text_editing.rs  channel=other binding=mention jev=0.37 rows=102
+    :394 [path/mention] :17 [stem/stem_weak] - `src/document_core/commands/text_editing.rs` — Add `Control::Bookmark` to `classify_control()`
+    :1408 [path/mention] :17 [stem/stem_weak] - `src/document_core/commands/text_editing.rs` — `classify_control()`에 `Control::Bookmark` 추가
+- [code] mydocs/eng/plans/archives/task_144_impl.md  channel=doc binding=mention jev=0.17 rows=3
+    :65 [basename/mention] | `{"ok":true,"charOffset":N}` | text_editing.rs | 4 |
+    :66 [basename/mention] | `{"ok":true,"paraIdx":N,"charOffset":N}` | text_editing.rs | 4 |
+    :67 [basename/mention] | `{"ok":true,"cellParaIndex":N,"charOffset":N}` | text_editing.rs | 2 |
+- [code] mydocs/eng/plans/archives/task_199_impl.md  channel=doc binding=mention jev=0.17 rows=1
+    :8 [path/mention] - Add `insert_line_break_native()` function to `src/document_core/commands/text_editing.rs`
+- [code] mydocs/plans/task_315.md  channel=doc binding=mention jev=0.17 rows=1
+    :43 [path/mention] - `src/document_core/commands/text_editing.rs` — setColumnDef API
+- [code] mydocs/tech/hexagonal_architecture_review.md  channel=doc binding=mention jev=0.17 rows=2
+    :97 [basename/mention] **C. 편집 명령 내 리플로우 (commands/text_editing.rs)**
+    :227 [stem/stem_weak] | text_editing → reflow_line_segs | 편집 후 즉시 리플로우 필수 |
+- [code] mydocs/working/task_240_stage1.md  channel=doc binding=mention jev=0.17 rows=1
+    :15 [basename/mention] ### text_editing.rs
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-1.log  channel=other binding=mention jev=0.16 rows=2
+    :75 [stem/stem_weak] :9 [stem/stem_weak] - **commands/**: document, text_editing, table_ops, object_ops, formatting, clipboard, html_import
+    :79 [stem/stem_weak] :9 [stem/stem_weak] - **commands/**: document, text_editing, table_ops, object_ops, formatting, clipboard, html_import
+- [code] .omo/evidence/v353-rhwp-table-fidelity/c1/impact-summary.json  channel=other binding=mention jev=0.16 rows=2
+    :23 [path/mention] "path": "src/document_core/commands/text_editing.rs",
+    :26 [path/mention] "summary": "IMPACT at=code:00cb7458986b089110c153c787c1c7b121db93ea@00cb7458986b query=\"src/document_core/commands/text_editing.rs\" mode=path jev=us
+- [code] mydocs/eng/plans/archives/task_197.md  channel=doc binding=mention jev=0.16 rows=1
+    :30 [path/mention] - `src/document_core/commands/text_editing.rs` — Add line spacing page break unit tests
+- [code] mydocs/plans/archives/task_199_impl.md  channel=doc binding=mention jev=0.16 rows=1
+    :8 [path/mention] - `src/document_core/commands/text_editing.rs`에 `insert_line_break_native()` 함수 추가
+- [code] mydocs/plans/task_261.md  channel=doc binding=mention jev=0.16 rows=1
+    :44 [path/mention] | `src/document_core/commands/text_editing.rs` | insert_page_break_native |
+- [code] mydocs/eng/feedback/cqrs-analysis.md  channel=doc binding=mention jev=0.15 rows=2
+    :145 [basename/mention] // commands/text_editing.rs
+    :168 [basename/mention] | `commands/text_editing.rs` | Command | ~15 |
+- [code] mydocs/eng/plans/archives/task_142_impl.md  channel=doc binding=mention jev=0.15 rows=2
+    :61 [basename/mention] │   ├── text_editing.rs      ← Text insert/delete/paragraph split/merge native methods
+    :92 [basename/mention] #### `wasm_api/text_editing.rs` (~800 lines)
+- [code] mydocs/eng/plans/archives/task_199.md  channel=doc binding=mention jev=0.15 rows=1
+    :48 [path/mention] - `src/document_core/commands/text_editing.rs` — line break insertion logic
+- [code] mydocs/eng/plans/task_315.md  channel=doc binding=mention jev=0.15 rows=1
+    :43 [path/mention] - `src/document_core/commands/text_editing.rs` — setColumnDef API
+- [code] mydocs/eng/tech/hexagonal_architecture_review.md  channel=doc binding=mention jev=0.15 rows=2
+    :96 [basename/mention] **C. Reflow in Edit Commands (commands/text_editing.rs)**
+    :221 [stem/stem_weak] | text_editing -> reflow_line_segs | Immediate reflow after editing is essential |
+- [code] mydocs/plans/archives/task_144_impl.md  channel=doc binding=mention jev=0.15 rows=3
+    :65 [basename/mention] | `{"ok":true,"charOffset":N}` | text_editing.rs | 4 |
+    :66 [basename/mention] | `{"ok":true,"paraIdx":N,"charOffset":N}` | text_editing.rs | 4 |
+    :67 [basename/mention] | `{"ok":true,"cellParaIndex":N,"charOffset":N}` | text_editing.rs | 2 |
+- [code] src/document_core/commands/mod.rs  channel=other binding=mention jev=0.15 rows=1
+    :9 [stem/stem_weak] mod text_editing;
+- [code] mydocs/eng/plans/archives/task_240_impl.md  channel=doc binding=mention jev=0.14 rows=1
+    :17 [path/mention] - `src/document_core/commands/text_editing.rs` — Add `Control::Bookmark` to `classify_control()`
+- [code] mydocs/eng/working/archives/task_142_step1.md  channel=doc binding=mention jev=0.14 rows=1
+    :17 [basename/mention] | `wasm_api/text_editing.rs` | 955 | Text insert/delete/paragraph split-merge |
+- [code] mydocs/feedback/cqrs-analysis.md  channel=doc binding=mention jev=0.14 rows=2
+    :145 [basename/mention] // commands/text_editing.rs
+    :168 [basename/mention] | `commands/text_editing.rs` | Command | ~15 |
+- [code] mydocs/feedback/r-code-review-3rd-response.md  channel=doc binding=mention jev=0.13 rows=1
+    :67 [basename/mention] │   │   ├── text_editing.rs
+- [code] mydocs/working/archives/task_196_final.md  channel=doc binding=mention jev=0.13 rows=1
+    :84 [path/mention] | `src/document_core/commands/text_editing.rs` | 페이지 넘김 회귀 테스트 추가 |
+- [code] mydocs/working/archives/task_196_step1.md  channel=doc binding=mention jev=0.13 rows=1
+    :38 [path/mention] - `src/document_core/commands/text_editing.rs`: 페이지 넘김 회귀 테스트 추가
+- [code] mydocs/plans/archives/task_199.md  channel=doc binding=mention jev=0.12 rows=1
+    :48 [path/mention] - `src/document_core/commands/text_editing.rs` — 줄바꿈 삽입 로직
+- [code] mydocs/eng/plans/archives/task_144.md  channel=doc binding=mention jev=0.11 rows=1
+    :33 [basename/mention] | text_editing.rs | Replace response generation |
+- [code] mydocs/eng/plans/archives/task_147.md  channel=doc binding=mention jev=0.11 rows=1
+    :9 [stem/stem_weak] - **commands/**: document, text_editing, table_ops, object_ops, formatting, clipboard, html_import
+- [code] mydocs/feedback/r-code-review-3rd.md  channel=doc binding=mention jev=0.11 rows=1
+    :32 [basename/mention] - `text_editing.rs`, `table_ops.rs`, `formatting.rs` 등으로 관심사가 완벽히 분리되었습니다. 편집 로직을 추적할 때 더 이상 2.4만 줄짜리 파일을 스크롤할 필요가 없어졌습니다.
+- [code] mydocs/plans/archives/task_142_impl.md  channel=doc binding=mention jev=0.11 rows=2
+    :61 [basename/mention] │   ├── text_editing.rs      ← 텍스트 삽입/삭제/문단 분리·병합 native 메서드
+    :92 [basename/mention] #### `wasm_api/text_editing.rs` (~800줄)
+- [code] mydocs/plans/archives/task_197.md  channel=doc binding=mention jev=0.11 rows=1
+    :30 [path/mention] - `src/document_core/commands/text_editing.rs` — 줄간격 페이지 넘김 단위 테스트 추가
+- [code] mydocs/working/archives/task_142_step1.md  channel=doc binding=mention jev=0.11 rows=1
+    :17 [basename/mention] | `wasm_api/text_editing.rs` | 955 | 텍스트 삽입/삭제/문단 분리·병합 |
+- [code] mydocs/working/archives/task_191_final.md  channel=doc binding=mention jev=0.11 rows=1
+    :49 [path/mention] | `src/document_core/commands/text_editing.rs` | 캡션 텍스트 편집 지원 |
+- [code] .omo/evidence/v318-engine-clippy-correction/impact-2.log  channel=other binding=mention jev=0.10 rows=6
+    :21 [basename/mention] :117 [basename/mention] +-- table_ops.rs                |   +-- text_editing.rs    (C)
+    :35 [basename/mention] :32 [basename/mention] - Concerns are perfectly separated into `text_editing.rs`, `table_ops.rs`, `formatting.rs`, etc. When tracking editing logic, t
+    :43 [basename/mention] :117 [basename/mention] ├── table_ops.rs                │   ├── text_editing.rs    (C)
+- [code] mydocs/eng/feedback/r-code-review-3rd-response.md  channel=doc binding=mention jev=0.10 rows=1
+    :67 [basename/mention] |   |   +-- text_editing.rs
+- [code] mydocs/eng/feedback/r-code-review-3rd.md  channel=doc binding=mention jev=0.10 rows=1
+    :32 [basename/mention] - Concerns are perfectly separated into `text_editing.rs`, `table_ops.rs`, `formatting.rs`, etc. When tracking editing logic, there is no longer any n
+- [code] mydocs/plans/archives/task_144.md  channel=doc binding=mention jev=0.10 rows=1
+    :33 [basename/mention] | text_editing.rs | 응답 생성 교체 |
+- [code] mydocs/plans/archives/task_147.md  channel=doc binding=mention jev=0.09 rows=1
+    :9 [stem/stem_weak] - **commands/**: document, text_editing, table_ops, object_ops, formatting, clipboard, html_import

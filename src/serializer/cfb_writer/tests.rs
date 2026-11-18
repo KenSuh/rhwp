@@ -53,14 +53,15 @@ fn test_serialize_hwp_cfb_streams() {
         doc_info: DocInfo::default(),
         sections: vec![crate::model::document::Section {
             section_def: SectionDef::default(),
-            paragraphs: vec![Paragraph {
-                text: "테스트".to_string(),
-                line_segs: vec![LineSeg {
+            paragraphs: vec![{
+                let mut paragraph_value = Paragraph::with_text("테스트".to_string(), Vec::new(), Vec::new());
+
+                paragraph_value.line_segs = vec![LineSeg {
                     line_height: 400,
                     baseline_distance: 320,
                     ..Default::default()
-                }],
-                ..Default::default()
+                }];
+                paragraph_value
             }],
             raw_stream: None,
         }],
@@ -186,15 +187,18 @@ fn test_full_roundtrip_uncompressed() {
         doc_info,
         sections: vec![crate::model::document::Section {
             section_def: SectionDef::default(),
-            paragraphs: vec![Paragraph {
-                text: "안녕하세요".to_string(),
-                char_count: 6, // 5문자 + 문단 끝
-                line_segs: vec![LineSeg {
+            paragraphs: vec![{
+                let mut paragraph_value =
+                    Paragraph::with_text("안녕하세요".to_string(), Vec::new(), Vec::new());
+
+                paragraph_value.char_count = 6;
+                // 5문자 + 문단 끝
+                paragraph_value.line_segs = vec![LineSeg {
                     line_height: 400,
                     baseline_distance: 320,
                     ..Default::default()
-                }],
-                ..Default::default()
+                }];
+                paragraph_value
             }],
             raw_stream: None,
         }],
@@ -227,7 +231,7 @@ fn test_full_roundtrip_uncompressed() {
     let section_data = cfb.read_body_text_section(0, false, false).unwrap();
     let parsed_section = crate::parser::body_text::parse_body_text_section(&section_data).unwrap();
     assert_eq!(parsed_section.paragraphs.len(), 1);
-    assert_eq!(parsed_section.paragraphs[0].text, "안녕하세요");
+    assert_eq!(parsed_section.paragraphs[0].text(), "안녕하세요");
 }
 
 #[test]
@@ -262,15 +266,18 @@ fn test_full_roundtrip_compressed() {
         doc_info: DocInfo::default(),
         sections: vec![crate::model::document::Section {
             section_def: SectionDef::default(),
-            paragraphs: vec![Paragraph {
-                text: "Hello World".to_string(),
-                char_count: 12,
-                line_segs: vec![LineSeg {
+            paragraphs: vec![{
+                let mut paragraph_value =
+                    Paragraph::with_text("Hello World".to_string(), Vec::new(), Vec::new());
+
+                paragraph_value.char_count = 12;
+
+                paragraph_value.line_segs = vec![LineSeg {
                     line_height: 400,
                     baseline_distance: 320,
                     ..Default::default()
-                }],
-                ..Default::default()
+                }];
+                paragraph_value
             }],
             raw_stream: None,
         }],
@@ -294,7 +301,7 @@ fn test_full_roundtrip_compressed() {
     // BodyText 라운드트립 (압축 해제)
     let section_data = cfb.read_body_text_section(0, true, false).unwrap();
     let parsed_section = crate::parser::body_text::parse_body_text_section(&section_data).unwrap();
-    assert_eq!(parsed_section.paragraphs[0].text, "Hello World");
+    assert_eq!(parsed_section.paragraphs[0].text(), "Hello World");
 }
 
 #[test]
@@ -378,7 +385,7 @@ fn test_serialize_after_edit_roundtrip() {
         );
 
         let parsed = parsed.unwrap();
-        let para_text = &parsed.sections[0].paragraphs[0].text;
+        let para_text = &parsed.sections[0].paragraphs[0].text();
         assert!(
             para_text.starts_with("테스트추가"),
             "{}: 삽입된 텍스트 미발견, 실제: '{}'",
@@ -893,7 +900,7 @@ fn test_roundtrip_stream_comparison() {
                         for (i, sec) in saved_doc.sections.iter().enumerate() {
                             eprintln!("    Section{}: {} 문단", i, sec.paragraphs.len());
                             for (j, p) in sec.paragraphs.iter().enumerate() {
-                                let truncated: String = p.text.chars().take(40).collect();
+                                let truncated: String = p.text().chars().take(40).collect();
                                 eprintln!("      P{}: '{}' (chars={})", j, truncated, p.char_count);
                             }
                         }

@@ -129,9 +129,9 @@ impl DocumentCore {
                 let texts: Vec<String> = f
                     .paragraphs
                     .iter()
-                    .map(|p| p.text.replace('\\', "\\\\").replace('"', "\\\""))
+                    .map(|p| p.text().replace('\\', "\\\\").replace('"', "\\\""))
                     .collect();
-                let total_len: usize = f.paragraphs.iter().map(|p| p.text.chars().count()).sum();
+                let total_len: usize = f.paragraphs.iter().map(|p| p.text().chars().count()).sum();
                 Ok(format!(
                     "{{\"ok\":true,\"paraCount\":{},\"totalTextLen\":{},\"number\":{},\"texts\":[{}]}}",
                     para_count,
@@ -241,7 +241,7 @@ impl DocumentCore {
                             fn_para_idx
                         )));
                     }
-                    f.paragraphs[fn_para_idx].split_at(char_offset)
+                    f.paragraphs[fn_para_idx].split_at(char_offset).paragraph
                 }
                 _ => {
                     return Err(HwpError::RenderError(
@@ -313,7 +313,7 @@ impl DocumentCore {
                             fn_para_idx
                         )));
                     }
-                    merge_offset = f.paragraphs[fn_para_idx - 1].text.chars().count();
+                    merge_offset = f.paragraphs[fn_para_idx - 1].text().chars().count();
                     let removed = f.paragraphs.remove(fn_para_idx);
                     f.paragraphs[fn_para_idx - 1].merge_from(&removed);
                 }

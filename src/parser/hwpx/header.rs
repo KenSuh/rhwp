@@ -98,6 +98,7 @@ pub fn parse_hwpx_header(xml: &str) -> Result<(DocInfo, DocProperties), HwpxErro
                         }
                     }
                     b"beginNum" => parse_begin_num(e, &mut doc_props),
+                    b"trackchageConfig" => parse_track_change_config(e, &mut doc_info),
                     b"font" => parse_font(e, &mut doc_info, current_font_group),
                     b"charPr" => {
                         parse_char_shape(e, &mut reader, &mut doc_info)?;
@@ -123,6 +124,7 @@ pub fn parse_hwpx_header(xml: &str) -> Result<(DocInfo, DocProperties), HwpxErro
                 let local = local_name(name.as_ref());
                 match local {
                     b"beginNum" => parse_begin_num(e, &mut doc_props),
+                    b"trackchageConfig" => parse_track_change_config(e, &mut doc_info),
                     b"font" => parse_font(e, &mut doc_info, current_font_group),
                     b"style" => parse_style(e, &mut doc_info),
                     b"tabPr" => {
@@ -150,6 +152,14 @@ pub fn parse_hwpx_header(xml: &str) -> Result<(DocInfo, DocProperties), HwpxErro
     doc_props.section_count = 1; // content.hpf에서 갱신됨
 
     Ok((doc_info, doc_props))
+}
+
+fn parse_track_change_config(e: &quick_xml::events::BytesStart, doc_info: &mut DocInfo) {
+    for attr in e.attributes().flatten() {
+        if attr.key.as_ref() == b"flags" {
+            doc_info.hwpx_track_change_flags = parse_u32(&attr);
+        }
+    }
 }
 
 // ─── beginNum ───
@@ -443,6 +453,9 @@ fn parse_para_shape(
         match attr.key.as_ref() {
             b"tabPrIDRef" => ps.tab_def_id = parse_u16(&attr),
             b"condense" => {}
+            b"fontLineHeight" => {
+                ps.attr1 = (ps.attr1 & !(1 << 22)) | (u32::from(parse_bool(&attr)) << 22);
+            }
             _ => {}
         }
     }
@@ -451,14 +464,30 @@ fn parse_para_shape(
         let mut buf = Vec::new();
         loop {
             match reader.read_event_into(&mut buf) {
+                Ok(Event::Start(ref ce)) if local_name(ce.name().as_ref()) == b"margin" => {
+                    // switch 밖 `<hh:margin>` 의 자식 요소(`<hh:left value=…/>` 등)를 default 척도로 읽는다.
+                    // switch 안 margin 은 parse_para_shape_switch 가 switch 째로 읽으므로 여기 오지 않는다.
+                    parse_para_shape_margin_attrs(ce, &mut ps);
+                    parse_para_shape_margin_children(reader, &mut ps)?;
+                }
                 Ok(Event::Empty(ref ce)) | Ok(Event::Start(ref ce)) => {
                     let cname = ce.name();
                     let local = local_name(cname.as_ref());
                     match local {
                         b"align" => {
                             for attr in ce.attributes().flatten() {
-                                if attr.key.as_ref() == b"horizontal" {
-                                    ps.alignment = parse_alignment(&attr);
+                                match attr.key.as_ref() {
+                                    b"horizontal" => ps.alignment = parse_alignment(&attr),
+                                    b"vertical" => {
+                                        let align = match attr_str(&attr).as_str() {
+                                            "TOP" => 1,
+                                            "CENTER" => 2,
+                                            "BOTTOM" => 3,
+                                            _ => 0,
+                                        };
+                                        ps.attr1 = (ps.attr1 & !(3 << 20)) | (align << 20);
+                                    }
+                                    _ => {}
                                 }
                             }
                         }
@@ -480,18 +509,7 @@ fn parse_para_shape(
                                 }
                             }
                         }
-                        b"margin" => {
-                            for attr in ce.attributes().flatten() {
-                                match attr.key.as_ref() {
-                                    b"left" => ps.margin_left = parse_i32(&attr),
-                                    b"right" => ps.margin_right = parse_i32(&attr),
-                                    b"indent" => ps.indent = parse_i32(&attr),
-                                    b"prev" => ps.spacing_before = parse_i32(&attr),
-                                    b"next" => ps.spacing_after = parse_i32(&attr),
-                                    _ => {}
-                                }
-                            }
-                        }
+                        b"margin" => parse_para_shape_margin_attrs(ce, &mut ps),
                         b"lineSpacing" => {
                             for attr in ce.attributes().flatten() {
                                 match attr.key.as_ref() {
@@ -500,7 +518,7 @@ fn parse_para_shape(
                                         ps.line_spacing_type = match val.as_str() {
                                             "PERCENT" => LineSpacingType::Percent,
                                             "FIXED" => LineSpacingType::Fixed,
-                                            "SPACEONLY" | "SPACE_ONLY" => {
+                                            "SPACEONLY" | "SPACE_ONLY" | "BETWEEN_LINES" => {
                                                 LineSpacingType::SpaceOnly
                                             }
                                             "MINIMUM" | "AT_LEAST" => LineSpacingType::Minimum,
@@ -527,25 +545,39 @@ fn parse_para_shape(
                         b"breakSetting" => {
                             for attr in ce.attributes().flatten() {
                                 match attr.key.as_ref() {
+                                    b"breakLatinWord" => {
+                                        let unit = match attr_str(&attr).as_str() {
+                                            "HYPHENATION" => 1,
+                                            "BREAK_WORD" => 2,
+                                            _ => 0,
+                                        };
+                                        ps.attr1 = (ps.attr1 & !(3 << 5)) | (unit << 5);
+                                    }
+                                    b"breakNonLatinWord" => {
+                                        let by_char = attr_str(&attr) == "BREAK_WORD";
+                                        ps.attr1 =
+                                            (ps.attr1 & !(1 << 7)) | (u32::from(by_char) << 7);
+                                    }
                                     b"widowOrphan" => {
-                                        if parse_bool(&attr) {
-                                            ps.attr2 |= 1 << 5;
-                                        }
+                                        ps.attr1 = (ps.attr1 & !(1 << 16))
+                                            | (u32::from(parse_bool(&attr)) << 16);
                                     }
                                     b"keepWithNext" => {
-                                        if parse_bool(&attr) {
-                                            ps.attr2 |= 1 << 6;
-                                        }
+                                        ps.attr1 = (ps.attr1 & !(1 << 17))
+                                            | (u32::from(parse_bool(&attr)) << 17);
                                     }
                                     b"keepLines" => {
-                                        if parse_bool(&attr) {
-                                            ps.attr2 |= 1 << 7;
-                                        }
+                                        ps.attr1 = (ps.attr1 & !(1 << 18))
+                                            | (u32::from(parse_bool(&attr)) << 18);
                                     }
                                     b"pageBreakBefore" => {
-                                        if parse_bool(&attr) {
-                                            ps.attr2 |= 1 << 8;
-                                        }
+                                        ps.attr1 = (ps.attr1 & !(1 << 19))
+                                            | (u32::from(parse_bool(&attr)) << 19);
+                                    }
+                                    b"lineWrap" => {
+                                        // shortcut: KEEP의 ParaShape 비트는 정본 매핑을 확보한 뒤 지원한다.
+                                        ps.attr2 = (ps.attr2 & !3)
+                                            | u32::from(attr_str(&attr) == "SQUEEZE");
                                     }
                                     _ => {}
                                 }
@@ -555,14 +587,12 @@ fn parse_para_shape(
                             for attr in ce.attributes().flatten() {
                                 match attr.key.as_ref() {
                                     b"eAsianEng" => {
-                                        if parse_bool(&attr) {
-                                            ps.attr1 |= 1 << 20;
-                                        }
+                                        ps.attr2 = (ps.attr2 & !(1 << 4))
+                                            | (u32::from(parse_bool(&attr)) << 4);
                                     }
                                     b"eAsianNum" => {
-                                        if parse_bool(&attr) {
-                                            ps.attr1 |= 1 << 21;
-                                        }
+                                        ps.attr2 = (ps.attr2 & !(1 << 5))
+                                            | (u32::from(parse_bool(&attr)) << 5);
                                     }
                                     _ => {}
                                 }
@@ -591,6 +621,70 @@ fn parse_para_shape(
     }
 
     doc_info.para_shapes.push(ps);
+    Ok(())
+}
+
+/// `<hh:margin left=… indent=…/>` 속성 형태.
+fn parse_para_shape_margin_attrs(ce: &quick_xml::events::BytesStart, ps: &mut ParaShape) {
+    for attr in ce.attributes().flatten() {
+        match attr.key.as_ref() {
+            b"left" => ps.margin_left = parse_i32(&attr),
+            b"right" => ps.margin_right = parse_i32(&attr),
+            b"indent" => ps.indent = parse_i32(&attr),
+            b"prev" => ps.spacing_before = parse_i32(&attr),
+            b"next" => ps.spacing_after = parse_i32(&attr),
+            _ => {}
+        }
+    }
+}
+
+/// `<hh:margin>` 자식 하나(`intent`·`left`·`right`·`prev`·`next` · 접두어 무관)의 `value`.
+fn parse_para_shape_margin_value_child(ce: &quick_xml::events::BytesStart, ps: &mut ParaShape) {
+    let cname = ce.name();
+    let local = local_name(cname.as_ref());
+    if !matches!(local, b"intent" | b"left" | b"right" | b"prev" | b"next") {
+        return;
+    }
+
+    for attr in ce.attributes().flatten() {
+        if attr.key.as_ref() != b"value" {
+            continue;
+        }
+        let value = parse_i32(&attr);
+        match local {
+            b"intent" => ps.indent = value,
+            b"left" => ps.margin_left = value,
+            b"right" => ps.margin_right = value,
+            b"prev" => ps.spacing_before = value,
+            b"next" => ps.spacing_after = value,
+            _ => {}
+        }
+    }
+}
+
+/// switch 밖 `<hh:margin>` 의 자식 요소를 `</hh:margin>` 까지 읽는다.
+fn parse_para_shape_margin_children(
+    reader: &mut Reader<&[u8]>,
+    ps: &mut ParaShape,
+) -> Result<(), HwpxError> {
+    let mut buf = Vec::new();
+    loop {
+        match reader.read_event_into(&mut buf) {
+            Ok(Event::Empty(ref ce)) | Ok(Event::Start(ref ce)) => {
+                parse_para_shape_margin_value_child(ce, ps);
+            }
+            Ok(Event::End(ref ee)) => {
+                let ename = ee.name();
+                if local_name(ename.as_ref()) == b"margin" {
+                    break;
+                }
+            }
+            Ok(Event::Eof) => break,
+            Err(e) => return Err(HwpxError::XmlError(format!("paraPr margin: {}", e))),
+            _ => {}
+        }
+        buf.clear();
+    }
     Ok(())
 }
 
@@ -643,13 +737,18 @@ fn parse_para_shape_switch(
                         b"margin" | b"intent" | b"left" | b"right" | b"prev" | b"next" => {
                             // margin 하위 요소들: <left value="..." />, <prev value="..." /> 등
                             let tag_name = local;
+                            // 한컴은 홀수 2× 값을 case 에 unit="CHAR" · (값-1)/2 로 쓴다.
+                            let char_unit = ce
+                                .attributes()
+                                .flatten()
+                                .any(|a| a.key.as_ref() == b"unit" && attr_str(&a) == "CHAR");
                             for attr in ce.attributes().flatten() {
                                 if attr.key.as_ref() == b"value" {
                                     let val = parse_i32(&attr);
                                     if in_hwpunitchar_case {
                                         // HwpUnitChar 값은 실제 HWPUNIT(1× 스케일)이므로
                                         // HWP 바이너리와 동일한 2× 스케일로 변환
-                                        let val2x = val * 2;
+                                        let val2x = val * 2 + i32::from(char_unit);
                                         match tag_name {
                                             b"left" => ps.margin_left = val2x,
                                             b"right" => ps.margin_right = val2x,
@@ -681,7 +780,7 @@ fn parse_para_shape_switch(
                                         ls_type = Some(match attr_str(&attr).as_str() {
                                             "PERCENT" => LineSpacingType::Percent,
                                             "FIXED" => LineSpacingType::Fixed,
-                                            "SPACEONLY" | "SPACE_ONLY" => {
+                                            "SPACEONLY" | "SPACE_ONLY" | "BETWEEN_LINES" => {
                                                 LineSpacingType::SpaceOnly
                                             }
                                             "MINIMUM" | "AT_LEAST" => LineSpacingType::Minimum,
@@ -701,7 +800,12 @@ fn parse_para_shape_switch(
                                     let effective_type = ls_type.unwrap_or(ps.line_spacing_type);
                                     ps.line_spacing = match effective_type {
                                         LineSpacingType::Percent => v,
-                                        _ => v * 2,
+                                        _ => {
+                                            let char_unit = ce.attributes().flatten().any(|a| {
+                                                a.key.as_ref() == b"unit" && attr_str(&a) == "CHAR"
+                                            });
+                                            v * 2 + i32::from(char_unit)
+                                        }
                                     };
                                 }
                                 found_case = true;
@@ -1058,7 +1162,10 @@ fn parse_tab_def(
                         if in_hwpunitchar_case {
                             // HwpUnitChar 값은 실제 HWPUNIT(1× 스케일)이므로
                             // HWP 바이너리와 동일한 2× 스케일로 변환
-                            item.position *= 2;
+                            let char_unit = ce.attributes().flatten().any(|a| {
+                                a.key.as_ref() == b"unit" && attr_str(&a) == "CHAR"
+                            });
+                            item.position = item.position * 2 + u32::from(char_unit);
                             td.tabs.push(item);
                             found_case = true;
                         } else if in_default {
@@ -1208,12 +1315,20 @@ fn parse_border_line_type(attr: &quick_xml::events::attributes::Attribute) -> Bo
 fn parse_border_width(attr: &quick_xml::events::attributes::Attribute) -> u8 {
     let s = attr_str(attr);
     // "0.12 mm", "0.4 mm" 등의 형식에서 두께 인덱스 추출
-    let mm: f64 = s
+    let Some(mm) = s
         .split_whitespace()
         .next()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(0.12);
-    // 대략적인 HWP 두께 인덱스 매핑
+        .and_then(|v| v.parse::<f64>().ok())
+    else {
+        return 0;
+    };
+    let widths = [
+        0.1, 0.12, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0,
+    ];
+    if let Some(index) = widths.iter().position(|width| *width == mm) {
+        return index as u8;
+    }
+    // 비표준 두께는 기존 근사 매핑을 유지한다.
     if mm <= 0.12 {
         0
     } else if mm <= 0.3 {
@@ -1232,6 +1347,29 @@ fn parse_border_width(attr: &quick_xml::events::attributes::Attribute) -> u8 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_parse_border_width_keeps_noncanonical_and_invalid_fallbacks() {
+        // Given: noncanonical/invalid values already have a supported fallback contract.
+        for (value, expected) in [
+            ("", 0),
+            ("bad", 0),
+            ("0.12mm", 0),
+            ("-1 mm", 0),
+            ("0.13 mm", 1),
+            ("0.31 mm", 2),
+            ("0.75 mm", 3),
+            ("1.25 mm", 4),
+            ("2.5 mm", 5),
+            ("NaN", 5),
+            ("inf", 5),
+        ] {
+            // When: the same parser handles values outside the canonical sixteen widths.
+            let attr = quick_xml::events::attributes::Attribute::from(("width", value));
+            // Then: their historical interpretation remains unchanged.
+            assert_eq!(parse_border_width(&attr), expected, "{value:?}");
+        }
+    }
 
     #[test]
     fn test_parse_color_rgb() {

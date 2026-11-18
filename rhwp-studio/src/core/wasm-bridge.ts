@@ -58,9 +58,21 @@ function substituteCssFontFamily(cssFont: string): string {
   return prefix + fontFamilyWithFallback(resolved);
 }
 
+export class InvalidEditHandleError extends Error {
+  override readonly name = 'InvalidEditHandleError';
+}
+
 export class WasmBridge {
+  private snapshotDepth = 0;
+
+  withoutEditCapture<T>(operation: () => T): T {
+    this.snapshotDepth += 1;
+    try { return operation(); }
+    finally { this.snapshotDepth -= 1; }
+  }
   private doc: HwpDocument | null = null;
   private initialized = false;
+  editHistoryDisabledReason: string | null = null;
   private _fileName = 'document.hwp';
   private _currentFileHandle: FileSystemFileHandleLike | null = null;
 
@@ -91,6 +103,7 @@ export class WasmBridge {
   }
 
   loadDocument(data: Uint8Array, fileName?: string): DocumentInfo {
+    this.editHistoryDisabledReason = null;
     if (this.doc) {
       this.doc.free();
     }
@@ -105,6 +118,7 @@ export class WasmBridge {
   }
 
   createNewDocument(): DocumentInfo {
+    this.editHistoryDisabledReason = null;
     if (!this.doc) {
       // 아직 WASM 객체가 없으면 더미로 생성 (createEmpty → 즉시 교체)
       this.doc = HwpDocument.createEmpty();
@@ -241,6 +255,57 @@ export class WasmBridge {
   insertText(sec: number, para: number, charOffset: number, text: string): string {
     if (!this.doc) throw new Error('문서가 로드되지 않았습니다');
     return this.doc.insertText(sec, para, charOffset, text);
+  }
+
+  beginTextEdit(sec: number, para: number, structural = false): string | null {
+    if (this.snapshotDepth > 0) return null;
+    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');
+    try {
+      return this.doc.beginTextEdit(sec, para, structural);
+    } catch (error: unknown) {
+      const message = String(error);
+      if (message.includes('EDIT_HISTORY_UNAVAILABLE:')) {
+        this.editHistoryDisabledReason = message;
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  undoEdit(token: string): string {
+    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');
+    try {
+      return this.doc.undoEdit(token);
+    } catch (error: unknown) {
+      const message = String(error);
+      if (message.includes('INVALID_EDIT_HANDLE:')) throw new InvalidEditHandleError(message);
+      throw error;
+    }
+  }
+
+  finishTextEdit(token: string): void {
+    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');
+    this.doc.finishTextEdit(token);
+  }
+
+  mergeTextEdits(first: string, last: string): boolean {
+    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');
+    try { this.doc.mergeTextEdits(first, last); }
+    catch (error: unknown) {
+      if (String(error).includes('INVALID_EDIT_HANDLE:')) return false;
+      throw error;
+    }
+    return true;
+  }
+
+  discardEdit(token: string): void {
+    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');
+    this.doc.discardEdit(token);
+  }
+
+  liveEditCount(): number {
+    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');
+    return this.doc.liveEditCount();
   }
 
   deleteText(sec: number, para: number, charOffset: number, count: number): string {
@@ -902,6 +967,11 @@ export class WasmBridge {
   pasteInternal(sec: number, para: number, charOffset: number): string {
     if (!this.doc) throw new Error('문서가 로드되지 않았습니다');
     return this.doc.pasteInternal(sec, para, charOffset);
+  }
+
+  copySelectionInCellByPath(sec: number, parentPara: number, pathJson: string, startOffset: number, endPara: number, endOffset: number): string {
+    if (!this.doc) throw new Error('문서가 로드되지 않았습니다');
+    return this.doc.copySelectionInCellByPath(sec, parentPara, pathJson, startOffset, endPara, endOffset);
   }
 
   pasteInternalInCell(sec: number, parentPara: number, controlIdx: number, cellIdx: number, cellParaIdx: number, charOffset: number): string {

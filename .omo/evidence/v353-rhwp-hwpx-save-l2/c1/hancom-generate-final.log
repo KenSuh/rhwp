@@ -1,0 +1,15 @@
+   Compiling rhwp v0.7.3 (/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.51s
+     Running tests/hwpx_save_fidelity_l2.rs (target/debug/deps/hwpx_save_fidelity_l2-d7bdbef07c1a9a80)
+
+running 1 test
+.omo/evidence/v353-rhwp-hwpx-save-l2/hancom/L2_C6_open_save.hwpx 본문 표 #7 (구역 0, 문단 74, 컨트롤 0) 132066 바이트
+.omo/evidence/v353-rhwp-hwpx-save-l2/hancom/L2_C6_insert_row.hwpx 본문 표 #7 (구역 0, 문단 74, 컨트롤 0) 132188 바이트
+.omo/evidence/v353-rhwp-hwpx-save-l2/hancom/L2_C6_cell_text.hwpx 본문 표 #7 (구역 0, 문단 74, 컨트롤 0) 132135 바이트
+.omo/evidence/v353-rhwp-hwpx-save-l2/hancom/L2_FACF_open_save.hwpx 본문 표 #7 (구역 0, 문단 74, 컨트롤 0) 131140 바이트
+.omo/evidence/v353-rhwp-hwpx-save-l2/hancom/L2_FACF_insert_row.hwpx 본문 표 #7 (구역 0, 문단 74, 컨트롤 0) 131269 바이트
+.omo/evidence/v353-rhwp-hwpx-save-l2/hancom/L2_FACF_cell_text.hwpx 본문 표 #7 (구역 0, 문단 74, 컨트롤 0) 131215 바이트
+test write_hancom_review_files ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 2.84s
+

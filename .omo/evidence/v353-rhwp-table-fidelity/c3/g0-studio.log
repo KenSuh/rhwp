@@ -1,0 +1,31 @@
+bun test v1.3.12 (700fc117)
+
+rhwp-studio/tests/table-resize-renderer.test.ts:
+(pass) captured merged-cell interior does not start a border resize [6.33ms]
+(pass) captured real row retains the coordinate index used by resize callers [3.43ms]
+(pass) captured real column retains the coordinate index used by resize callers [0.96ms]
+(pass) rowSpan leaves a hole between disjoint real row segments [0.09ms]
+(pass) colSpan leaves a hole between disjoint real column segments [0.08ms]
+(pass) shared and adjacent cell edges merge without closing a merged-cell hole [0.04ms]
+(pass) every captured coordinate index still resolves to its original rounded coordinate [0.29ms]
+(pass) real segment endpoint tolerance at x=104 [0.03ms]
+(pass) real segment endpoint tolerance at x=104.01 [0.02ms]
+(pass) unmerged row [0.01ms]
+(pass) unmerged column [0.01ms]
+(pass) row priority at a corner [0.02ms]
+(pass) inclusive row tolerance [0.03ms]
+(pass) outside row tolerance
+(pass) inclusive column tolerance [0.01ms]
+(pass) outside column tolerance
+(pass) empty input has no border [0.01ms]
+(pass) another page cannot extend the queried page border [0.03ms]
+(pass) row hover marker paints both real segments and leaves the merged cell clear [0.48ms]
+(pass) column hover marker paints both real segments [0.09ms]
+(pass) clear removes every marker segment
+(pass) hover marker ignores a different page with the same coordinate index [0.08ms]
+(pass) row drag guide replaces hover segments and uses only the selected page [0.10ms]
+(pass) column drag guide replaces hover segments and uses only the selected page [0.14ms]
+
+ 24 pass
+ 0 fail
+Ran 24 tests across 1 file. [224.00ms]

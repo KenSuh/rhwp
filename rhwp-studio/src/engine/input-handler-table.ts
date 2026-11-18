@@ -1,10 +1,126 @@
 /** input-handler table methods — extracted from InputHandler class */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { MoveTableCommand, MovePictureCommand, MoveShapeCommand } from './command';
+import { MoveTableCommand, ObjectGestureRecorder, documentEpochOf } from './command';
+import type { EditCommand } from './command';
+import { stateLabelOf } from './history';
 import { getObjectProperties, setObjectProperties } from './input-handler-picture';
+import { InputHandler } from './input-handler';
 import type { CellBbox } from '@/core/types';
 import type { BorderEdge } from './table-resize-renderer';
+
+const handlersByWasm = new WeakMap<object, Set<any>>();
+const hookedWasmInstances = new WeakSet<object>();
+
+export function epochFromLabel(label: unknown): string | null {
+  return typeof label === 'string' && label.includes(':') ? (label.split(':')[0] || null) : null;
+}
+
+export function bindPointerHostToWasm(handler: any): void {
+  const wasm = handler?.wasm;
+  if (!wasm || (typeof wasm !== 'object' && typeof wasm !== 'function')) return;
+  let registeredSet = handlersByWasm.get(wasm);
+  if (!registeredSet) {
+    registeredSet = new Set<any>();
+    handlersByWasm.set(wasm, registeredSet);
+  }
+  registeredSet.add(handler);
+  if (hookedWasmInstances.has(wasm)) return;
+  hookedWasmInstances.add(wasm);
+
+  for (const method of ['loadDocument', 'createNewDocument'] as const) {
+    const underlying = (wasm as any)[method];
+    if (typeof underlying !== 'function') continue;
+    Object.defineProperty(wasm, method, {
+      configurable: true,
+      writable: true,
+      enumerable: false,
+      value: function (this: any, ...args: unknown[]) {
+        const activeSet = handlersByWasm.get(this) ?? handlersByWasm.get(wasm);
+        if (activeSet) {
+          for (const h of [...activeSet]) {
+            try {
+              InputHandler.prototype.settleOpenPointerGesture.call(h, 'cancel');
+            } catch {
+              // ignore cancellation errors on partial test hosts so document replacement completes
+            }
+          }
+        }
+        return underlying.apply(this, args);
+      },
+    });
+  }
+}
+
+export function unbindPointerHostFromWasm(handler: any): void {
+  const wasm = handler?.wasm;
+  if (!wasm || (typeof wasm !== 'object' && typeof wasm !== 'function')) return;
+  handlersByWasm.get(wasm)?.delete(handler);
+}
+
+export function stampGestureStart(handler: any): { epoch: string | null; beforeLabel: string | null } {
+  bindPointerHostToWasm(handler);
+  const beforeLabel = handler?.wasm ? stateLabelOf(handler.wasm) : null;
+  const epoch = epochFromLabel(beforeLabel) ?? (handler?.wasm ? documentEpochOf(handler.wasm) : null);
+  if (handler) handler._gestureOwnerEpoch = epoch;
+  return { epoch, beforeLabel };
+}
+
+export function hasRawOpenPointerGesture(handler: any): boolean {
+  return Boolean(
+    handler?.isPictureMoveDragging || handler?.pictureMoveState
+    || handler?.isPictureResizeDragging || handler?.pictureResizeState
+    || handler?.isPictureRotateDragging || handler?.pictureRotateState
+    || handler?.isLineEndpointDragging || handler?.lineEndpointState
+    || handler?.isMoveDragging || handler?.moveDragState
+    || handler?.isResizeDragging || handler?.resizeDragState
+    || handler?.isDragging || handler?.isCellDragSelecting,
+  );
+}
+
+export function resolveActiveGestureEpoch(handler: any): string | null {
+  if (!handler) return null;
+  const states = [
+    handler.moveDragState,
+    handler.pictureMoveState,
+    handler.pictureResizeState,
+    handler.pictureRotateState,
+    handler.lineEndpointState,
+    handler.resizeDragState,
+    handler.imagePlacementDrag,
+    handler.textboxPlacementDrag,
+    handler.connectorStartRef,
+  ];
+  for (const st of states) {
+    if (!st || typeof st !== 'object') continue;
+    const ep = st.epoch ?? epochFromLabel(st.beforeLabel) ?? st.recorder?.ownerEpoch ?? null;
+    if (typeof ep === 'string' && ep.length > 0) return ep;
+  }
+  if (handler.polygonDrawingMode && typeof handler._polygonEpoch === 'string' && handler._polygonEpoch.length > 0) {
+    return handler._polygonEpoch;
+  }
+  return typeof handler._gestureOwnerEpoch === 'string' && handler._gestureOwnerEpoch.length > 0
+    ? handler._gestureOwnerEpoch
+    : null;
+}
+
+export function isActiveGestureEpochStale(handler: any): boolean {
+  const gestureEpoch = resolveActiveGestureEpoch(handler);
+  if (gestureEpoch === null) return false;
+  const liveEpoch = handler?.wasm ? documentEpochOf(handler.wasm) : null;
+  return gestureEpoch !== liveEpoch;
+}
+
+export function ensureGestureMatchesLiveEpoch(handler: any): boolean {
+  if (!handler) return false;
+  bindPointerHostToWasm(handler);
+  if (!hasRawOpenPointerGesture(handler)) return false;
+  if (isActiveGestureEpochStale(handler)) {
+    InputHandler.prototype.settleOpenPointerGesture.call(handler, 'cancel');
+    return false;
+  }
+  return true;
+}
 
 export function startResizeDrag(this: any, 
   edge: BorderEdge,
@@ -61,6 +177,7 @@ export function startResizeDrag(this: any,
 
   if (affectedCellIndices.length === 0) return;
 
+  const { epoch, beforeLabel } = stampGestureStart(this);
   this.isResizeDragging = true;
   this.resizeDragState = {
     edge,
@@ -70,6 +187,10 @@ export function startResizeDrag(this: any,
     affectedCellIndices,
     borderOriginalPos,
     resizeFromStartEdge,
+    epoch,
+    beforeLabel,
+    lastClientX: undefined,
+    lastClientY: undefined,
   };
 
   // mouseup 리스너 등록 (document 레벨)
@@ -77,7 +198,10 @@ export function startResizeDrag(this: any,
 }
 
 export function updateResizeDrag(this: any, e: MouseEvent): void {
-  if (!this.resizeDragState || !this.tableResizeRenderer) return;
+  if (!ensureGestureMatchesLiveEpoch(this) || !this.resizeDragState || !this.tableResizeRenderer) return;
+  this.resizeDragState.epoch ??= this.wasm ? documentEpochOf(this.wasm) : null;
+  this.resizeDragState.lastClientX = e.clientX;
+  this.resizeDragState.lastClientY = e.clientY;
 
   const zoom = this.viewportManager.getZoom();
   const scrollContent = this.container.querySelector('#scroll-content');
@@ -106,24 +230,38 @@ export function updateResizeDrag(this: any, e: MouseEvent): void {
   );
 }
 
-export function finishResizeDrag(this: any, e: MouseEvent): void {
-  if (!this.resizeDragState || !this.tableResizeRenderer) {
-    this.cleanupResizeDrag();
+export function finishResizeDrag(this: any, e?: MouseEvent): void {
+  if (this.resizeDragState && isActiveGestureEpochStale(this)) {
+    InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
+    return;
+  }
+  const clean = () => (this.cleanupResizeDrag ?? cleanupResizeDrag).call(this);
+  if (!this.resizeDragState || !this.tableResizeRenderer || !this.viewportManager) {
+    clean();
     return;
   }
 
   const state = this.resizeDragState;
+  const effectiveEvent = e ?? (
+    state.lastClientX !== undefined && state.lastClientY !== undefined
+      ? ({ clientX: state.lastClientX, clientY: state.lastClientY } as MouseEvent)
+      : null
+  );
+  if (!effectiveEvent) {
+    clean();
+    return;
+  }
 
   // mouseup 이벤트 좌표에서 page 좌표 계산
   const zoom = this.viewportManager.getZoom();
   const scrollContent = this.container.querySelector('#scroll-content');
   if (!scrollContent) {
-    this.cleanupResizeDrag();
+    clean();
     return;
   }
   const contentRect = scrollContent.getBoundingClientRect();
-  const contentX = e.clientX - contentRect.left;
-  const contentY = e.clientY - contentRect.top;
+  const contentX = effectiveEvent.clientX - contentRect.left;
+  const contentY = effectiveEvent.clientY - contentRect.top;
   const pageIdx = state.edge.pageIndex;
   const pageOffset = this.virtualScroll.getPageOffset(pageIdx);
   const pageDisplayWidth = this.virtualScroll.getPageWidth(pageIdx);
@@ -141,15 +279,15 @@ export function finishResizeDrag(this: any, e: MouseEvent): void {
 
   // 너무 작은 드래그는 무시 (1px 미만)
   if (Math.abs(deltaHwpUnit) < 75) {
-    this.cleanupResizeDrag();
+    clean();
     return;
   }
 
   // 셀 선택 모드: 선택 셀 + 이웃 셀 보상 (행/열 전체 너비 유지)
   // 일반 모드: 경계선에 맞닿은 모든 셀 (열/행 전체)
   let updates: Array<{ cellIdx: number; widthDelta?: number; heightDelta?: number }>;
-  const inCellSel = this.cursor.isInCellSelectionMode();
-  const range = inCellSel ? this.cursor.getSelectedCellRange() : null;
+  const inCellSel = this.cursor?.isInCellSelectionMode?.() ?? false;
+  const range = inCellSel ? this.cursor?.getSelectedCellRange?.() : null;
 
   if (inCellSel && range) {
     // 선택 셀만 추출
@@ -160,7 +298,7 @@ export function finishResizeDrag(this: any, e: MouseEvent): void {
         b.row >= range.startRow && b.row <= range.endRow &&
         b.col >= range.startCol && b.col <= range.endCol);
     if (selectedBboxes.length === 0) {
-      this.cleanupResizeDrag();
+      clean();
       return;
     }
     updates = [];
@@ -187,13 +325,13 @@ export function finishResizeDrag(this: any, e: MouseEvent): void {
       }
     }
     if (updates.length === 0) {
-      this.cleanupResizeDrag();
+      clean();
       return;
     }
   } else {
     // 일반 모드: 경계선에 맞닿은 모든 셀 (열/행 전체 크기 변경)
     if (state.affectedCellIndices.length === 0) {
-      this.cleanupResizeDrag();
+      clean();
       return;
     }
     updates = state.affectedCellIndices.map((cellIdx: any) => {
@@ -205,8 +343,20 @@ export function finishResizeDrag(this: any, e: MouseEvent): void {
     });
   }
 
-  // WASM 배치 API 호출
+  // WASM 배치 API 호출 (epoch 구속 스냅샷 기록)
+  const expectedEpoch = state.epoch ?? epochFromLabel(state.beforeLabel) ?? this._gestureOwnerEpoch ?? null;
+  const recorder = state.recorder ?? new ObjectGestureRecorder(
+    'resizeTableCells',
+    { sectionIndex: state.tableRef.sec, paragraphIndex: state.tableRef.ppi, charOffset: 0 },
+    expectedEpoch,
+  );
+  state.recorder = recorder;
+  let command: EditCommand | null = null;
   try {
+    if (!recorder.begin(this.wasm)) {
+      InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
+      return;
+    }
     if (state.tableRef.cellPath && state.tableRef.cellPath.length > 1) {
       this.wasm.resizeTableCellsByPath(
         state.tableRef.sec,
@@ -222,20 +372,29 @@ export function finishResizeDrag(this: any, e: MouseEvent): void {
         updates,
       );
     }
-    this.eventBus.emit('document-changed');
-    if (inCellSel) this.updateCellSelection();
+    command = recorder.finish(this.wasm);
+    if (command) this.history?.recordWithoutExecute(command, this.wasm);
+    command = null;
+    this.eventBus?.emit('document-changed');
+    if (inCellSel) this.updateCellSelection?.();
   } catch (err) {
     console.warn('[InputHandler] resizeTableCells 실패:', err);
+  } finally {
+    try {
+      command?.discard?.(this.wasm);
+      recorder.cancel(this.wasm);
+    } finally {
+      clean();
+    }
   }
-
-  this.cleanupResizeDrag();
 }
 
 export function cleanupResizeDrag(this: any): void {
+  this._gestureOwnerEpoch = null;
   this.isResizeDragging = false;
   this.resizeDragState = null;
   this.tableResizeRenderer?.clear();
-  this.container.style.cursor = '';
+  if (this.container?.style) this.container.style.cursor = '';
   // 캐시 무효화 (크기 변경 후 bbox가 stale)
   this.cachedTableRef = null;
   this.cachedCellBboxes = null;
@@ -249,8 +408,8 @@ export function cancelImagePlacement(this: any): void {
   this.imagePlacementMode = false;
   this.imagePlacementData = null;
   this.imagePlacementDrag = null;
-  this.hideImagePlacementOverlay();
-  this.container.style.cursor = '';
+  (this.hideImagePlacementOverlay ?? hideImagePlacementOverlay).call(this);
+  if (this.container?.style) this.container.style.cursor = '';
 }
 
 export function showImagePlacementOverlay(this: any, x1: number, y1: number, x2: number, y2: number): void {
@@ -278,15 +437,21 @@ export function hideImagePlacementOverlay(this: any): void {
 }
 
 export function finishImagePlacement(this: any, e: MouseEvent): void {
+  const cancel = () => (this.cancelImagePlacement ?? cancelImagePlacement).call(this);
   const drag = this.imagePlacementDrag;
   const imgData = this.imagePlacementData;
-  if (!drag || !imgData) { this.cancelImagePlacement(); return; }
+  if (!drag || !imgData) { cancel(); return; }
+  const expectedEpoch = drag.epoch ?? epochFromLabel(drag.beforeLabel) ?? this._gestureOwnerEpoch ?? null;
+  if (expectedEpoch !== null && expectedEpoch !== documentEpochOf(this.wasm)) {
+    cancel();
+    return;
+  }
 
-  this.hideImagePlacementOverlay();
+  (this.hideImagePlacementOverlay ?? hideImagePlacementOverlay).call(this);
 
   // 클릭 위치에서 hitTest → 삽입할 문단 결정
   const hit = this.hitTestFromEvent(e);
-  if (!hit) { this.cancelImagePlacement(); return; }
+  if (!hit) { cancel(); return; }
 
   const sec = hit.sectionIndex;
   const paraIdx = hit.paragraphIndex;
@@ -325,11 +490,24 @@ export function finishImagePlacement(this: any, e: MouseEvent): void {
   // 개체 설명문 생성 (한컴 기본 패턴)
   const desc = `그림입니다.\r\n원본 그림의 이름: ${imgData.fileName}\r\n원본 그림의 크기: 가로 ${imgData.naturalWidth}pixel, 세로 ${imgData.naturalHeight}pixel`;
 
-  // WASM 호출
+  // WASM 호출 (epoch 구속 스냅샷 기록)
+  const recorder = new ObjectGestureRecorder(
+    'insertPicture',
+    { sectionIndex: sec, paragraphIndex: paraIdx, charOffset },
+    expectedEpoch ?? documentEpochOf(this.wasm),
+  );
+  let command: EditCommand | null = null;
   try {
+    if (!recorder.begin(this.wasm)) {
+      cancel();
+      return;
+    }
     const result = this.wasm.insertPicture(sec, paraIdx, charOffset, imgData.data, wHwp, hHwp, imgData.naturalWidth, imgData.naturalHeight, imgData.ext, desc);
     if (result.ok) {
-      this.eventBus.emit('document-changed');
+      command = recorder.finish(this.wasm);
+      if (command) this.history?.recordWithoutExecute(command, this.wasm);
+      command = null;
+      this.eventBus?.emit('document-changed');
       const cursorPageIndex = typeof hit.cursorRect?.pageIndex === 'number' ? hit.cursorRect.pageIndex : undefined;
       let pageIndex = cursorPageIndex;
       if (pageIndex === undefined) {
@@ -338,7 +516,7 @@ export function finishImagePlacement(this: any, e: MouseEvent): void {
           if (pageResult.ok && typeof pageResult.page === 'number') pageIndex = pageResult.page;
         } catch {}
       }
-      this.eventBus.emit('image-placement-finished', {
+      this.eventBus?.emit('image-placement-finished', {
         requestId: imgData.requestId,
         position: {
           ...(pageIndex === undefined ? {} : { page: pageIndex + 1 }),
@@ -357,16 +535,31 @@ export function finishImagePlacement(this: any, e: MouseEvent): void {
     }
   } catch (err) {
     console.warn('[InputHandler] 그림 삽입 실패:', err);
+  } finally {
+    command?.discard?.(this.wasm);
+    recorder.cancel(this.wasm);
   }
 
   // 모드 종료
+  this._gestureOwnerEpoch = null;
   this.imagePlacementMode = false;
   this.imagePlacementData = null;
   this.imagePlacementDrag = null;
-  this.container.style.cursor = '';
+  if (this.container?.style) this.container.style.cursor = '';
+}
+
+/**
+ * 마우스업 전까지 열려 있는 개체·표 포인터 제스처(이동·크기·회전·끝점·셀 경계 드래그)가
+ * 있는가. 열린 제스처는 마우스업에서 히스토리 항목 하나로 닫히므로 그 사이에는 다른
+ * 편집(키보드 이동·Undo 등)을 받지 않는다 — 항목이 겹치거나 라벨 쌍이 교차하지 않는다.
+ * 교체된 문서 epoch에서 남은 제스처는 즉시 취소하고 false를 반환한다.
+ */
+export function hasOpenPointerGesture(handler: any): boolean {
+  return ensureGestureMatchesLiveEpoch(handler);
 }
 
 export function moveSelectedTable(this: any, key: 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight'): void {
+  if (hasOpenPointerGesture(this)) return; // 열린 드래그와 교차하는 이동은 받지 않는다
   const ref = this.cursor.getSelectedTableRef();
   if (!ref) return;
 
@@ -381,10 +574,13 @@ export function moveSelectedTable(this: any, key: 'ArrowUp' | 'ArrowDown' | 'Arr
   }
 
   try {
+    const beforeLabel = stateLabelOf(this.wasm);
     const result = this.wasm.moveTableOffset(ref.sec, ref.ppi, ref.ci, deltaH, deltaV);
     // Undo 기록
-    this.executeOperation({ kind: 'record', command:
-      new MoveTableCommand(ref.sec, ref.ppi, ref.ci, deltaH, deltaV, result.ppi, result.ci),
+    this.executeOperation({
+      kind: 'record',
+      beforeLabel,
+      command: new MoveTableCommand(ref.sec, ref.ppi, ref.ci, deltaH, deltaV, result.ppi, result.ci),
     });
     // 문단 경계를 넘어 이동한 경우 selectedTableRef 갱신
     if (result.ppi !== ref.ppi || result.ci !== ref.ci) {
@@ -398,6 +594,7 @@ export function moveSelectedTable(this: any, key: 'ArrowUp' | 'ArrowDown' | 'Arr
 }
 
 export function moveSelectedPicture(this: any, key: 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight'): void {
+  if (hasOpenPointerGesture(this)) return; // 열린 드래그와 교차하는 이동은 받지 않는다
   const refs = this.cursor.getSelectedPictureRefs();
   const ref = this.cursor.getSelectedPictureRef();
   if (!ref) return;
@@ -412,34 +609,54 @@ export function moveSelectedPicture(this: any, key: 'ArrowUp' | 'ArrowDown' | 'A
     case 'ArrowDown':  deltaV = step;  break;
   }
 
-  // 다중 선택: 모든 선택된 개체를 동일 delta만큼 이동
+  // 다중 선택: 모든 선택된 개체를 동일 delta만큼 이동.
+  // 한 번의 키 입력(모든 대상 + 연결선 갱신)을 히스토리 항목 하나로 기록한다.
   const targets = refs.length > 1 ? refs : [ref];
+  const recorder = new ObjectGestureRecorder(
+    'moveObjects',
+    { sectionIndex: targets[0].sec, paragraphIndex: targets[0].ppi, charOffset: 0 },
+    documentEpochOf(this.wasm),
+  );
+  let command: EditCommand | null = null;
   try {
     for (const r of targets) {
       const props = getObjectProperties.call(this, r);
       if (props.treatAsChar) continue; // treat_as_char 개체는 이동 불가
-      const newHorzOffset = ((props.horzOffset + deltaH) >>> 0);
-      const newVertOffset = ((props.vertOffset + deltaV) >>> 0);
+      if (!recorder.begin(this.wasm)) return;
       setObjectProperties.call(this, r, {
-        horzOffset: newHorzOffset,
-        vertOffset: newVertOffset,
-      });
-      const CmdClass = r.type === 'shape' || r.type === 'line' || r.type === 'group' ? MoveShapeCommand : MovePictureCommand;
-      this.executeOperation({ kind: 'record', command:
-        new CmdClass(r.sec, r.ppi, r.ci, deltaH, deltaV, props.horzOffset, props.vertOffset),
+        horzOffset: ((props.horzOffset + deltaH) >>> 0),
+        vertOffset: ((props.vertOffset + deltaV) >>> 0),
       });
     }
-    // 연결선 자동 추적
-    try { this.wasm.updateConnectorsInSection(targets[0].sec); } catch { /* ignore */ }
+    if (recorder.started) {
+      try { this.wasm.updateConnectorsInSection(targets[0].sec); } catch { /* ignore */ }
+    }
     this.eventBus.emit('document-changed');
     this.renderPictureObjectSelection();
   } catch (err) {
     console.warn('[InputHandler] 개체 이동 실패:', err);
+  } finally {
+    try {
+      // 일부 대상만 바뀐 뒤 실패해도 실제로 바뀐 상태는 같은 항목으로 기록한다
+      command = recorder.finish(this.wasm);
+      if (command) {
+        if (typeof this.executeOperation === 'function') {
+          this.executeOperation({ kind: 'record', command });
+        } else {
+          this.history?.recordWithoutExecute(command, this.wasm);
+        }
+        command = null;
+      }
+    } finally {
+      command?.discard?.(this.wasm);
+      recorder.cancel(this.wasm);
+    }
   }
 }
 
 export function updateMoveDrag(this: any, e: MouseEvent): void {
-  if (!this.moveDragState) return;
+  if (!ensureGestureMatchesLiveEpoch(this) || !this.moveDragState) return;
+  this.moveDragState.epoch ??= this.wasm ? documentEpochOf(this.wasm) : null;
   const zoom = this.viewportManager.getZoom();
   const sc = this.container.querySelector('#scroll-content');
   if (!sc) return;
@@ -484,29 +701,44 @@ export function updateMoveDrag(this: any, e: MouseEvent): void {
 }
 
 export function finishMoveDrag(this: any): void {
-  // Undo 기록: 드래그 전체를 하나의 명령으로 기록
-  if (this.moveDragState) {
-    const { totalDeltaH, totalDeltaV, startPpi, tableRef } = this.moveDragState;
-    if (totalDeltaH !== 0 || totalDeltaV !== 0) {
-      this.executeOperation({ kind: 'record', command:
-        new MoveTableCommand(
+  if (this.moveDragState && isActiveGestureEpochStale(this)) {
+    InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
+    return;
+  }
+  try {
+    // Undo 기록: 드래그 전체를 하나의 명령으로 기록
+    if (this.moveDragState) {
+      const { totalDeltaH, totalDeltaV, startPpi, tableRef, beforeLabel } = this.moveDragState;
+      const expectedEpoch = this.moveDragState.epoch ?? epochFromLabel(beforeLabel) ?? this._gestureOwnerEpoch ?? null;
+      const labelAdvanced = Boolean(beforeLabel && stateLabelOf(this.wasm) !== beforeLabel);
+      if ((totalDeltaH !== 0 || totalDeltaV !== 0 || labelAdvanced)
+        && (expectedEpoch === null || expectedEpoch === documentEpochOf(this.wasm))) {
+        const command = new MoveTableCommand(
           tableRef.sec, startPpi, tableRef.ci,
           totalDeltaH, totalDeltaV,
           tableRef.ppi, tableRef.ci,
-        ),
-      });
+        );
+        if (typeof this.executeOperation === 'function') {
+          this.executeOperation({ kind: 'record', beforeLabel, command });
+        } else {
+          this.history?.recordWithoutExecute(command, this.wasm, beforeLabel);
+        }
+      }
     }
+  } finally {
+    this._gestureOwnerEpoch = null;
+    this.isMoveDragging = false;
+    this.moveDragState = null;
+    if (this.dragRafId) {
+      cancelAnimationFrame(this.dragRafId);
+      this.dragRafId = 0;
+    }
+    if (this.container?.style) this.container.style.cursor = '';
   }
-  this.isMoveDragging = false;
-  this.moveDragState = null;
-  if (this.dragRafId) {
-    cancelAnimationFrame(this.dragRafId);
-    this.dragRafId = 0;
-  }
-  this.container.style.cursor = '';
 }
 
 export function resizeCellByKeyboard(this: any, key: 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight'): void {
+  if (hasOpenPointerGesture(this)) return;
   const ctx = this.cursor.getCellTableContext();
   const range = this.cursor.getSelectedCellRange();
   if (!ctx || !range) return;
@@ -552,22 +784,37 @@ export function resizeCellByKeyboard(this: any, key: 'ArrowUp' | 'ArrowDown' | '
       }
     }
   }
+  if (updates.length === 0) return;
 
+  const recorder = new ObjectGestureRecorder(
+    'resizeTableCells',
+    { sectionIndex: ctx.sec, paragraphIndex: ctx.ppi, charOffset: 0 },
+    documentEpochOf(this.wasm),
+  );
+  let command: EditCommand | null = null;
   try {
+    if (!recorder.begin(this.wasm)) return;
     if (ctx.cellPath && ctx.cellPath.length > 1) {
       this.wasm.resizeTableCellsByPath(ctx.sec, ctx.ppi, JSON.stringify(ctx.cellPath), updates);
     } else {
       this.wasm.resizeTableCells(ctx.sec, ctx.ppi, ctx.ci, updates);
     }
-    this.eventBus.emit('document-changed');
-    this.updateCellSelection();
+    command = recorder.finish(this.wasm);
+    if (command) this.history?.recordWithoutExecute(command, this.wasm);
+    command = null;
+    this.eventBus?.emit('document-changed');
+    this.updateCellSelection?.();
   } catch (err) {
     console.warn('[InputHandler] resizeCellByKeyboard 실패:', err);
+  } finally {
+    command?.discard?.(this.wasm);
+    recorder.cancel(this.wasm);
   }
 }
 
 /** 전체 표 비율 리사이즈 (phase 3, Ctrl+방향키) */
 export function resizeTableProportional(this: any, key: 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight'): void {
+  if (hasOpenPointerGesture(this)) return;
   const ctx = this.cursor.getCellTableContext();
   if (!ctx) return;
 
@@ -575,6 +822,12 @@ export function resizeTableProportional(this: any, key: 'ArrowUp' | 'ArrowDown' 
   const isHoriz = (key === 'ArrowLeft' || key === 'ArrowRight');
   const delta = (key === 'ArrowRight' || key === 'ArrowDown') ? DELTA : -DELTA;
 
+  const recorder = new ObjectGestureRecorder(
+    'resizeTableCells',
+    { sectionIndex: ctx.sec, paragraphIndex: ctx.ppi, charOffset: 0 },
+    documentEpochOf(this.wasm),
+  );
+  let command: EditCommand | null = null;
   try {
     const bboxes = ctx.cellPath && ctx.cellPath.length > 1
       ? this.wasm.getTableCellBboxesByPath(ctx.sec, ctx.ppi, JSON.stringify(ctx.cellPath))
@@ -591,15 +844,23 @@ export function resizeTableProportional(this: any, key: 'ArrowUp' | 'ArrowDown' 
         updates.push({ cellIdx: bbox.cellIdx, heightDelta: delta });
       }
     }
+    if (updates.length === 0) return;
 
+    if (!recorder.begin(this.wasm)) return;
     if (ctx.cellPath && ctx.cellPath.length > 1) {
       this.wasm.resizeTableCellsByPath(ctx.sec, ctx.ppi, JSON.stringify(ctx.cellPath), updates);
     } else {
       this.wasm.resizeTableCells(ctx.sec, ctx.ppi, ctx.ci, updates);
     }
-    this.eventBus.emit('document-changed');
-    this.updateCellSelection();
+    command = recorder.finish(this.wasm);
+    if (command) this.history?.recordWithoutExecute(command, this.wasm);
+    command = null;
+    this.eventBus?.emit('document-changed');
+    this.updateCellSelection?.();
   } catch (err) {
     console.warn('[InputHandler] resizeTableProportional 실패:', err);
+  } finally {
+    command?.discard?.(this.wasm);
+    recorder.cancel(this.wasm);
   }
 }

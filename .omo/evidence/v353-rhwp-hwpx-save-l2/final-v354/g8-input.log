@@ -1,0 +1,12 @@
+UTC_START=2026-10-26T13:20:33Z
+CWD=/tmp/v353-final-v354.WRpWpU/checkout
+ARGV= bash -euo pipefail -c $'\n        git rev-parse HEAD "HEAD^{tree}"\n        test ! -e Cargo.lock\n        test -z "$(git diff --name-only HEAD)"\n        shasum -a 256 .omo/evidence/v353-rhwp-hwpx-save-l2/c1/clean-cargo.sh\n        if test -d target; then printf "TARGET_REUSE=private-existing\\n"; else printf "TARGET_REUSE=absent\\n"; fi\n        printf "DEPENDENCY_INPUT=absent\\n"\n    '
+17f85ce02d48a7da5d12a6e0997939949a60f613
+a1b872ba61d3e7e135754d188f253e840f31e030
+2b0e9279535d7656d764db8a7c13619eea7bab200a61b40b06ab32a5811ce1c6  .omo/evidence/v353-rhwp-hwpx-save-l2/c1/clean-cargo.sh
+TARGET_REUSE=private-existing
+DEPENDENCY_INPUT=absent
+
+UTC_END=2026-10-26T13:20:33Z
+ELAPSED_SECONDS=0
+EXIT_STATUS=0

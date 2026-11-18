@@ -1,0 +1,59 @@
+{
+  "entry_head": "e6e5850ee07c952f2908df8e5845124c224c2f90",
+  "source_checkpoint": "9ac673ce16034fc03d819e5186485a920e5d2c16",
+  "unchanged_inputs_sha256": {
+    ".omo/evidence/v353-rhwp-table-fidelity/baseline.json": "d2a53a5218095b1cd945d165a70be98d97181505f940987f6b20fb4254871f37",
+    ".omo/evidence/v353-rhwp-table-fidelity/negative-control.json": "bcc3e0f61180c54016dc5858aee22389be855c6df7e25640bee3919b6568dfce",
+    ".omo/evidence/v353-rhwp-table-fidelity/negative_control.py": "782c67dd7e80b4141e06a2c15e3680dc529a17c91d7df97d0da499d3499e51f5",
+    "src/serializer/hwpx/table.rs": "42f6ec49c8431699087ede607a4995e188fc9d5ff09b1317c52da122dcbfe804",
+    "src/parser/hwpx/section.rs": "f28fda8734d19cf2e5ca3149231851fc5694202fa4612c165a76dfd16055473b",
+    "src/parser/control.rs": "6fe6143935d7a143737e14d743923889b34840a8fdb318592ce3956e65dcf8b2",
+    "src/serializer/control.rs": "f95668fd58267f3f90294fe509fab20ca2de9192a090fa459450e9cc019bb449",
+    "tools/roundtrip_diff.py": "419da29776dec7e320794d0515a0d3be78d9bb87e6836463d19842ca110dcd94",
+    "src/model/table.rs": "187973bbb15e634cf9034e14c515027e96e30d7e67b68d73f535a10e9eb25c6f",
+    "src/model/table/tests.rs": "04d3fb42bfef078093be06947bcc5b147cdecdebd879665bf24561b594b6e0bd",
+    "src/model/shape.rs": "3f25d7e902961ec0a5889f933a2c2a042e3276c0583553eb6726d02317f21001",
+    "src/document_core/commands/table_ops.rs": "8a0e9d088b2bc0942567324b43bbd5f5d21a9dd401723109546315e42c8558d0",
+    "Cargo.toml": "885d0647d7fae87fbea9e608d5028d09ad934398555a115908a63f16a4902a2c",
+    "tests/fixtures/table-fidelity/README.md": "fa574cbd7ffdd670f5c94206ab005dcd6f8afd827a328d697e53fb7af308328f",
+    "tests/fixtures/table-fidelity/T1_press_release_cell_logo.hwpx": "67cf6aa2f6042cd0c743c7ae03d46cc97a0c398df331606c98b26dacc6c62f1e",
+    "tests/fixtures/table-fidelity/T2_2026_oss_rst.hwpx": "90858f0ecf9e95afe46b6dace6a61960b03552236a1204be530ce3d1866a8398",
+    "tests/fixtures/table-fidelity/T5_36395325_gyeoljae_consulting.hwpx": "a0bd691420456e4b6c0b0127d526b6a38d7c1afc3f07e9b84cddb01495e48b0d",
+    "tests/fixtures/table-fidelity/T6_table_giant_cell_overfill.hwpx": "5d7eb4a21e46d9ad01a0f631eea2b1f2ec8a71750b4d448868e944e1b95042f4",
+    "tests/fixtures/table-fidelity/T7_nested_row_first_line_height.hwpx": "c6bcf3686e8fbfbc79f5f3e2c690a62577e8ef63f0bad74e66ee3b255d76b931"
+  },
+  "test_prefixes": {
+    "c1": {
+      "bytes": 39011,
+      "sha256": "c67a13b797813604e21fba636d66093f2847862807fe793c65f1f43b3a46e840",
+      "preserved": true
+    },
+    "original": {
+      "bytes": 27484,
+      "sha256": "034737d2c171dbd737828c15f776a0cd730ef9be5f3e6cf904d3eaf869bb123b",
+      "preserved": true
+    },
+    "initial_c2": {
+      "bytes": 42789,
+      "sha256": "ba4220a9f81bdb8e6dfd85c1e194dec3e01489c34293e73be60a4de1ef056494",
+      "preserved": true
+    }
+  },
+  "final_test_sha256": "0bc0cf833692199a509d985fbf720fca1e9bdfa03134beec52f2012a613ffac3",
+  "gates_carried": [
+    1,
+    2,
+    3,
+    7
+  ],
+  "gates_rerun": [
+    4,
+    5,
+    6,
+    8,
+    9,
+    10,
+    11,
+    12
+  ]
+}

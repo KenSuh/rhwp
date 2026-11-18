@@ -1,0 +1,125 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+     Running tests/hwpx_header_resave_stability.rs (target/debug/deps/hwpx_header_resave_stability-8f04aadd7596c664)
+
+running 7 tests
+test self_closing_margin_attributes_still_parse ... ok
+test bare_margin_children_are_read_at_default_scale ... ok
+test switch_margin_is_read_only_by_the_switch_path ... ok
+test real_sample_control_runs_match_5845fc5 ... ok
+test c23_all_canonical_border_widths_survive_two_public_saves ... ok
+test form_002_header_survives_two_save_reopen_cycles ... ok
+test real_sample_p47_table_keeps_113_after_two_saves ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.99s
+
+     Running tests/hwpx_roundtrip_integration.rs (target/debug/deps/hwpx_roundtrip_integration-27fc5637cf77d96c)
+
+running 59 tests
+test c11_real_c6_table_flags_and_layout_survive_two_native_saves ... ignored, requires immutable C6 fixture in RHWP_C11_C6_INPUT
+test c20_supplied_actual_contact_edit_and_two_native_saves_stay_visible ... ignored, requires the explicitly supplied immutable C16 input
+test c15_supplied_c14_inline_target_and_covered_control_two_native_saves ... ok
+test c13_private_c6_target_actual_render_save_reopen_observation ... ok
+test c13_document_inline_table_geometry_survives_two_native_saves ... ok
+test c10_native_initial_column_page_number_prefix_precedes_text_once ... ok
+test c11_native_false_and_missing_table_flags_default_false_two_saves ... ok
+test c10_native_nonleading_vector_columns_and_inline_order_are_retained ... ok
+test c12_native_shape_label_shades_survive_text_edit_between_saves ... ok
+test c10_native_empty_run_styles_keep_body_cell_ownership_two_saves ... ok
+test c12_native_shape_label_shades_survive_two_no_edit_saves ... ok
+test c11_native_true_table_flags_keep_nested_owners_two_saves ... ok
+test c10_native_self_closing_run_transition_matches_explicit_empty_run ... ok
+test c23_public_field_end_insert_keeps_utf16_styles_and_count_two_saves ... ok
+test c10_native_initial_column_moves_only_adjacent_page_number_prefix ... ok
+test c15_document_merged_inline_width_survives_two_native_saves ... ok
+test c8_native_picture_preserves_original_displayed_geometry_identity_and_png ... ok
+test c8_native_group_line_and_table_caption_keep_text_and_child_order ... ok
+test c8_native_fields_preserve_metadata_positions_and_styled_text ... ok
+test c23_public_tab_delete_removes_eight_units_and_keeps_field_gaps_two_saves ... ok
+test c9_document_computed_object_geometry_and_page_resets_survive_two_saves ... ok
+test c8_native_field_ranges_follow_unicode_edits_in_body_and_cell ... ok
+test c9_paragraph_current_modifications_win_across_two_saves ... ok
+test c20_document_cached_contact_edit_and_two_native_saves_stay_visible ... ok
+test c9_paragraph_margin_2011_expanded_namespace_and_signed_values_survive ... ok
+test c9_paragraph_supported_break_modes_use_canonical_bits ... ok
+test c23_public_insert_delete_preserves_retained_field_gaps_two_saves ... ok
+test c9_columns_keep_body_cell_paragraph_ownership_and_control_order ... ok
+test phase1_body_text_edit_export_hwpx_reparse_smoke ... ok
+test c8_native_empty_nested_fields_and_current_property_edits_survive ... ok
+test c8_native_supported_shape_preserves_geometry_styles_and_textbox ... ok
+test c9_document_missing_geometry_synthesizes_without_rebasing_valid_paragraphs ... ok
+test c9_document_missing_follower_clears_computed_floating_object_extent ... ok
+test phase1_table_cell_edit_export_hwpx_reparse_smoke ... ok
+test p47_table_owner_unknown_reference_is_rejected ... ok
+test stage0_blank_hwpx_roundtrip ... ok
+test stage1_ref_empty_roundtrip ... ok
+test stage1_ref_mixed_header_level_regression_probe ... ok
+test stage1_ref_text_roundtrip ... ok
+test stage5_ref_table_smoke ... ok
+test c9_table_signed_and_unsigned_offsets_preserve_same_bits ... ok
+test c9_table_cell_margin_flags_preserve_effective_padding ... ok
+test task177_lineseg_preserved_on_roundtrip_ref_mixed ... ok
+test task177_lineseg_preserved_on_roundtrip_ref_text ... ok
+test task177_hwpx_02_lineseg_histogram ... ok
+test v330_form_attribute_whitespace_survives_two_native_saves ... ok
+test c23_public_tab_insert_delete_uses_consistent_local_units_two_saves ... ok
+test c8_native_field_binary_defaults_and_invalid_references_are_explicit ... ok
+test c9_table_page_break_modes_and_legacy_aliases_survive ... ok
+test stage5_form_002_smoke ... ok
+test task177_hwpx_02_regression ... ok
+test phase1_form_002_export_hwpx_reparse_preserves_validation_cleanliness ... ok
+test p47_table_owner_styles_follow_control_lifecycle_two_saves ... ok
+test c23_public_field_boundary_matrix_matches_raw_utf16_two_saves ... ok
+test p47_table_owner_styles_survive_mixed_run_order_two_saves ... ok
+test task177_false_positive_measurement ... ok
+test stage5_large_real_doc_2025_q2_smoke ... ok
+test stage5_large_real_doc_2025_q1_smoke ... ok
+test v330_form_002_caption_entities_stable_across_two_native_saves ... ok
+
+test result: ok. 57 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.57s
+
+     Running tests/hwpx_table_fidelity.rs (target/debug/deps/hwpx_table_fidelity-8fba4dff0113d046)
+
+running 40 tests
+test display_height_grows_by_path_when_fitting_text_exceeds_declared_height ... ok
+test display_height_grows_when_fitting_text_exceeds_declared_height ... ok
+test display_height_grows_after_reflow_when_fitting_text_exceeds_declaration ... ok
+test display_height_follows_text_edit_rule_on_overfilled_cell ... ok
+test no_adjust_survives_hwpx_hwp5_hwpx ... ok
+test no_adjust_table_pagebreak_edit_reaches_hwp5 ... ok
+test display_height_grows_by_display_row_height_on_row_insert ... ok
+test display_height_shrinks_by_display_row_height_on_row_delete ... ok
+test no_adjust_survives_hwpx_and_hwp5_with_g0_table_flag ... ok
+test page_break_strings_survive_hwpx_hwp5_hwpx ... ok
+test page_break_writes_hancom_hwp5_bits ... ok
+test page_break_row_alias_normalizes_to_cell_in_both_paths ... ok
+test width_formula_includes_new_spacing_after_column_split ... ok
+test display_height_noop_delete_zero_by_path ... ok
+test display_height_noop_delete_end_without_reflow ... ok
+test width_formula_matches_unmerged_fixture_tables ... ok
+test display_height_noop_insert_without_reflow ... ok
+test display_height_noop_delete_end_by_path ... ok
+test display_height_noop_delete_zero_without_reflow ... ok
+test display_height_noop_insert_by_path ... ok
+test display_height_noop_delete_zero_with_reflow ... ok
+test display_height_noop_insert_with_reflow ... ok
+test width_formula_preserves_declaration_when_absolute_widths_are_unchanged ... ok
+test width_formula_uses_assigned_widths_when_all_columns_are_merged ... ok
+test write_hancom_review_files ... ignored
+test width_formula_preserves_declaration_when_row_insert_keeps_columns ... ok
+test width_formula_preserves_declaration_when_row_delete_keeps_columns ... ok
+test display_height_keeps_larger_declaration_when_text_fits ... ok
+test width_formula_preserves_declaration_when_row_split_keeps_columns ... ok
+test width_formula_updates_when_row_delete_changes_columns ... ok
+test display_height_survives_column_insert ... ok
+test width_formula_holds_after_column_delete_with_cell_spacing ... ok
+test page_break_strings_survive_hwpx_ir_hwpx ... ok
+test width_formula_holds_after_column_insert_with_cell_spacing ... ok
+test width_formula_kept_after_row_insert ... ok
+test width_formula_updates_when_resize_changes_columns ... ok
+test display_height_survives_cell_text_edit ... ok
+test width_formula_preserves_declaration_when_path_resize_keeps_columns ... ok
+test width_formula_preserves_declaration_when_resize_keeps_columns ... ok
+test display_height_noop_cell_range_delete ... ok
+
+test result: ok. 39 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 5.57s
+

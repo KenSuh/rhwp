@@ -2,7 +2,43 @@
 
 use super::control::Control;
 
+mod text;
+
 /// 문단 (HWPTAG_PARA_HEADER + 하위 레코드)
+///
+/// 텍스트와 원본 오프셋은 끝점 소유자만 변경한다.
+/// ```compile_fail,E0616
+/// let mut paragraph = rhwp::model::paragraph::Paragraph::default();
+/// paragraph.text = String::new();
+/// ```
+/// ```compile_fail,E0616
+/// let mut paragraph = rhwp::model::paragraph::Paragraph::default();
+/// paragraph.char_offsets = Vec::new();
+/// ```
+///
+/// ```compile_fail
+/// use rhwp::model::paragraph::Paragraph;
+/// let paragraph = Paragraph::with_text("text".into(), vec![0,1,2,3]);
+/// ```
+///
+/// ```compile_fail
+/// use rhwp::model::paragraph::Paragraph;
+/// let mut paragraph = Paragraph::default();
+/// paragraph.field_ranges = Vec::new();
+/// ```
+///
+/// ```compile_fail
+/// use rhwp::model::paragraph::Paragraph;
+/// let mut paragraph = Paragraph::default();
+/// paragraph.field_markers().clear();
+/// ```
+///
+/// ```compile_fail
+/// let mut paragraph = rhwp::model::paragraph::Paragraph::default();
+/// paragraph.field_ranges().push(rhwp::model::paragraph::FieldRange {
+///     start_char_idx: 0, end_char_idx: 0, control_idx: 0,
+/// });
+/// ```
 #[derive(Debug, Default, Clone)]
 pub struct Paragraph {
     /// 문자 수 (제어 문자 포함)
@@ -18,18 +54,18 @@ pub struct Paragraph {
     /// 원본 break_type 바이트 (라운드트립 보존용, 0이면 column_type에서 재구성)
     pub raw_break_type: u8,
     /// 문단 텍스트 (UTF-16에서 변환된 문자열)
-    pub text: String,
+    text: String,
     /// 텍스트 문자별 UTF-16 코드 유닛 위치 (LineSeg/CharShapeRef 위치와 매핑용)
     /// char_offsets[i] = text[i]에 해당하는 원본 UTF-16 코드 유닛 인덱스
-    pub char_offsets: Vec<u32>,
+    char_offsets: Vec<u32>,
     /// 글자 모양 변경 위치 목록
     pub char_shapes: Vec<CharShapeRef>,
     /// 줄 레이아웃 정보
     pub line_segs: Vec<LineSeg>,
     /// 영역 태그 정보
     pub range_tags: Vec<RangeTag>,
-    /// 필드 텍스트 범위 (0x03~0x04 사이 텍스트 인덱스 + 컨트롤 인덱스)
-    pub field_ranges: Vec<FieldRange>,
+    /// Text and zero-width field endpoints form one sequence, ordered by (char_idx, order).
+    hwpx_field_markers: Vec<HwpxFieldMarker>,
     /// 컨트롤 목록 (표, 그림, 각주 등)
     pub controls: Vec<Control>,
     /// 각 컨트롤에 대응하는 CTRL_DATA 레코드 (라운드트립 보존용)
@@ -182,7 +218,692 @@ pub struct FieldRange {
     pub control_idx: usize,
 }
 
+/// Immutable derived ranges; edits must go through the paragraph owner.
+#[derive(Debug)]
+pub struct FieldRanges(Vec<FieldRange>);
+
+impl std::ops::Deref for FieldRanges {
+    type Target = [FieldRange];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'a> IntoIterator for &'a FieldRanges {
+    type Item = &'a FieldRange;
+    type IntoIter = std::slice::Iter<'a, FieldRange>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FieldEndpoint {
+    Begin,
+    End,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FieldId {
+    Hwpx(String),
+    Binary(usize),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HwpxFieldMarker {
+    pub id: FieldId,
+    pub char_idx: usize,
+    pub endpoint: FieldEndpoint,
+    pub order: usize,
+}
+
+/// Exact inverse of a paragraph-owner edit. The complete prior state includes
+/// text, endpoint sequence slots, raw offsets, controls, and formatting.
+#[derive(Debug, Clone)]
+pub struct ParagraphEdit {
+    before: Box<Paragraph>,
+    pub deleted_chars: usize,
+}
+
+#[derive(Debug)]
+pub struct ParagraphSplit {
+    pub paragraph: Paragraph,
+    pub inverse: ParagraphEdit,
+}
+
+#[derive(Debug)]
+pub struct ParagraphMerge {
+    pub offset: usize,
+    pub inverse: ParagraphEdit,
+}
+
 impl Paragraph {
+    fn control_anchor_positions(&self) -> Vec<usize> {
+        let mut anchors = Vec::new();
+        let mut previous_end = 0;
+        for (index, ch) in self.text.chars().enumerate() {
+            let offset = self.char_offsets[index];
+            let field_gap = self
+                .hwpx_field_markers
+                .iter()
+                .filter(|marker| marker.char_idx == index)
+                .count()
+                * 8;
+            let gap = usize::try_from(offset.saturating_sub(previous_end))
+                .unwrap_or(0)
+                .saturating_sub(field_gap);
+            anchors.extend(std::iter::repeat_n(index, gap / 8));
+            previous_end = offset
+                + if ch == '\t' {
+                    8
+                } else {
+                    u32::try_from(ch.len_utf16()).unwrap_or(2)
+                };
+        }
+        let count = self
+            .controls
+            .iter()
+            .filter(|control| !matches!(control, Control::Field(_)))
+            .count();
+        anchors.resize(count, self.text.chars().count());
+        anchors
+    }
+
+    fn control_in_selection(
+        control: &Control,
+        start: (usize, usize),
+        end: (usize, usize),
+        position: (usize, usize),
+    ) -> bool {
+        !matches!(control, Control::SectionDef(_) | Control::ColumnDef(_))
+            && start <= position
+            && position < end
+    }
+
+    fn selected_fields(
+        source: &[Paragraph],
+        start: (usize, usize),
+        end: (usize, usize),
+    ) -> Vec<(usize, usize, FieldId)> {
+        let mut included = Vec::new();
+        for (pi, para) in source.iter().enumerate() {
+            for (ci, control) in para.controls.iter().enumerate() {
+                let Control::Field(field) = control else {
+                    continue;
+                };
+                let id = field
+                    .endpoint_id
+                    .as_ref()
+                    .map_or(FieldId::Binary(ci), |id| FieldId::Hwpx(id.clone()));
+                let mut begin = None;
+                let mut finish = None;
+                for (index, p) in source.iter().enumerate() {
+                    for m in p.field_markers() {
+                        if m.id == id && (!matches!(id, FieldId::Binary(_)) || index == pi) {
+                            let endpoint = Some((m.endpoint, (index, m.char_idx)));
+                            match m.endpoint {
+                                FieldEndpoint::Begin => begin = endpoint,
+                                FieldEndpoint::End => finish = endpoint,
+                            }
+                        }
+                    }
+                }
+                // D6: a field is selected when both endpoints lie in the inclusive
+                // range, including an empty field with b == e == end.
+                if matches!(
+                    (begin, finish),
+                    (Some((_, b)), Some((_, e))) if start <= b && b <= e && e <= end
+                ) {
+                    included.push((pi, ci, id));
+                }
+            }
+        }
+        included
+    }
+
+    fn rebuild_offsets_with_control_anchors(&mut self, kept_non_field_anchors: &[usize]) {
+        let text_len = self.text.chars().count();
+        let mut offset = 0u32;
+        self.char_offsets.clear();
+        for (i, ch) in self.text.chars().enumerate() {
+            let gap_slots = kept_non_field_anchors.iter().filter(|&&a| a == i).count()
+                + self
+                    .hwpx_field_markers
+                    .iter()
+                    .filter(|m| m.char_idx == i)
+                    .count();
+            offset += u32::try_from(gap_slots)
+                .unwrap_or(u32::MAX)
+                .saturating_mul(8);
+            self.char_offsets.push(offset);
+            offset += if ch == '\t' {
+                8
+            } else {
+                u32::try_from(ch.len_utf16()).unwrap_or(2)
+            };
+        }
+        let trailing_slots = kept_non_field_anchors
+            .iter()
+            .filter(|&&a| a >= text_len)
+            .count()
+            + self
+                .hwpx_field_markers
+                .iter()
+                .filter(|m| m.char_idx == self.char_offsets.len())
+                .count();
+        offset += u32::try_from(trailing_slots)
+            .unwrap_or(u32::MAX)
+            .saturating_mul(8);
+        self.char_count = offset + 1;
+    }
+
+    pub fn clipboard_fragment(
+        source: &[Paragraph],
+        start: (usize, usize),
+        end: (usize, usize),
+    ) -> Vec<Paragraph> {
+        let included = Self::selected_fields(source, start, end);
+        source
+            .iter()
+            .enumerate()
+            .take(end.0 + 1)
+            .skip(start.0)
+            .map(|(pi, original)| {
+                let first = if pi == start.0 { start.1 } else { 0 };
+                let last = if pi == end.0 {
+                    end.1
+                } else {
+                    original.text.chars().count()
+                };
+                let mut para = original.clone();
+                let styles: Vec<_> = (first..last)
+                    .map(|i| original.char_shape_id_at(i).unwrap_or(0))
+                    .collect();
+                para.delete_text_at(last, original.text.chars().count() - last);
+                para.delete_text_at(0, first);
+                let mut control_map = Vec::new();
+                let mut kept_anchors = Vec::new();
+                para.controls.clear();
+                para.ctrl_data_records.clear();
+                let anchors = original.control_anchor_positions();
+                let mut non_field = 0;
+                for (ci, control) in original.controls.iter().enumerate() {
+                    let selected = if matches!(control, Control::Field(_)) {
+                        included.iter().any(|(p, c, _)| (*p, *c) == (pi, ci))
+                    } else {
+                        let anchor = anchors[non_field];
+                        non_field += 1;
+                        let keep = Self::control_in_selection(control, start, end, (pi, anchor));
+                        if keep {
+                            kept_anchors
+                                .push(anchor.saturating_sub(first).min(para.text.chars().count()));
+                        }
+                        keep
+                    };
+                    if !selected {
+                        continue;
+                    }
+                    control_map.push((ci, para.controls.len()));
+                    para.controls.push(control.clone());
+                    para.ctrl_data_records
+                        .push(original.ctrl_data_records.get(ci).cloned().flatten());
+                }
+                para.hwpx_field_markers = original
+                    .field_markers()
+                    .iter()
+                    .filter_map(|m| {
+                        let belongs = included.iter().any(|(p, _, id)| {
+                            *id == m.id && (!matches!(id, FieldId::Binary(_)) || *p == pi)
+                        });
+                        if !belongs || m.char_idx < first || m.char_idx > last {
+                            return None;
+                        }
+                        let mut marker = m.clone();
+                        marker.char_idx -= first;
+                        if let FieldId::Binary(ci) = &mut marker.id {
+                            *ci = control_map.iter().find(|(old, _)| old == ci)?.1;
+                        }
+                        Some(marker)
+                    })
+                    .collect();
+                para.rebuild_offsets_with_control_anchors(&kept_anchors);
+                para.char_shapes.clear();
+                for (i, id) in styles.into_iter().enumerate() {
+                    if para
+                        .char_shapes
+                        .last()
+                        .is_none_or(|shape| shape.char_shape_id != id)
+                    {
+                        para.char_shapes.push(CharShapeRef {
+                            start_pos: para.char_offsets[i],
+                            char_shape_id: id,
+                        });
+                    }
+                }
+                para
+            })
+            .collect()
+    }
+
+    fn delete_paragraph_selection_slice(
+        &mut self,
+        pi: usize,
+        start: (usize, usize),
+        end: (usize, usize),
+        removed_fields: &[(usize, usize, FieldId)],
+    ) -> bool {
+        let text_len = self.text.chars().count();
+        let first = if pi == start.0 {
+            start.1.min(text_len)
+        } else {
+            0
+        };
+        let last = if pi == end.0 {
+            end.1.min(text_len)
+        } else {
+            text_len
+        };
+        let anchors = self.control_anchor_positions();
+        let mut non_field = 0;
+        let mut kept_controls = Vec::with_capacity(self.controls.len());
+        let mut kept_records = Vec::with_capacity(self.controls.len());
+        let mut control_map = Vec::with_capacity(self.controls.len());
+        let mut removed_anchors = Vec::new();
+        let mut control_removed = false;
+
+        for (ci, control) in self.controls.iter().enumerate() {
+            let remove = if matches!(control, Control::Field(_)) {
+                removed_fields.iter().any(|(p, c, _)| (*p, *c) == (pi, ci))
+            } else {
+                let anchor = anchors[non_field];
+                non_field += 1;
+                let selected = Self::control_in_selection(control, start, end, (pi, anchor));
+                if selected {
+                    removed_anchors.push(anchor);
+                }
+                selected
+            };
+            if remove {
+                control_removed = true;
+                continue;
+            }
+            control_map.push((ci, kept_controls.len()));
+            kept_controls.push(control.clone());
+            kept_records.push(self.ctrl_data_records.get(ci).cloned().flatten());
+        }
+        self.controls = kept_controls;
+        self.ctrl_data_records = kept_records;
+
+        let mut removed_marker_positions = Vec::new();
+        let mut kept_markers = Vec::with_capacity(self.hwpx_field_markers.len());
+        for mut marker in self.hwpx_field_markers.drain(..) {
+            let remove = removed_fields.iter().any(|(p, _, id)| {
+                *id == marker.id && (!matches!(id, FieldId::Binary(_)) || *p == pi)
+            });
+            if remove {
+                removed_marker_positions.push(marker.char_idx);
+                continue;
+            }
+            if let FieldId::Binary(ci) = &mut marker.id {
+                if let Some((_, new_ci)) = control_map.iter().find(|(old, _)| old == ci) {
+                    *ci = *new_ci;
+                }
+            }
+            kept_markers.push(marker);
+        }
+        self.hwpx_field_markers = kept_markers;
+
+        for pos in removed_anchors
+            .iter()
+            .copied()
+            .chain(removed_marker_positions.iter().copied())
+        {
+            let idx = pos.min(self.char_offsets.len());
+            let threshold = self.char_offsets.get(idx).copied().unwrap_or(u32::MAX);
+            for offset in &mut self.char_offsets[idx..] {
+                *offset = offset.saturating_sub(8);
+            }
+            for cs in &mut self.char_shapes {
+                if cs.start_pos >= threshold {
+                    cs.start_pos = cs.start_pos.saturating_sub(8);
+                }
+            }
+            for ls in &mut self.line_segs {
+                if ls.text_start >= threshold {
+                    ls.text_start = ls.text_start.saturating_sub(8);
+                }
+            }
+            for rt in &mut self.range_tags {
+                if rt.start >= threshold {
+                    rt.start = rt.start.saturating_sub(8);
+                }
+                if rt.end >= threshold {
+                    rt.end = rt.end.saturating_sub(8);
+                }
+            }
+            self.char_count = self.char_count.saturating_sub(8);
+        }
+
+        let deleted_chars = self
+            .delete_text_at(first, last.saturating_sub(first))
+            .deleted_chars;
+
+        if self.text.is_empty() && self.controls.is_empty() && self.hwpx_field_markers.is_empty() {
+            self.has_para_text = false;
+            self.control_mask = 0;
+        }
+
+        control_removed || !removed_marker_positions.is_empty() || deleted_chars > 0
+    }
+
+    pub(crate) fn delete_selection_range(
+        paragraphs: &mut Vec<Paragraph>,
+        raw_start: (usize, usize),
+        raw_end: (usize, usize),
+    ) -> bool {
+        if raw_start.0 >= paragraphs.len()
+            || raw_end.0 >= paragraphs.len()
+            || raw_start.0 > raw_end.0
+        {
+            return false;
+        }
+        let start = (
+            raw_start.0,
+            raw_start.1.min(paragraphs[raw_start.0].text.chars().count()),
+        );
+        let end = (
+            raw_end.0,
+            raw_end.1.min(paragraphs[raw_end.0].text.chars().count()),
+        );
+        if start >= end {
+            return false;
+        }
+        let removed_fields = Self::selected_fields(paragraphs, start, end);
+        if start.0 == end.0 {
+            return paragraphs[start.0].delete_paragraph_selection_slice(
+                start.0,
+                start,
+                end,
+                &removed_fields,
+            );
+        }
+        paragraphs[end.0].delete_paragraph_selection_slice(end.0, start, end, &removed_fields);
+        for mid in (start.0 + 1..end.0).rev() {
+            paragraphs.remove(mid);
+        }
+        paragraphs[start.0].delete_paragraph_selection_slice(start.0, start, end, &removed_fields);
+        if start.0 + 1 < paragraphs.len() {
+            let next = paragraphs.remove(start.0 + 1);
+            paragraphs[start.0].merge_from(&next);
+        }
+        true
+    }
+
+    pub(crate) fn remap_clipboard_fields(
+        fragment: &mut [Paragraph],
+        used: &mut std::collections::HashSet<String>,
+        next: &mut u32,
+    ) -> Result<(), crate::error::HwpError> {
+        for para in fragment.iter() {
+            for control in &para.controls {
+                if let Control::Field(field) = control {
+                    used.insert(field.field_id.to_string());
+                    used.extend(field.endpoint_id.iter().cloned());
+                }
+            }
+        }
+        let mut identities = Vec::new();
+        for (pi, para) in fragment.iter_mut().enumerate() {
+            for (ci, control) in para.controls.iter_mut().enumerate() {
+                let Control::Field(field) = control else {
+                    continue;
+                };
+                loop {
+                    *next = next.checked_add(1).ok_or_else(|| {
+                        crate::error::HwpError::InvalidField("CLIPBOARD_FIELD_ID_EXHAUSTED".into())
+                    })?;
+                    if used.insert(next.to_string()) {
+                        break;
+                    }
+                }
+                let new = next.to_string();
+                let old = field
+                    .endpoint_id
+                    .replace(new.clone())
+                    .map_or(FieldId::Binary(ci), FieldId::Hwpx);
+                identities.push((pi, old, new.clone()));
+                field.field_id = *next;
+                if let Some(hwpx) = &mut field.hwpx {
+                    for (key, value) in &mut hwpx.begin_attributes {
+                        if key == "id" || key == "fieldid" {
+                            *value = new.clone();
+                        }
+                    }
+                    if let Some(end) = &mut hwpx.end_attributes {
+                        for (key, value) in end {
+                            if key == "beginIDRef" || key == "fieldid" {
+                                *value = new.clone();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        for (pi, para) in fragment.iter_mut().enumerate() {
+            for marker in &mut para.hwpx_field_markers {
+                if let Some((_, _, id)) = identities.iter().find(|(p, old, _)| {
+                    *old == marker.id && (!matches!(old, FieldId::Binary(_)) || *p == pi)
+                }) {
+                    marker.id = FieldId::Hwpx(id.clone());
+                }
+            }
+        }
+        for para in fragment {
+            for control in &mut para.controls {
+                match control {
+                    Control::Table(table) => {
+                        for cell in &mut table.cells {
+                            Self::remap_clipboard_fields(&mut cell.paragraphs, used, next)?;
+                        }
+                        if let Some(caption) = &mut table.caption {
+                            Self::remap_clipboard_fields(&mut caption.paragraphs, used, next)?;
+                        }
+                    }
+                    Control::Shape(shape) => Self::remap_clipboard_shape(shape, used, next)?,
+                    Control::Picture(picture) => {
+                        if let Some(caption) = &mut picture.caption {
+                            Self::remap_clipboard_fields(&mut caption.paragraphs, used, next)?;
+                        }
+                    }
+                    Control::Header(header) => {
+                        Self::remap_clipboard_fields(&mut header.paragraphs, used, next)?
+                    }
+                    Control::Footer(footer) => {
+                        Self::remap_clipboard_fields(&mut footer.paragraphs, used, next)?
+                    }
+                    Control::Footnote(note) => {
+                        Self::remap_clipboard_fields(&mut note.paragraphs, used, next)?
+                    }
+                    Control::Endnote(note) => {
+                        Self::remap_clipboard_fields(&mut note.paragraphs, used, next)?
+                    }
+                    Control::HiddenComment(comment) => {
+                        Self::remap_clipboard_fields(&mut comment.paragraphs, used, next)?
+                    }
+                    Control::SectionDef(_)
+                    | Control::ColumnDef(_)
+                    | Control::AutoNumber(_)
+                    | Control::NewNumber(_)
+                    | Control::PageNumberPos(_)
+                    | Control::Bookmark(_)
+                    | Control::Hyperlink(_)
+                    | Control::Ruby(_)
+                    | Control::CharOverlap(_)
+                    | Control::PageHide(_)
+                    | Control::Equation(_)
+                    | Control::Field(_)
+                    | Control::Form(_)
+                    | Control::Unknown(_) => {}
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn remap_clipboard_shape(
+        shape: &mut crate::model::shape::ShapeObject,
+        used: &mut std::collections::HashSet<String>,
+        next: &mut u32,
+    ) -> Result<(), crate::error::HwpError> {
+        if let Some(drawing) = shape.drawing_mut() {
+            if let Some(text_box) = &mut drawing.text_box {
+                Self::remap_clipboard_fields(&mut text_box.paragraphs, used, next)?;
+            }
+            if let Some(caption) = &mut drawing.caption {
+                Self::remap_clipboard_fields(&mut caption.paragraphs, used, next)?;
+            }
+        }
+        if let crate::model::shape::ShapeObject::Group(group) = shape {
+            for child in &mut group.children {
+                Self::remap_clipboard_shape(child, used, next)?;
+            }
+            if let Some(caption) = &mut group.caption {
+                Self::remap_clipboard_fields(&mut caption.paragraphs, used, next)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn reserve_clipboard_ids(
+        paragraphs: &[Paragraph],
+        used: &mut std::collections::HashSet<String>,
+    ) {
+        for para in paragraphs {
+            for marker in para.field_markers() {
+                if let FieldId::Hwpx(id) = &marker.id {
+                    used.insert(id.clone());
+                }
+            }
+            for control in &para.controls {
+                match control {
+                    Control::Field(field) => {
+                        used.insert(field.field_id.to_string());
+                        used.extend(field.endpoint_id.iter().cloned());
+                    }
+                    Control::Table(table) => {
+                        for cell in &table.cells {
+                            Self::reserve_clipboard_ids(&cell.paragraphs, used);
+                        }
+                        if let Some(caption) = &table.caption {
+                            Self::reserve_clipboard_ids(&caption.paragraphs, used);
+                        }
+                    }
+                    Control::Shape(shape) => Self::reserve_clipboard_shape_ids(shape, used),
+                    Control::Picture(picture) => {
+                        if let Some(caption) = &picture.caption {
+                            Self::reserve_clipboard_ids(&caption.paragraphs, used);
+                        }
+                    }
+                    Control::Header(header) => {
+                        Self::reserve_clipboard_ids(&header.paragraphs, used)
+                    }
+                    Control::Footer(footer) => {
+                        Self::reserve_clipboard_ids(&footer.paragraphs, used)
+                    }
+                    Control::Footnote(note) => Self::reserve_clipboard_ids(&note.paragraphs, used),
+                    Control::Endnote(note) => Self::reserve_clipboard_ids(&note.paragraphs, used),
+                    Control::HiddenComment(comment) => {
+                        Self::reserve_clipboard_ids(&comment.paragraphs, used)
+                    }
+                    Control::SectionDef(_)
+                    | Control::ColumnDef(_)
+                    | Control::AutoNumber(_)
+                    | Control::NewNumber(_)
+                    | Control::PageNumberPos(_)
+                    | Control::Bookmark(_)
+                    | Control::Hyperlink(_)
+                    | Control::Ruby(_)
+                    | Control::CharOverlap(_)
+                    | Control::PageHide(_)
+                    | Control::Equation(_)
+                    | Control::Form(_)
+                    | Control::Unknown(_) => {}
+                }
+            }
+        }
+    }
+
+    fn reserve_clipboard_shape_ids(
+        shape: &crate::model::shape::ShapeObject,
+        used: &mut std::collections::HashSet<String>,
+    ) {
+        if let Some(drawing) = shape.drawing() {
+            if let Some(text_box) = &drawing.text_box {
+                Self::reserve_clipboard_ids(&text_box.paragraphs, used);
+            }
+            if let Some(caption) = &drawing.caption {
+                Self::reserve_clipboard_ids(&caption.paragraphs, used);
+            }
+        }
+        if let crate::model::shape::ShapeObject::Group(group) = shape {
+            for child in &group.children {
+                Self::reserve_clipboard_shape_ids(child, used);
+            }
+            if let Some(caption) = &group.caption {
+                Self::reserve_clipboard_ids(&caption.paragraphs, used);
+            }
+        }
+    }
+
+    pub(crate) fn paste_fragment(
+        target: &mut Vec<Paragraph>,
+        paragraph: usize,
+        offset: usize,
+        fragment: &[Paragraph],
+    ) -> Result<(usize, usize), crate::error::HwpError> {
+        let owner = target.get(paragraph).ok_or_else(|| {
+            crate::error::HwpError::RenderError("CLIPBOARD_PARAGRAPH_RANGE".into())
+        })?;
+        if offset > owner.text.chars().count() {
+            return Err(crate::error::HwpError::RenderError(
+                "CLIPBOARD_CHARACTER_RANGE".into(),
+            ));
+        }
+        let mut fragment = fragment.to_vec();
+        let mut used = std::collections::HashSet::new();
+        let mut next = 0u32;
+        Self::reserve_clipboard_ids(target, &mut used);
+        Self::reserve_clipboard_ids(&fragment, &mut used);
+        Self::remap_clipboard_fields(&mut fragment, &mut used, &mut next)?;
+        let Some(first) = fragment.first() else {
+            return Ok((paragraph, offset));
+        };
+        let last = paragraph + fragment.len() - 1;
+        let slot = target[paragraph].field_insertion_slot(offset);
+        let markers = target[paragraph].hwpx_field_markers.clone();
+        let mut right = target[paragraph].split_at(offset).paragraph;
+        target[paragraph].hwpx_field_markers = markers[..slot].to_vec();
+        right.hwpx_field_markers = markers[slot..]
+            .iter()
+            .cloned()
+            .map(|mut marker| {
+                marker.char_idx -= offset;
+                marker
+            })
+            .collect();
+        target[paragraph].merge_from(first);
+        for (index, para) in fragment.into_iter().enumerate().skip(1) {
+            target.insert(paragraph + index, para);
+        }
+        let end = target[last].merge_from(&right).offset;
+        for para in &mut target[paragraph..=last] {
+            para.rebuild_hwpx_field_offsets();
+        }
+        Ok((last, end))
+    }
+
     /// 빈 문단을 생성한다 (문단 끝 마커만 포함).
     ///
     /// 표 셀 생성 등에서 최소한의 유효한 문단이 필요할 때 사용한다.
@@ -218,11 +939,19 @@ impl Paragraph {
     ///
     /// char_offset이 text.chars().count()를 초과하면 인라인 컨트롤 뒤의
     /// 위치로 간주하여 올바른 UTF-16 위치에 삽입한다.
-    pub fn insert_text_at(&mut self, char_offset: usize, new_text: &str) {
+    pub(crate) fn insert_text_at(&mut self, char_offset: usize, new_text: &str) -> ParagraphEdit {
+        let inverse = self.edit_checkpoint();
         if new_text.is_empty() {
-            return;
+            return inverse;
         }
 
+        let utf16_width = |ch: char| {
+            if ch == '\t' {
+                8
+            } else {
+                Self::char_utf16_len(ch)
+            }
+        };
         let text_chars: Vec<char> = self.text.chars().collect();
         let text_len = text_chars.len();
 
@@ -231,6 +960,7 @@ impl Paragraph {
         // 이 경우 char_offset을 text_len으로 clamp하되, UTF-16 위치는
         // 마지막 문자 + 후행 컨트롤 갭을 포함한 값으로 계산
         let effective_char_offset = char_offset.min(text_len);
+        let insertion_slot = self.field_insertion_slot(effective_char_offset);
 
         // 바이트 삽입 위치 계산
         let byte_offset: usize = text_chars[..effective_char_offset]
@@ -242,25 +972,57 @@ impl Paragraph {
         let utf16_insert_pos: u32 = if char_offset > text_len && !self.char_offsets.is_empty() {
             // 텍스트 끝 이후 (인라인 컨트롤 뒤): 마지막 문자의 UTF-16 위치 + 폭 + 후행 갭
             let last_idx = self.char_offsets.len() - 1;
-            let last_char_end =
-                self.char_offsets[last_idx] + Self::char_utf16_len(text_chars[last_idx]);
+            let last_char_end = self.char_offsets[last_idx] + utf16_width(text_chars[last_idx]);
             // 후행 컨트롤 수 = char_offset - text_len
             let trailing_ctrl_count = (char_offset - text_len) as u32;
             last_char_end + trailing_ctrl_count * 8
         } else if effective_char_offset < self.char_offsets.len() {
-            self.char_offsets[effective_char_offset]
+            let next_pos = self.char_offsets[effective_char_offset];
+            let previous_end = effective_char_offset.checked_sub(1).map_or(0, |idx| {
+                self.char_offsets[idx] + utf16_width(text_chars[idx])
+            });
+            let field_end_gap = self
+                .hwpx_field_markers
+                .iter()
+                .enumerate()
+                .filter(|(slot, marker)| {
+                    marker.char_idx == effective_char_offset && *slot >= insertion_slot
+                })
+                .count();
+            let field_end_gap = u32::try_from(field_end_gap)
+                .unwrap_or(u32::MAX)
+                .saturating_mul(8);
+            // 끝 경계 삽입은 필드 안에 속하므로 끝 컨트롤 갭보다 앞에 둔다.
+            if next_pos.saturating_sub(previous_end) >= field_end_gap {
+                next_pos - field_end_gap
+            } else {
+                next_pos
+            }
         } else if !self.char_offsets.is_empty() {
             let last_idx = self.char_offsets.len() - 1;
-            self.char_offsets[last_idx] + Self::char_utf16_len(text_chars[last_idx])
+            self.char_offsets[last_idx] + utf16_width(text_chars[last_idx])
         } else {
             // 텍스트가 비어있을 때: 기존 컨트롤 뒤에 삽입 (각 컨트롤 = 8 code units)
-            (self.controls.len() as u32) * 8
+            let begins = self
+                .hwpx_field_markers
+                .iter()
+                .filter(|m| m.endpoint == FieldEndpoint::Begin)
+                .count();
+            let prefix = self
+                .hwpx_field_markers
+                .iter()
+                .take(insertion_slot)
+                .filter(|m| m.char_idx == effective_char_offset)
+                .count();
+            u32::try_from(self.controls.len().saturating_sub(begins) + prefix)
+                .unwrap_or(u32::MAX)
+                .saturating_mul(8)
         };
         let char_offset = effective_char_offset;
 
         // 새 텍스트의 UTF-16 총 길이
         let new_chars: Vec<char> = new_text.chars().collect();
-        let utf16_delta: u32 = new_chars.iter().map(|c| Self::char_utf16_len(*c)).sum();
+        let utf16_delta: u32 = new_chars.iter().map(|c| utf16_width(*c)).sum();
 
         // 1. 텍스트 삽입
         self.text.insert_str(byte_offset, new_text);
@@ -275,7 +1037,7 @@ impl Paragraph {
         let mut pos = utf16_insert_pos;
         for c in &new_chars {
             new_offsets.push(pos);
-            pos += Self::char_utf16_len(*c);
+            pos += utf16_width(*c);
         }
         // char_offset 위치에 새 오프셋 삽입
         let mut updated_offsets = Vec::with_capacity(self.char_offsets.len() + new_offsets.len());
@@ -313,19 +1075,13 @@ impl Paragraph {
             }
         }
 
-        // 5-1. field_ranges: 삽입 지점 이후의 char 인덱스 시프트
         let inserted_len = new_chars.len();
-        for fr in &mut self.field_ranges {
-            if fr.start_char_idx > char_offset {
-                fr.start_char_idx += inserted_len;
-            }
-            if fr.end_char_idx >= char_offset {
-                fr.end_char_idx += inserted_len;
-            }
-        }
+
+        self.shift_hwpx_field_markers(char_offset..char_offset, inserted_len, insertion_slot);
 
         // 6. char_count 갱신
-        self.char_count += new_chars.len() as u32;
+        self.char_count += utf16_delta;
+        inverse
     }
 
     /// char_offset 위치에서 count개의 문자를 삭제한다.
@@ -333,16 +1089,17 @@ impl Paragraph {
     /// char_offset은 Rust 문자(char) 인덱스이다 (바이트 인덱스가 아님).
     /// 삭제 후 char_offsets, char_shapes, line_segs, char_count가 자동 갱신된다.
     /// 반환값: 실제 삭제된 문자 수.
-    pub fn delete_text_at(&mut self, char_offset: usize, count: usize) -> usize {
+    pub(crate) fn delete_text_at(&mut self, char_offset: usize, count: usize) -> ParagraphEdit {
+        let mut inverse = self.edit_checkpoint();
         if count == 0 {
-            return 0;
+            return inverse;
         }
 
         let text_chars: Vec<char> = self.text.chars().collect();
         let text_len = text_chars.len();
 
         if char_offset >= text_len {
-            return 0;
+            return inverse;
         }
 
         // 실제 삭제할 문자 수 (범위 클램핑)
@@ -353,21 +1110,31 @@ impl Paragraph {
         let byte_start: usize = text_chars[..char_offset].iter().map(|c| c.len_utf8()).sum();
         let byte_end: usize = text_chars[..del_end].iter().map(|c| c.len_utf8()).sum();
 
-        // 삭제 범위의 UTF-16 시작/끝 위치 결정
-        let utf16_start: u32 = if char_offset < self.char_offsets.len() {
-            self.char_offsets[char_offset]
-        } else {
-            0
+        let mut utf16_delta = 0;
+        let deleted_spans: Vec<_> = self.char_offsets[char_offset..del_end]
+            .iter()
+            .zip(&text_chars[char_offset..del_end])
+            .map(|(&start, &ch)| {
+                let removed_before = utf16_delta;
+                let width = if ch == '\t' {
+                    8
+                } else {
+                    Self::char_utf16_len(ch)
+                };
+                utf16_delta += width;
+                (start, removed_before, width)
+            })
+            .collect();
+        // 텍스트만 지우므로 컨트롤 갭은 남기고 각 위치 앞에서 지운 UTF-16만 차감한다.
+        let shift_position = |position: u32| {
+            let count = deleted_spans.partition_point(|(start, _, _)| *start < position);
+            if count == 0 {
+                position
+            } else {
+                let (start, removed_before, width) = deleted_spans[count - 1];
+                position - removed_before - (position - start).min(width)
+            }
         };
-        let utf16_end: u32 = if del_end < self.char_offsets.len() {
-            self.char_offsets[del_end]
-        } else if !self.char_offsets.is_empty() {
-            let last_idx = self.char_offsets.len() - 1;
-            self.char_offsets[last_idx] + Self::char_utf16_len(text_chars[last_idx])
-        } else {
-            0
-        };
-        let utf16_delta = utf16_end - utf16_start;
 
         // 1. 텍스트 삭제
         self.text.drain(byte_start..byte_end);
@@ -383,66 +1150,35 @@ impl Paragraph {
 
         // 3. char_shapes: 삭제 범위 이후 → utf16_delta만큼 감소
         for cs in &mut self.char_shapes {
-            if cs.start_pos >= utf16_end {
-                cs.start_pos -= utf16_delta;
-            } else if cs.start_pos > utf16_start {
-                // 삭제 범위 내 → 삭제 시작으로 클램핑
-                cs.start_pos = utf16_start;
-            }
+            cs.start_pos = shift_position(cs.start_pos);
         }
 
         // 4. line_segs: 삭제 범위 이후 → utf16_delta만큼 감소
         for ls in &mut self.line_segs {
-            if ls.text_start >= utf16_end {
-                ls.text_start -= utf16_delta;
-            } else if ls.text_start > utf16_start {
-                ls.text_start = utf16_start;
-            }
+            ls.text_start = shift_position(ls.text_start);
         }
 
         // 5. range_tags: 삭제 범위에 따라 축소/조정
         for rt in &mut self.range_tags {
-            if rt.start >= utf16_end {
-                rt.start -= utf16_delta;
-            } else if rt.start > utf16_start {
-                rt.start = utf16_start;
-            }
-            if rt.end >= utf16_end {
-                rt.end -= utf16_delta;
-            } else if rt.end > utf16_start {
-                rt.end = utf16_start;
-            }
+            rt.start = shift_position(rt.start);
+            rt.end = shift_position(rt.end);
         }
 
-        // 5-1. field_ranges: 삭제 범위에 따라 축소/조정
-        for fr in &mut self.field_ranges {
-            if fr.start_char_idx >= del_end {
-                fr.start_char_idx -= actual_count;
-            } else if fr.start_char_idx > char_offset {
-                fr.start_char_idx = char_offset;
-            }
-            if fr.end_char_idx >= del_end {
-                fr.end_char_idx -= actual_count;
-            } else if fr.end_char_idx > char_offset {
-                fr.end_char_idx = char_offset;
-            }
-        }
-        // start > end (역전)인 경우만 제거. start == end (빈 필드)는 유효한 상태이므로 유지.
-        // IME 조합 중 delete→insert 사이클에서 필드가 일시적으로 비워질 수 있음.
-        self.field_ranges
-            .retain(|fr| fr.start_char_idx <= fr.end_char_idx);
+        self.shift_hwpx_field_markers(char_offset..del_end, 0, 0);
 
         // 6. char_count 갱신
-        self.char_count -= actual_count as u32;
+        self.char_count -= utf16_delta;
 
-        actual_count
+        inverse.deleted_chars = actual_count;
+        inverse
     }
 
     /// char_offset 위치에서 문단을 분할한다.
     ///
     /// 현재 문단은 char_offset 이전까지만 유지되고,
     /// char_offset 이후의 텍스트와 메타데이터로 새 문단을 생성하여 반환한다.
-    pub fn split_at(&mut self, char_offset: usize) -> Paragraph {
+    pub(crate) fn split_at(&mut self, char_offset: usize) -> ParagraphSplit {
+        let inverse = self.edit_checkpoint();
         let text_chars: Vec<char> = self.text.chars().collect();
         let text_len = text_chars.len();
         let split_pos = char_offset.min(text_len);
@@ -574,15 +1310,40 @@ impl Paragraph {
         }
         self.range_tags = kept_range_tags;
 
-        // 5-1. field_ranges 분할 (controls는 split되지 않으므로 원래 문단에만 유지)
-        self.field_ranges.retain(|fr| fr.end_char_idx <= split_pos);
+        let marker_slot = self
+            .hwpx_field_markers
+            .iter()
+            .position(|m| {
+                m.char_idx > split_pos
+                    || (m.char_idx == split_pos && m.endpoint == FieldEndpoint::Begin)
+            })
+            .unwrap_or(self.hwpx_field_markers.len());
+        let new_field_markers = self
+            .hwpx_field_markers
+            .drain(marker_slot..)
+            .map(|mut marker| {
+                marker.char_idx -= split_pos;
+                marker
+            })
+            .collect();
 
         // 6. char_count 갱신
         //    원본 문단에 남은 controls는 각각 8 code unit을 차지하므로 반영 필요
         let new_text_char_count = new_text.chars().count() as u32;
         let ctrl_code_units: u32 = self.controls.len() as u32 * 8;
         self.char_count = split_pos as u32 + ctrl_code_units + 1; // +1 for paragraph end marker
-        let new_char_count = new_text_char_count + 1;
+        self.char_count = self.char_count.max(
+            self.char_offsets
+                .last()
+                .zip(self.text.chars().last())
+                .map_or(1, |(&offset, ch)| offset + Self::char_utf16_len(ch) + 1),
+        );
+        let new_char_count = (new_text_char_count + 1).max(
+            new_char_offsets
+                .last()
+                .zip(new_text.chars().last())
+                .map_or(1, |(&offset, ch)| offset + Self::char_utf16_len(ch) + 1),
+        );
 
         // 7. has_para_text: 빈 문단(텍스트 없고 컨트롤 없음)이면 PARA_TEXT 불필요
         //    HWP 프로그램은 cc=1(빈 문단)에 PARA_TEXT가 있으면 파일 손상으로 판단
@@ -591,26 +1352,29 @@ impl Paragraph {
         }
         let new_has_para_text = !new_text.is_empty(); // 새 문단은 controls가 없으므로 텍스트 유무로 판단
 
-        Paragraph {
-            text: new_text,
-            char_offsets: new_char_offsets,
-            char_shapes: new_char_shapes,
-            line_segs: new_line_segs,
-            range_tags: new_range_tags,
-            field_ranges: Vec::new(), // controls가 이동하지 않으므로 새 문단에는 필드 없음
-            char_count: new_char_count,
-            para_shape_id: self.para_shape_id,
-            style_id: self.style_id,
-            column_type: ColumnBreakType::None,
-            raw_break_type: 0,
-            control_mask: 0,
-            controls: Vec::new(),
-            ctrl_data_records: Vec::new(),
-            char_count_msb: false,
-            raw_header_extra: self.raw_header_extra.clone(),
-            has_para_text: new_has_para_text,
-            tab_extended: Vec::new(),
-            numbering_restart: None,
+        ParagraphSplit {
+            paragraph: Paragraph {
+                text: new_text,
+                char_offsets: new_char_offsets,
+                char_shapes: new_char_shapes,
+                line_segs: new_line_segs,
+                range_tags: new_range_tags,
+                hwpx_field_markers: new_field_markers,
+                char_count: new_char_count,
+                para_shape_id: self.para_shape_id,
+                style_id: self.style_id,
+                column_type: ColumnBreakType::None,
+                raw_break_type: 0,
+                control_mask: 0,
+                controls: Vec::new(),
+                ctrl_data_records: Vec::new(),
+                char_count_msb: false,
+                raw_header_extra: self.raw_header_extra.clone(),
+                has_para_text: new_has_para_text,
+                tab_extended: Vec::new(),
+                numbering_restart: None,
+            },
+            inverse,
         }
     }
 
@@ -618,18 +1382,55 @@ impl Paragraph {
     ///
     /// 병합 후 other 문단의 내용은 현재 문단에 포함된다.
     /// 반환값: 병합 지점의 char offset (원래 텍스트의 길이).
-    pub fn merge_from(&mut self, other: &Paragraph) -> usize {
-        if other.text.is_empty() {
-            return self.text.chars().count();
-        }
-
+    pub(crate) fn merge_from(&mut self, other: &Paragraph) -> ParagraphMerge {
+        let inverse = self.edit_checkpoint();
         let self_text_len = self.text.chars().count();
+        let self_markers_before = self.hwpx_field_markers.len();
+        let self_non_fields_before = self
+            .controls
+            .iter()
+            .filter(|c| !matches!(c, Control::Field(_)))
+            .count();
+        let marker_order_offset = self
+            .hwpx_field_markers
+            .iter()
+            .map(|m| m.order + 1)
+            .max()
+            .unwrap_or(0)
+            .max(self.controls.len());
+        self.hwpx_field_markers
+            .extend(other.hwpx_field_markers.iter().cloned().map(|mut marker| {
+                marker.char_idx += self_text_len;
+                marker.order += marker_order_offset;
+                if let FieldId::Binary(ci) = &mut marker.id {
+                    *ci += self.controls.len();
+                }
+                marker
+            }));
+        let ctrl_offset = self.controls.len();
+        self.controls.extend(other.controls.iter().cloned());
+        self.ctrl_data_records.resize(ctrl_offset, None);
+        self.ctrl_data_records.extend(
+            (0..other.controls.len()).map(|ci| other.ctrl_data_records.get(ci).cloned().flatten()),
+        );
+        self.control_mask |= other.control_mask;
+        self.has_para_text |= other.has_para_text;
+        if other.text.is_empty() {
+            return ParagraphMerge {
+                offset: self_text_len,
+                inverse,
+            };
+        }
 
         // 현재 문단 끝의 UTF-16 위치
         let utf16_end: u32 = if !self.char_offsets.is_empty() {
             let last = self.char_offsets.len() - 1;
             let text_chars: Vec<char> = self.text.chars().collect();
             self.char_offsets[last] + Self::char_utf16_len(text_chars[last])
+        } else if self_non_fields_before > 0 {
+            u32::try_from(self_non_fields_before + self_markers_before)
+                .unwrap_or(0)
+                .saturating_mul(8)
         } else {
             0
         };
@@ -693,20 +1494,19 @@ impl Paragraph {
             });
         }
 
-        // 5-1. field_ranges 결합 (other의 char 인덱스에 self_text_len 추가)
-        let ctrl_offset = self.controls.len();
-        for fr in &other.field_ranges {
-            self.field_ranges.push(FieldRange {
-                start_char_idx: fr.start_char_idx + self_text_len,
-                end_char_idx: fr.end_char_idx + self_text_len,
-                control_idx: fr.control_idx + ctrl_offset,
-            });
-        }
-
         // 6. char_count 갱신 (-1 because merge removes one paragraph end)
         self.char_count = (self_text_len + other.text.chars().count()) as u32 + 1;
+        self.char_count = self.char_count.max(
+            self.char_offsets
+                .last()
+                .zip(self.text.chars().last())
+                .map_or(1, |(&offset, ch)| offset + Self::char_utf16_len(ch) + 1),
+        );
 
-        self_text_len
+        ParagraphMerge {
+            offset: self_text_len,
+            inverse,
+        }
     }
 
     /// 주어진 문자 오프셋(char index)에 해당하는 CharShapeRef의 char_shape_id를 반환한다.
@@ -749,7 +1549,7 @@ impl Paragraph {
     /// CharShapeRef 배열을 분할/교체하여 지정 범위만 새 ID로 변경한다.
     /// 범위 경계에서 기존 CharShapeRef가 부분적으로 겹치면 분할한다.
     /// 적용 후 연속 동일 ID는 병합한다.
-    pub fn apply_char_shape_range(
+    pub(crate) fn apply_char_shape_range(
         &mut self,
         start_char_offset: usize,
         end_char_offset: usize,

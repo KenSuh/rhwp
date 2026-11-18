@@ -5,8 +5,8 @@ import { CaretRenderer } from './caret-renderer';
 import { FieldMarkerRenderer } from './field-marker-renderer';
 import { SelectionRenderer } from './selection-renderer';
 import { CommandHistory } from './history';
-import { DeleteSelectionCommand, ApplyCharFormatCommand, SnapshotCommand } from './command';
-import type { OperationDescriptor } from './command';
+import { DeleteSelectionCommand, ApplyCharFormatCommand, SnapshotCommand, ObjectGestureRecorder, documentEpochOf } from './command';
+import type { EditCommand, OperationDescriptor } from './command';
 import { VirtualScroll } from '@/view/virtual-scroll';
 import { ViewportManager } from '@/view/viewport-manager';
 import type { DocumentPosition, CharProperties, ParaProperties, CursorRect, FormObjectHitResult, CellPathEntry } from '@/core/types';
@@ -86,6 +86,7 @@ export class InputHandler {
   // 마우스 드래그 선택 상태
   private isDragging = false;
   private isCellDragSelecting = false;
+  private cellDragAnchorRange: { startRow: number; startCol: number; endRow: number; endCol: number } | null = null;
   private dragRafId = 0; // requestAnimationFrame throttle용
   private pageTextLayoutCache = new Map<number, PageTextLayout>();
 
@@ -94,9 +95,14 @@ export class InputHandler {
   private cachedTableRef: { sec: number; ppi: number; ci: number; cellPath?: CellPathEntry[] } | null = null;
   private cachedCellBboxes: CellBbox[] | null = null;
 
+  // 포인터 제스처 press 시점 문서 epoch 소유자
+  private _gestureOwnerEpoch: string | null = null;
+  private _polygonEpoch: string | null = null;
+
   // 표 경계선 리사이즈 드래그 상태
   private isResizeDragging = false;
   private resizeDragState: {
+    recorder?: ObjectGestureRecorder;
     edge: BorderEdge;
     tableRef: { sec: number; ppi: number; ci: number; cellPath?: CellPathEntry[] };
     bboxes: CellBbox[];
@@ -104,6 +110,10 @@ export class InputHandler {
     affectedCellIndices: number[];
     borderOriginalPos: number;
     resizeFromStartEdge?: boolean;
+    epoch?: string | null;
+    beforeLabel?: string | null;
+    lastClientX?: number;
+    lastClientY?: number;
   } | null = null;
 
   // 표 이동 드래그 상태
@@ -118,6 +128,8 @@ export class InputHandler {
     totalDeltaH: number;  // 누적 HWPUNIT 델타 (Undo용)
     totalDeltaV: number;
     pageIndex: number;  // 드래그 시작 페이지 (delta 좌표계 고정용)
+    epoch?: string | null;
+    beforeLabel?: string | null;
   } | null = null;
 
   // 그림 삽입 배치 모드 상태
@@ -127,6 +139,8 @@ export class InputHandler {
     startClientX: number; startClientY: number;
     currentClientX: number; currentClientY: number;
     isDragging: boolean;
+    epoch?: string | null;
+    beforeLabel?: string | null;
   } | null = null;
   private imagePlacementOverlay: HTMLDivElement | null = null;
 
@@ -137,13 +151,15 @@ export class InputHandler {
     startClientX: number; startClientY: number;
     currentClientX: number; currentClientY: number;
     isDragging: boolean;
+    epoch?: string | null;
+    beforeLabel?: string | null;
   } | null = null;
   private textboxPlacementOverlay: HTMLDivElement | null = null;
 
   // 연결선 드로잉 모드 상태
   private connectorDrawingMode = false;
   private connectorType: string = 'connector-straight';
-  private connectorStartRef: { sec: number; ppi: number; ci: number; pointIndex: number; x: number; y: number } | null = null;
+  private connectorStartRef: { sec: number; ppi: number; ci: number; pointIndex?: number; index?: number; x: number; y: number; pageIdx?: number; epoch?: string | null } | null = null;
   private connectorOverlay: HTMLDivElement | null = null;
 
   // 다각형 그리기 모드 상태
@@ -155,14 +171,20 @@ export class InputHandler {
   // 그림/글상자 핸들 드래그 리사이즈 상태
   private isPictureResizeDragging = false;
   private pictureResizeState: {
+    recorder?: ObjectGestureRecorder;
     dir: string;
-    ref: { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'equation' | 'group' };
+    ref: { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'equation' | 'group' | 'line'; cellPath?: unknown[] };
     origWidth: number;
     origHeight: number;
+    rotationAngle?: number;
     startClientX: number;
     startClientY: number;
+    lastClientX?: number;
+    lastClientY?: number;
     pageIndex: number;
     bbox: { x: number; y: number; w: number; h: number };
+    epoch?: string | null;
+    beforeLabel?: string | null;
     /** 다중 선택 리사이즈 시 각 개체의 원래 크기/위치 */
     multiRefs?: { sec: number; ppi: number; ci: number; type: string; origWidth: number; origHeight: number; origHorzOffset: number; origVertOffset: number; bboxX: number; bboxY: number }[];
   } | null = null;
@@ -170,7 +192,8 @@ export class InputHandler {
   // 그림/글상자 이동 드래그 상태
   private isPictureMoveDragging = false;
   private pictureMoveState: {
-    ref: { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'equation' | 'group' };
+    recorder?: ObjectGestureRecorder;
+    ref: { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'equation' | 'group' | 'line'; cellPath?: unknown[] };
     origHorzOffset: number;
     origVertOffset: number;
     startPageX: number;
@@ -180,6 +203,8 @@ export class InputHandler {
     totalDeltaH: number;
     totalDeltaV: number;
     pageIndex: number;
+    epoch?: string | null;
+    beforeLabel?: string | null;
     /** 다중 선택 이동 시 각 개체의 원래 offset 기록 */
     multiRefs?: { sec: number; ppi: number; ci: number; type: string; origHorzOffset: number; origVertOffset: number }[];
   } | null = null;
@@ -187,23 +212,29 @@ export class InputHandler {
   // 그림/글상자 회전 드래그 상태
   private isPictureRotateDragging = false;
   private pictureRotateState: {
-    ref: { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'equation' | 'group' };
+    recorder?: ObjectGestureRecorder;
+    ref: { sec: number; ppi: number; ci: number; type: 'image' | 'shape' | 'equation' | 'group' | 'line'; cellPath?: unknown[] };
     origAngle: number;      // 드래그 시작 시 원래 회전각 (도)
     centerX: number;        // 도형 중심 (scroll-content 좌표, px)
     centerY: number;
     startAngle: number;     // 드래그 시작 시 마우스→중심 각도 (rad)
     pageIndex: number;
+    epoch?: string | null;
+    beforeLabel?: string | null;
   } | null = null;
 
   // 직선 끝점 드래그 상태
   private isLineEndpointDragging = false;
   private lineEndpointState: {
-    ref: { sec: number; ppi: number; ci: number; type: string };
+    recorder?: ObjectGestureRecorder;
+    ref: { sec: number; ppi: number; ci: number; type: string; cellPath?: unknown[] };
     endpoint: 'start' | 'end';
     pageIndex: number;
     pageLeft: number;
     pageOffset: number;
     zoom: number;
+    epoch?: string | null;
+    beforeLabel?: string | null;
   } | null = null;
 
   // 양식 개체 오버레이
@@ -218,10 +249,13 @@ export class InputHandler {
   private isComposing = false;
   private compositionAnchor: DocumentPosition | null = null;
   private compositionLength = 0; // 문서에 삽입된 조합 텍스트 길이
+  private compositionEditToken: string | null = null;
+  private compositionSelectionSnapshot: { readonly id: number; readonly position: DocumentPosition } | null = null;
   // iOS 폴백: composition 이벤트 없이 input만으로 한글 조합 처리
   private _iosComposing = false;
   private _iosAnchor: DocumentPosition | null = null;
   private _iosLength = 0;
+  private _iosEditToken: string | null = null;
   private _iosPrevText = '';
   private _iosInputTimer: any = null;
   private _isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
@@ -239,6 +273,10 @@ export class InputHandler {
   private onContextMenuBound: (e: MouseEvent) => void;
   private onMouseMoveBound: (e: MouseEvent) => void;
   private onMouseUpBound: (e: MouseEvent) => void;
+  private onPointerInterruptedBound = (event: Event) => {
+    if (event instanceof FocusEvent && event.relatedTarget instanceof Node && this.container.contains(event.relatedTarget)) return;
+    this.settleOpenPointerGesture('interrupt');
+  };
   private onF11InterceptBound: (e: KeyboardEvent) => void;
 
   constructor(
@@ -253,6 +291,7 @@ export class InputHandler {
     this.fieldMarker = new FieldMarkerRenderer(container, virtualScroll);
     this.selectionRenderer = new SelectionRenderer(container, virtualScroll);
     this.history = new CommandHistory();
+    _table.bindPointerHostToWasm(this);
 
     // Hidden input 요소 생성
     // iOS WebKit에서는 <textarea>로 composition 이벤트가 발생하지 않으므로
@@ -322,6 +361,10 @@ export class InputHandler {
     container.addEventListener('dblclick', this.onDblClickBound);
     container.addEventListener('contextmenu', this.onContextMenuBound);
     container.addEventListener('mousemove', this.onMouseMoveBound);
+    window.addEventListener('blur', this.onPointerInterruptedBound);
+    container.addEventListener('blur', this.onPointerInterruptedBound, true);
+    document.addEventListener('pointercancel', this.onPointerInterruptedBound, true);
+    this.textarea.addEventListener('blur', this.onPointerInterruptedBound);
     this.textarea.addEventListener('keydown', this.onKeyDownBound);
     this.textarea.addEventListener('input', this.onInputBound);
     this.textarea.addEventListener('compositionstart', this.onCompositionStartBound);
@@ -437,7 +480,7 @@ export class InputHandler {
   }
 
   /** 리사이즈 드래그를 완료하고 셀 크기를 적용한다 */
-  private finishResizeDrag(e: MouseEvent): void {
+  private finishResizeDrag(e?: MouseEvent): void {
     _table.finishResizeDrag.call(this, e);
   }
 
@@ -509,6 +552,7 @@ export class InputHandler {
       this.polygonDrawingMode = true;
       this.polygonPoints = [];
       this.polygonMousePos = null;
+      this._polygonEpoch = documentEpochOf(this.wasm);
       this.container.style.cursor = 'crosshair';
     } else {
       this.textboxPlacementMode = true;
@@ -607,8 +651,23 @@ export class InputHandler {
     const sec = cursorPos.sectionIndex;
     const paraIdx = cursorPos.paragraphIndex;
     const charOffset = cursorPos.charOffset;
+    const expectedEpoch = this._polygonEpoch ?? documentEpochOf(this.wasm);
+    if (this._polygonEpoch !== null && this._polygonEpoch !== documentEpochOf(this.wasm)) {
+      this.cancelPolygonDrawing();
+      return;
+    }
 
+    const recorder = new ObjectGestureRecorder(
+      'insertPolygon',
+      { sectionIndex: sec, paragraphIndex: paraIdx, charOffset },
+      expectedEpoch,
+    );
+    let command: EditCommand | null = null;
     try {
+      if (!recorder.begin(this.wasm)) {
+        this.cancelPolygonDrawing();
+        return;
+      }
       const result = this.wasm.createShapeControl({
         sectionIdx: sec,
         paraIdx,
@@ -621,6 +680,9 @@ export class InputHandler {
         polygonPoints: pointsHwp,
       });
       if (result.ok) {
+        command = recorder.finish(this.wasm);
+        if (command) this.history.recordWithoutExecute(command, this.wasm);
+        command = null;
         this.eventBus.emit('document-changed');
         this.cursor.enterPictureObjectSelectionDirect(sec, result.paraIdx, result.controlIdx, 'shape');
         this.caret.hide();
@@ -630,6 +692,9 @@ export class InputHandler {
       }
     } catch (err) {
       console.warn('[InputHandler] 다각형 삽입 실패:', err);
+    } finally {
+      command?.discard?.(this.wasm);
+      recorder.cancel(this.wasm);
     }
 
     this.cancelPolygonDrawing();
@@ -640,6 +705,7 @@ export class InputHandler {
     this.polygonDrawingMode = false;
     this.polygonPoints = [];
     this.polygonMousePos = null;
+    this._polygonEpoch = null;
     if (this.polygonOverlay) {
       this.polygonOverlay.remove();
       this.polygonOverlay = null;
@@ -734,9 +800,14 @@ export class InputHandler {
   }
 
   /** 글상자 배치 완료: 마우스업 시 호출 */
-  private finishTextboxPlacement(e: MouseEvent): void {
+  private finishTextboxPlacement(_e: MouseEvent): void {
     const drag = this.textboxPlacementDrag;
     if (!drag) { this.cancelTextboxPlacement(); return; }
+    const expectedEpoch = drag.epoch ?? _table.epochFromLabel(drag.beforeLabel) ?? this._gestureOwnerEpoch ?? null;
+    if (expectedEpoch !== null && expectedEpoch !== documentEpochOf(this.wasm)) {
+      this.cancelTextboxPlacement();
+      return;
+    }
 
     this.hideTextboxPlacementOverlay();
 
@@ -825,8 +896,18 @@ export class InputHandler {
       lineFlipY = drag.currentClientY < drag.startClientY;
     }
 
-    // WASM 호출로 도형 생성
+    // WASM 호출로 도형 생성 (epoch 구속 스냅샷 기록)
+    const recorder = new ObjectGestureRecorder(
+      'insertShape',
+      { sectionIndex: sec, paragraphIndex: paraIdx, charOffset },
+      expectedEpoch ?? documentEpochOf(this.wasm),
+    );
+    let command: EditCommand | null = null;
     try {
+      if (!recorder.begin(this.wasm)) {
+        this.cancelTextboxPlacement();
+        return;
+      }
       const result = this.wasm.createShapeControl({
         sectionIdx: sec,
         paraIdx,
@@ -840,6 +921,9 @@ export class InputHandler {
         lineFlipY,
       });
       if (result.ok) {
+        command = recorder.finish(this.wasm);
+        if (command) this.history.recordWithoutExecute(command, this.wasm);
+        command = null;
         this.eventBus.emit('document-changed');
         // 생성된 도형을 선택 상태로 진입
         const selType = (this.shapePlacementType === 'line' || this.shapePlacementType.startsWith('connector-')) ? 'line' : 'shape';
@@ -851,9 +935,13 @@ export class InputHandler {
       }
     } catch (err) {
       console.warn('[InputHandler] 글상자 삽입 실패:', err);
+    } finally {
+      command?.discard?.(this.wasm);
+      recorder.cancel(this.wasm);
     }
 
     // 모드 종료
+    this._gestureOwnerEpoch = null;
     this.textboxPlacementMode = false;
     this.textboxPlacementDrag = null;
     this.container.style.cursor = '';
@@ -1906,10 +1994,16 @@ export class InputHandler {
 
     const { start, end } = sel;
     this.cursor.clearSelection();
+    if (this.history.isSuspended(this.wasm)) {
+      const command = new DeleteSelectionCommand(start, end);
+      try { this.cursor.moveTo(command.execute(this.wasm)); }
+      finally { command.discard?.(this.wasm); }
+      this.cursor.resetPreferredX();
+      return;
+    }
     this.executeOperation({
-      kind: 'snapshot',
-      operationType: 'deleteSelection',
-      operation: (wasm) => new DeleteSelectionCommand(start, end).execute(wasm),
+      kind: 'command',
+      command: new DeleteSelectionCommand(start, end),
     });
   }
 
@@ -1958,10 +2052,15 @@ export class InputHandler {
         break;
       }
       case 'record': {
-        this.history.recordWithoutExecute(desc.command);
+        this.history.recordWithoutExecute(desc.command, this.wasm, desc.beforeLabel);
         break;
       }
     }
+  }
+
+  /** 비기록 변이 후 히스토리 스택을 초기화하고 관련 리소스를 해제한다. */
+  clearHistory(): void {
+    this.history.clear(this.wasm);
   }
 
   /** Backspace 처리 */
@@ -2748,7 +2847,7 @@ export class InputHandler {
   }
 
   /** 드래그 완료: 새 크기를 WASM에 반영 */
-  private finishPictureResizeDrag(e: MouseEvent): void {
+  private finishPictureResizeDrag(e?: MouseEvent): void {
     _picture.finishPictureResizeDrag.call(this, e);
   }
 
@@ -2779,8 +2878,18 @@ export class InputHandler {
   }
 
   /** 마우스 드래그로 그림 회전 — 드래그 종료 */
-  private finishPictureRotateDrag(e: MouseEvent): void {
+  private finishPictureRotateDrag(e?: MouseEvent): void {
     _picture.finishPictureRotateDrag.call(this, e);
+  }
+
+  /** 마우스 드래그로 직선 끝점 이동 — 드래그 업데이트 */
+  private updateLineEndpointDrag(e: MouseEvent): void {
+    _mouse.updateLineEndpointDrag.call(this, e);
+  }
+
+  /** 마우스 드래그로 직선 끝점 이동 — 드래그 종료 */
+  private finishLineEndpointDrag(): void {
+    _mouse.finishLineEndpointDrag.call(this);
   }
 
   /** 셀 진입/탈출 시 투명선 자동 ON/OFF */
@@ -2859,16 +2968,157 @@ export class InputHandler {
     this.focusTextarea();
   }
 
+  settleOpenPointerGesture(kind: 'release' | 'interrupt' | 'cancel', release?: () => void): void {
+    const rawOpen = _table.hasRawOpenPointerGesture(this);
+    const hasPlacementOrDrawing = Boolean(
+      this.imagePlacementMode || this.imagePlacementDrag
+      || this.textboxPlacementMode || this.textboxPlacementDrag
+      || this.polygonDrawingMode || this.polygonPoints?.length
+      || this.connectorDrawingMode || this.connectorStartRef,
+    );
+    if (
+      kind !== 'release'
+      && !rawOpen
+      && !this.dragRafId
+      && !this.resizeHoverRafId
+      && this._gestureOwnerEpoch == null
+      && !(kind === 'cancel' && hasPlacementOrDrawing)
+    ) {
+      return;
+    }
+    const effectiveKind = (kind !== 'cancel' && (rawOpen || hasPlacementOrDrawing) && _table.isActiveGestureEpochStale(this))
+      ? 'cancel'
+      : kind;
+    const recorders = [
+      this.pictureMoveState?.recorder,
+      this.pictureResizeState?.recorder,
+      this.pictureRotateState?.recorder,
+      this.lineEndpointState?.recorder,
+      this.resizeDragState?.recorder,
+    ];
+    try {
+      switch (effectiveKind) {
+        case 'release': release?.(); break;
+        case 'interrupt':
+          if (this.isMoveDragging || this.moveDragState) {
+            (this.finishMoveDrag ?? _table.finishMoveDrag).call(this);
+          }
+          if (this.isPictureMoveDragging || this.pictureMoveState) {
+            (this.finishPictureMoveDrag ?? _picture.finishPictureMoveDrag).call(this);
+          }
+          if (this.isPictureRotateDragging || this.pictureRotateState) {
+            (this.finishPictureRotateDrag ?? _picture.finishPictureRotateDrag).call(this);
+          }
+          if (this.isPictureResizeDragging || this.pictureResizeState) {
+            (this.finishPictureResizeDrag ?? _picture.finishPictureResizeDrag).call(this);
+          }
+          if (this.isLineEndpointDragging || this.lineEndpointState) {
+            (this.finishLineEndpointDrag ?? _mouse.finishLineEndpointDrag).call(this);
+          }
+          if (this.isResizeDragging || this.resizeDragState) {
+            (this.finishResizeDrag ?? _table.finishResizeDrag).call(this);
+          }
+          break;
+        case 'cancel':
+          if (this.imagePlacementMode || this.imagePlacementDrag) {
+            (this.cancelImagePlacement ?? _table.cancelImagePlacement).call(this);
+          }
+          if (this.textboxPlacementMode || this.textboxPlacementDrag) {
+            this.textboxPlacementMode = false;
+            this.textboxPlacementDrag = null;
+            this.textboxPlacementOverlay?.remove?.();
+            this.textboxPlacementOverlay = null;
+          }
+          if (this.polygonDrawingMode || this.polygonPoints?.length) {
+            this.polygonDrawingMode = false;
+            this.polygonPoints = [];
+            this.polygonMousePos = null;
+            this._polygonEpoch = null;
+            this.polygonOverlay?.remove?.();
+            this.polygonOverlay = null;
+          }
+          if (this.connectorDrawingMode || this.connectorStartRef) {
+            this.connectorDrawingMode = false;
+            this.connectorStartRef = null;
+            this.connectorOverlay?.remove?.();
+            this.connectorOverlay = null;
+            (this as any)._connectorPreviewSvg?.remove?.();
+            (this as any)._connectorPreviewSvg = null;
+          }
+          break;
+      }
+    } finally {
+      try {
+        for (const rec of recorders) {
+          rec?.cancel(this.wasm);
+        }
+        this.pictureMoveState?.recorder?.cancel(this.wasm);
+        this.pictureResizeState?.recorder?.cancel(this.wasm);
+        this.pictureRotateState?.recorder?.cancel(this.wasm);
+        this.lineEndpointState?.recorder?.cancel(this.wasm);
+        this.resizeDragState?.recorder?.cancel(this.wasm);
+      } finally {
+        this._gestureOwnerEpoch = null;
+        this.isMoveDragging = false;
+        this.moveDragState = null;
+        this.isPictureMoveDragging = false;
+        this.pictureMoveState = null;
+        this.isPictureResizeDragging = false;
+        this.pictureResizeState = null;
+        this.isPictureRotateDragging = false;
+        this.pictureRotateState = null;
+        this.isLineEndpointDragging = false;
+        this.lineEndpointState = null;
+        this.isResizeDragging = false;
+        this.resizeDragState = null;
+        this.isDragging = false;
+        this.isCellDragSelecting = false;
+        this.cellDragAnchorRange = null;
+        this.cachedTableRef = null;
+        this.cachedCellBboxes = null;
+        if (this.dragRafId) {
+          cancelAnimationFrame(this.dragRafId);
+          this.dragRafId = 0;
+        }
+        if (this.resizeHoverRafId) {
+          cancelAnimationFrame(this.resizeHoverRafId);
+          this.resizeHoverRafId = 0;
+        }
+        if (typeof document !== 'undefined') document.removeEventListener('mouseup', this.onMouseUpBound);
+        if (this.container?.style) this.container.style.cursor = '';
+        this.pictureObjectRenderer?.clearDragPreview();
+        this.tableResizeRenderer?.clear();
+        this.tableObjectRenderer?.clearDragPreview();
+      }
+    }
+  }
+
   deactivate(): void {
+    InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
     this.active = false;
     this.caret.hide();
     this.fieldMarker.hide();
     this.cursor.clearSelection();
     this.selectionRenderer.clear();
     this.history.clear(this.wasm);
+    if (this.compositionEditToken !== null) this.wasm.discardEdit(this.compositionEditToken);
+    if (this._iosEditToken !== null) this.wasm.discardEdit(this._iosEditToken);
+    this.compositionEditToken = null;
+    this._iosEditToken = null;
+    if (this.compositionSelectionSnapshot !== null) {
+      this.wasm.discardSnapshot(this.compositionSelectionSnapshot.id);
+      this.compositionSelectionSnapshot = null;
+    }
+    this._iosAnchor = null;
   }
 
   dispose(): void {
+    InputHandler.prototype.settleOpenPointerGesture.call(this, 'cancel');
+    _table.unbindPointerHostFromWasm(this);
+    if (this.compositionSelectionSnapshot !== null) {
+      this.wasm.discardSnapshot(this.compositionSelectionSnapshot.id);
+      this.compositionSelectionSnapshot = null;
+    }
     if (this.isResizeDragging) {
       this.cleanupResizeDrag();
     }
@@ -2885,6 +3135,10 @@ export class InputHandler {
     this.container.removeEventListener('dblclick', this.onDblClickBound);
     this.container.removeEventListener('contextmenu', this.onContextMenuBound);
     this.container.removeEventListener('mousemove', this.onMouseMoveBound);
+    window.removeEventListener('blur', this.onPointerInterruptedBound);
+    this.container.removeEventListener('blur', this.onPointerInterruptedBound, true);
+    document.removeEventListener('pointercancel', this.onPointerInterruptedBound, true);
+    this.textarea.removeEventListener('blur', this.onPointerInterruptedBound);
     document.removeEventListener('mouseup', this.onMouseUpBound);
     this.textarea.removeEventListener('keydown', this.onKeyDownBound);
     this.textarea.removeEventListener('input', this.onInputBound);

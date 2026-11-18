@@ -1,0 +1,56 @@
+[
+  {
+    "path": "src/model/table.rs",
+    "code_ref": "00cb7458986b089110c153c787c1c7b121db93ea",
+    "exit": 0,
+    "summary": "IMPACT at=code:00cb7458986b089110c153c787c1c7b121db93ea@00cb7458986b query=\"src/model/table.rs\" mode=path jev=used jev_threshold=0.45 files=132 rows=415 det_ms=307 total_ms=1520 jev_requests=5 jev_http_attempts=5 jev_input_tokens=38124",
+    "deterministic_bindings": [],
+    "full_stdout_sha256": "ae6557a53ae5e449a21b218a883438e8800f47405ea44815b8c06286be7152ba",
+    "stderr": ""
+  },
+  {
+    "path": "src/document_core/commands/table_ops.rs",
+    "code_ref": "00cb7458986b089110c153c787c1c7b121db93ea",
+    "exit": 0,
+    "summary": "IMPACT at=code:00cb7458986b089110c153c787c1c7b121db93ea@00cb7458986b query=\"src/document_core/commands/table_ops.rs\" mode=path jev=used jev_threshold=0.45 files=90 rows=162 det_ms=211 total_ms=1106 jev_requests=4 jev_http_attempts=4 jev_input_tokens=23100",
+    "deterministic_bindings": [
+      "- [code] gates/V353_RHWP_TABLE_FIDELITY_GATES.md  channel=ledger_check binding=pin jev=0.39 rows=1\n    :54 [stem/pin] CHECK: git diff --name-only a34d88ff3bae317ad08d8f0b99504e4395278e6a HEAD | grep -vE '^(src/model/table\\.rs|src/model/table/tests\\.rs|src/model/shape\\"
+    ],
+    "full_stdout_sha256": "6aeb5121d14141af43c9fa7d48b2144e13025e2011c7fd9924d3b006edb5a2ff",
+    "stderr": ""
+  },
+  {
+    "path": "src/document_core/commands/text_editing.rs",
+    "code_ref": "00cb7458986b089110c153c787c1c7b121db93ea",
+    "exit": 0,
+    "summary": "IMPACT at=code:00cb7458986b089110c153c787c1c7b121db93ea@00cb7458986b query=\"src/document_core/commands/text_editing.rs\" mode=path jev=used jev_threshold=0.45 files=101 rows=145 det_ms=207 total_ms=1329 jev_requests=5 jev_http_attempts=5 jev_input_tokens=25547",
+    "deterministic_bindings": [
+      "- [code] gates/V353_RHWP_TABLE_FIDELITY_GATES.md  channel=ledger_check binding=pin jev=0.36 rows=1\n    :54 [stem/pin] CHECK: git diff --name-only a34d88ff3bae317ad08d8f0b99504e4395278e6a HEAD | grep -vE '^(src/model/table\\.rs|src/model/table/tests\\.rs|src/model/shape\\"
+    ],
+    "full_stdout_sha256": "0b1fae960521fa282d1a8445336bcd8176c208b54d7cb12983b064fd32156b80",
+    "stderr": ""
+  },
+  {
+    "path": "tests/hwpx_table_fidelity.rs",
+    "code_ref": "00cb7458986b089110c153c787c1c7b121db93ea",
+    "exit": 0,
+    "summary": "IMPACT at=code:00cb7458986b089110c153c787c1c7b121db93ea@00cb7458986b query=\"tests/hwpx_table_fidelity.rs\" mode=path jev=used jev_threshold=0.45 files=5 rows=13 det_ms=205 total_ms=412 jev_requests=1 jev_http_attempts=1 jev_input_tokens=1671",
+    "deterministic_bindings": [
+      "- [code] .omo/evidence/v353-rhwp-table-fidelity/negative_control.py  channel=other binding=pin jev=0.73★ rows=2\n    :15 [path/pin] sha = hashlib.sha256(open(os.path.join(base, 'tests/hwpx_table_fidelity.rs'), 'rb').read()).hexdigest()\n    :5 [stem/stem_weak] p = subprocess.run([cargo, 'test', '--locked', '--test', 'hwpx_table_fidelity', filt],",
+      "- [code] gates/V353_RHWP_TABLE_FIDELITY_GATES.md  channel=ledger_check binding=pin jev=0.52★ rows=4\n    :19 [stem/pin] CHECK: cargo test --test hwpx_table_fidelity page_break 2>&1 | tail -3\n    :24 [stem/pin] CHECK: cargo test --test hwpx_table_fidelity display_height 2>&1 | tail -3\n    :29 [stem/pin] CHECK: cargo test --test hwpx_table_fidelity width_formula 2>&1 | tail -3"
+    ],
+    "full_stdout_sha256": "7e293748210539527330379b0d42271623d3c5bd3f4d724c1f5f2a800ee61e07",
+    "stderr": ""
+  },
+  {
+    "path": "gates/V353_RHWP_TABLE_FIDELITY_GATES.md",
+    "code_ref": "00cb7458986b089110c153c787c1c7b121db93ea",
+    "exit": 0,
+    "summary": "IMPACT at=code:00cb7458986b089110c153c787c1c7b121db93ea@00cb7458986b query=\"gates/V353_RHWP_TABLE_FIDELITY_GATES.md\" mode=path jev=used jev_threshold=0.45 files=1 rows=2 det_ms=203 total_ms=391 jev_requests=1 jev_http_attempts=1 jev_input_tokens=579",
+    "deterministic_bindings": [
+      "- [code] .omo/evidence/v353-rhwp-table-fidelity/REPORT.md  channel=doc binding=exec jev=0.41 rows=2\n    :12 [path/exec] `gates/V353_RHWP_TABLE_FIDELITY_GATES.md` 를 unlazy `gate-check.mjs --approve --cwd <worktree> --timeout 3600` 으로 source HEAD `45d4f16` 에서 돌렸다 → `ALL M\n    :97 [path/exec] node \"<unlazy>/scripts/gate-check.mjs\" --status gates/V353_RHWP_TABLE_FIDELITY_GATES.md"
+    ],
+    "full_stdout_sha256": "49456f78d6ece5c2013ef45d8344ad73b8456925e2e1f17e751cfbf0fe345d80",
+    "stderr": ""
+  }
+]

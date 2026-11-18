@@ -1,0 +1,21 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running tests/hwpx_table_fidelity.rs (target/debug/deps/hwpx_table_fidelity-8fba4dff0113d046)
+
+running 14 tests
+test width_formula_includes_new_spacing_after_column_split ... ok
+test width_formula_uses_assigned_widths_when_all_columns_are_merged ... ok
+test width_formula_matches_unmerged_fixture_tables ... ok
+test width_formula_preserves_declaration_when_row_delete_keeps_columns ... ok
+test width_formula_preserves_declaration_when_absolute_widths_are_unchanged ... ok
+test width_formula_preserves_declaration_when_row_split_keeps_columns ... ok
+test width_formula_updates_when_row_delete_changes_columns ... ok
+test width_formula_preserves_declaration_when_row_insert_keeps_columns ... ok
+test width_formula_holds_after_column_delete_with_cell_spacing ... ok
+test width_formula_holds_after_column_insert_with_cell_spacing ... ok
+test width_formula_kept_after_row_insert ... ok
+test width_formula_updates_when_resize_changes_columns ... ok
+test width_formula_preserves_declaration_when_path_resize_keeps_columns ... ok
+test width_formula_preserves_declaration_when_resize_keeps_columns ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 3.68s
+

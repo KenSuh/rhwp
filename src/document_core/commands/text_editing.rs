@@ -1,17 +1,292 @@
 //! 텍스트 삽입/삭제/문단 분리·병합/범위 삭제/문단 쿼리 관련 native 메서드
 
 use super::super::helpers::get_textbox_from_shape;
-use crate::document_core::DocumentCore;
+use crate::document_core::{DocumentCore, EditJournalEntry, EditRecord, TextEditState};
 use crate::error::HwpError;
 use crate::model::control::Control;
 use crate::model::event::DocumentEvent;
 use crate::model::page::ColumnDef;
 use crate::model::paragraph::Paragraph;
-use crate::renderer::composer::{compose_paragraph, reflow_line_segs, ComposedParagraph};
+use crate::renderer::composer::{
+    compose_paragraph, reflow_horizontal_cell_line_segs, reflow_line_segs, ComposedParagraph,
+};
 use crate::renderer::page_layout::PageLayoutInfo;
 use crate::renderer::px_to_hwpunit;
 
 impl DocumentCore {
+    pub(crate) fn invalidate_edit_redo(&mut self) {
+        let history = &mut self.text_edit_history;
+        let cleared = std::mem::take(&mut history.redo);
+        if let Some(journal) = history.journal.as_mut() {
+            if !cleared.is_empty() {
+                journal.push(EditJournalEntry::RedoCleared(cleared));
+            }
+        }
+    }
+
+    /// Additive undo API: capture the owner before edits, including cell subtrees.
+    /// Structural commands capture the section's paragraph list instead.
+    pub fn begin_text_edit_native(
+        &mut self,
+        section: usize,
+        paragraph: usize,
+        structural: bool,
+    ) -> Result<String, HwpError> {
+        let state = self.text_edit_state(section, paragraph, structural)?;
+        let before_label = self.document.state_label()?;
+        let handle = self.next_edit_handle()?;
+        if self.text_edit_history.undo.len() >= 1024 {
+            return Err(HwpError::RenderError("text edit token limit (1024)".into()));
+        }
+        self.invalidate_edit_redo();
+        self.text_edit_history.next_sequence += 1;
+        self.text_edit_history.undo.push(EditRecord {
+            handle: handle.clone(),
+            undo_from_label: None,
+            undo_to_label: before_label,
+            state,
+        });
+        if let Some(journal) = self.text_edit_history.journal.as_mut() {
+            journal.push(EditJournalEntry::Captured(handle.clone()));
+        }
+        Ok(handle)
+    }
+
+    pub fn finish_text_edit_native(&mut self, token: &str) -> Result<(), HwpError> {
+        let live_label = self.document.state_label()?;
+        let record = self
+            .text_edit_history
+            .undo
+            .last_mut()
+            .filter(|record| record.handle == token && record.undo_from_label.is_none())
+            .ok_or_else(|| {
+                HwpError::InvalidEditHandle("capture is not the pending stack top".into())
+            })?;
+        record.undo_from_label = Some(live_label);
+        Ok(())
+    }
+
+    pub fn merge_text_edits_native(&mut self, first: &str, last: &str) -> Result<(), HwpError> {
+        let live_label = self.document.state_label()?;
+        let stack = &mut self.text_edit_history.undo;
+        let n = stack.len();
+        if n < 2
+            || stack[n - 2].handle != first
+            || stack[n - 1].handle != last
+            || stack[n - 2].undo_from_label.as_deref() != Some(stack[n - 1].undo_to_label.as_str())
+            || stack[n - 1].undo_from_label.as_deref() != Some(live_label.as_str())
+        {
+            return Err(HwpError::InvalidEditHandle(
+                "captures are not consecutive revisions".into(),
+            ));
+        }
+        stack[n - 2].undo_from_label = stack[n - 1].undo_from_label.clone();
+        stack.pop();
+        Ok(())
+    }
+
+    pub fn edit_handle_labels_native(&self, token: &str) -> Option<(String, String)> {
+        let record = self
+            .text_edit_history
+            .undo
+            .iter()
+            .chain(self.text_edit_history.redo.iter())
+            .find(|record| record.handle == token)?;
+        Some((
+            record.undo_from_label.clone()?,
+            record.undo_to_label.clone(),
+        ))
+    }
+
+    fn text_edit_state(
+        &self,
+        section: usize,
+        paragraph: usize,
+        structural: bool,
+    ) -> Result<TextEditState, HwpError> {
+        let paragraphs = &self
+            .document
+            .sections
+            .get(section)
+            .ok_or_else(|| HwpError::RenderError("undo section out of range".into()))?
+            .paragraphs;
+        let para = paragraphs
+            .get(paragraph)
+            .ok_or_else(|| HwpError::RenderError("undo paragraph out of range".into()))?;
+        Ok(if structural {
+            TextEditState::ParagraphList {
+                section,
+                before: paragraphs.clone(),
+            }
+        } else {
+            let trailing_vpos = paragraphs[paragraph + 1..]
+                .iter()
+                .map(|p| p.line_segs.iter().map(|ls| ls.vertical_pos).collect())
+                .collect();
+            TextEditState::Paragraph {
+                section,
+                paragraph,
+                inverse: para.edit_checkpoint(),
+                trailing_vpos,
+            }
+        })
+    }
+
+    fn next_edit_handle(&self) -> Result<String, HwpError> {
+        let epoch = self
+            .document
+            .epoch()
+            .map_err(|reason| HwpError::RenderError(reason.to_string()))?;
+        self.text_edit_history
+            .next_sequence
+            .checked_add(1)
+            .ok_or_else(|| {
+                HwpError::RenderError("EDIT_HISTORY_UNAVAILABLE: sequence exhausted".into())
+            })?;
+        Ok(format!("{epoch}:{}", self.text_edit_history.next_sequence))
+    }
+
+    /// Consumes the token and returns a reciprocal token for redo/undo.
+    pub fn undo_edit_native(&mut self, token: &str) -> Result<String, HwpError> {
+        let epoch = self
+            .document
+            .epoch()
+            .map_err(|reason| HwpError::InvalidEditHandle(reason.to_string()))?;
+        if token.split_once(':').map(|(value, _)| value) != Some(epoch) {
+            return Err(HwpError::InvalidEditHandle("document epoch differs".into()));
+        }
+        let history = &self.text_edit_history;
+        let (undoing, expected_label, produced_label, target_coords) = if let Some(record) =
+            history.undo.last().filter(|record| record.handle == token)
+        {
+            let expected = record.undo_from_label.clone().ok_or_else(|| {
+                HwpError::InvalidEditHandle("capture is not sealed".into())
+            })?;
+            let coords = match &record.state {
+                TextEditState::Paragraph {
+                    section, paragraph, ..
+                } => (*section, *paragraph, false),
+                TextEditState::ParagraphList { section, .. } => (*section, 0, true),
+            };
+            (true, expected, record.undo_to_label.clone(), coords)
+        } else if let Some(record) = history.redo.last().filter(|record| record.handle == token) {
+            let expected = record.undo_from_label.clone().ok_or_else(|| {
+                HwpError::InvalidEditHandle("capture is not sealed".into())
+            })?;
+            let coords = match &record.state {
+                TextEditState::Paragraph {
+                    section, paragraph, ..
+                } => (*section, *paragraph, false),
+                TextEditState::ParagraphList { section, .. } => (*section, 0, true),
+            };
+            (false, expected, record.undo_to_label.clone(), coords)
+        } else {
+            return Err(HwpError::InvalidEditHandle(
+                "handle is not the current undo or redo top".into(),
+            ));
+        };
+        let ticket = self
+            .document
+            .begin_inverse(&expected_label, &produced_label)?;
+        let handle = match self.next_edit_handle() {
+            Ok(handle) => handle,
+            Err(error) => {
+                self.document.abort_inverse(ticket);
+                return Err(HwpError::InvalidEditHandle(error.to_string()));
+            }
+        };
+        let (section, paragraph, structural) = target_coords;
+        let reciprocal = match self.text_edit_state(section, paragraph, structural) {
+            Ok(reciprocal) => reciprocal,
+            Err(error) => {
+                self.document.abort_inverse(ticket);
+                return Err(HwpError::InvalidEditHandle(error.to_string()));
+            }
+        };
+        let history = &mut self.text_edit_history;
+        let source = if undoing {
+            &mut history.undo
+        } else {
+            &mut history.redo
+        };
+        let Some(record) = source.pop() else {
+            self.document.abort_inverse(ticket);
+            return Err(HwpError::InvalidEditHandle("history is empty".into()));
+        };
+        // Inside an open command inverse the consumed record is journaled so a
+        // later refusal of that command restores this handle exactly.
+        let journaled = self
+            .text_edit_history
+            .journal
+            .is_some()
+            .then(|| record.clone());
+        match record.state {
+            TextEditState::Paragraph {
+                section,
+                paragraph,
+                inverse,
+                trailing_vpos,
+            } => {
+                let paragraphs = &mut self.document.sections[section].paragraphs;
+                paragraphs[paragraph].undo_edit(inverse);
+                for (para, vpos_list) in paragraphs[paragraph + 1..].iter_mut().zip(trailing_vpos) {
+                    for (ls, vpos) in para.line_segs.iter_mut().zip(vpos_list) {
+                        ls.vertical_pos = vpos;
+                    }
+                }
+            }
+            TextEditState::ParagraphList { section, before } => {
+                self.document.sections[section].paragraphs = before;
+            }
+        }
+        self.document.sections[section].raw_stream = None;
+        self.composed[section] =
+            crate::renderer::composer::compose_section(&self.document.sections[section]);
+        self.mark_section_dirty(section);
+        self.measured_tables.clear();
+        self.measured_sections.clear();
+        self.dirty_paragraphs.clear();
+        self.para_column_map.clear();
+        self.page_tree_cache.borrow_mut().clear();
+        self.overflow_links_cache.borrow_mut().clear();
+        self.paginate();
+        self.document.finish_inverse(ticket)?;
+        let history = &mut self.text_edit_history;
+        history.next_sequence += 1;
+        let target = if undoing {
+            &mut history.redo
+        } else {
+            &mut history.undo
+        };
+        target.push(EditRecord {
+            handle: handle.clone(),
+            undo_from_label: Some(produced_label),
+            undo_to_label: expected_label,
+            state: reciprocal,
+        });
+        if let (Some(journal), Some(original)) = (history.journal.as_mut(), journaled) {
+            journal.push(EditJournalEntry::Moved {
+                undoing,
+                original,
+                reciprocal_handle: handle.clone(),
+            });
+        }
+        Ok(handle)
+    }
+
+    pub fn discard_edit_native(&mut self, token: &str) {
+        self.text_edit_history
+            .undo
+            .retain(|record| record.handle != token);
+        self.text_edit_history
+            .redo
+            .retain(|record| record.handle != token);
+    }
+
+    pub fn live_edit_count_native(&self) -> usize {
+        self.text_edit_history.undo.len() + self.text_edit_history.redo.len()
+    }
+
     pub fn insert_text_native(
         &mut self,
         section_idx: usize,
@@ -37,6 +312,7 @@ impl DocumentCore {
         }
 
         // 편집 시 raw 스트림 무효화 (재직렬화 유도)
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
 
         // 텍스트 삽입
@@ -84,12 +360,12 @@ impl DocumentCore {
         // 캐럿 위치 갱신 (DocProperties)
         // caret_char_pos는 UTF-16 코드 유닛 기준
         let para = &self.document.sections[section_idx].paragraphs[para_idx];
-        let caret_utf16_pos = if new_offset < para.char_offsets.len() {
-            para.char_offsets[new_offset]
-        } else if !para.char_offsets.is_empty() {
-            let last = para.char_offsets.len() - 1;
-            let last_char = para.text.chars().nth(last);
-            para.char_offsets[last]
+        let caret_utf16_pos = if new_offset < para.char_offsets().len() {
+            para.char_offsets()[new_offset]
+        } else if !para.char_offsets().is_empty() {
+            let last = para.char_offsets().len() - 1;
+            let last_char = para.text().chars().nth(last);
+            para.char_offsets()[last]
                 + last_char
                     .map(|c| if (c as u32) > 0xFFFF { 2 } else { 1 })
                     .unwrap_or(1)
@@ -149,6 +425,7 @@ impl DocumentCore {
         }
 
         // 편집 시 raw 스트림 무효화 (재직렬화 유도)
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
 
         // 텍스트 삭제
@@ -191,12 +468,12 @@ impl DocumentCore {
 
         // 캐럿 위치 갱신 (DocProperties)
         let para = &self.document.sections[section_idx].paragraphs[para_idx];
-        let caret_utf16_pos = if char_offset < para.char_offsets.len() {
-            para.char_offsets[char_offset]
-        } else if !para.char_offsets.is_empty() {
-            let last = para.char_offsets.len() - 1;
-            let last_char = para.text.chars().nth(last);
-            para.char_offsets[last]
+        let caret_utf16_pos = if char_offset < para.char_offsets().len() {
+            para.char_offsets()[char_offset]
+        } else if !para.char_offsets().is_empty() {
+            let last = para.char_offsets().len() - 1;
+            let last_char = para.text().chars().nth(last);
+            para.char_offsets()[last]
                 + last_char
                     .map(|c| if (c as u32) > 0xFFFF { 2 } else { 1 })
                     .unwrap_or(1)
@@ -284,6 +561,12 @@ impl DocumentCore {
             cell_para_idx,
         )?;
         let new_chars_count = text.chars().count();
+        if new_chars_count == 0 {
+            return Ok(super::super::helpers::json_ok_with(&format!(
+                "\"charOffset\":{}",
+                char_offset
+            )));
+        }
         cell_para.insert_text_at(char_offset, text);
 
         // 부모 컨트롤 dirty 마킹 (표 또는 글상자)
@@ -299,6 +582,7 @@ impl DocumentCore {
         );
 
         // raw 스트림 무효화, 재페이지네이션 (셀 편집 → composed 불변, section dirty만 설정)
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
         self.mark_section_dirty(section_idx);
         self.paginate_if_needed();
@@ -335,7 +619,12 @@ impl DocumentCore {
             cell_idx,
             cell_para_idx,
         )?;
-        cell_para.delete_text_at(char_offset, count);
+        if cell_para.delete_text_at(char_offset, count).deleted_chars == 0 {
+            return Ok(super::super::helpers::json_ok_with(&format!(
+                "\"charOffset\":{}",
+                char_offset
+            )));
+        }
 
         // 부모 컨트롤 dirty 마킹 (표 또는 글상자)
         self.mark_cell_control_dirty(section_idx, parent_para_idx, control_idx);
@@ -350,6 +639,7 @@ impl DocumentCore {
         );
 
         // raw 스트림 무효화, 재페이지네이션 (셀 편집 → composed 불변)
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
         self.mark_section_dirty(section_idx);
         self.paginate_if_needed();
@@ -492,6 +782,250 @@ impl DocumentCore {
         cell_idx: usize,
         cell_para_idx: usize,
     ) {
+        // shortcut: vertical cells retain pre-L1 reflow until the separate vertical geometry follow-up is verified.
+        if self.is_vertical_table_cell(section_idx, parent_para_idx, control_idx, cell_idx) {
+            self.reflow_vertical_cell_paragraph_legacy(
+                section_idx,
+                parent_para_idx,
+                control_idx,
+                cell_idx,
+                cell_para_idx,
+            );
+            return;
+        }
+        let lines_reflowed = self.reflow_cell_paragraph_lines(
+            section_idx,
+            parent_para_idx,
+            control_idx,
+            cell_idx,
+            cell_para_idx,
+        );
+
+        let mut table_changed = false;
+        if cell_idx != 65534 {
+            if lines_reflowed {
+                table_changed =
+                    self.grow_table_rows_to_fit_content(section_idx, parent_para_idx, control_idx);
+            } else if let Ok(table) = self.get_table_mut(section_idx, parent_para_idx, control_idx)
+            {
+                // 줄 진행 용량이 없어도 텍스트 편집 뒤 표시 높이는 동기화한다.
+                let dimensions_before = (table.common.width, table.common.height);
+                table.refresh_ctrl_dimensions_after_content_edit(false);
+                table_changed = dimensions_before != (table.common.width, table.common.height);
+                table.dirty |= table_changed;
+            }
+        }
+        if table_changed {
+            self.reflow_paragraph(section_idx, parent_para_idx);
+            self.recompose_paragraph(section_idx, parent_para_idx);
+            self.mark_section_dirty_full(section_idx);
+        }
+    }
+
+    /// 셀·글상자·캡션 문단의 줄을 그 컨테이너의 줄 진행 방향 안쪽 용량으로 다시 나눈다.
+    /// 행 높이는 건드리지 않는다. 컨테이너나 문단을 찾지 못하면 false.
+    pub(crate) fn reflow_cell_paragraph_lines(
+        &mut self,
+        section_idx: usize,
+        parent_para_idx: usize,
+        control_idx: usize,
+        cell_idx: usize,
+        cell_para_idx: usize,
+    ) -> bool {
+        use crate::renderer::hwpunit_to_px;
+
+        let (cell_width, pad_left, pad_right) = {
+            let para = &self.document.sections[section_idx].paragraphs[parent_para_idx];
+            match para.controls.get(control_idx) {
+                Some(Control::Table(table)) => {
+                    if cell_idx == 65534 {
+                        // 가로 캡션은 렌더러와 같은 현재 열 기하·셀 간격, 옆 캡션은 지정 폭
+                        if let Some(ref cap) = table.caption {
+                            use crate::model::shape::CaptionDirection;
+                            let w = match cap.direction {
+                                CaptionDirection::Left | CaptionDirection::Right => {
+                                    hwpunit_to_px(cap.width as i32, self.dpi)
+                                }
+                                CaptionDirection::Top | CaptionDirection::Bottom => {
+                                    let widths = self.layout_engine.resolve_cell_column_widths(
+                                        table,
+                                        usize::from(table.col_count),
+                                    );
+                                    if widths.iter().any(|width| *width <= 0.0) {
+                                        return false;
+                                    }
+                                    widths.iter().sum::<f64>()
+                                        + hwpunit_to_px(i32::from(table.cell_spacing), self.dpi)
+                                            * f64::from(table.col_count.saturating_sub(1))
+                                }
+                            };
+                            (w, 0, 0)
+                        } else {
+                            return false;
+                        }
+                    } else if let Some(cell) = table.cells.get(cell_idx) {
+                        let Some((extent, before, after)) =
+                            super::super::helpers::cell_reflow_geometry(cell, table.padding)
+                        else {
+                            return false;
+                        };
+                        (hwpunit_to_px(extent, self.dpi), before, after)
+                    } else {
+                        return false;
+                    }
+                }
+                Some(Control::Shape(shape)) => {
+                    if let Some(tb) = super::super::helpers::get_textbox_from_shape(shape) {
+                        let common = shape.common();
+                        // 글상자 폭 = common.width, 여백 = textbox margin
+                        (
+                            hwpunit_to_px(common.width as i32, self.dpi),
+                            tb.margin_left,
+                            tb.margin_right,
+                        )
+                    } else {
+                        return false;
+                    }
+                }
+                Some(Control::Picture(pic)) => {
+                    use crate::model::shape::CaptionDirection;
+                    let Some(cap) = &pic.caption else {
+                        return false;
+                    };
+                    let width = match cap.direction {
+                        CaptionDirection::Left | CaptionDirection::Right => cap.width,
+                        CaptionDirection::Top | CaptionDirection::Bottom => pic.common.width,
+                    };
+                    (hwpunit_to_px(width as i32, self.dpi), 0, 0)
+                }
+                _ => return false,
+            }
+        };
+
+        let pad_left_px = hwpunit_to_px(pad_left as i32, self.dpi);
+        let pad_right_px = hwpunit_to_px(pad_right as i32, self.dpi);
+        if cell_width <= 0.0 {
+            return false;
+        }
+        let available_width = cell_width - pad_left_px - pad_right_px;
+
+        // 문단 여백 계산
+        let para_shape_id = {
+            let cell_para = self.get_cell_paragraph_ref(
+                section_idx,
+                parent_para_idx,
+                control_idx,
+                cell_idx,
+                cell_para_idx,
+            );
+            match cell_para {
+                Some(p) => p.para_shape_id,
+                None => return false,
+            }
+        };
+        let para_style = self.styles.para_styles.get(para_shape_id as usize);
+        let margin_left = para_style.map(|s| s.margin_left).unwrap_or(0.0);
+        let margin_right = para_style.map(|s| s.margin_right).unwrap_or(0.0);
+        let final_width = available_width - margin_left - margin_right;
+        if final_width <= 0.0 {
+            return false;
+        }
+
+        // 가변 참조로 리플로우 실행
+        match self.document.sections[section_idx].paragraphs[parent_para_idx]
+            .controls
+            .get_mut(control_idx)
+        {
+            Some(Control::Table(table)) => {
+                if cell_idx == 65534 {
+                    if let Some(cap_para) = table
+                        .caption
+                        .as_mut()
+                        .and_then(|cap| cap.paragraphs.get_mut(cell_para_idx))
+                    {
+                        reflow_line_segs(cap_para, final_width, &self.styles, self.dpi);
+                    }
+                } else if let Some(cell) = table.cells.get_mut(cell_idx) {
+                    if let Some(cell_para) = cell.paragraphs.get_mut(cell_para_idx) {
+                        if cell.text_direction == 0 {
+                            reflow_horizontal_cell_line_segs(
+                                cell_para,
+                                final_width,
+                                &self.styles,
+                                self.dpi,
+                            );
+                        } else {
+                            reflow_line_segs(cell_para, final_width, &self.styles, self.dpi);
+                        }
+                    }
+                }
+            }
+            Some(Control::Shape(shape)) => {
+                if let Some(tb) = super::super::helpers::get_textbox_from_shape_mut(shape) {
+                    if let Some(cell_para) = tb.paragraphs.get_mut(cell_para_idx) {
+                        reflow_line_segs(cell_para, final_width, &self.styles, self.dpi);
+                    }
+                }
+            }
+            Some(Control::Picture(pic)) => {
+                if let Some(ref mut cap) = pic.caption {
+                    if let Some(cell_para) = cap.paragraphs.get_mut(cell_para_idx) {
+                        reflow_line_segs(cell_para, final_width, &self.styles, self.dpi);
+                    }
+                }
+            }
+            _ => {}
+        }
+        true
+    }
+
+    pub(crate) fn is_vertical_table_cell(
+        &self,
+        section_idx: usize,
+        parent_para_idx: usize,
+        control_idx: usize,
+        cell_idx: usize,
+    ) -> bool {
+        if cell_idx == 65534 {
+            return false;
+        }
+        match self
+            .document
+            .sections
+            .get(section_idx)
+            .and_then(|section| section.paragraphs.get(parent_para_idx))
+            .and_then(|para| para.controls.get(control_idx))
+        {
+            Some(Control::Table(table)) => table
+                .cells
+                .get(cell_idx)
+                .is_some_and(|cell| cell.text_direction != 0),
+            _ => false,
+        }
+    }
+
+    pub(crate) fn is_vertical_cell_path(
+        &self,
+        section_idx: usize,
+        parent_para_idx: usize,
+        path: &[(usize, usize, usize)],
+    ) -> bool {
+        self.get_table_ref_by_cell_path(section_idx, parent_para_idx, path)
+            .and_then(|table| {
+                path.last()
+                    .and_then(|&(_, cell_idx, _)| table.cells.get(cell_idx))
+            })
+            .is_some_and(|cell| cell.text_direction != 0)
+    }
+
+    pub(crate) fn reflow_vertical_cell_paragraph_legacy(
+        &mut self,
+        section_idx: usize,
+        parent_para_idx: usize,
+        control_idx: usize,
+        cell_idx: usize,
+        cell_para_idx: usize,
+    ) {
         use crate::renderer::hwpunit_to_px;
 
         // 셀/글상자 폭과 패딩 읽기 (불변 참조)
@@ -606,96 +1140,7 @@ impl DocumentCore {
         }
     }
 
-    fn grow_table_rows_to_fit_content(
-        &mut self,
-        section_idx: usize,
-        parent_para_idx: usize,
-        control_idx: usize,
-    ) -> bool {
-        let table_snapshot = match self
-            .document
-            .sections
-            .get(section_idx)
-            .and_then(|section| section.paragraphs.get(parent_para_idx))
-            .and_then(|para| para.controls.get(control_idx))
-        {
-            Some(Control::Table(table)) => table.clone(),
-            _ => return false,
-        };
-
-        let row_count = table_snapshot.row_count as usize;
-        let col_count = table_snapshot.col_count as usize;
-        if row_count == 0 || col_count == 0 {
-            return false;
-        }
-
-        let required_rows: Vec<u32> = self
-            .layout_engine
-            .resolve_row_heights(&table_snapshot, col_count, row_count, None, &self.styles)
-            .into_iter()
-            .map(|height_px| px_to_hwpunit(height_px.ceil(), self.dpi).max(400) as u32)
-            .collect();
-
-        let Some(Control::Table(table)) = self.document.sections[section_idx].paragraphs
-            [parent_para_idx]
-            .controls
-            .get_mut(control_idx)
-        else {
-            return false;
-        };
-
-        let mut changed = false;
-        for cell in &mut table.cells {
-            let start_row = cell.row as usize;
-            if start_row >= required_rows.len() {
-                continue;
-            }
-            let row_span = usize::from(cell.row_span).max(1);
-            let end_row = (start_row + row_span).min(required_rows.len());
-            let required_height = required_rows[start_row..end_row]
-                .iter()
-                .copied()
-                .sum::<u32>();
-            if required_height > cell.height {
-                cell.height = required_height;
-                changed = true;
-            }
-        }
-
-        if changed {
-            table.update_ctrl_dimensions();
-            table.dirty = true;
-        }
-
-        changed
-    }
-
-    fn get_table_ref_by_cell_path(
-        &self,
-        section_idx: usize,
-        parent_para_idx: usize,
-        path: &[(usize, usize, usize)],
-    ) -> Option<&crate::model::table::Table> {
-        if path.is_empty() {
-            return None;
-        }
-        let section = self.document.sections.get(section_idx)?;
-        let mut para = section.paragraphs.get(parent_para_idx)?;
-        for (i, &(ctrl_idx, cell_idx, cell_para_idx)) in path.iter().enumerate() {
-            let table = match para.controls.get(ctrl_idx) {
-                Some(Control::Table(t)) => t.as_ref(),
-                _ => return None,
-            };
-            if i == path.len() - 1 {
-                return Some(table);
-            }
-            let cell = table.cells.get(cell_idx)?;
-            para = cell.paragraphs.get(cell_para_idx)?;
-        }
-        None
-    }
-
-    pub(crate) fn reflow_cell_paragraph_by_path(
+    pub(crate) fn reflow_vertical_cell_paragraph_by_path_legacy(
         &mut self,
         section_idx: usize,
         parent_para_idx: usize,
@@ -768,6 +1213,181 @@ impl DocumentCore {
                     return false;
                 };
                 reflow_line_segs(cell_para, final_width, styles, dpi);
+                return true;
+            }
+            let Some(next_para) = cell.paragraphs.get_mut(cell_para_idx) else {
+                return false;
+            };
+            para = next_para;
+        }
+        false
+    }
+
+    fn grow_table_rows_to_fit_content(
+        &mut self,
+        section_idx: usize,
+        parent_para_idx: usize,
+        control_idx: usize,
+    ) -> bool {
+        let table_snapshot = match self
+            .document
+            .sections
+            .get(section_idx)
+            .and_then(|section| section.paragraphs.get(parent_para_idx))
+            .and_then(|para| para.controls.get(control_idx))
+        {
+            Some(Control::Table(table)) => table.clone(),
+            _ => return false,
+        };
+
+        let row_count = table_snapshot.row_count as usize;
+        let col_count = table_snapshot.col_count as usize;
+        if row_count == 0 || col_count == 0 {
+            return false;
+        }
+
+        let required_rows: Vec<u32> = self
+            .layout_engine
+            .resolve_row_heights(&table_snapshot, col_count, row_count, None, &self.styles)
+            .into_iter()
+            .map(|height_px| px_to_hwpunit(height_px.ceil(), self.dpi).max(400) as u32)
+            .collect();
+
+        let Some(Control::Table(table)) = self.document.sections[section_idx].paragraphs
+            [parent_para_idx]
+            .controls
+            .get_mut(control_idx)
+        else {
+            return false;
+        };
+
+        let mut changed = false;
+        for cell in &mut table.cells {
+            let start_row = cell.row as usize;
+            if start_row >= required_rows.len() {
+                continue;
+            }
+            let row_span = usize::from(cell.row_span).max(1);
+            let end_row = (start_row + row_span).min(required_rows.len());
+            let required_height = required_rows[start_row..end_row]
+                .iter()
+                .copied()
+                .sum::<u32>();
+            if required_height > cell.height {
+                cell.height = required_height;
+                changed = true;
+            }
+        }
+
+        // 셀 크기가 그대로여도 기존 셀 합이 표시 높이를 넘을 수 있다.
+        let dimensions_before = (table.common.width, table.common.height);
+        table.refresh_ctrl_dimensions_after_content_edit(false);
+        changed |= dimensions_before != (table.common.width, table.common.height);
+        if changed {
+            table.dirty = true;
+        }
+
+        changed
+    }
+
+    fn get_table_ref_by_cell_path(
+        &self,
+        section_idx: usize,
+        parent_para_idx: usize,
+        path: &[(usize, usize, usize)],
+    ) -> Option<&crate::model::table::Table> {
+        if path.is_empty() {
+            return None;
+        }
+        let section = self.document.sections.get(section_idx)?;
+        let mut para = section.paragraphs.get(parent_para_idx)?;
+        for (i, &(ctrl_idx, cell_idx, cell_para_idx)) in path.iter().enumerate() {
+            let table = match para.controls.get(ctrl_idx) {
+                Some(Control::Table(t)) => t.as_ref(),
+                _ => return None,
+            };
+            if i == path.len() - 1 {
+                return Some(table);
+            }
+            let cell = table.cells.get(cell_idx)?;
+            para = cell.paragraphs.get(cell_para_idx)?;
+        }
+        None
+    }
+
+    pub(crate) fn reflow_cell_paragraph_by_path(
+        &mut self,
+        section_idx: usize,
+        parent_para_idx: usize,
+        path: &[(usize, usize, usize)],
+    ) -> bool {
+        use crate::renderer::hwpunit_to_px;
+
+        if self.is_vertical_cell_path(section_idx, parent_para_idx, path) {
+            return self.reflow_vertical_cell_paragraph_by_path_legacy(
+                section_idx,
+                parent_para_idx,
+                path,
+            );
+        }
+
+        if path.is_empty() {
+            return false;
+        }
+
+        let Some(final_width) = (|| {
+            let section = self.document.sections.get(section_idx)?;
+            let mut para = section.paragraphs.get(parent_para_idx)?;
+            for (i, &(ctrl_idx, cell_idx, cell_para_idx)) in path.iter().enumerate() {
+                let table = match para.controls.get(ctrl_idx) {
+                    Some(Control::Table(t)) => t.as_ref(),
+                    _ => return None,
+                };
+                let cell = table.cells.get(cell_idx)?;
+                if i == path.len() - 1 {
+                    let cell_para = cell.paragraphs.get(cell_para_idx)?;
+                    let (extent, pad_l, pad_r) =
+                        super::super::helpers::cell_reflow_geometry(cell, table.padding)?;
+                    let available_width = hwpunit_to_px(extent, self.dpi)
+                        - hwpunit_to_px(pad_l as i32, self.dpi)
+                        - hwpunit_to_px(pad_r as i32, self.dpi);
+                    let para_style = self
+                        .styles
+                        .para_styles
+                        .get(cell_para.para_shape_id as usize);
+                    let margin_left = para_style.map(|s| s.margin_left).unwrap_or(0.0);
+                    let margin_right = para_style.map(|s| s.margin_right).unwrap_or(0.0);
+                    let width = available_width - margin_left - margin_right;
+                    return (width > 0.0).then_some(width);
+                }
+                para = cell.paragraphs.get(cell_para_idx)?;
+            }
+            None
+        })() else {
+            return false;
+        };
+
+        let styles = &self.styles;
+        let dpi = self.dpi;
+        let Some(section) = self.document.sections.get_mut(section_idx) else {
+            return false;
+        };
+        let Some(mut para) = section.paragraphs.get_mut(parent_para_idx) else {
+            return false;
+        };
+
+        for (i, &(ctrl_idx, cell_idx, cell_para_idx)) in path.iter().enumerate() {
+            let Some(Control::Table(table)) = para.controls.get_mut(ctrl_idx) else {
+                return false;
+            };
+            let Some(cell) = table.cells.get_mut(cell_idx) else {
+                return false;
+            };
+            if i == path.len() - 1 {
+                let Some(cell_para) = cell.paragraphs.get_mut(cell_para_idx) else {
+                    return false;
+                };
+                reflow_horizontal_cell_line_segs(cell_para, final_width, styles, dpi);
                 return true;
             }
             let Some(next_para) = cell.paragraphs.get_mut(cell_para_idx) else {
@@ -860,8 +1480,11 @@ impl DocumentCore {
             }
         }
 
+        // 셀 크기가 그대로여도 기존 셀 합이 표시 높이를 넘을 수 있다.
+        let dimensions_before = (table.common.width, table.common.height);
+        table.refresh_ctrl_dimensions_after_content_edit(false);
+        changed |= dimensions_before != (table.common.width, table.common.height);
         if changed {
-            table.update_ctrl_dimensions();
             table.dirty = true;
         }
 
@@ -904,55 +1527,32 @@ impl DocumentCore {
         end_offset: usize,
         cell_ctx: Option<(usize, usize, usize)>,
     ) -> Result<String, HwpError> {
-        // Section raw 스트림 무효화 (재직렬화 유도)
-        self.document.sections[section_idx].raw_stream = None;
-        // DocInfo raw_stream은 유지 (전체 재직렬화 시 FIX-4 문제 발생)
-
         if let Some((ppi, ci, cei)) = cell_ctx {
-            // ─── 셀 내 deleteRange ───
-            if start_para == end_para {
-                // 같은 문단 내 삭제
-                let count = end_offset - start_offset;
-                if count > 0 {
-                    let cell_para =
-                        self.get_cell_paragraph_mut(section_idx, ppi, ci, cei, start_para)?;
-                    cell_para.delete_text_at(start_offset, count);
-                    self.reflow_cell_paragraph(section_idx, ppi, ci, cei, start_para);
-                }
-            } else {
-                // 다중 문단 셀 내 삭제
-                // 1) 마지막 문단 앞부분 삭제
-                if end_offset > 0 {
-                    let cell_para =
-                        self.get_cell_paragraph_mut(section_idx, ppi, ci, cei, end_para)?;
-                    cell_para.delete_text_at(0, end_offset);
-                }
-                // 2) 중간 문단 역순 제거 — 셀 내 문단은 cell.paragraphs에서 직접 제거
-                for mid_para in (start_para + 1..end_para).rev() {
-                    let cell = self.get_cell_mut(section_idx, ppi, ci, cei)?;
-                    if mid_para < cell.paragraphs.len() {
-                        cell.paragraphs.remove(mid_para);
-                    }
-                }
-                // 3) 첫 문단 뒷부분 삭제
-                {
-                    let cell_para =
-                        self.get_cell_paragraph_mut(section_idx, ppi, ci, cei, start_para)?;
-                    let para_len = cell_para.text.chars().count();
-                    if start_offset < para_len {
-                        cell_para.delete_text_at(start_offset, para_len - start_offset);
-                    }
-                }
-                // 4) 첫-마지막 문단 병합 (마지막 문단이 이제 start_para+1에 위치)
+            let changed = {
                 let cell = self.get_cell_mut(section_idx, ppi, ci, cei)?;
-                if start_para + 1 < cell.paragraphs.len() {
-                    let next_para = cell.paragraphs.remove(start_para + 1);
-                    cell.paragraphs[start_para].merge_from(&next_para);
+                if start_para >= cell.paragraphs.len() || end_para >= cell.paragraphs.len() {
+                    return Err(HwpError::RenderError(format!(
+                        "셀 문단 인덱스 범위 초과 (start={}, end={}, total={})",
+                        start_para,
+                        end_para,
+                        cell.paragraphs.len()
+                    )));
                 }
-                self.reflow_cell_paragraph(section_idx, ppi, ci, cei, start_para);
+                Paragraph::delete_selection_range(
+                    &mut cell.paragraphs,
+                    (start_para, start_offset),
+                    (end_para, end_offset),
+                )
+            };
+            if !changed {
+                return Ok(super::super::helpers::json_ok_with(&format!(
+                    "\"paraIdx\":{},\"charOffset\":{}",
+                    start_para, start_offset
+                )));
             }
-
-            // 부모 컨트롤 dirty 마킹 + 재페이지네이션
+            self.invalidate_edit_redo();
+            self.document.sections[section_idx].raw_stream = None;
+            self.reflow_cell_paragraph(section_idx, ppi, ci, cei, start_para);
             self.mark_cell_control_dirty(section_idx, ppi, ci);
             self.mark_section_dirty(section_idx);
             self.paginate_if_needed();
@@ -967,66 +1567,41 @@ impl DocumentCore {
                 start_para, start_offset
             )))
         } else {
-            // ─── 본문 deleteRange ───
-            if start_para == end_para {
-                // 같은 문단 내 삭제
-                let count = end_offset - start_offset;
-                if count > 0 {
-                    self.document.sections[section_idx].paragraphs[start_para]
-                        .delete_text_at(start_offset, count);
-                    self.reflow_paragraph(section_idx, start_para);
-                    crate::renderer::composer::recalculate_section_vpos(
-                        &mut self.document.sections[section_idx].paragraphs,
-                        start_para,
-                    );
+            if section_idx >= self.document.sections.len() {
+                return Err(HwpError::RenderError(format!(
+                    "구역 인덱스 {} 범위 초과",
+                    section_idx
+                )));
+            }
+            let para_total = self.document.sections[section_idx].paragraphs.len();
+            if start_para >= para_total || end_para >= para_total || start_para > end_para {
+                return Err(HwpError::RenderError(format!(
+                    "문단 인덱스 범위 초과 (start={}, end={}, total={})",
+                    start_para, end_para, para_total
+                )));
+            }
+            self.invalidate_edit_redo();
+            self.document.sections[section_idx].raw_stream = None;
+            let changed = Paragraph::delete_selection_range(
+                &mut self.document.sections[section_idx].paragraphs,
+                (start_para, start_offset),
+                (end_para, end_offset),
+            );
+            if start_para < end_para {
+                for removed_para in (start_para + 1..=end_para).rev() {
+                    self.remove_composed_paragraph(section_idx, removed_para);
                 }
-                // 변경 문단만 재구성
-                self.recompose_paragraph(section_idx, start_para);
-            } else {
-                // 1) 마지막 문단 앞부분 삭제
-                if end_offset > 0 {
-                    self.document.sections[section_idx].paragraphs[end_para]
-                        .delete_text_at(0, end_offset);
-                }
-                // 2) 중간 문단 역순 제거 (composed도 동기)
-                for mid_para in (start_para + 1..end_para).rev() {
-                    self.document.sections[section_idx]
-                        .paragraphs
-                        .remove(mid_para);
-                    self.remove_composed_paragraph(section_idx, mid_para);
-                }
-                // 3) 첫 문단 뒷부분 삭제
-                {
-                    let para_len = self.document.sections[section_idx].paragraphs[start_para]
-                        .text
-                        .chars()
-                        .count();
-                    if start_offset < para_len {
-                        self.document.sections[section_idx].paragraphs[start_para]
-                            .delete_text_at(start_offset, para_len - start_offset);
-                    }
-                }
-                // 4) 첫-마지막 문단 병합 (마지막 문단이 이제 start_para+1에 위치)
-                if start_para + 1 < self.document.sections[section_idx].paragraphs.len() {
-                    let next = self.document.sections[section_idx]
-                        .paragraphs
-                        .remove(start_para + 1);
-                    self.remove_composed_paragraph(section_idx, start_para + 1);
-                    self.document.sections[section_idx].paragraphs[start_para].merge_from(&next);
-                }
+            }
+            if changed {
                 self.reflow_paragraph(section_idx, start_para);
                 crate::renderer::composer::recalculate_section_vpos(
                     &mut self.document.sections[section_idx].paragraphs,
                     start_para,
                 );
-                // 병합된 문단 재구성
-                self.recompose_paragraph(section_idx, start_para);
             }
-
-            // 재페이지네이션
+            self.recompose_paragraph(section_idx, start_para);
             self.paginate_if_needed();
 
-            // 캐럿 위치 갱신
             self.document.doc_properties.caret_list_id = section_idx as u32;
             self.document.doc_properties.caret_para_id = start_para as u32;
 
@@ -1041,6 +1616,54 @@ impl DocumentCore {
                 start_para, start_offset
             )))
         }
+    }
+
+    pub fn delete_range_in_cell_by_path_native(
+        &mut self,
+        section_idx: usize,
+        parent_para_idx: usize,
+        path_json: &str,
+        start_offset: usize,
+        end_para: usize,
+        end_offset: usize,
+    ) -> Result<String, HwpError> {
+        let path = Self::parse_cell_path(path_json)?;
+        let start_para = path
+            .last()
+            .ok_or_else(|| HwpError::RenderError("경로가 비어있습니다".into()))?
+            .2;
+        let outer_ctrl = path[0].0;
+        let changed = {
+            let paragraphs = self.get_cell_paragraphs_mut_by_path_for_clipboard(
+                section_idx,
+                parent_para_idx,
+                &path,
+            )?;
+            if start_para >= paragraphs.len() || end_para >= paragraphs.len() {
+                return Err(HwpError::RenderError("셀 문단 인덱스 범위 초과".into()));
+            }
+            Paragraph::delete_selection_range(
+                paragraphs,
+                (start_para, start_offset),
+                (end_para, end_offset),
+            )
+        };
+        if changed {
+            self.invalidate_edit_redo();
+            self.document.sections[section_idx].raw_stream = None;
+            let mut reflow_path = path.clone();
+            if let Some(last) = reflow_path.last_mut() {
+                last.2 = start_para;
+            }
+            self.reflow_cell_paragraph_by_path(section_idx, parent_para_idx, &reflow_path);
+            self.mark_cell_control_dirty(section_idx, parent_para_idx, outer_ctrl);
+            self.mark_section_dirty(section_idx);
+            self.paginate_if_needed();
+        }
+        Ok(super::super::helpers::json_ok_with(&format!(
+            "\"paraIdx\":{},\"charOffset\":{}",
+            start_para, start_offset
+        )))
     }
 
     /// 표 셀에 대한 가변 참조를 얻는다.
@@ -1161,11 +1784,13 @@ impl DocumentCore {
         }
 
         // 편집 시 raw 스트림 무효화 (재직렬화 유도)
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
 
         // 문단 분리
-        let new_para =
-            self.document.sections[section_idx].paragraphs[para_idx].split_at(char_offset);
+        let new_para = self.document.sections[section_idx].paragraphs[para_idx]
+            .split_at(char_offset)
+            .paragraph;
 
         // 새 문단을 현재 문단 뒤에 삽입
         let new_para_idx = para_idx + 1;
@@ -1245,11 +1870,13 @@ impl DocumentCore {
             )));
         }
 
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
 
         // 문단 분리
-        let new_para =
-            self.document.sections[section_idx].paragraphs[para_idx].split_at(char_offset);
+        let new_para = self.document.sections[section_idx].paragraphs[para_idx]
+            .split_at(char_offset)
+            .paragraph;
         let new_para_idx = para_idx + 1;
         self.document.sections[section_idx]
             .paragraphs
@@ -1310,11 +1937,13 @@ impl DocumentCore {
             )));
         }
 
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
 
         // 문단 분리
-        let new_para =
-            self.document.sections[section_idx].paragraphs[para_idx].split_at(char_offset);
+        let new_para = self.document.sections[section_idx].paragraphs[para_idx]
+            .split_at(char_offset)
+            .paragraph;
         let new_para_idx = para_idx + 1;
         self.document.sections[section_idx]
             .paragraphs
@@ -1420,6 +2049,7 @@ impl DocumentCore {
         }
 
         // 조판 갱신
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
         self.rebuild_section(section_idx);
 
@@ -1454,6 +2084,7 @@ impl DocumentCore {
         }
 
         // 편집 시 raw 스트림 무효화 (재직렬화 유도)
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
 
         // 현재 문단을 이전 문단에 병합
@@ -1461,8 +2092,9 @@ impl DocumentCore {
             .paragraphs
             .remove(para_idx);
         let prev_idx = para_idx - 1;
-        let merge_point =
-            self.document.sections[section_idx].paragraphs[prev_idx].merge_from(&current_para);
+        let merge_point = self.document.sections[section_idx].paragraphs[prev_idx]
+            .merge_from(&current_para)
+            .offset;
 
         // 병합된 문단 리플로우 → vpos 재계산 → 재구성 → 재페이지네이션 + 다단 수렴 루프
         let old_col = self
@@ -1527,7 +2159,7 @@ impl DocumentCore {
             cell_idx,
             cell_para_idx,
         )?;
-        let new_para = cell_para.split_at(char_offset);
+        let new_para = cell_para.split_at(char_offset).paragraph;
 
         // 새 문단을 셀/글상자에 삽입
         let new_cell_para_idx = cell_para_idx + 1;
@@ -1571,6 +2203,7 @@ impl DocumentCore {
         );
 
         // raw 스트림 무효화, section dirty, 재페이지네이션
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
         self.mark_section_dirty(section_idx);
         self.paginate_if_needed();
@@ -1625,13 +2258,15 @@ impl DocumentCore {
         {
             Some(Control::Table(table)) => {
                 let removed = table.cells[cell_idx].paragraphs.remove(cell_para_idx);
-                merge_point = table.cells[cell_idx].paragraphs[prev_idx].merge_from(&removed);
+                merge_point = table.cells[cell_idx].paragraphs[prev_idx]
+                    .merge_from(&removed)
+                    .offset;
                 table.dirty = true;
             }
             Some(Control::Shape(shape)) => {
                 if let Some(tb) = super::super::helpers::get_textbox_from_shape_mut(shape) {
                     let removed = tb.paragraphs.remove(cell_para_idx);
-                    merge_point = tb.paragraphs[prev_idx].merge_from(&removed);
+                    merge_point = tb.paragraphs[prev_idx].merge_from(&removed).offset;
                 } else {
                     return Err(HwpError::RenderError(
                         "지정된 Shape 컨트롤에 텍스트 박스가 없습니다".to_string(),
@@ -1641,7 +2276,7 @@ impl DocumentCore {
             Some(Control::Picture(pic)) => {
                 if let Some(ref mut cap) = pic.caption {
                     let removed = cap.paragraphs.remove(cell_para_idx);
-                    merge_point = cap.paragraphs[prev_idx].merge_from(&removed);
+                    merge_point = cap.paragraphs[prev_idx].merge_from(&removed).offset;
                 } else {
                     return Err(HwpError::RenderError(
                         "지정된 그림 컨트롤에 캡션이 없습니다".to_string(),
@@ -1665,6 +2300,7 @@ impl DocumentCore {
         );
 
         // raw 스트림 무효화, section dirty, 재페이지네이션
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
         self.mark_section_dirty(section_idx);
         self.paginate_if_needed();
@@ -1715,7 +2351,7 @@ impl DocumentCore {
                 section.paragraphs.len()
             ))
         })?;
-        Ok(para.text.chars().count())
+        Ok(para.text().chars().count())
     }
 
     /// 문단에 텍스트박스가 있는 Shape 컨트롤의 인덱스를 반환 (네이티브)
@@ -2117,7 +2753,7 @@ impl DocumentCore {
                 section.paragraphs.len()
             ))
         })?;
-        let text_chars: Vec<char> = para.text.chars().collect();
+        let text_chars: Vec<char> = para.text().chars().collect();
         let total = text_chars.len();
         if char_offset > total {
             return Err(HwpError::RenderError(format!(
@@ -2208,7 +2844,7 @@ impl DocumentCore {
                     section_idx, parent_para_idx, control_idx, cell_idx, cell_para_idx
                 ))
             })?;
-        Ok(cell_para.text.chars().count())
+        Ok(cell_para.text().chars().count())
     }
 
     /// 셀 내 텍스트 부분 추출 (네이티브)
@@ -2236,7 +2872,7 @@ impl DocumentCore {
                     section_idx, parent_para_idx, control_idx, cell_idx, cell_para_idx
                 ))
             })?;
-        let text_chars: Vec<char> = cell_para.text.chars().collect();
+        let text_chars: Vec<char> = cell_para.text().chars().collect();
         let total = text_chars.len();
         if char_offset > total {
             return Err(HwpError::RenderError(format!(
@@ -2344,6 +2980,361 @@ impl DocumentCore {
 mod tests {
     use super::*;
 
+    fn c20_cell_core(direction: u8, nested: bool) -> (DocumentCore, Vec<(usize, usize, usize)>) {
+        use crate::model::{
+            table::{Cell, Table},
+            Padding,
+        };
+        let mut core = DocumentCore::new_empty();
+        core.create_blank_document_native().unwrap();
+        let raw = &mut core.document.doc_info.para_shapes[0];
+        raw.indent = -41000;
+        raw.margin_left = 0;
+        raw.margin_right = 0;
+        raw.alignment = crate::model::style::Alignment::Center;
+        core.styles =
+            crate::renderer::style_resolver::resolve_styles(&core.document.doc_info, core.dpi);
+        let mut paragraph = Paragraph::new_empty();
+        paragraph.insert_text_at(0, &"contact www.hometax.go.kr 문의 안내 ".repeat(4));
+        paragraph.char_shapes = vec![crate::model::paragraph::CharShapeRef::default()];
+        assert!(!core.document.doc_info.border_fills.is_empty());
+        let mut cell = Cell::new_empty(0, 0, 10000, 40000, 1);
+        cell.text_direction = direction;
+        cell.paragraphs = vec![paragraph];
+        let mut table = Table {
+            row_count: 1,
+            col_count: 1,
+            border_fill_id: 1,
+            cells: vec![cell],
+            padding: Padding {
+                left: 300,
+                right: 450,
+                top: 0,
+                bottom: 0,
+            },
+            ..Default::default()
+        };
+        table.update_ctrl_dimensions();
+        let mut path = vec![(0, 0, 0)];
+        if nested {
+            let mut outer = Cell::new_empty(0, 0, 16000, 50000, 1);
+            outer.paragraphs[0].controls = vec![Control::Table(Box::new(table))];
+            table = Table {
+                row_count: 1,
+                col_count: 1,
+                border_fill_id: 1,
+                cells: vec![outer],
+                ..Default::default()
+            };
+            table.update_ctrl_dimensions();
+            path.push((0, 0, 0));
+        }
+        core.document.sections[0].paragraphs[0].controls = vec![Control::Table(Box::new(table))];
+        core.recompose_section(0);
+        (core, path)
+    }
+
+    fn c20_assert_cell_wrap(
+        subject: &DocumentCore,
+        reference: &DocumentCore,
+        parent: usize,
+        path: &[(usize, usize, usize)],
+        stage: &str,
+    ) {
+        let subject = subject
+            .get_cell_paragraph_ref_by_path(0, parent, path)
+            .unwrap();
+        let reference = reference
+            .get_cell_paragraph_ref_by_path(0, parent, path)
+            .unwrap();
+        let starts = |paragraph: &Paragraph| {
+            paragraph
+                .line_segs
+                .iter()
+                .map(|line| line.text_start)
+                .collect::<Vec<_>>()
+        };
+        eprintln!(
+            "C20 caller {stage}: subject={:?}, full-width reference={:?}",
+            starts(subject),
+            starts(reference)
+        );
+        assert_eq!(subject.text(), reference.text(), "{stage}");
+        assert_eq!(
+            starts(subject),
+            starts(reference),
+            "{stage}: current horizontal cell width must drive reflow"
+        );
+        assert!(subject.line_segs.iter().all(|line| line.segment_width > 1));
+    }
+
+    #[test]
+    fn c20_hwp_clipboard_keeps_legacy_nonzero_spacing_projection() {
+        let (mut core, _) = c20_cell_core(0, false);
+        core.document.doc_info.char_shapes[0].base_size = 1000;
+        core.document.doc_info.char_shapes[0].spacings = [-19; 7];
+        core.styles =
+            crate::renderer::style_resolver::resolve_styles(&core.document.doc_info, core.dpi);
+        let css = core.char_style_to_css(0);
+        eprintln!("C20 actual clipboard CSS: {css}");
+        assert!(
+            css.contains("letter-spacing:-2.5px;"),
+            "the existing HWP clipboard CSS projection must survive"
+        );
+        let measured = crate::renderer::layout::resolved_to_text_style(&core.styles, 0, 1);
+        assert_eq!(
+            measured.letter_spacing, 0.0,
+            "legacy CSS projection must not be counted again in glyph advances"
+        );
+        assert_eq!(measured.hwp_letter_spacing_ratio, -0.19);
+    }
+
+    #[test]
+    fn c20_nested_horizontal_and_vertical_legacy_use_separate_reflow_entries() {
+        let (mut horizontal, path) = c20_cell_core(0, true);
+        let (mut reference, _) = c20_cell_core(0, true);
+        reference
+            .apply_para_format_in_cell_by_path_native(0, 0, &path, "{\"indent\":0}")
+            .unwrap();
+        let end = horizontal
+            .get_cell_paragraph_ref_by_path(0, 0, &path)
+            .unwrap()
+            .text()
+            .chars()
+            .count();
+        horizontal
+            .insert_text_in_cell_by_path(0, 0, &path, end, "편😀")
+            .unwrap();
+        reference
+            .insert_text_in_cell_by_path(0, 0, &path, end, "편😀")
+            .unwrap();
+        c20_assert_cell_wrap(&horizontal, &reference, 0, &path, "nested Unicode edit");
+        horizontal
+            .apply_para_format_in_cell_by_path_native(0, 0, &path, "{\"lineSpacing\":180}")
+            .unwrap();
+        reference
+            .apply_para_format_in_cell_by_path_native(0, 0, &path, "{\"lineSpacing\":180}")
+            .unwrap();
+        c20_assert_cell_wrap(&horizontal, &reference, 0, &path, "nested paragraph format");
+    }
+
+    #[test]
+    fn c20_vertical_cell_path_keeps_legacy_indent_reflow() {
+        let (mut core, path) = c20_cell_core(1, true);
+        let mut expected = core
+            .get_cell_paragraph_ref_by_path(0, 0, &path)
+            .unwrap()
+            .clone();
+        reflow_line_segs(
+            &mut expected,
+            crate::renderer::hwpunit_to_px(9250, core.dpi),
+            &core.styles,
+            core.dpi,
+        );
+        assert!(core.reflow_cell_paragraph_by_path(0, 0, &path));
+        let actual = core.get_cell_paragraph_ref_by_path(0, 0, &path).unwrap();
+        assert_eq!(
+            format!("{:?}", actual.line_segs),
+            format!("{:?}", expected.line_segs)
+        );
+    }
+
+    #[test]
+    fn c20_document_load_synthesizes_uncomputed_horizontal_cell_geometry() {
+        let (mut subject, path) = c20_cell_core(0, true);
+        let (mut reference, _) = c20_cell_core(0, true);
+        reference
+            .apply_para_format_in_cell_by_path_native(0, 0, &path, "{\"indent\":0}")
+            .unwrap();
+        subject
+            .get_cell_paragraph_mut_by_path(0, 0, &path)
+            .unwrap()
+            .line_segs = vec![Default::default()];
+        reference
+            .get_cell_paragraph_mut_by_path(0, 0, &path)
+            .unwrap()
+            .line_segs = vec![Default::default()];
+        let mut loaded = Vec::new();
+        for (name, mut core) in [("subject", subject), ("reference", reference)] {
+            core.document.sections[0]
+                .paragraphs
+                .insert(0, Paragraph::new_empty());
+            let input = crate::serializer::serialize_hwpx(&core.document).unwrap();
+            if let Some(dir) = std::env::var_os("RHWP_C20_ARTIFACT_DIR") {
+                std::fs::write(
+                    std::path::Path::new(&dir).join(format!("uncomputed-{name}-input.hwpx")),
+                    &input,
+                )
+                .unwrap();
+            }
+            let parsed = crate::parser::hwpx::parse_hwpx(&input).unwrap();
+            assert_eq!(parsed.sections[0].paragraphs.len(), 2);
+            assert!(matches!(
+                parsed.sections[0].paragraphs[0].controls[0],
+                Control::ColumnDef(_)
+            ));
+            let mut paragraph = &parsed.sections[0].paragraphs[1];
+            for &(control, cell, para) in &path {
+                let Control::Table(table) = &paragraph.controls[control] else {
+                    panic!("the exact nested owner must remain a table")
+                };
+                paragraph = &table.cells[cell].paragraphs[para];
+            }
+            assert!(
+                paragraph.line_segs.iter().all(|line| line.line_height == 0),
+                "serialized owner must actually lack computed geometry"
+            );
+            loaded.push(DocumentCore::from_bytes(&input).unwrap());
+        }
+        let subject = &loaded[0];
+        let reference = &loaded[1];
+        c20_assert_cell_wrap(
+            subject,
+            reference,
+            1,
+            &path,
+            "public load with uncomputed geometry",
+        );
+        let paragraph = subject.get_cell_paragraph_ref_by_path(0, 1, &path).unwrap();
+        assert!(paragraph.line_segs.iter().all(|line| line.line_height > 0));
+        assert_eq!(
+            subject.document.doc_info.para_shapes[paragraph.para_shape_id as usize].indent,
+            -41000
+        );
+    }
+
+    #[test]
+    fn c20_horizontal_cell_format_resize_and_picture_delete_use_current_geometry() {
+        let (mut subject, path) = c20_cell_core(0, false);
+        let (mut reference, _) = c20_cell_core(0, false);
+        reference
+            .apply_para_format_in_cell_native(0, 0, 0, 0, 0, "{\"indent\":0}")
+            .unwrap();
+        let end = subject
+            .get_cell_paragraph_ref_by_path(0, 0, &path)
+            .unwrap()
+            .text()
+            .chars()
+            .count();
+        for core in [&mut subject, &mut reference] {
+            core.apply_char_format_in_cell_native(0, 0, 0, 0, 0, 0, end, "{\"fontSize\":1200}")
+                .unwrap();
+        }
+        c20_assert_cell_wrap(&subject, &reference, 0, &path, "character format");
+        for core in [&mut subject, &mut reference] {
+            core.apply_para_format_in_cell_native(0, 0, 0, 0, 0, "{\"lineSpacing\":180}")
+                .unwrap();
+        }
+        c20_assert_cell_wrap(&subject, &reference, 0, &path, "paragraph format");
+        for core in [&mut subject, &mut reference] {
+            core.resize_table_cells_native(
+                0,
+                0,
+                0,
+                "[{\"cellIdx\":0,\"widthDelta\":1500,\"heightDelta\":0}]",
+            )
+            .unwrap();
+        }
+        c20_assert_cell_wrap(&subject, &reference, 0, &path, "current resized width");
+        for core in [&mut subject, &mut reference] {
+            let paragraph = core.get_cell_paragraph_mut_by_path(0, 0, &path).unwrap();
+            paragraph.controls.push(Control::Picture(Box::new(
+                crate::model::image::Picture::default(),
+            )));
+            paragraph.char_count += 8;
+            for line in &mut paragraph.line_segs {
+                line.segment_width = 1500;
+            }
+            core.delete_picture_control_by_path_native(
+                0,
+                0,
+                "[{\"controlIndex\":0,\"cellIndex\":0,\"cellParaIndex\":0}]",
+                0,
+            )
+            .unwrap();
+        }
+        c20_assert_cell_wrap(
+            &subject,
+            &reference,
+            0,
+            &path,
+            "delete ignores stale cached width",
+        );
+        let paragraph = subject.get_cell_paragraph_ref_by_path(0, 0, &path).unwrap();
+        assert!(paragraph.controls.is_empty());
+        assert!(paragraph
+            .line_segs
+            .iter()
+            .all(|line| line.segment_width == 10750));
+        assert_eq!(
+            subject.document.doc_info.para_shapes[paragraph.para_shape_id as usize].indent,
+            -41000
+        );
+    }
+
+    #[test]
+    fn caption_sentinel_keeps_caption_reflow_with_a_vertical_physical_slot() {
+        use crate::model::shape::{Caption, CaptionDirection};
+        use crate::model::table::{Cell, Table};
+
+        let mut core = DocumentCore::new_empty();
+        core.create_blank_document_native().unwrap();
+        let mut paragraph = crate::model::paragraph::Paragraph::new_empty();
+        paragraph.replace_text("caption text that must wrap ".repeat(8));
+        let mut table = Table {
+            row_count: u16::MAX,
+            col_count: 1,
+            cells: vec![Cell::default(); 65535],
+            caption: Some(Caption {
+                direction: CaptionDirection::Left,
+                width: 7000,
+                paragraphs: vec![paragraph],
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        for (index, cell) in table.cells.iter_mut().enumerate() {
+            cell.row = u16::try_from(index).unwrap();
+            cell.row_span = 1;
+            cell.col_span = 1;
+            cell.width = 6000;
+        }
+        table.cells[0].text_direction = 1;
+        table.cells[65534].text_direction = 2;
+        table.cells[65534].height = 60000;
+        let mut physical = crate::model::paragraph::Paragraph::new_empty();
+        physical.replace_text("physical vertical cell text ".repeat(8));
+        table.cells[65534].paragraphs = vec![physical];
+        let control_idx = core.document.sections[0].paragraphs[0].controls.len();
+        core.document.sections[0].paragraphs[0]
+            .controls
+            .push(Control::Table(Box::new(table)));
+
+        assert!(core.is_vertical_table_cell(0, 0, control_idx, 0));
+        assert!(core.is_vertical_cell_path(0, 0, &[(control_idx, 0, 0)]));
+        assert!(!core.is_vertical_table_cell(0, 0, control_idx, 65534));
+        assert!(core.is_vertical_cell_path(0, 0, &[(control_idx, 65534, 0)]));
+        core.reflow_cell_paragraph(0, 0, control_idx, 65534, 0);
+        let caption = core
+            .get_cell_paragraph_ref(0, 0, control_idx, 65534, 0)
+            .unwrap();
+        assert!(caption.line_segs.len() > 1);
+        assert!(caption
+            .line_segs
+            .iter()
+            .all(|segment| segment.segment_width == 7000));
+        assert!(core.reflow_cell_paragraph_by_path(0, 0, &[(control_idx, 65534, 0)]));
+        let physical = core
+            .get_cell_paragraph_ref_by_path(0, 0, &[(control_idx, 65534, 0)])
+            .unwrap();
+        assert_eq!(physical.text(), "physical vertical cell text ".repeat(8));
+        assert!(physical.line_segs.len() > 1);
+        assert!(physical
+            .line_segs
+            .iter()
+            .all(|segment| segment.segment_width == 6000));
+    }
+
     #[test]
     fn test_page_overflow_with_enter() {
         let mut core = DocumentCore::new_empty();
@@ -2392,7 +3383,10 @@ mod tests {
         );
 
         // Enter로 문단 분리 (텍스트 끝에서)
-        let text_len = core.document.sections[0].paragraphs[0].text.chars().count();
+        let text_len = core.document.sections[0].paragraphs[0]
+            .text()
+            .chars()
+            .count();
         core.split_paragraph_native(0, 0, text_len).unwrap();
 
         // 두 번째 문단에 텍스트 입력
@@ -2817,11 +3811,18 @@ impl DocumentCore {
     ) -> Result<String, HwpError> {
         let new_chars_count = text.chars().count();
         let cell_para = self.get_cell_paragraph_mut_by_path(section_idx, parent_para_idx, path)?;
+        if new_chars_count == 0 {
+            return Ok(super::super::helpers::json_ok_with(&format!(
+                "\"charOffset\":{}",
+                char_offset
+            )));
+        }
         cell_para.insert_text_at(char_offset, text);
 
         let outer_ctrl = path[0].0;
         self.reflow_cell_paragraph_by_path(section_idx, parent_para_idx, path);
         self.refresh_tables_after_cell_path_edit(section_idx, parent_para_idx, path);
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
         self.mark_section_dirty(section_idx);
         self.paginate_if_needed();
@@ -2849,11 +3850,17 @@ impl DocumentCore {
         count: usize,
     ) -> Result<String, HwpError> {
         let cell_para = self.get_cell_paragraph_mut_by_path(section_idx, parent_para_idx, path)?;
-        cell_para.delete_text_at(char_offset, count);
+        if cell_para.delete_text_at(char_offset, count).deleted_chars == 0 {
+            return Ok(super::super::helpers::json_ok_with(&format!(
+                "\"charOffset\":{}",
+                char_offset
+            )));
+        }
 
         let outer_ctrl = path[0].0;
         self.reflow_cell_paragraph_by_path(section_idx, parent_para_idx, path);
         self.refresh_tables_after_cell_path_edit(section_idx, parent_para_idx, path);
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
         self.mark_section_dirty(section_idx);
         self.paginate_if_needed();
@@ -2908,7 +3915,9 @@ impl DocumentCore {
                 if cell_para_idx >= cell.paragraphs.len() {
                     return Err(HwpError::RenderError("셀문단 범위 초과".to_string()));
                 }
-                let new_para = cell.paragraphs[cell_para_idx].split_at(char_offset);
+                let new_para = cell.paragraphs[cell_para_idx]
+                    .split_at(char_offset)
+                    .paragraph;
                 cell.paragraphs.insert(cell_para_idx + 1, new_para);
                 break;
             }
@@ -2926,6 +3935,7 @@ impl DocumentCore {
         }
         self.reflow_cell_paragraph_by_path(section_idx, parent_para_idx, &old_path);
         self.refresh_tables_after_cell_path_edit(section_idx, parent_para_idx, path);
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
         self.mark_section_dirty(section_idx);
         self.paginate_if_needed();
@@ -2984,7 +3994,7 @@ impl DocumentCore {
                 }
                 let removed = cell.paragraphs.remove(cell_para_idx);
                 let prev = &mut cell.paragraphs[cell_para_idx - 1];
-                merge_point = prev.text.chars().count();
+                merge_point = prev.text().chars().count();
                 prev.merge_from(&removed);
                 break;
             }
@@ -3001,6 +4011,7 @@ impl DocumentCore {
         }
         self.reflow_cell_paragraph_by_path(section_idx, parent_para_idx, &prev_path);
         self.refresh_tables_after_cell_path_edit(section_idx, parent_para_idx, &prev_path);
+        self.invalidate_edit_redo();
         self.document.sections[section_idx].raw_stream = None;
         self.mark_section_dirty(section_idx);
         self.paginate_if_needed();
@@ -3028,7 +4039,7 @@ impl DocumentCore {
         count: usize,
     ) -> Result<String, HwpError> {
         let para = self.resolve_paragraph_by_path(section_idx, parent_para_idx, path)?;
-        let text_chars: Vec<char> = para.text.chars().collect();
+        let text_chars: Vec<char> = para.text().chars().collect();
         let total = text_chars.len();
         if char_offset > total {
             return Err(HwpError::RenderError(format!(

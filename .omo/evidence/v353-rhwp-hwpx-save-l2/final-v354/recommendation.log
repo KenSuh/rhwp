@@ -1,0 +1,5 @@
+◆ quality_posture=gpt-6-quality-first (quality gap → higher model/effort · same-quality band → cheaper)
+▶ 단계=correction(codex) · kind=implementation·risk=high
+agent=codex profile=high model=gpt-6.1-sol effort=max reasoning_depth=max pick=quality-gap workload=large timeout=1200s sandbox=read-only catalog=2026-10-25T23:02:43Z
+  rationale: 고위험·적대 작업은 GPT-6.1 Sol + max.
+  codex flags: --model gpt-6.1-sol -c model_reasoning_effort=\"max\"

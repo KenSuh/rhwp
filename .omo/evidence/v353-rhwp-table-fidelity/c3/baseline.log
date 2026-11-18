@@ -1,0 +1,15 @@
+CASE T1 file=T1_press_release_cell_logo.hwpx probe=OK tables=100->100 cells=10953->10953 pics=44->44 loss=448 info=210
+  loss pos.allowOverlap=7
+  loss pos.flowWithText=1
+  loss struct.cellzone=5
+  loss subList.lineWrap=435
+  info tbl.id=100
+  info tbl.zOrder=99
+  info tc.name=11
+CASE T2 file=T2_2026_oss_rst.hwpx probe=OK tables=10->10 cells=126->126 pics=0->0 loss=18 info=19
+  loss subList.lineWrap=6
+  loss tbl.lock=3
+  loss tc.protect=9
+  info tbl.id=10
+  info tbl.zOrder=9
+ATTR_LOSS_TOTAL=466

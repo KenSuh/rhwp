@@ -1,0 +1,13 @@
+CWD=/tmp/v353-c2.wjOeCn/green
+COMMAND= env TMPDIR=/tmp/v353-c2.wjOeCn/snapshots bash /Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity/.omo/evidence/v353-rhwp-hwpx-save-l2/c1/clean-cargo.sh --version
+CLEAN_SOURCE_HEAD=7370ec9fdcf89eb4a372143bcb555ddd9bfe0b46
+CLEAN_SOURCE_METHOD=git-archive
+DEPENDENCY_INPUT=absent
+DEPENDENCY_INPUT_SHA256=absent
+COMMAND=cargo --version
+CARGO_TARGET_DIR=/private/tmp/v353-c2.wjOeCn/green/target
+cargo 1.95.0 (f2d3ce0bd 2026-03-21)
+RESOLVED_CARGO_LOCK_SHA256=absent
+CARGO_EXIT_STATUS=0
+
+EXIT=0

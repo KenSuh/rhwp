@@ -150,8 +150,7 @@ fn doc_with_sections(defs: Vec<(PageDef, bool)>) -> Document {
         let mut section = Section::default();
         section.section_def.page_def = page_def;
         if with_paragraph {
-            let mut para = Paragraph::default();
-            para.text = "본문".to_string();
+            let para = Paragraph::with_text("본문".to_string(), vec![0, 1], vec![]);
             section.paragraphs.push(para);
         }
         doc.sections.push(section);
@@ -164,7 +163,7 @@ fn fixture_with_page_pr(page_pr: &str) -> Vec<u8> {
     let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
     for i in 0..archive.len() {
         let mut entry = archive.by_index(i).expect("fixture member");
-        if entry.name() == "Contents/section0.xml" {
+        if entry.name().expect("fixture filename") == "Contents/section0.xml" {
             let mut xml = String::new();
             entry.read_to_string(&mut xml).expect("section XML");
             let start = xml.find("<hp:pagePr ").expect("fixture pagePr");
@@ -173,7 +172,10 @@ fn fixture_with_page_pr(page_pr: &str) -> Vec<u8> {
                 + "</hp:pagePr>".len();
             xml.replace_range(start..end, page_pr);
             writer
-                .start_file(entry.name(), zip::write::SimpleFileOptions::default())
+                .start_file(
+                    entry.name().expect("fixture filename"),
+                    zip::write::SimpleFileOptions::default(),
+                )
                 .expect("write section");
             writer.write_all(xml.as_bytes()).expect("section contents");
         } else {
@@ -490,14 +492,14 @@ fn hwpx_h_01_each_section_keeps_its_own_page_pr() {
 fn one_char_body_edit_keeps_original_page_def() {
     let original = parse_hwpx(FORM_002).expect("parse original");
     let mut core = DocumentCore::from_bytes(FORM_002).expect("load form-002");
-    assert_eq!(core.document().sections[0].paragraphs[1].text, "");
+    assert_eq!(core.document().sections[0].paragraphs[1].text(), "");
     core.insert_text_native(0, 1, 0, "가")
         .expect("insert one char");
 
     let exported = core.export_hwpx_native().expect("export after edit");
     let reloaded = DocumentCore::from_bytes(&exported).expect("reload export");
     // 편집이 실제로 저장됐는지 먼저 본다 — 본문은 원본과 달라야 한다.
-    assert_eq!(reloaded.document().sections[0].paragraphs[1].text, "가");
+    assert_eq!(reloaded.document().sections[0].paragraphs[1].text(), "가");
     assert_eq!(
         fields(&reloaded.document().sections[0].section_def.page_def),
         fields(&original.sections[0].section_def.page_def)

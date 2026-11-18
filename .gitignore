@@ -77,3 +77,4 @@ rhwp-chrome/dist/
 rhwp-safari/dist/
 rhwp-safari/HWP Viewer/
 rhwp-safari/.DS_Store
+.unlazy-hook-state.json

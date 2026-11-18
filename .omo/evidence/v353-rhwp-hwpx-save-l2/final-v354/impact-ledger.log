@@ -1,0 +1,71 @@
+IMPACT at=code:17f85ce02d48a7da5d12a6e0997939949a60f613@17f85ce02d48 query="gates/V353_RHWP_HWPX_SAVE_L2_GATES.md" mode=path jev=used(cache) jev_threshold=0.45 files=24 rows=206 det_ms=879 total_ms=882 jev_requests=0 jev_http_attempts=0 jev_input_tokens=0
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/gate-check-output.txt  channel=other binding=pin jev=0.50★ rows=35
+    :112 [basename/mention] V353_RHWP_HWPX_SAVE_L2_GATES.md: 11 gates
+    :2 [stem/stem_weak] APPROVAL REQUIRED V353_RHWP_HWPX_SAVE_L2_GATES:G1
+    :9 [stem/stem_weak] APPROVAL REQUIRED V353_RHWP_HWPX_SAVE_L2_GATES:G2
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/REPORT.md  channel=doc binding=exec jev=0.50★ rows=1
+    :12 [path/exec] `gates/V353_RHWP_HWPX_SAVE_L2_GATES.md` 를 unlazy `gate-check.mjs --approve --cwd <worktree> --timeout 3600` 로 source HEAD `c3059ef` 에서 돌렸다 → `ALL MET
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c2/REPORT.md  channel=doc binding=mention jev=0.48★ rows=2
+    :21 [path/mention] 2. `gates/V353_RHWP_HWPX_SAVE_L2_GATES.md`: G7–G9를 미체크/명시적 deferral로 돌리고 기존 EVIDENCE는 역사적 NOTE로 보존했다. 로그 목적지를 `c1`에서 `c2`로 옮겼다. G8/G9는 끝의 의존성 메타데이터 때문
+    :76 [path/mention] AC4: deferred — `gates/V353_RHWP_HWPX_SAVE_L2_GATES.md:33`의 G7–G9 세 deferral; `c2/structure.log`의 scope/6개 artifact 확인과 helper RED/GREEN은 완료했지만 최종 cle
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c2/structure.log  channel=other binding=mention jev=0.41 rows=1
+    :15 [stem/stem_weak] COMMAND G10 git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape|field|mod
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/gate-run.log  channel=other binding=pin jev=0.40 rows=33
+    :101 [basename/mention] V353_RHWP_HWPX_SAVE_L2_GATES.md: 11 gates
+    :1 [stem/stem_weak] APPROVAL REQUIRED V353_RHWP_HWPX_SAVE_L2_GATES:G2
+    :8 [stem/stem_weak] APPROVAL REQUIRED V353_RHWP_HWPX_SAVE_L2_GATES:G3
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/gate-run-final.log  channel=other binding=mention jev=0.36 rows=13
+    :19 [basename/mention] V353_RHWP_HWPX_SAVE_L2_GATES.md: 11 gates
+    :1 [stem/stem_weak] RUN  V353_RHWP_HWPX_SAVE_L2_GATES:G4 shell=/bin/sh cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity PATH=/opt/homebrew/Caskroom/codex/0.16
+    :2 [stem/stem_weak] RUN  V353_RHWP_HWPX_SAVE_L2_GATES:G7 shell=/bin/sh cwd=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity PATH=/opt/homebrew/Caskroom/codex/0.16
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-final-3.log  channel=other binding=mention jev=0.36 rows=2
+    :20 [path/mention] - [code] gates/V353_RHWP_HWPX_SAVE_L2_GATES.md  channel=ledger_check binding=pin jev=0.48★ rows=5
+    :54 [stem/stem_weak] :96 [stem/stem_weak] PASS V353_RHWP_HWPX_SAVE_L2_GATES:G4: 도형·필드·header 잔여 결함 측정과 수정 — 새 base 에서 측정한 결함 목록과, 그 각각의 회귀 시험
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c2/impact-ledger.log  channel=other binding=exec jev=0.35 rows=35
+    :1 [path/mention] IMPACT at=code:HEAD@7370ec9fdcf8 query="gates/V353_RHWP_HWPX_SAVE_L2_GATES.md" mode=path jev=used jev_threshold=0.45 files=17 rows=163 det_ms=234 tota
+    :8 [path/exec] :12 [path/exec] `gates/V353_RHWP_HWPX_SAVE_L2_GATES.md` 를 unlazy `gate-check.mjs --approve --cwd <worktree> --timeout 3600` 로 source HEAD `c3059ef` 에서
+    :10 [path/mention] :1 [path/mention] IMPACT at=code:HEAD@5315315566c6 query="gates/V353_RHWP_HWPX_SAVE_L2_GATES.md" mode=path jev=used jev_threshold=0.45 files=3 rows=37
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-final-6.log  channel=other binding=exec jev=0.32 rows=5
+    :1 [path/mention] IMPACT at=code:HEAD@5315315566c6 query="gates/V353_RHWP_HWPX_SAVE_L2_GATES.md" mode=path jev=used jev_threshold=0.45 files=3 rows=37 det_ms=942 total_
+    :8 [path/exec] :12 [path/exec] `gates/V353_RHWP_HWPX_SAVE_L2_GATES.md` 를 unlazy `gate-check.mjs --approve --cwd <worktree> --timeout 3600` 로 source HEAD `c3059ef` 에서
+    :4 [basename/mention] :112 [basename/mention] V353_RHWP_HWPX_SAVE_L2_GATES.md: 11 gates
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-resumed-header.log  channel=other binding=mention jev=0.32 rows=4
+    :54 [path/mention] - [code] gates/V353_RHWP_HWPX_SAVE_L2_GATES.md  channel=ledger_check binding=pin jev=0.36 rows=6
+    :42 [stem/stem_weak] :85 [stem/stem_weak] PASS V353_RHWP_HWPX_SAVE_L2_GATES:G4: 도형·필드·header 잔여 결함 측정과 수정 — 새 base 에서 측정한 결함 목록과, 그 각각의 회귀 시험
+    :45 [stem/stem_weak] :85 [stem/stem_weak] PASS V353_RHWP_HWPX_SAVE_L2_GATES:G4: 도형·필드·header 잔여 결함 측정과 수정 — 새 base 에서 측정한 결함 목록과, 그 각각의 회귀 시험
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-resumed-ledger.log  channel=other binding=exec jev=0.31 rows=26
+    :1 [path/mention] IMPACT at=code:HEAD@a6d024f4f0bd query="gates/V353_RHWP_HWPX_SAVE_L2_GATES.md" mode=path jev=used jev_threshold=0.45 files=14 rows=120 det_ms=413 tota
+    :8 [path/exec] :12 [path/exec] `gates/V353_RHWP_HWPX_SAVE_L2_GATES.md` 를 unlazy `gate-check.mjs --approve --cwd <worktree> --timeout 3600` 로 source HEAD `c3059ef` 에서
+    :10 [path/mention] :1 [path/mention] IMPACT at=code:HEAD@5315315566c6 query="gates/V353_RHWP_HWPX_SAVE_L2_GATES.md" mode=path jev=used jev_threshold=0.45 files=3 rows=37
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c2/structure.sh  channel=other binding=mention jev=0.28 rows=1
+    :18 [path/mention] LEDGER: Final = "gates/V353_RHWP_HWPX_SAVE_L2_GATES.md"
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/gate-raw-output.txt  channel=other binding=mention jev=0.28 rows=1
+    :40 [stem/stem_weak] $ git diff --name-only 59c2285efe616211cd147dfa849d2f9f9df767dd HEAD | grep -vE '^(src/serializer/hwpx/(section|table|header|shape|field|mod)\.rs|src/
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/gate-run-initial-5315315.log  channel=other binding=pin jev=0.27 rows=33
+    :101 [basename/mention] V353_RHWP_HWPX_SAVE_L2_GATES.md: 11 gates
+    :1 [stem/stem_weak] APPROVAL REQUIRED V353_RHWP_HWPX_SAVE_L2_GATES:G2
+    :8 [stem/stem_weak] APPROVAL REQUIRED V353_RHWP_HWPX_SAVE_L2_GATES:G3
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-1.log  channel=other binding=mention jev=0.27 rows=2
+    :32 [path/mention] - [code] gates/V353_RHWP_HWPX_SAVE_L2_GATES.md  channel=ledger_check binding=pin jev=0.46★ rows=5
+    :38 [stem/stem_weak] :96 [stem/stem_weak] PASS V353_RHWP_HWPX_SAVE_L2_GATES:G4: 도형·필드·header 잔여 결함 측정과 수정 — 새 base 에서 측정한 결함 목록과, 그 각각의 회귀 시험
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-5.log  channel=other binding=mention jev=0.27 rows=1
+    :2 [path/mention] - [code] gates/V353_RHWP_HWPX_SAVE_L2_GATES.md  channel=ledger_check binding=pin jev=0.61★ rows=3
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-final-2.log  channel=other binding=mention jev=0.27 rows=1
+    :28 [path/mention] - [code] gates/V353_RHWP_HWPX_SAVE_L2_GATES.md  channel=ledger_check binding=pin jev=0.45★ rows=2
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-final-5.log  channel=other binding=mention jev=0.27 rows=1
+    :3 [path/mention] - [code] gates/V353_RHWP_HWPX_SAVE_L2_GATES.md  channel=ledger_check binding=pin jev=0.61★ rows=3
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c2/impact-evidence.log  channel=other binding=mention jev=0.26 rows=2
+    :4 [path/mention] - [code] gates/V353_RHWP_HWPX_SAVE_L2_GATES.md  channel=ledger_check binding=pin jev=0.59★ rows=20
+    :15 [stem/stem_weak] :15 [basename/mention] PASS V353_RHWP_HWPX_SAVE_L2_GATES:G10: 범위 — 59c2285 대비 변경 파일이 §3.1 안
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c2/impact-lock.log  channel=other binding=mention jev=0.25 rows=1
+    :16 [path/mention] - [code] gates/V353_RHWP_HWPX_SAVE_L2_GATES.md  channel=gate_ledger binding=mention jev=0.46★ rows=1
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-2.log  channel=other binding=mention jev=0.24 rows=2
+    :16 [path/mention] - [code] gates/V353_RHWP_HWPX_SAVE_L2_GATES.md  channel=ledger_check binding=pin jev=0.52★ rows=5
+    :26 [stem/stem_weak] :96 [stem/stem_weak] PASS V353_RHWP_HWPX_SAVE_L2_GATES:G4: 도형·필드·header 잔여 결함 측정과 수정 — 새 base 에서 측정한 결함 목록과, 그 각각의 회귀 시험
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c2/impact-helper.log  channel=other binding=mention jev=0.23 rows=1
+    :3 [path/mention] - [code] gates/V353_RHWP_HWPX_SAVE_L2_GATES.md  channel=ledger_check binding=pin jev=0.43 rows=4
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-final-1.log  channel=other binding=mention jev=0.22 rows=2
+    :20 [path/mention] - [code] gates/V353_RHWP_HWPX_SAVE_L2_GATES.md  channel=ledger_check binding=pin jev=0.51★ rows=5
+    :38 [stem/stem_weak] :96 [stem/stem_weak] PASS V353_RHWP_HWPX_SAVE_L2_GATES:G4: 도형·필드·header 잔여 결함 측정과 수정 — 새 base 에서 측정한 결함 목록과, 그 각각의 회귀 시험
+- [code] .omo/evidence/v353-rhwp-hwpx-save-l2/c1/impact-3.log  channel=other binding=mention jev=0.20 rows=1
+    :11 [path/mention] - [code] gates/V353_RHWP_HWPX_SAVE_L2_GATES.md  channel=ledger_check binding=pin jev=0.50★ rows=2

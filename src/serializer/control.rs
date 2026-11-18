@@ -18,7 +18,7 @@ use crate::model::shape::{
     ShapeObject,
 };
 use crate::model::style::{Fill, FillType, ImageFillMode, ShapeBorderLine};
-use crate::model::table::{Cell, Table, TablePageBreak, VerticalAlign};
+use crate::model::table::{Cell, Table, TablePageBreak, VerticalAlign, TABLE_RECORD_NO_ADJUST};
 use crate::parser::record::Record;
 use crate::parser::tags;
 
@@ -379,11 +379,13 @@ fn serialize_table(table: &Table, level: u16, records: &mut Vec<Record>) {
 fn serialize_table_record(table: &Table) -> Vec<u8> {
     let mut w = ByteWriter::new();
 
-    // attr (원본이 있으면 그대로, 없으면 재구성)
-    let attr = if table.raw_table_record_attr != 0 {
-        table.raw_table_record_attr
+    // attr (원본이 있으면 그대로, 없으면 재구성). HWPX 파서는 noAdjust(bit 3)만 raw 에 담는다 —
+    // 그런 값은 원본 레코드가 아니므로 쪽 나눔·제목 줄 반복(bit 0-2)을 IR 에서 다시 만들고 bit 3 을 잇는다.
+    let raw = table.raw_table_record_attr;
+    let attr = if raw & !TABLE_RECORD_NO_ADJUST != 0 {
+        raw
     } else {
-        let mut a: u32 = 0;
+        let mut a: u32 = raw & TABLE_RECORD_NO_ADJUST;
         match table.page_break {
             TablePageBreak::CellBreak => a |= 0x01,
             TablePageBreak::RowBreak => a |= 0x02,
@@ -1644,3 +1646,41 @@ fn serialize_equation_control(eq: &Equation, level: u16, records: &mut Vec<Recor
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod table_record_attr_tests {
+    use super::*;
+
+    fn record_attr(raw: u32, page_break: TablePageBreak, repeat_header: bool) -> u32 {
+        let table = Table {
+            raw_table_record_attr: raw,
+            page_break,
+            repeat_header,
+            ..Default::default()
+        };
+        let bytes = serialize_table_record(&table);
+        u32::from_le_bytes(bytes[0..4].try_into().unwrap())
+    }
+
+    #[test]
+    fn no_adjust_only_raw_rebuilds_page_break_bits_from_ir() {
+        // HWPX noAdjust 표: 쪽 나눔(TABLE=1, CELL=2)·제목 줄 반복을 IR 에서 만들고 bit 3 을 잇는다.
+        assert_eq!(record_attr(0x08, TablePageBreak::RowBreak, true), 0x02 | 0x04 | 0x08);
+        assert_eq!(record_attr(0x08, TablePageBreak::CellBreak, false), 0x01 | 0x08);
+        assert_eq!(record_attr(0x08, TablePageBreak::None, false), 0x08);
+    }
+
+    #[test]
+    fn zero_raw_rebuilds_without_no_adjust() {
+        assert_eq!(record_attr(0, TablePageBreak::RowBreak, true), 0x02 | 0x04);
+        assert_eq!(record_attr(0, TablePageBreak::CellBreak, false), 0x01);
+    }
+
+    #[test]
+    fn original_raw_is_written_verbatim() {
+        // HWP5 원본·편집기가 만든 표의 raw 값은 종전처럼 그대로 쓴다.
+        assert_eq!(record_attr(0x0400_0006, TablePageBreak::None, false), 0x0400_0006);
+        assert_eq!(record_attr(0x0400_000A, TablePageBreak::RowBreak, false), 0x0400_000A);
+        assert_eq!(record_attr(0x06, TablePageBreak::None, false), 0x06);
+    }
+}

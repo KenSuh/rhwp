@@ -1,0 +1,18 @@
+active locks:
+  codex task=v328-inf4-railway-staging repo=/Users/ken/Projects/hwpx-editor/_wt/hwpx-editor/v338-inf4-c19-premerge scope=repo role=executor expires=2026-10-27T09:05:25Z
+  codex task=v354-vault-coordination repo=/Users/ken/ken wiki scope=repo role=vault expires=2026-10-27T07:59:22Z
+  codex task=v353-rhwp-hwpx-save-l2 repo=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity scope=repo role=executor expires=2026-10-27T09:14:36Z
+active task notes:
+  codex task=v328-inf4-railway-staging repo=/Users/ken/Projects/hwpx-editor/_wt/hwpx-editor/v338-inf4-c19-premerge scope=repo role=executor paths=gates/inf4/image-proof.sh,deploy/railway/test/db-init.bats,deploy/railway/test/permit.bats,gates/inf4/proof.sh,gates/inf4/contracts.json,gates/INF4_GATES.md,deploy/railway/bin/verify-grants.mjs,deploy/railway/bin/staging-gate.mjs,deploy/railway/bin/init-db.sh,deploy/railway/bin/snapshot.sh,deploy/railway/bin/restore-drill.sh,deploy/railway/bin/bootstrap-admin-staging.sh,deploy/railway/bin/link-staging-fixtures.mjs,deploy/railway/test/release.bats,deploy/manifest-permit/prepare.sh,deploy/manifest-permit/Dockerfile,deploy/manifest-permit/verify.sh
+    note: INF4 T10 correction
+    intent: INF4-MIGRATOR-IDENTITY-CORRECTION-V344@r2 sha256:8eb19e8f20399a3221893b21aac7dbf09ef7f6e6c3cf267642e71ca2d0d75e91 source=/Users/ken/ken wiki/outputs/v338-resume/INF4_INTENT_R2_V347.md
+    recommendation: agent=codex profile=high model=gpt-6.1-sol effort=max reasoning_depth=max pick=quality-gap workload=large timeout=1200s sandbox=read-only catalog=2026-10-25T23:02:43Z
+  codex task=v354-vault-coordination repo=/Users/ken/ken wiki scope=repo role=vault paths=outputs/v338-resume,outputs/v353-rhwp-table,outputs/v327-process/report,knowledge/wiki/log.md,.omo/evidence/v338-vault-coordination,/Users/ken/Downloads/GearUp_전체_프로세스_현황_20261026.md,/Users/ken/Downloads/GearUp_전체_프로세스_현황_20261026.html,outputs/v338-resume/GATES.md
+    note: v354 Codex vault handover; INF4 T10 diagnosis and rhwp L2 coordination
+    intent: legacy-unbound
+    recommendation: agent=codex profile=high model=gpt-6.1-sol effort=max reasoning_depth=max pick=quality-gap workload=large timeout=1200s sandbox=read-only catalog=2026-10-25T23:02:43Z
+  codex task=v353-rhwp-hwpx-save-l2 repo=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity scope=repo role=executor paths=gates/V353_RHWP_HWPX_SAVE_L2_GATES.md,.omo/evidence/v353-rhwp-hwpx-save-l2/final-v354/**
+    note: intent-bound final clean-checkout verification after exact-head R3 APPROVE; no product edits or landing
+    intent: RHWP-HWPX-SAVE-FIDELITY-L2-V353@r1 sha256:d385ca9b6e37df48347dfc71d28bfbc161c1db249304100a064347645b479366 source=/Users/ken/ken wiki/outputs/v353-rhwp-table/RHWP_HWPX_SAVE_FIDELITY_L2_PACKET.md
+    recommendation: agent=codex profile=high model=gpt-6.1-sol effort=max reasoning_depth=max pick=quality-gap workload=large timeout=1200s sandbox=read-only catalog=2026-10-25T23:02:43Z
+INTENT_STATUS status=current task=v353-rhwp-hwpx-save-l2 repo=/Users/ken/orca/workspaces/rhwp/v353-rhwp-table-fidelity scope=repo id=RHWP-HWPX-SAVE-FIDELITY-L2-V353 revision=1 digest=sha256:d385ca9b6e37df48347dfc71d28bfbc161c1db249304100a064347645b479366 source=/Users/ken/ken wiki/outputs/v353-rhwp-table/RHWP_HWPX_SAVE_FIDELITY_L2_PACKET.md
